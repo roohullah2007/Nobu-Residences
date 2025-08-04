@@ -1,0 +1,144 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Page;
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class PagesController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(): Response
+    {
+        $pages = Page::with('user')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return Inertia::render('Admin/PagesManage', [
+            'pages' => $pages,
+            'title' => 'Manage Pages'
+        ]);
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(): Response
+    {
+        return Inertia::render('Admin/PagesCreate', [
+            'title' => 'Create New Page'
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:pages,slug',
+            'content' => 'required|string',
+            'excerpt' => 'nullable|string|max:500',
+            'status' => 'required|in:draft,published,private',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string|max:255',
+        ]);
+
+        // Generate slug if not provided
+        if (empty($validated['slug'])) {
+            $validated['slug'] = Str::slug($validated['title']);
+            
+            // Ensure uniqueness
+            $originalSlug = $validated['slug'];
+            $counter = 1;
+            while (Page::where('slug', $validated['slug'])->exists()) {
+                $validated['slug'] = $originalSlug . '-' . $counter;
+                $counter++;
+            }
+        }
+
+        $validated['user_id'] = auth()->id();
+
+        Page::create($validated);
+
+        return redirect()->route('admin.pages.manage.index')
+            ->with('success', 'Page created successfully!');
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Page $pagesManage): Response
+    {
+        $pagesManage->load('user');
+        
+        return Inertia::render('Admin/PagesShow', [
+            'page' => $pagesManage,
+            'title' => 'View Page: ' . $pagesManage->title
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(Page $pagesManage): Response
+    {
+        return Inertia::render('Admin/PagesEdit', [
+            'page' => $pagesManage,
+            'title' => 'Edit Page: ' . $pagesManage->title
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Page $pagesManage): RedirectResponse
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:255|unique:pages,slug,' . $pagesManage->id,
+            'content' => 'required|string',
+            'excerpt' => 'nullable|string|max:500',
+            'status' => 'required|in:draft,published,private',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string|max:255',
+        ]);
+
+        // Generate slug if not provided
+        if (empty($validated['slug'])) {
+            $validated['slug'] = Str::slug($validated['title']);
+            
+            // Ensure uniqueness (excluding current page)
+            $originalSlug = $validated['slug'];
+            $counter = 1;
+            while (Page::where('slug', $validated['slug'])->where('id', '!=', $pagesManage->id)->exists()) {
+                $validated['slug'] = $originalSlug . '-' . $counter;
+                $counter++;
+            }
+        }
+
+        $pagesManage->update($validated);
+
+        return redirect()->route('admin.pages.manage.index')
+            ->with('success', 'Page updated successfully!');
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Page $pagesManage): RedirectResponse
+    {
+        $pagesManage->delete();
+
+        return redirect()->route('admin.pages.manage.index')
+            ->with('success', 'Page deleted successfully!');
+    }
+}

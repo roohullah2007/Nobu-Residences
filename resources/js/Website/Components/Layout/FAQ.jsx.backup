@@ -1,0 +1,119 @@
+import React, { useState } from 'react';
+
+const FAQ = ({ faqItems = null, title = 'FAQs' }) => {
+  // Default FAQ data if none provided
+  const defaultFAQs = [
+    {
+      id: 1,
+      question: 'The expense windows adapted sir. Wrong widen drawn.',
+      answer: 'Offending belonging promotion provision an be oh consulted ourselves it. Blessing welcomed ladyship she met humoured sir breeding her.'
+    },
+    {
+      id: 2,
+      question: 'Six curiosity day assurance bed necessary?',
+      answer: 'Six curiosity day assurance bed necessary? Living in this Banbury | Don Mills condo offers convenience and comfort.'
+    },
+    {
+      id: 3,
+      question: 'What are the nearby amenities?',
+      answer: 'This property offers easy access to restaurants, shopping, and transportation. Tim Hortons is within a 3-minute walk, and Don Valley Parkway is accessible within 4 minutes by car.'
+    },
+    {
+      id: 4,
+      question: 'What makes this location special?',
+      answer: 'The Banbury | Don Mills neighbourhood offers a perfect blend of urban convenience and suburban tranquility, with excellent transit connections and nearby amenities.'
+    }
+  ];
+
+  const faqs = faqItems || defaultFAQs;
+  const [activeIndex, setActiveIndex] = useState(null);
+
+  const toggleAccordion = (index) => {
+    setActiveIndex(activeIndex === index ? null : index);
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleAccordion(index);
+    }
+  };
+
+  // Plus icon component
+  const PlusIcon = ({ isRotated }) => (
+    <svg 
+      className={`w-8 h-8 text-gray-400 transition-transform duration-200 ease-in-out flex-shrink-0 ml-auto ${
+        isRotated ? 'transform rotate-45' : ''
+      }`}
+      fill="none" 
+      stroke="currentColor" 
+      viewBox="0 0 24 24"
+    >
+      <path 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        strokeWidth="2" 
+        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+      />
+    </svg>
+  );
+
+  return (
+    <section className="max-w-[1280px] mx-auto my-4 p-0 bg-transparent border-0 shadow-none font-work-sans">
+      {/* FAQ Title */}
+      <h2 className="font-space-grotesk text-xl font-bold mb-3 p-0 text-black leading-[1.25] bg-transparent border-0 shadow-none normal-case tracking-normal md:text-lg md:mb-2.5">
+        {title}
+      </h2>
+
+      {/* Accordion Container */}
+      <div className="flex flex-col gap-4 m-0 p-0 bg-transparent border-0 md:gap-3">
+        {faqs.map((faq, index) => {
+          const isActive = activeIndex === index;
+          
+          return (
+            <div 
+              key={faq.id || index} 
+              className={`bg-white border border-gray-300 rounded-lg overflow-hidden m-0 p-0 shadow-none transition-shadow duration-200 hover:shadow-sm ${
+                isActive ? 'bg-gray-50' : ''
+              }`}
+            >
+              {/* Accordion Button */}
+              <button
+                className={`flex justify-between items-center w-full p-4 m-0 text-left text-gray-900 font-semibold text-base leading-6 bg-transparent border-0 cursor-pointer transition-all duration-200 outline-none font-work-sans normal-case tracking-normal no-underline shadow-none rounded-none appearance-none hover:bg-gray-50 focus:outline-2 focus:outline-blue-500 focus:-outline-offset-2 focus:bg-gray-50 md:p-3.5 md:text-[15px] ${
+                  isActive ? 'bg-gray-50 text-black' : ''
+                }`}
+                onClick={() => toggleAccordion(index)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                aria-expanded={isActive}
+                aria-controls={`accordion-${index}`}
+              >
+                <span className="flex-grow text-left mr-4 p-0 text-inherit font-inherit text-inherit leading-inherit bg-transparent border-0 no-underline normal-case tracking-normal md:overflow-hidden md:text-ellipsis md:whitespace-nowrap md:max-w-[calc(100%-44px)]">
+                  {faq.question}
+                </span>
+                <PlusIcon isRotated={isActive} />
+              </button>
+              
+              {/* Accordion Content */}
+              <div 
+                id={`accordion-${index}`}
+                className={`overflow-hidden transition-all duration-300 ease-in-out m-0 p-0 bg-transparent border-0 ${
+                  isActive ? 'max-h-48' : 'max-h-0'
+                }`}
+                role="region"
+                aria-labelledby={`accordion-button-${index}`}
+              >
+                <div className="p-4 m-0 text-gray-700 bg-transparent border-0 md:p-3.5">
+                  <p className="m-0 p-0 leading-6 text-inherit text-base font-normal bg-transparent border-0 no-underline font-work-sans">
+                    {faq.answer}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+export default FAQ;
