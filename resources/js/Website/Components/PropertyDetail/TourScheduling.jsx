@@ -301,7 +301,7 @@ const TourSchedulingComponent = () => {
           <div className="bg-white w-full max-w-[309px] mx-auto p-6 shadow-lg rounded-lg border border-gray-300">
             <div className="flex items-center mb-6">
               <img 
-                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' font-size='18' text-anchor='middle' dy='.3em'%3E80x80%3C/text%3E%3C/svg%3E" 
+                src="/assets/jatin-gill.png" 
                 alt="Agent" 
                 className="w-14 h-14 rounded-full mr-4"
               />

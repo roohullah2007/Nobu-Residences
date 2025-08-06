@@ -200,6 +200,26 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display the privacy policy page
+     */
+    public function privacy()
+    {
+        return Inertia::render('Privacy', array_merge($this->getWebsiteSettings(), [
+            'title' => 'Privacy Policy'
+        ]));
+    }
+
+    /**
+     * Display the terms of service page
+     */
+    public function terms()
+    {
+        return Inertia::render('Terms', array_merge($this->getWebsiteSettings(), [
+            'title' => 'Terms of Service'
+        ]));
+    }
+
+    /**
      * Display the property detail page
      */
     public function propertyDetail()

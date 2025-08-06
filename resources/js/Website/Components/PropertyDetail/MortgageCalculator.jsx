@@ -36,7 +36,9 @@ const MortgageCalculator = () => {
   };
 
   return (
-    <div className="py-6">
+    <div>
+      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Mortgage Calculator</h2>
+      <p className="text-gray-600 text-sm mb-4">Calculate your estimated monthly payments for this property based on different loan terms and down payment amounts.</p>
       <div className="space-y-6">
         {/* Input Fields */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

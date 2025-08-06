@@ -58,12 +58,16 @@ const Amenities = () => {
   );
 
   return (
-    <div className="py-6">
+    <div>
+      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Amenities</h2>
+      <p className="text-gray-600 text-sm mb-4">Explore the amenities available at 109OZ, including shared spaces and building services.</p>
       {/* Main container - Mobile and Desktop responsive */}
-      <div className="flex flex-col lg:flex-row items-start gap-6 lg:justify-between">
+      <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Left main section - Amenities Grid */}
         <div className="flex-1 w-full lg:max-w-[658px]">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 lg:gap-x-8 lg:gap-y-16">
+          <h3 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Building Features & Services</h3>
+          <div className="border border-gray-200 rounded-lg p-4 h-full">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-4 lg:gap-x-8 lg:gap-y-4">
             {allAmenities.map((amenity, index) => (
               <div key={index} className="flex flex-row items-center gap-2">
                 <img 
@@ -76,14 +80,15 @@ const Amenities = () => {
                 </span>
               </div>
             ))}
+            </div>
           </div>
         </div>
         
         {/* Right sidebar - Included Amenities */}
-        <div className="w-full lg:w-[134px] lg:flex-shrink-0">
-          <div className="lg:bg-transparent rounded-lg lg:rounded-none py-4 lg:p-0">
-            <h3 className="font-semibold text-sm text-gray-700 mb-4 lg:hidden">Included:</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-8">
+        <div className="w-full lg:w-[300px] lg:flex-shrink-0">
+          <h3 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Included in Maintenance Fees</h3>
+          <div className="border border-gray-200 rounded-lg p-4 h-full">
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
               {includedAmenities.map((amenity, index) => (
                 <div key={index} className="flex flex-row items-center gap-2">
                   <img 

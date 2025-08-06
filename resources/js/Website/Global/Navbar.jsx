@@ -1,8 +1,10 @@
 import { Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import { LoginModal } from '@/Website/Global/Components';
 
 export default function Navbar({ auth = {} }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [loginModalOpen, setLoginModalOpen] = useState(false);
 
     // Close mobile menu when screen size changes to desktop
     useEffect(() => {
@@ -18,7 +20,7 @@ export default function Navbar({ auth = {} }) {
 
     return (
         <header className="absolute top-0 left-0 right-0 w-full flex items-center justify-center z-20">
-            <div className="mx-auto px-4 py-4 md:py-8 w-full max-w-[1280px] sm:px-6 md:px-8">
+            <div className="mx-auto px-4 py-4 md:py-8 w-full max-w-[1280px] sm:px-6 md:px-0">
                 {/* Mobile Navbar */}
                 <div className="flex md:hidden justify-between items-center px-4 py-2 bg-white rounded-xl">
                     {/* Logo */}
@@ -123,16 +125,29 @@ export default function Navbar({ auth = {} }) {
                         >
                             Property Detail
                         </Link>
+                        {auth?.user ? (
                             <Link
-                                href="/login"
+                                href="/user/dashboard"
                                 className="px-4 py-2 rounded-lg transition-colors font-work-sans"
                                 style={{ 
                                     fontSize: '16px', 
                                     fontWeight: '500' 
                                 }}
                             >
+                                My Account
+                            </Link>
+                        ) : (
+                            <button
+                                onClick={() => setLoginModalOpen(true)}
+                                className="px-4 py-2 rounded-lg transition-colors font-work-sans hover:bg-gray-100"
+                                style={{ 
+                                    fontSize: '16px', 
+                                    fontWeight: '500' 
+                                }}
+                            >
                                 Log In
-                            </Link> 
+                            </button>
+                        )} 
                     </nav>
                 </div>
 
@@ -207,27 +222,35 @@ export default function Navbar({ auth = {} }) {
                             </Link>
                             {auth?.user ? (
                                 <Link
-                                    href="/dashboard"
+                                    href="/user/dashboard"
                                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
-                                    Dashboard
+                                    My Account
                                 </Link>
                             ) : (
-                                <Link
-                                    href="/login"
-                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center"
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        setLoginModalOpen(true);
+                                    }}
+                                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center w-full"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
                                 >
                                     Log In
-                                </Link>
+                                </button>
                             )}
                         </div>
                     </div>
                 )}
             </div>
+            
+            {/* Login Modal */}
+            <LoginModal 
+                isOpen={loginModalOpen}
+                onClose={() => setLoginModalOpen(false)}
+            />
         </header>
     );
 }

@@ -21,11 +21,22 @@ Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
 Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
+Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
+Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 Route::get('/property-detail', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+// User Dashboard Route - For regular website users
+Route::get('/user/dashboard', function () {
+    return Inertia::render('UserDashboard', [
+        'siteName' => 'X Houses',
+        'siteUrl' => config('app.url'),
+        'year' => date('Y')
+    ]);
+})->middleware(['auth', 'verified'])->name('user.dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

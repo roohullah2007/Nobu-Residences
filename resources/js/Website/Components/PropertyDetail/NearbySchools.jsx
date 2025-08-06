@@ -61,7 +61,9 @@ const NearbySchools = ({ propertyData = null }) => {
   };
 
   return (
-    <div className="py-6">
+    <div>
+      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>
+      <p className="text-gray-600 text-sm mb-4">Explore the educational institutions in the surrounding area and their proximity to this property.</p>
       <div className="flex flex-col">
         <div className="space-y-4">
           {displayedSchools.map((school, index) => (

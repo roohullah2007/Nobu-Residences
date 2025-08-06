@@ -77,7 +77,8 @@ const PropertyRooms = ({ property }) => {
 
   return (
     <div>
-      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Rooms</h2>
+      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Room Dimensions</h2>
+      <p className="text-gray-600 text-sm mb-4">Explore the dimensions of each room and the overall layout of the unit.</p>
 
       {/* Mobile Toggle - Full Width */}
       <div className="md:hidden mb-4">

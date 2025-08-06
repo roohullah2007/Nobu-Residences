@@ -22,6 +22,20 @@ export default function PropertyGallery({
     document.body.style.overflow = 'unset';
   };
 
+  // Ensure scroll is disabled when modal opens and enabled when it closes
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup function to restore scroll when component unmounts
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
   const nextModalImage = () => {
     setModalImageIndex((prev) => (prev + 1) % propertyImages.length);
   };
@@ -98,7 +112,7 @@ export default function PropertyGallery({
                   onClick={() => openModal(2)}
                 >
                   <img 
-                    src={propertyImages[2]}
+                    src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
                     alt="Property image 3"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                   />
@@ -121,7 +135,7 @@ export default function PropertyGallery({
             </div>
 
             {/* Mobile Gallery - Tablet and Mobile Only */}
-            <div className="lg:hidden relative w-full h-[300px] md:h-[400px] rounded-none md:rounded-xl overflow-hidden">
+            <div className="lg:hidden relative w-full h-[300px] md:h-[400px] rounded-xl overflow-hidden">
               <div className="relative w-full h-full">
                 {propertyImages.map((image, index) => (
                   <div
@@ -162,7 +176,7 @@ export default function PropertyGallery({
           </div>
           
           {/* Property Details Card */}
-          <div className="w-full lg:w-[309px] h-auto lg:h-[645px] bg-white border-0 lg:border border-gray-200 rounded-none lg:rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
+          <div className="w-full lg:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
                 {/* SOLD FOR Section */}
