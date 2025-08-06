@@ -6,9 +6,9 @@ import React, { useState } from 'react';
  */
 const FAQ = ({ 
   faqItems = null, 
-  title = 'Frequently asked questions (FAQs)',
+  title = 'FAQs',
   className = '',
-  containerClassName = 'py-4 md:py-16 bg-white',
+  containerClassName = 'md:py-8 bg-white',
   showContainer = true
 }) => {
   // Default FAQ data if none provided
@@ -70,7 +70,7 @@ const FAQ = ({
 
   // FAQ Content
   const FAQContent = () => (
-    <div className={`mx-auto px-4 lg:px-0 max-w-screen-xl ${className}`}>
+    <div className={`mx-auto max-w-[1280px] ${className}`}>
       <div className="md:my-4 my-3 mx-auto">
         {/* FAQ Title */}
         <h2 className="md:text-xl text-lg font-bold md:mb-3 mb-2.5 text-black leading-5 font-space-grotesk tracking-tight">

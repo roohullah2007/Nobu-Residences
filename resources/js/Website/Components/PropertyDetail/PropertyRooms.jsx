@@ -1,168 +1,216 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const PropertyRooms = ({ property }) => {
-  const [activeUnit, setActiveUnit] = useState('feet');
+  const [isMetric, setIsMetric] = useState(true);
+  const [showHiddenRooms, setShowHiddenRooms] = useState(false);
 
-  // Extract rooms data from property object
-  let roomsData = [];
+  // Sample rooms data based on the HTML structure
+  const roomsData = [
+    {
+      name: 'Dining Room',
+      meters: '1.1 x 2.1 m',
+      feet: '3.6 x 6.9 ft',
+      features: 'Hardwood Floor, South View,',
+      isAlternate: true
+    },
+    {
+      name: 'Bedroom 2',
+      meters: '2.3 x 1.8 m',
+      feet: '7.5 x 5.9 ft',
+      features: 'Hardwood Floor, South View,',
+      isAlternate: false
+    },
+    {
+      name: 'Living Room',
+      meters: '1.8 x 1.2 m',
+      feet: '5.9 x 3.9 ft',
+      features: 'Hardwood Floor, Breakfast Bar,',
+      isAlternate: true
+    }
+  ];
 
-  if (property?.Rooms && Array.isArray(property.Rooms) && property.Rooms.length > 0) {
-    roomsData = property.Rooms.map(room => {
-      const name = room.RoomType || '';
-      const length = room.RoomLength || '';
-      const width = room.RoomWidth || '';
-      const units = room.RoomLengthWidthUnits || '';
-      
-      // Create dimension strings for both units
-      let dimensionMeters = '';
-      let dimensionFeet = '';
-      
-      if (length && width) {
-        if (units?.toLowerCase() === 'meters' || units?.toLowerCase() === 'm') {
-          dimensionMeters = `${length}m x ${width}m`;
-          // Convert to feet
-          const lengthFeet = Math.round(length * 3.28084 * 100) / 100;
-          const widthFeet = Math.round(width * 3.28084 * 100) / 100;
-          dimensionFeet = `${lengthFeet}ft x ${widthFeet}ft`;
-        } else {
-          // Assume feet if not specified
-          dimensionFeet = `${length}ft x ${width}ft`;
-          // Convert to meters
-          const lengthMeters = Math.round((length / 3.28084) * 100) / 100;
-          const widthMeters = Math.round((width / 3.28084) * 100) / 100;
-          dimensionMeters = `${lengthMeters}m x ${widthMeters}m`;
-        }
-      }
-      
-      // Get features
-      const features = [
-        room.RoomFeature1,
-        room.RoomFeature2,
-        room.RoomFeature3
-      ].filter(Boolean).join(', ');
-      
-      return {
-        name,
-        dimensionMeters,
-        dimensionFeet,
-        features
-      };
-    });
-  }
+  const hiddenRoomsData = [
+    {
+      name: 'Family Room',
+      meters: '1.7 x 1.3 m',
+      feet: '5.6 x 4.3 ft',
+      features: 'Hardwood Floor, W/O To Balcony',
+      isAlternate: false
+    },
+    {
+      name: 'Laundry',
+      meters: '0.6 x 0.8 m',
+      feet: '2.0 x 2.6 ft',
+      features: 'Hardwood Floor, 6 Pc Ensui',
+      isAlternate: true
+    },
+    {
+      name: 'Primary Bedroom',
+      meters: '2.0 x 1.9 m',
+      feet: '6.6 x 6.2 ft',
+      features: 'Hardwood Floor, W/I Closet,',
+      isAlternate: false
+    },
+    {
+      name: 'Bedroom 3',
+      meters: '1.2 x 1.3 m',
+      feet: '3.9 x 4.3 ft',
+      features: 'Hardwood Floor, East View',
+      isAlternate: true
+    },
+    {
+      name: 'Kitchen',
+      meters: '1.4 x 0.8 m',
+      feet: '4.6 x 2.6 ft',
+      features: 'Tile Floor',
+      isAlternate: false
+    }
+  ];
 
-  // If no rooms data, add sample data to match the image
-  if (roomsData.length === 0) {
-    roomsData = [
-      {
-        name: 'Living Room',
-        dimensionMeters: '7.19m x 3.26m',
-        dimensionFeet: '23.6ft x 10.7ft',
-        features: 'Combined w/Dining Window Floor to Ceil Laminate'
-      },
-      {
-        name: 'Living Room',
-        dimensionMeters: '7.19m x 3.26m',
-        dimensionFeet: '23.6ft x 10.7ft',
-        features: 'Combined w/Dining Window Floor to Ceil Laminate'
-      },
-      {
-        name: 'Living Room',
-        dimensionMeters: '7.19m x 3.26m',
-        dimensionFeet: '23.6ft x 10.7ft',
-        features: 'Combined w/Dining Window Floor to Ceil Laminate'
-      },
-      {
-        name: 'Living Room',
-        dimensionMeters: '7.19m x 3.26m',
-        dimensionFeet: '23.6ft x 10.7ft',
-        features: 'Combined w/Dining Window Floor to Ceil Laminate'
-      },
-      {
-        name: 'Living Room',
-        dimensionMeters: '7.19m x 3.26m',
-        dimensionFeet: '23.6ft x 10.7ft',
-        features: 'Combined w/Dining Window Floor to Ceil Laminate'
-      }
-    ];
-  }
+  const handleToggleUnit = () => {
+    setIsMetric(!isMetric);
+  };
+
+  const handleToggleRooms = () => {
+    setShowHiddenRooms(!showHiddenRooms);
+  };
 
   return (
-    <div className="py-6">
-      {/* Property Rooms Container */}
-      <div className="flex flex-col">
-        {/* Rooms Table Container */}
-        <div className="bg-white">
-          <div className="overflow-x-auto">
-            {/* Table */}
-            <div className="min-w-full">
-              {/* Header */}
-              <div className="border-b border-gray-200">
-                <div className="grid grid-cols-3 gap-0">
-                  <div className="px-6 py-4 text-left text-base font-semibold text-gray-900">
-                    Rooms
-                  </div>
-                  <div className="px-6 py-4 text-left text-base font-semibold text-gray-900 flex items-center justify-between">
-                    <span>Dimensions</span>
-                    <div className="inline-flex bg-gray-100 text-black rounded-lg p-1 ml-4">
-                      <button
-                        onClick={() => setActiveUnit('feet')}
-                        className={`px-2 py-1 border-none bg-none rounded-md text-xs font-medium cursor-pointer transition-all duration-200 ${
-                          activeUnit === 'feet'
-                            ? 'bg-white shadow-sm text-black'
-                            : 'hover:bg-gray-200 text-black'
-                        }`}
-                      >
-                        Square Feet
-                      </button>
-                      <button
-                        onClick={() => setActiveUnit('meters')}
-                        className={`px-2 py-1 border-none bg-none rounded-md text-xs font-medium cursor-pointer transition-all duration-200 ${
-                          activeUnit === 'meters'
-                            ? 'bg-white shadow-sm text-black'
-                            : 'hover:bg-gray-200 text-black'
-                        }`}
-                      >
-                        Meters
-                      </button>
-                    </div>
-                  </div>
-                  <div className="px-6 py-4 text-left text-base font-semibold text-gray-900">
-                    Features
-                  </div>
+    <div>
+      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Rooms</h2>
+
+      {/* Mobile Toggle - Full Width */}
+      <div className="md:hidden mb-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium text-gray-700">Unit:</span>
+          <div className="relative inline-block align-middle">
+            <input 
+              type="checkbox" 
+              id="unit-toggle-mobile" 
+              className="sr-only" 
+              checked={!isMetric}
+              onChange={handleToggleUnit}
+            />
+            <label htmlFor="unit-toggle-mobile" className="flex items-center cursor-pointer">
+              <div className="w-28 h-8 bg-gray-200 rounded-full relative flex items-center">
+                {/* Sliding white background */}
+                <div
+                  className={`absolute w-14 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out top-1 ${
+                    isMetric ? 'left-1' : 'left-[52px]'
+                  }`}
+                ></div>
+                
+                {/* Text labels inside the toggle */}
+                <div className="flex w-full relative z-10">
+                  <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                    isMetric ? 'text-gray-700' : 'text-gray-400'
+                  }`}>
+                    Meter
+                  </span>
+                  <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                    !isMetric ? 'text-gray-700' : 'text-gray-400'
+                  }`}>
+                    Feet
+                  </span>
                 </div>
               </div>
-              
-              {/* Body */}
-              <div className="bg-white">
-                {roomsData.slice(0, 5).map((room, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-0 border-b border-gray-100 last:border-b-0">
-                    <div className="px-6 py-4 text-sm font-normal text-gray-700">
-                      {room.name}
-                    </div>
-                    <div className="px-6 py-4 text-sm font-normal text-gray-700">
-                      {activeUnit === 'feet' ? room.dimensionFeet : room.dimensionMeters}
-                    </div>
-                    <div className="px-6 py-4 text-sm font-normal text-gray-700">
-                      {room.features}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Show more button */}
-              {roomsData.length > 5 && (
-                <div className="px-6 py-4">
-                  <button className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">
-                    Show more
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
+            </label>
           </div>
         </div>
+      </div>
+
+      {/* Header Row with Toggle - Desktop Only */}
+      <div className="hidden md:flex items-center mb-2">
+        <div className="grid grid-cols-12 text-sm gap-2 w-full">
+          <div className="col-span-3 font-medium">Name</div>
+          <div className="col-span-3 font-medium">Size</div>
+          <div className="col-span-2 flex items-center">
+            {/* Toggle Switch - Desktop */}
+            <div className="relative inline-block align-middle mr-2">
+              <input 
+                type="checkbox" 
+                id="unit-toggle-desktop" 
+                className="sr-only" 
+                checked={!isMetric}
+                onChange={handleToggleUnit}
+              />
+              <label htmlFor="unit-toggle-desktop" className="flex items-center cursor-pointer">
+                <div className="w-28 h-8 bg-gray-200 rounded-full relative flex items-center">
+                  {/* Sliding white background */}
+                  <div
+                    className={`absolute w-14 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out top-1 ${
+                      isMetric ? 'left-1' : 'left-[52px]'
+                    }`}
+                  ></div>
+                  
+                  {/* Text labels inside the toggle */}
+                  <div className="flex w-full relative z-10">
+                    <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                      isMetric ? 'text-gray-700' : 'text-gray-400'
+                    }`}>
+                      Meter
+                    </span>
+                    <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                      !isMetric ? 'text-gray-700' : 'text-gray-400'
+                    }`}>
+                      Feet
+                    </span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div className="col-span-4 font-medium">Features</div>
+        </div>
+      </div>
+
+      {/* Mobile Header Row - Simple */}
+      <div className="md:hidden mb-2">
+        <div className="grid grid-cols-12 text-sm gap-2 w-full">
+          <div className="col-span-3 font-medium">Name</div>
+          <div className="col-span-3 font-medium">Size</div>
+          <div className="col-span-2"></div>
+          <div className="col-span-4 font-medium">Features</div>
+        </div>
+      </div>
+
+      <div id="rooms-container">
+        {/* Initial visible rooms */}
+        {roomsData.map((room, index) => (
+          <div key={index} className={`mb-1 ${room.isAlternate ? 'bg-blue-50' : 'bg-white'}`}>
+            <div className="grid grid-cols-12 py-2 text-sm items-center px-3">
+              <div className="col-span-3 text-[#263238]">{room.name}</div>
+              <div className="col-span-3">{isMetric ? room.meters : room.feet}</div>
+              <div className="col-span-2"></div>
+              <div className="col-span-4 text-[#263238]">{room.features}</div>
+            </div>
+          </div>
+        ))}
+
+        {/* Hidden rooms */}
+        {showHiddenRooms && (
+          <div id="hidden-rooms">
+            {hiddenRoomsData.map((room, index) => (
+              <div key={index} className={`mb-1 ${room.isAlternate ? 'bg-blue-50' : 'bg-white'}`}>
+                <div className="grid grid-cols-12 py-2 text-sm items-center px-3">
+                  <div className="col-span-3 text-[#263238]">{room.name}</div>
+                  <div className="col-span-3">{isMetric ? room.meters : room.feet}</div>
+                  <div className="col-span-2"></div>
+                  <div className="col-span-4 text-[#263238]">{room.features}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4">
+        <button 
+          onClick={handleToggleRooms}
+          className="text-blue-600 text-sm hover:underline focus:outline-none"
+        >
+          {showHiddenRooms ? 'Show less' : 'Show more'}
+        </button>
       </div>
     </div>
   );

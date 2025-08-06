@@ -163,30 +163,30 @@ const MortgageCalculator = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           {/* Total Yearly Payments */}
           <div className="bg-[#F5F5F5] rounded-lg p-6">
-            <h4 className="text-xs font-normal text-gray-700 mb-2 font-work-sans">
+            <h4 className="text-xs font-normal mb-2 font-work-sans" style={{ color: '#293056' }}>
               Total Yearly Payments
             </h4>
-            <p className="text-sm font-normal text-green-600 font-work-sans">
+            <p className="text-base font-normal text-green-600 font-work-sans">
               {formatCurrency(totalYearlyPayments)}
             </p>
           </div>
           
           {/* Total Payment */}
           <div className="bg-[#F5F5F5] rounded-lg p-6">
-            <h4 className="text-xs font-normal text-gray-700 mb-2 font-work-sans">
+            <h4 className="text-xs font-normal mb-2 font-work-sans" style={{ color: '#293056' }}>
               Total Payment
             </h4>
-            <p className="text-sm font-normal text-green-600 font-work-sans">
+            <p className="text-base font-normal text-green-600 font-work-sans">
               {formatCurrency(totalPayment)}
             </p>
           </div>
           
           {/* Principal & Interest */}
           <div className="bg-[#F5F5F5] rounded-lg p-6">
-            <h4 className="text-xs font-normal text-gray-700 mb-2 font-work-sans">
+            <h4 className="text-xs font-normal mb-2 font-work-sans" style={{ color: '#293056' }}>
               Principal & Interest
             </h4>
-            <p className="text-sm font-normal text-gray-800 font-work-sans">
+            <p className="text-base font-normal text-green-600 font-work-sans">
               {formatCurrency(principalInterest)}
             </p>
           </div>

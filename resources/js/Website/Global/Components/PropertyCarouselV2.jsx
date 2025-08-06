@@ -1,32 +1,33 @@
 import React, { useState } from 'react';
-import { PropertyCardV1, PropertyCardV2 } from '@/Website/Global/Components/PropertyCards';
+import PropertyCardV4 from '@/Website/Global/Cards/PropertyCardV4';
 
 /**
- * PropertyCarousel - Reusable carousel component for property cards
+ * PropertyCarouselV2 - Reusable carousel component using PropertyCardV4 with overlay buttons
  * 
- * A responsive property carousel that works with both PropertyCardV1 (sale) and PropertyCardV2 (rent).
+ * A responsive property carousel that uses PropertyCardV4 (MoreBuildings card style with overlay buttons).
+ * Slides one card at a time like PropertyCarouselV1.
  * Handles desktop (3 cards), tablet (2 cards), and mobile (horizontal scroll) layouts.
  * 
  * @param {Array} properties - Array of property objects
  * @param {string} title - Section title
- * @param {string} type - Card type ('sale' or 'rent')
  * @param {string} viewAllLink - Link for "View all" button
  * @param {Function} onCardClick - Optional click handler for cards
  * @param {string} className - Additional CSS classes
+ * @param {boolean} showBackground - Whether to show background styling (default: false)
  */
-const PropertyCarousel = ({ 
+const PropertyCarouselV2 = ({ 
   properties = [], 
   title = 'Properties',
-  type = 'sale',
   viewAllLink = '/properties',
   onCardClick,
-  className = ''
+  className = '',
+  showBackground = false
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const cardsToShow = { desktop: 3, tablet: 2, mobile: 1 };
   
-  // Calculate proper max index for each layout
+  // Calculate proper max index for each layout (same as PropertyCarouselV1)
   const getMaxIndex = (screenType) => {
     const cardsVisible = cardsToShow[screenType];
     return Math.max(0, properties.length - cardsVisible);
@@ -47,29 +48,36 @@ const PropertyCarousel = ({
     setCurrentIndex(prev => Math.min(maxIndexTablet, prev + 1));
   };
 
-  // Icon components
-  const ChevronLeftIcon = ({ className }) => (
-    <svg className={className} width="24" height="24" fill="white" viewBox="0 0 24 24">
-      <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-    </svg>
-  );
-
-  const ChevronRightIcon = ({ className }) => (
-    <svg className={className} width="24" height="24" fill="white" viewBox="0 0 24 24">
-      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-    </svg>
-  );
-
-  // Choose the appropriate card component
-  const PropertyCard = type === 'rent' ? PropertyCardV2 : PropertyCardV1;
+  // Format property data for PropertyCardV4
+  const formatPropertyData = (property) => {
+    return {
+      image: property.image,
+      title: property.propertyType || property.name || 'Property',
+      address: property.address,
+      units: property.bedrooms && property.bathrooms 
+        ? `${property.bedrooms} Beds | ${property.bathrooms} Baths` 
+        : (property.units || 'N/A'),
+      priceRange: property.price 
+        ? (property.isRental ? `$${property.price.toLocaleString()}/mo` : `$${property.price.toLocaleString()}`)
+        : (property.priceRange || 'Price on request'),
+      transactionType: property.isRental ? 'Rent' : 'Sale',
+      price: property.price
+    };
+  };
 
   // Don't render if no properties
   if (!properties.length) {
     return null;
   }
 
+  // Card width calculation (adjust based on PropertyCardV4 size)
+  const cardWidth = 360; // PropertyCardV4 approximate width
+  const cardGap = 20; // Gap between cards
+
   return (
-    <div className={`font-work-sans my-8 w-full max-w-[1280px] mx-auto clear-both overflow-visible ${className}`}>
+    <div className={`font-work-sans w-full max-w-[1280px] mx-auto clear-both overflow-visible ${
+      showBackground ? 'bg-gray-50 p-4 rounded-xl border-gray-200 border shadow-sm' : 'my-8'
+    } ${className}`}>
       {/* Section Header */}
       <div className="mb-8 flex w-full">
         <h2 className="font-space-grotesk text-3xl font-bold text-gray-900 m-0 leading-9">
@@ -79,8 +87,8 @@ const PropertyCarousel = ({
       
       {/* Carousel with Navigation */}
       <div className="relative">
-        {/* Desktop Layout */}
-        <div className="hidden lg:block">
+        {/* Desktop Layout (3 cards) */}
+        <div className="hidden xl:block">
           <div className="flex items-center justify-center gap-4">
             {/* Previous Button */}
             <div className="flex flex-col justify-center items-center p-1 gap-2.5 w-16 h-16 flex-none">
@@ -92,26 +100,31 @@ const PropertyCarousel = ({
               >
                 <div className="flex items-center justify-center p-2 gap-2.5 w-10 h-10">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full">
-                    <ChevronLeftIcon className="w-6 h-6" />
+                    <svg className="w-6 h-6" width="24" height="24" fill="white" viewBox="0 0 24 24">
+                      <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
                   </div>
                 </div>
               </button>
             </div>
             
             {/* Cards Container */}
-            <div className="overflow-hidden" style={{ width: 'calc(3 * 360px + 2 * 20px)' }}>
+            <div className="overflow-hidden w-full max-w-[1140px]"> {/* 3 * 360px + 2 * 20px = 1140px */}
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
+                style={{ transform: `translateX(-${currentIndex * (cardWidth + cardGap)}px)` }}
               >
-                {properties.map((property) => (
-                  <PropertyCard 
-                    key={property.id} 
-                    property={property} 
-                    size="default"
-                    onClick={onCardClick}
-                  />
-                ))}
+                {properties.map((property, index) => {
+                  const formattedData = formatPropertyData(property);
+                  return (
+                    <PropertyCardV4
+                      key={`desktop-${property.id}-${index}`}
+                      {...formattedData}
+                      onClick={() => onCardClick && onCardClick(property)}
+                      className="flex-none w-[360px]"
+                    />
+                  );
+                })}
               </div>
             </div>
             
@@ -125,7 +138,9 @@ const PropertyCarousel = ({
               >
                 <div className="flex items-center justify-center p-2 gap-2.5 w-10 h-10">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full">
-                    <ChevronRightIcon className="w-6 h-6" />
+                    <svg className="w-6 h-6" width="24" height="24" fill="white" viewBox="0 0 24 24">
+                      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
                   </div>
                 </div>
               </button>
@@ -134,7 +149,7 @@ const PropertyCarousel = ({
         </div>
         
         {/* Tablet Layout (2 cards) */}
-        <div className="hidden md:block lg:hidden">
+        <div className="hidden lg:block xl:hidden">
           <div className="flex items-center justify-center gap-4">
             {/* Previous Button */}
             <div className="flex flex-col justify-center items-center p-1 gap-2.5 w-16 h-16 flex-none">
@@ -146,26 +161,31 @@ const PropertyCarousel = ({
               >
                 <div className="flex items-center justify-center p-2 gap-2.5 w-10 h-10">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full">
-                    <ChevronLeftIcon className="w-6 h-6" />
+                    <svg className="w-6 h-6" width="24" height="24" fill="white" viewBox="0 0 24 24">
+                      <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
                   </div>
                 </div>
               </button>
             </div>
             
             {/* Cards Container */}
-            <div className="overflow-hidden" style={{ width: 'calc(2 * 360px + 1 * 20px)' }}>
+            <div className="overflow-hidden w-full max-w-[740px]"> {/* 2 * 360px + 1 * 20px = 740px */}
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
+                style={{ transform: `translateX(-${currentIndex * (cardWidth + cardGap)}px)` }}
               >
-                {properties.map((property) => (
-                  <PropertyCard 
-                    key={property.id} 
-                    property={property} 
-                    size="default"
-                    onClick={onCardClick}
-                  />
-                ))}
+                {properties.map((property, index) => {
+                  const formattedData = formatPropertyData(property);
+                  return (
+                    <PropertyCardV4
+                      key={`tablet-${property.id}-${index}`}
+                      {...formattedData}
+                      onClick={() => onCardClick && onCardClick(property)}
+                      className="flex-none w-[360px]"
+                    />
+                  );
+                })}
               </div>
             </div>
             
@@ -179,7 +199,9 @@ const PropertyCarousel = ({
               >
                 <div className="flex items-center justify-center p-2 gap-2.5 w-10 h-10">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full">
-                    <ChevronRightIcon className="w-6 h-6" />
+                    <svg className="w-6 h-6" width="24" height="24" fill="white" viewBox="0 0 24 24">
+                      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
                   </div>
                 </div>
               </button>
@@ -188,17 +210,19 @@ const PropertyCarousel = ({
         </div>
         
         {/* Mobile Layout (horizontal scroll) */}
-        <div className="md:hidden overflow-x-auto scrollbar-hide py-4">
+        <div className="lg:hidden overflow-x-auto scrollbar-hide py-4">
           <div className="flex gap-5">
-            {properties.map((property) => (
-              <PropertyCard 
-                key={property.id} 
-                property={property} 
-                size="mobile"
-                onClick={onCardClick}
-                className="flex-none"
-              />
-            ))}
+            {properties.map((property, index) => {
+              const formattedData = formatPropertyData(property);
+              return (
+                <PropertyCardV4
+                  key={`mobile-${property.id}-${index}`}
+                  {...formattedData}
+                  onClick={() => onCardClick && onCardClick(property)}
+                  className="flex-none w-80"
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -216,4 +240,4 @@ const PropertyCarousel = ({
   );
 };
 
-export default PropertyCarousel;
+export default PropertyCarouselV2;

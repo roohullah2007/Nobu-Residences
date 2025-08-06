@@ -65,19 +65,19 @@ const NearbySchools = ({ propertyData = null }) => {
       <div className="flex flex-col">
         <div className="space-y-4">
           {displayedSchools.map((school, index) => (
-            <div key={index} className="flex flex-row items-center p-4 gap-8 w-full h-[82px] border border-[#D2D2D2] rounded-none">
+            <div key={index} className="flex flex-col md:flex-row md:items-center p-4 gap-3 md:gap-8 w-full min-h-[82px] border border-[#D2D2D2] rounded-lg md:rounded-none">
               {/* Distance Column */}
-              <div className="flex flex-col justify-center items-start p-0 w-[104px] h-12 border-r border-[#A4A7AE]">
-                <div className="w-[104px] h-6 font-work-sans font-bold text-sm leading-6 flex items-center tracking-[-0.03em] text-[#727272]">
+              <div className="flex flex-row md:flex-col justify-between md:justify-center items-center md:items-start p-0 w-full md:w-[104px] h-auto md:h-12 md:border-r border-[#A4A7AE]">
+                <div className="font-work-sans font-bold text-sm leading-6 flex items-center tracking-[-0.03em] text-[#727272]">
                   {school.distance_km}
                 </div>
-                <div className="w-[104px] h-6 font-work-sans font-medium text-sm leading-6 flex items-center tracking-[-0.03em] text-[#707070]">
+                <div className="font-work-sans font-medium text-sm leading-6 flex items-center tracking-[-0.03em] text-[#707070]">
                   {school.walk_time}
                 </div>
               </div>
               
               {/* School Info Column */}
-              <div className="flex flex-col justify-center items-start p-0 gap-px flex-1 h-[50px]">
+              <div className="flex flex-col justify-center items-start p-0 gap-1 flex-1 h-auto md:h-[50px]">
                 <div className="font-work-sans font-bold text-base leading-[25px] flex items-center tracking-[-0.03em] text-[#293056]">
                   {school.name}
                 </div>

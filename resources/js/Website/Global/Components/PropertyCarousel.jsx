@@ -69,7 +69,7 @@ const PropertyCarousel = ({
   }
 
   return (
-    <div className={`font-work-sans my-8 w-full max-w-[1280px] mx-auto clear-both overflow-visible ${className}`}>
+    <div className={`font-work-sans w-full max-w-[1280px] mx-auto clear-both overflow-visible ${className}`}>
       {/* Section Header */}
       <div className="mb-8 flex w-full">
         <h2 className="font-space-grotesk text-3xl font-bold text-gray-900 m-0 leading-9">
@@ -104,9 +104,9 @@ const PropertyCarousel = ({
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
               >
-                {properties.map((property) => (
+                {properties.map((property, index) => (
                   <PropertyCard 
-                    key={property.id} 
+                    key={`desktop-${property.id}-${index}`} 
                     property={property} 
                     size="default"
                     onClick={onCardClick}
@@ -158,9 +158,9 @@ const PropertyCarousel = ({
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
               >
-                {properties.map((property) => (
+                {properties.map((property, index) => (
                   <PropertyCard 
-                    key={property.id} 
+                    key={`tablet-${property.id}-${index}`} 
                     property={property} 
                     size="default"
                     onClick={onCardClick}
@@ -190,9 +190,9 @@ const PropertyCarousel = ({
         {/* Mobile Layout (horizontal scroll) */}
         <div className="md:hidden overflow-x-auto scrollbar-hide py-4">
           <div className="flex gap-5">
-            {properties.map((property) => (
+            {properties.map((property, index) => (
               <PropertyCard 
-                key={property.id} 
+                key={`mobile-${property.id}-${index}`} 
                 property={property} 
                 size="mobile"
                 onClick={onCardClick}

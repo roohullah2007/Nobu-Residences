@@ -4,7 +4,7 @@ const TourSection = () => {
   return (
     <section className="py-8 bg-white">
       <div className="max-w-[1280px] mx-auto px-4">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Schedule a Tour</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 font-space-grotesk">Schedule a Tour</h2>
         <div className="bg-gray-50 rounded-lg p-6">
           <p className="text-gray-700 mb-4">
             Interested in seeing this property? Schedule a virtual or in-person tour.

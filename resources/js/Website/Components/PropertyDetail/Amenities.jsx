@@ -31,6 +31,15 @@ const Amenities = () => {
     { name: 'Security System', iconPath: '/assets/svgs/security.svg' }
   ];
 
+  // All amenities combined for responsive grid
+  const allAmenities = [
+    ...leftAmenities,
+    ...middleAmenities, 
+    ...rightAmenities,
+    ...farRightAmenities,
+    ...bottomRowAmenities
+  ];
+
   // Included amenities (right sidebar)
   const includedAmenities = [
     { name: 'Hydro', iconPath: '/assets/svgs/hydro-power-water.svg', included: true },
@@ -50,115 +59,47 @@ const Amenities = () => {
 
   return (
     <div className="py-6">
-      {/* Main container - Frame 1300192523 */}
-      <div className="flex flex-row items-start p-0 gap-[129px] w-[921px] h-[224px]">
-        {/* Left main section - Frame 1300192491 */}
-        <div className="flex flex-col items-start p-0 gap-6 w-[658px] h-[224px]">
-          {/* Frame 1171275947 */}
-          <div className="flex flex-col items-start p-0 gap-12 w-[658px] h-[218px] self-stretch">
-            {/* Frame 1300192494 */}
-            <div className="w-[658px] h-[224px] self-stretch relative">
-              {/* Frame 1171276407 - First column */}
-              <div className="absolute left-0 top-0">
-                {leftAmenities.map((amenity, index) => (
-                  <div key={index} className="flex flex-row items-center p-0 gap-2 w-[140.5px] h-8 absolute" style={{ top: `${index * 64}px` }}>
-                    <img 
-                      src={amenity.iconPath} 
-                      alt={amenity.name}
-                      className="w-5 h-5 flex-none order-0"
-                    />
-                    <span className="font-red-hat font-semibold text-sm leading-6 flex items-center text-[#545454] flex-none order-1">
-                      {amenity.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Frame 1171276026 - Second column */}
-              <div className="absolute left-[172.5px] top-0">
-                {middleAmenities.map((amenity, index) => (
-                  <div key={index} className="flex flex-row items-center p-0 gap-2 w-[140.5px] h-8 absolute" style={{ top: `${index * 64}px` }}>
-                    <img 
-                      src={amenity.iconPath} 
-                      alt={amenity.name}
-                      className="w-5 h-5 flex-none order-0"
-                    />
-                    <span className="font-red-hat font-semibold text-sm leading-6 flex items-center text-[#545454] flex-none order-1">
-                      {amenity.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Frame 1171276027 - Third column */}
-              <div className="absolute left-[345px] top-0">
-                {rightAmenities.map((amenity, index) => (
-                  <div key={index} className="flex flex-row items-center p-0 gap-2 w-[140.5px] h-8 absolute" style={{ top: `${index * 64}px` }}>
-                    <img 
-                      src={amenity.iconPath} 
-                      alt={amenity.name}
-                      className="w-5 h-5 flex-none order-0"
-                    />
-                    <span className="font-red-hat font-semibold text-sm leading-6 flex items-center text-[#545454] flex-none order-1">
-                      {amenity.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Frame 1171276028 - Fourth column */}
-              <div className="absolute left-[517.5px] top-0">
-                {farRightAmenities.map((amenity, index) => (
-                  <div key={index} className="flex flex-row items-center p-0 gap-2 w-[140.5px] h-8 absolute" style={{ top: `${index * 64}px` }}>
-                    <img 
-                      src={amenity.iconPath} 
-                      alt={amenity.name}
-                      className="w-5 h-5 flex-none order-0"
-                    />
-                    <span className="font-red-hat font-semibold text-sm leading-6 flex items-center text-[#545454] flex-none order-1">
-                      {amenity.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Frame 1171276419 - Bottom row Security System */}
-              <div className="absolute left-[172.5px] top-[192px]">
-                {bottomRowAmenities.map((amenity, index) => (
-                  <div key={index} className="flex flex-row items-center p-0 gap-2 w-[140.5px] h-8 absolute">
-                    <img 
-                      src={amenity.iconPath} 
-                      alt={amenity.name}
-                      className="w-5 h-5 flex-none order-0"
-                    />
-                    <span className="font-red-hat font-semibold text-sm leading-6 flex items-center text-[#545454] flex-none order-1">
-                      {amenity.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Right sidebar - Frame 1300192522 - Amenities */}
-        <div className="flex flex-col justify-between items-start p-0 gap-2 w-[134px] h-[223px] flex-none order-1">
-          <div className="flex flex-col justify-between items-start px-4 py-0 gap-8 w-[134px] h-[223px] rounded-b-[10px] flex-none order-0 self-stretch">
-            {includedAmenities.map((amenity, index) => (
-              <div key={index} className="flex flex-row items-center p-0 gap-2 w-full h-6 flex-none" style={{ order: index }}>
+      {/* Main container - Mobile and Desktop responsive */}
+      <div className="flex flex-col lg:flex-row items-start gap-6 lg:justify-between">
+        {/* Left main section - Amenities Grid */}
+        <div className="flex-1 w-full lg:max-w-[658px]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-8 lg:gap-x-8 lg:gap-y-16">
+            {allAmenities.map((amenity, index) => (
+              <div key={index} className="flex flex-row items-center gap-2">
                 <img 
                   src={amenity.iconPath} 
                   alt={amenity.name}
-                  className="w-5 h-5 flex-none order-0"
+                  className="w-5 h-5 flex-shrink-0"
                 />
-                <span className="font-work-sans font-medium text-sm leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none order-1">
+                <span className="font-red-hat font-semibold text-sm leading-6 text-[#545454] truncate">
                   {amenity.name}
                 </span>
-                <div className="w-5 h-5 flex-none order-2">
-                  {amenity.included ? <CheckIcon /> : <CrossIcon />}
-                </div>
               </div>
             ))}
+          </div>
+        </div>
+        
+        {/* Right sidebar - Included Amenities */}
+        <div className="w-full lg:w-[134px] lg:flex-shrink-0">
+          <div className="lg:bg-transparent rounded-lg lg:rounded-none py-4 lg:p-0">
+            <h3 className="font-semibold text-sm text-gray-700 mb-4 lg:hidden">Included:</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:gap-8">
+              {includedAmenities.map((amenity, index) => (
+                <div key={index} className="flex flex-row items-center gap-2">
+                  <img 
+                    src={amenity.iconPath} 
+                    alt={amenity.name}
+                    className="w-5 h-5 flex-shrink-0"
+                  />
+                  <span className="font-work-sans font-medium text-sm leading-6 tracking-[-0.03em] text-[#293056] flex-1 truncate">
+                    {amenity.name}
+                  </span>
+                  <div className="w-5 h-5 flex-shrink-0">
+                    {amenity.included ? <CheckIcon /> : <CrossIcon />}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

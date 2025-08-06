@@ -19,8 +19,7 @@ const PropertyStatusTabs = ({ property }) => {
     { id: 'rooms', label: 'Property rooms' },
     { id: 'mortgage', label: 'Mortgage calculator' },
     { id: 'schools', label: 'Nearby schools' },
-    { id: 'amenities', label: 'Amenities' },
-    { id: 'neighbourhoods', label: 'Neighbourhoods' }
+    { id: 'amenities', label: 'Amenities' }
   ];
 
   const handleTabClick = (tabId) => {
@@ -31,9 +30,9 @@ const PropertyStatusTabs = ({ property }) => {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="flex flex-col items-start gap-2 w-full max-w-[1280px]">
-            <div className="w-full font-space-grotesk text-lg leading-7 tracking-tight text-[#252B37]">
-              <span className="font-bold mr-2">About</span>
+          <div className="flex flex-col rounded-xl border-gray-200 border p-4 items-start gap-2 w-full max-w-[1280px]">
+            <div className="w-full font-work-sans text-lg leading-7 tracking-tight text-[#252B37]">
+              <h3 className="font-bold mr-2 font-space-grotesk" style={{ color: '#293056' }}>About</h3>
               <span className="font-normal">{propertyData.description}</span>
             </div>
           </div>
@@ -41,77 +40,29 @@ const PropertyStatusTabs = ({ property }) => {
       
       case 'rooms':
         return (
-          <div className="py-6 rounded-xl shadow-sm">
+          <div className="p-4 rounded-xl border-gray-200 border">
             <PropertyRooms property={property} />
           </div>
         );
       
       case 'mortgage':
         return (
-          <div className="py-6 rounded-xl shadow-sm">
+          <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
             <MortgageCalculator />
           </div>
         );
       
       case 'schools':
         return (
-          <div className="py-6 rounded-xl shadow-sm">
+          <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
             <NearbySchools />
           </div>
         );
       
       case 'amenities':
         return (
-          <div className="py-6">
+          <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
             <Amenities propertyData={propertyData} />
-          </div>
-        );
-      
-      case 'neighbourhoods':
-        return (
-          <div className="p-8 bg-white rounded-xl shadow-sm">
-            <h3 className="font-red-hat font-bold text-2xl text-[#252B37] mb-5">Neighbourhood Overview</h3>
-            <div className="flex flex-col gap-6">
-              <div className="bg-gray-50 p-5 rounded-lg">
-                <h4 className="font-red-hat font-bold text-lg text-[#293056] mb-3">King West</h4>
-                <p className="text-[#535862] leading-relaxed">King West is one of Toronto's most vibrant neighborhoods, known for its entertainment district, fine dining, and luxury condominiums. The area offers easy access to the financial district and is home to many of the city's best restaurants and nightlife venues.</p>
-              </div>
-              
-              <div>
-                <h4 className="font-red-hat font-bold text-lg text-[#293056] mb-4">What's Nearby</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { name: 'CN Tower', time: '5 min walk' },
-                    { name: 'Rogers Centre', time: '3 min walk' },
-                    { name: 'Union Station', time: '8 min walk' },
-                    { name: 'St. Lawrence Market', time: '12 min walk' },
-                    { name: 'Harbourfront', time: '10 min walk' },
-                    { name: 'Financial District', time: '15 min walk' }
-                  ].map((place, index) => (
-                    <div key={index} className="flex flex-col bg-white p-4 rounded-md border-l-4 border-[#293056]">
-                      <strong className="text-[#293056] mb-1">{place.name}</strong>
-                      <span className="text-[#535862] text-sm">{place.time}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="font-red-hat font-bold text-lg text-[#293056] mb-4">Neighbourhood Stats</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { value: '9.2/10', label: 'Walk Score' },
-                    { value: '8.8/10', label: 'Transit Score' },
-                    { value: '7.5/10', label: 'Bike Score' }
-                  ].map((stat, index) => (
-                    <div key={index} className="flex flex-col items-center bg-white p-5 rounded-lg text-center">
-                      <span className="text-2xl font-bold text-[#3E4784] mb-1">{stat.value}</span>
-                      <span className="text-[#535862] text-sm">{stat.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         );
       
@@ -121,7 +72,7 @@ const PropertyStatusTabs = ({ property }) => {
   };
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto px-5 py-0">
+    <div className="w-full max-w-[1280px] mx-auto py-0">
       {/* Property Status Navigation */}
       <div className="flex flex-col items-start gap-6 w-full relative z-10">
         {/* Status Labels Section */}
@@ -143,11 +94,11 @@ const PropertyStatusTabs = ({ property }) => {
         
         {/* Navigation Tabs Section */}
         <div className="flex flex-col items-start gap-[18px] w-full">
-          <div className="flex flex-row items-center gap-[14px] h-[50px] overflow-x-auto flex-wrap max-w-full">
+          <div className="flex flex-row items-center gap-[8px] h-[50px] overflow-x-auto scrollbar-hide w-full md:flex-wrap">
             {tabs.map((tab, index) => (
               <div
                 key={tab.id}
-                className={`flex justify-center items-center p-2.5 cursor-pointer transition-all duration-300 border-b ${
+                className={`flex justify-center items-center p-2.5 cursor-pointer transition-all duration-300 border-b flex-shrink-0 ${
                   activeTab === tab.id 
                     ? 'border-[#252B37]' 
                     : 'border-transparent hover:border-[#3E4784]'
@@ -179,7 +130,7 @@ const PropertyStatusTabs = ({ property }) => {
         </div>
       </div>
       
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
@@ -195,21 +146,19 @@ const PropertyStatusTabs = ({ property }) => {
           animation: fadeIn 0.3s ease-in-out;
         }
         
+        /* Hide scrollbar but keep functionality */
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        
         /* Mobile responsive adjustments */
         @media (max-width: 768px) {
           .flex-row.items-center.gap-\\[14px\\] {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-            height: auto;
-          }
-          
-          .min-w-\\[108px\\], .min-w-\\[163px\\], .min-w-\\[202px\\], .min-w-\\[158px\\], .min-w-\\[112px\\], .min-w-\\[173px\\] {
-            min-width: auto;
-            width: 100%;
-            justify-content: flex-start;
-            padding: 8px 12px;
-            height: 40px;
+            padding-bottom: 8px;
           }
           
           .font-red-hat.font-bold.text-xl {
