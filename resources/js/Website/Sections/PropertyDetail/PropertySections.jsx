@@ -27,8 +27,13 @@ export default function PropertySections({
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts />
       
-      {/* More Buildings Section */}
-      <MoreBuildings />
+      {/* Dynamic Buildings/Listings Section */}
+      <MoreBuildings 
+        title={propertyData.details?.type?.toLowerCase().includes('condo') 
+          ? "More Buildings By Agent" 
+          : "Nearby Listings"
+        } 
+      />
       
       {/* Similar Listings Section - Using Global PropertyCarouselV2 */}
       <section className="py-4">
@@ -41,6 +46,9 @@ export default function PropertySections({
           />
         </div>
       </section>
+      
+      {/* Comparable Sales Section */}
+      <ComparableSales />
       
       {/* Properties For Sale Section - Using Global PropertyCarousel
       <section className="py-4 bg-gray-50">

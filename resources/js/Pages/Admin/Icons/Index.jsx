@@ -1,12 +1,15 @@
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 export default function Index({ auth }) {
     const { icons, title } = usePage().props;
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingIcon, setEditingIcon] = useState(null);
+    const [previewIcon, setPreviewIcon] = useState(null);
+    const createFileInputRef = useRef(null);
+    const editFileInputRef = useRef(null);
 
     // Create form
     const { data: createData, setData: setCreateData, post: createPost, processing: createProcessing, errors: createErrors, reset: resetCreate } = useForm({
@@ -14,15 +17,18 @@ export default function Index({ auth }) {
         category: 'key_facts',
         svg_content: '',
         icon_url: '',
+        icon_file: null,
         description: '',
     });
 
     // Edit form
-    const { data: editData, setData: setEditData, put: editPut, processing: editProcessing, errors: editErrors } = useForm({
+    const { data: editData, setData: setEditData, post: editPost, processing: editProcessing, errors: editErrors } = useForm({
+        _method: 'PUT',
         name: '',
         category: '',
         svg_content: '',
         icon_url: '',
+        icon_file: null,
         description: '',
         is_active: true,
     });
@@ -50,21 +56,70 @@ export default function Index({ auth }) {
         { value: 'general', label: 'General' },
     ];
 
+    // File handling functions
+    const handleFileChange = (file, isEdit = false) => {
+        if (!file) return;
+
+        const formSetter = isEdit ? setEditData : setCreateData;
+        const previewSetter = isEdit ? setPreviewIcon : setPreviewIcon;
+
+        formSetter('icon_file', file);
+
+        // Generate preview
+        if (file.type === 'image/svg+xml' || file.name.endsWith('.svg')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const svgContent = e.target.result;
+                formSetter('svg_content', svgContent);
+                formSetter('icon_url', '');
+                previewSetter(svgContent);
+            };
+            reader.readAsText(file);
+        } else if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageUrl = e.target.result;
+                formSetter('svg_content', '');
+                formSetter('icon_url', imageUrl); // Temporary preview URL
+                previewSetter(imageUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const clearFile = (isEdit = false) => {
+        const formSetter = isEdit ? setEditData : setCreateData;
+        const inputRef = isEdit ? editFileInputRef : createFileInputRef;
+        
+        formSetter('icon_file', null);
+        if (inputRef.current) {
+            inputRef.current.value = '';
+        }
+        setPreviewIcon(null);
+    };
+
     const handleCreateSubmit = (e) => {
         e.preventDefault();
         createPost(route('admin.icons.api.store'), {
+            forceFormData: true,
             onSuccess: () => {
                 setShowCreateModal(false);
                 resetCreate();
+                setPreviewIcon(null);
+                if (createFileInputRef.current) {
+                    createFileInputRef.current.value = '';
+                }
             }
         });
     };
 
     const handleEditSubmit = (e) => {
         e.preventDefault();
-        editPut(route('admin.icons.update', editingIcon.id), {
+        editPost(route('admin.icons.update', editingIcon.id), {
+            forceFormData: true,
             onSuccess: () => {
                 setEditingIcon(null);
+                setPreviewIcon(null);
             }
         });
     };
@@ -72,13 +127,16 @@ export default function Index({ auth }) {
     const startEdit = (icon) => {
         setEditingIcon(icon);
         setEditData({
+            _method: 'PUT',
             name: icon.name,
             category: icon.category,
             svg_content: icon.svg_content || '',
             icon_url: icon.icon_url || '',
+            icon_file: null,
             description: icon.description || '',
             is_active: icon.is_active,
         });
+        setPreviewIcon(null);
     };
 
     const handleDelete = (icon) => {
@@ -309,6 +367,43 @@ export default function Index({ auth }) {
                                     </div>
 
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700">Icon Upload</label>
+                                        <div className="mt-1 space-y-2">
+                                            <input
+                                                ref={createFileInputRef}
+                                                type="file"
+                                                accept=".svg,.png,.jpg,.jpeg"
+                                                onChange={(e) => handleFileChange(e.target.files[0], false)}
+                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                            />
+                                            <p className="text-xs text-gray-500">Upload SVG, PNG, or JPG files (max 2MB)</p>
+                                            
+                                            {/* Preview */}
+                                            {previewIcon && (
+                                                <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded border">
+                                                            {previewIcon.startsWith('<svg') ? (
+                                                                <div dangerouslySetInnerHTML={{ __html: previewIcon }} className="w-6 h-6" />
+                                                            ) : (
+                                                                <img src={previewIcon} alt="Preview" className="w-6 h-6 object-contain" />
+                                                            )}
+                                                        </div>
+                                                        <span className="text-sm text-gray-600">Preview</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => clearFile(false)}
+                                                        className="text-red-600 hover:text-red-800 text-xs"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-700">Category</label>
                                         <select
                                             value={createData.category}
@@ -322,14 +417,18 @@ export default function Index({ auth }) {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">SVG Content</label>
+                                        <label className="block text-sm font-medium text-gray-700">SVG Content (Manual Entry)</label>
                                         <textarea
                                             value={createData.svg_content}
                                             onChange={(e) => setCreateData('svg_content', e.target.value)}
                                             className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                                             rows="4"
-                                            placeholder="<svg>...</svg>"
+                                            placeholder="<svg>...</svg> or upload a file above"
+                                            disabled={!!createData.icon_file}
                                         />
+                                        {createData.icon_file && (
+                                            <p className="text-xs text-gray-500 mt-1">SVG content will be generated from uploaded file</p>
+                                        )}
                                         {createErrors.svg_content && <p className="text-red-500 text-xs mt-1">{createErrors.svg_content}</p>}
                                     </div>
 
@@ -341,7 +440,11 @@ export default function Index({ auth }) {
                                             onChange={(e) => setCreateData('icon_url', e.target.value)}
                                             className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                                             placeholder="https://example.com/icon.svg"
+                                            disabled={!!createData.icon_file}
                                         />
+                                        {createData.icon_file && (
+                                            <p className="text-xs text-gray-500 mt-1">URL will be generated from uploaded file</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -383,7 +486,7 @@ export default function Index({ auth }) {
             {/* Edit Icon Modal */}
             {editingIcon && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div className="relative top-10 mx-auto p-5 border w-[500px] shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         <div className="mt-3">
                             <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Icon: {editingIcon.name}</h3>
                             <form onSubmit={handleEditSubmit}>
@@ -400,6 +503,70 @@ export default function Index({ auth }) {
                                         {editErrors.name && <p className="text-red-500 text-xs mt-1">{editErrors.name}</p>}
                                     </div>
 
+                                    {/* Current Icon Display */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Current Icon</label>
+                                        <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-md">
+                                            <div className="w-12 h-12 flex items-center justify-center bg-white rounded border">
+                                                {editingIcon.svg_content ? (
+                                                    <div 
+                                                        dangerouslySetInnerHTML={{ __html: editingIcon.svg_content }}
+                                                        className="w-8 h-8"
+                                                    />
+                                                ) : editingIcon.icon_url ? (
+                                                    <img 
+                                                        src={editingIcon.icon_url} 
+                                                        alt={editingIcon.name}
+                                                        className="w-8 h-8 object-contain"
+                                                    />
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs">No Icon</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">{editingIcon.name}</p>
+                                                <p className="text-xs text-gray-500 capitalize">{editingIcon.category.replace('_', ' ')}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Replace Icon (Upload New)</label>
+                                        <div className="mt-1 space-y-2">
+                                            <input
+                                                ref={editFileInputRef}
+                                                type="file"
+                                                accept=".svg,.png,.jpg,.jpeg"
+                                                onChange={(e) => handleFileChange(e.target.files[0], true)}
+                                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                            />
+                                            <p className="text-xs text-gray-500">Upload SVG, PNG, or JPG files to replace current icon</p>
+                                            
+                                            {/* Preview */}
+                                            {previewIcon && (
+                                                <div className="flex items-center justify-between p-2 bg-blue-50 rounded border">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-8 h-8 flex items-center justify-center bg-white rounded border">
+                                                            {previewIcon.startsWith('<svg') ? (
+                                                                <div dangerouslySetInnerHTML={{ __html: previewIcon }} className="w-6 h-6" />
+                                                            ) : (
+                                                                <img src={previewIcon} alt="New Preview" className="w-6 h-6 object-contain" />
+                                                            )}
+                                                        </div>
+                                                        <span className="text-sm text-gray-600">New Preview</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => clearFile(true)}
+                                                        className="text-red-600 hover:text-red-800 text-xs"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Category</label>
                                         <select
@@ -414,13 +581,17 @@ export default function Index({ auth }) {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700">SVG Content</label>
+                                        <label className="block text-sm font-medium text-gray-700">SVG Content (Manual Edit)</label>
                                         <textarea
                                             value={editData.svg_content}
                                             onChange={(e) => setEditData('svg_content', e.target.value)}
                                             className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                                             rows="4"
+                                            disabled={!!editData.icon_file}
                                         />
+                                        {editData.icon_file && (
+                                            <p className="text-xs text-gray-500 mt-1">SVG content will be updated from uploaded file</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -430,7 +601,11 @@ export default function Index({ auth }) {
                                             value={editData.icon_url}
                                             onChange={(e) => setEditData('icon_url', e.target.value)}
                                             className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            disabled={!!editData.icon_file}
                                         />
+                                        {editData.icon_file && (
+                                            <p className="text-xs text-gray-500 mt-1">URL will be updated from uploaded file</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -459,7 +634,10 @@ export default function Index({ auth }) {
                                 <div className="flex justify-end space-x-2 mt-6">
                                     <button
                                         type="button"
-                                        onClick={() => setEditingIcon(null)}
+                                        onClick={() => {
+                                            setEditingIcon(null);
+                                            setPreviewIcon(null);
+                                        }}
                                         className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                                     >
                                         Cancel

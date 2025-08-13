@@ -40,3 +40,53 @@ html, body {
 .tracking-tight-3 {
     letter-spacing: -0.03em;
 }
+
+.tracking-tight-4 {
+    letter-spacing: -0.04em;
+}
+
+/* Work Sans font utility */
+.font-work-sans {
+    font-family: 'Work Sans', sans-serif;
+}
+
+/* Space Grotesk font utility */
+.font-space-grotesk {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Red Hat Display font utility */
+.font-red-hat-display {
+    font-family: 'Red Hat Display', sans-serif;
+}
+
+/* Hide default select dropdown arrows */
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+select::-ms-expand {
+    display: none;
+}
+
+/* Remove focus borders and rings from all inputs */
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+}
+
+/* Remove Tailwind's default focus ring */
+.focus\:ring-0:focus {
+    --tw-ring-shadow: none !important;
+    box-shadow: none !important;
+}
+
+.focus\:border-none:focus {
+    border: none !important;
+}

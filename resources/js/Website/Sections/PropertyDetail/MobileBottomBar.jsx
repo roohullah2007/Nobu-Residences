@@ -47,8 +47,8 @@ export default function MobileBottomBar() {
 
       {/* Mobile Request Viewing Modal */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end md:items-center justify-center p-4">
-          <div className="bg-white rounded-t-lg md:rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-xl font-bold text-gray-900">Request a Viewing</h3>
               <button 

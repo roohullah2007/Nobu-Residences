@@ -5,8 +5,41 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
   const [showShareDropdown, setShowShareDropdown] = useState(false);
 
   const handleShare = (platform) => {
-    // Handle sharing logic here
-    console.log(`Sharing to ${platform}`);
+    const currentUrl = window.location.href;
+    const propertyTitle = propertyData?.address || 'Property Details';
+    const propertySubtitle = propertyData?.subtitle || '';
+    const shareText = `Check out this property: ${propertyTitle}${propertySubtitle ? ' - ' + propertySubtitle : ''}`;
+    
+    switch(platform) {
+      case 'Facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank');
+        break;
+      case 'Twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentUrl)}`, '_blank');
+        break;
+      case 'Email':
+        const emailSubject = encodeURIComponent(`Property Listing: ${propertyTitle}`);
+        const emailBody = encodeURIComponent(`Hi,\n\nI thought you might be interested in this property:\n\n${shareText}\n\nView details: ${currentUrl}\n\nBest regards`);
+        window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+        break;
+      case 'Copy Link':
+        navigator.clipboard.writeText(currentUrl).then(() => {
+          // You could add a toast notification here
+          alert('Link copied to clipboard!');
+        }).catch(() => {
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = currentUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          alert('Link copied to clipboard!');
+        });
+        break;
+      default:
+        console.log(`Sharing to ${platform}`);
+    }
     setShowShareDropdown(false);
   };
 
@@ -27,7 +60,7 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
             </div>
             
             {/* Actions Container */}
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex w-full md:w-auto justify-between md:justify-start items-center gap-3 flex-shrink-0">
               {/* Share Button */}
               <div className="relative">
                 <button 
@@ -40,28 +73,35 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
                 {showShareDropdown && (
                   <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] z-50">
                     <div className="py-1">
+                    <button 
+                    onClick={() => handleShare('Facebook')}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
+                    >
+                    <Share className="w-4 h-4" />
+                    Facebook
+                    </button>
+                    <button 
+                    onClick={() => handleShare('Twitter')}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
+                    >
+                    <Share className="w-4 h-4" />
+                    Twitter
+                    </button>
+                    <button 
+                    onClick={() => handleShare('Email')}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
+                    >
+                    <Share className="w-4 h-4" />
+                    Email
+                    </button>
                       <button 
-                        onClick={() => handleShare('Facebook')}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
-                      >
-                        <Share className="w-4 h-4" />
-                        Facebook
-                      </button>
-                      <button 
-                        onClick={() => handleShare('Twitter')}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
-                      >
-                        <Share className="w-4 h-4" />
-                        Twitter
-                      </button>
-                      <button 
-                        onClick={() => handleShare('Copy Link')}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
-                      >
-                        <Share className="w-4 h-4" />
-                        Copy Link
-                      </button>
-                    </div>
+                      onClick={() => handleShare('Copy Link')}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 w-full text-left text-sm"
+                    >
+                      <Share className="w-4 h-4" />
+                      Copy Link
+                    </button>
+                  </div>
                   </div>
                 )}
               </div>
@@ -79,6 +119,21 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
                 {isFavorited ? 'Favorited' : 'Favourite'}
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Pricing Section - Only visible on mobile */}
+      <div className="md:hidden bg-white px-4 py-6">
+        <div className="flex justify-between items-start">
+          {/* Left side - Sold For text */}
+          <div className="font-work-sans font-bold text-lg text-[#8B4513]">
+            SOLD FOR
+          </div>
+          
+          {/* Right side - Price */}
+          <div className="font-space-grotesk font-bold text-2xl text-black">
+            {propertyData.soldFor || '$1,100,000'}
           </div>
         </div>
       </div>

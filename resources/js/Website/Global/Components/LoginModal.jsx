@@ -8,6 +8,7 @@ const LoginModal = ({ isOpen, onClose }) => {
     email: '',
     password: '',
     name: '',
+    phone: '',
     confirmPassword: ''
   });
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -22,6 +23,7 @@ const LoginModal = ({ isOpen, onClose }) => {
         email: '',
         password: '',
         name: '',
+        phone: '',
         confirmPassword: ''
       });
       setForgotPasswordEmail('');
@@ -84,6 +86,10 @@ const LoginModal = ({ isOpen, onClose }) => {
         newErrors.name = 'Full name must be at least 2 characters';
       }
 
+      if (!formData.phone || formData.phone.trim().length < 10) {
+        newErrors.phone = 'Phone number must be at least 10 digits';
+      }
+
       if (!formData.confirmPassword) {
         newErrors.confirmPassword = 'Please confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
@@ -138,6 +144,7 @@ const LoginModal = ({ isOpen, onClose }) => {
       router.post('/register', {
         name: formData.name.trim(),
         email: formData.email,
+        phone: formData.phone.trim(),
         password: formData.password,
         password_confirmation: formData.confirmPassword,
       }, {
@@ -395,6 +402,29 @@ const LoginModal = ({ isOpen, onClose }) => {
                 <p className="mt-1 text-xs text-red-600">{errors.email}</p>
               )}
             </div>
+
+            {/* Phone Field (Register only) */}
+            {activeTab === 'register' && (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
+                    errors.phone ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your phone number"
+                />
+                {errors.phone && (
+                  <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
+                )}
+              </div>
+            )}
 
             {/* Password Field */}
             <div>

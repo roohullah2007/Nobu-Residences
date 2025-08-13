@@ -224,4 +224,19 @@ class AdminController extends Controller
             opcache_reset();
         }
     }
+
+    /**
+     * Icon Management
+     */
+    public function icons(): Response
+    {
+        $icons = \App\Models\Icon::orderBy('category')
+            ->orderBy('name')
+            ->get();
+
+        return Inertia::render('Admin/Icons/Index', [
+            'title' => 'Icon Management',
+            'icons' => $icons
+        ]);
+    }
 }

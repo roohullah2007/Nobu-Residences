@@ -1,0 +1,50 @@
+@echo off
+echo ==========================================
+echo    FIXING ROUTE [home] NOT DEFINED ERROR
+echo ==========================================
+echo.
+
+REM Check if we're in Laravel project
+if not exist "artisan" (
+    echo ❌ Please run this from the Laravel project root directory
+    pause
+    exit /b 1
+)
+
+echo ✅ Laravel project detected
+echo.
+
+echo 🔧 Step 1: Clearing route cache...
+php artisan route:clear
+php artisan config:clear
+php artisan cache:clear
+
+echo.
+echo 🔧 Step 2: Checking routes...
+php artisan route:list --compact | findstr "home"
+if errorlevel 1 (
+    echo ❌ Home route still not found
+) else (
+    echo ✅ Home route is now registered
+)
+
+echo.
+echo 🔧 Step 3: Creating admin user...
+php fix-admin-access.php
+
+echo.
+echo ✅ ROUTE FIXES COMPLETE!
+echo.
+echo 🌐 Test these URLs now:
+echo   1. Home: http://127.0.0.1:8000/
+echo   2. Login: http://127.0.0.1:8000/login  
+echo   3. Admin: http://127.0.0.1:8000/admin/dashboard
+echo   4. Property: http://127.0.0.1:8000/property-detail
+echo.
+echo 📋 Admin login:
+echo   Email: admin@noburesidences.com
+echo   Password: admin123
+echo.
+
+pause
+php artisan serve

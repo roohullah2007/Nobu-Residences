@@ -187,35 +187,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     
     // Icon Management routes
     Route::prefix('icons')->name('icons.')->group(function () {
-        Route::get('/', function() {
-            return Inertia::render('Admin/Icons/Index', [
-                'title' => 'Icon Management',
-                'icons' => [
-                    [
-                        'id' => 1,
-                        'name' => 'building',
-                        'category' => 'key_facts',
-                        'svg_content' => '<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 4V28" stroke="#293056" stroke-width="2"/></svg>',
-                        'is_active' => true
-                    ],
-                    [
-                        'id' => 2,
-                        'name' => 'gym',
-                        'category' => 'amenities',
-                        'svg_content' => '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6.25 10H13.75" stroke="#020202" stroke-width="1.5"/></svg>',
-                        'is_active' => true
-                    ]
-                ]
-            ]);
-        })->name('index');
-        Route::post('/', function() { 
-            return redirect()->route('admin.icons.index')->with('success', 'Icon created!'); 
-        })->name('store');
-        Route::put('/{id}', function($id) { 
-            return redirect()->route('admin.icons.index')->with('success', 'Icon updated!'); 
-        })->name('update');
-        Route::delete('/{id}', function($id) { 
-            return redirect()->route('admin.icons.index')->with('success', 'Icon deleted!'); 
+        Route::get('/', [AdminController::class, 'icons'])->name('index');
+        Route::post('/', [WebsiteManagementController::class, 'storeIconAjax'])->name('store');
+        Route::put('/{id}', [WebsiteManagementController::class, 'updateIcon'])->name('update');
+        Route::delete('/{id}', function($id) {
+            $icon = \App\Models\Icon::findOrFail($id);
+            
+            // Delete associated file if it exists
+            if ($icon->icon_url && \Illuminate\Support\Facades\Storage::disk('public')->exists(str_replace('/storage/', '', $icon->icon_url))) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete(str_replace('/storage/', '', $icon->icon_url));
+            }
+            
+            $icon->delete();
+            return redirect()->route('admin.icons.index')->with('success', 'Icon deleted!');
         })->name('destroy');
         
         // API endpoints for icon management

@@ -9,8 +9,8 @@ import {
   MobileBottomBar, 
   PropertySections,
 } from '@/Website/Sections/PropertyDetail';
-import { TourScheduling } from '../Components';
-import RealEstateLinksSection from '../Components/PropertyDetail/RealEstateLinksSection';
+import { TourScheduling } from '@/Website/Components';
+import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
   const [isFavorited, setIsFavorited] = useState(false);
@@ -240,9 +240,6 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
         <div className="flex md:flex-row sm:flex-col flex-col gap-6 w-full">
         <div className="md:w-[950px]">
 
-        {/* Mobile Bottom Bar */}
-        <MobileBottomBar />
-
         {/* Property Sections */}
         <PropertySections 
           propertyData={propertyData}
@@ -270,6 +267,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
              </div>     
       </div>
       </div>
+      
+      {/* Mobile Bottom Bar - Fixed at bottom */}
+      <MobileBottomBar />
     </MainLayout>
   );
 }

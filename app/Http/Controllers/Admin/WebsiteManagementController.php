@@ -406,26 +406,6 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Update icon
-     */
-    public function updateIcon(Request $request, Icon $icon): RedirectResponse
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'required|string|max:255',
-            'svg_content' => 'nullable|string',
-            'icon_url' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'is_active' => 'boolean',
-        ]);
-
-        $icon->update($validated);
-
-        return redirect()->back()
-            ->with('success', 'Icon updated successfully!');
-    }
-
-    /**
      * Delete icon
      */
     public function destroyIcon(Icon $icon): RedirectResponse
@@ -434,85 +414,6 @@ class WebsiteManagementController extends Controller
 
         return redirect()->back()
             ->with('success', 'Icon deleted successfully!');
-    }
-
-    /**
-     * API endpoint to get icons by category
-     */
-    public function getIcons(Request $request)
-    {
-        $category = $request->get('category');
-        
-        $query = Icon::active()->orderBy('name');
-        
-        if ($category && $category !== 'all') {
-            $query->where('category', $category);
-        }
-        
-        $icons = $query->get()->map(function ($icon) {
-            return [
-                'id' => $icon->id,
-                'name' => $icon->name,
-                'category' => $icon->category,
-                'svg_content' => $icon->svg_content,
-                'icon_url' => $icon->icon_url,
-                'description' => $icon->description,
-                'display_name' => ucwords(str_replace('_', ' ', $icon->name))
-            ];
-        });
-
-        return response()->json($icons);
-    }
-
-    /**
-     * Create new icon via AJAX
-     */
-    public function storeIconAjax(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:icons,name',
-            'category' => 'required|string|max:255',
-            'icon_file' => 'required|file|mimes:svg,png,jpg,jpeg|max:2048',
-        ]);
-
-        $iconContent = null;
-        $iconUrl = null;
-
-        if ($request->hasFile('icon_file')) {
-            $file = $request->file('icon_file');
-            $extension = $file->getClientOriginalExtension();
-            
-            if ($extension === 'svg') {
-                // For SVG files, store the content directly
-                $iconContent = file_get_contents($file->getRealPath());
-            } else {
-                // For PNG/JPG files, store the file and save URL
-                $filename = time() . '_' . $validated['name'] . '.' . $extension;
-                $path = $file->storeAs('icons', $filename, 'public');
-                $iconUrl = '/storage/' . $path;
-            }
-        }
-
-        $icon = Icon::create([
-            'name' => $validated['name'],
-            'category' => $validated['category'],
-            'svg_content' => $iconContent,
-            'icon_url' => $iconUrl,
-            'description' => null,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Icon created successfully!',
-            'icon' => [
-                'id' => $icon->id,
-                'name' => $icon->name,
-                'category' => $icon->category,
-                'svg_content' => $icon->svg_content,
-                'icon_url' => $icon->icon_url,
-                'display_name' => ucwords(str_replace('_', ' ', $icon->name))
-            ]
-        ]);
     }
 
     /**
@@ -574,5 +475,149 @@ class WebsiteManagementController extends Controller
         
         return redirect()->route('admin.websites.show', $websiteId)
             ->with('success', 'Website updated successfully!');
+    }
+
+    /**
+     * Get icons for API
+     */
+    public function getIcons()
+    {
+        $icons = Icon::orderBy('category')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'icons' => $icons
+        ]);
+    }
+
+    /**
+     * Store a new icon via AJAX with file upload support
+     */
+    public function storeIconAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category' => 'required|string|in:key_facts,amenities,highlights,contact,general',
+            'svg_content' => 'nullable|string',
+            'icon_url' => 'nullable|url|max:500',
+            'icon_file' => 'nullable|file|mimes:svg,png,jpg,jpeg|max:2048', // 2MB max
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $iconContent = $validated['svg_content'] ?? null;
+        $iconUrl = $validated['icon_url'] ?? null;
+
+        // Handle file upload
+        if ($request->hasFile('icon_file')) {
+            $file = $request->file('icon_file');
+            $extension = strtolower($file->getClientOriginalExtension());
+            
+            // Ensure icons directory exists
+            if (!Storage::disk('public')->exists('icons')) {
+                Storage::disk('public')->makeDirectory('icons');
+            }
+            
+            if ($extension === 'svg') {
+                // For SVG files, store the content directly and also save file
+                $iconContent = file_get_contents($file->getRealPath());
+                $filename = time() . '_' . \Illuminate\Support\Str::slug($validated['name']) . '.svg';
+                $path = $file->storeAs('icons', $filename, 'public');
+                $iconUrl = '/storage/' . $path;
+            } else {
+                // For PNG/JPG files, store the file and save URL
+                $filename = time() . '_' . \Illuminate\Support\Str::slug($validated['name']) . '.' . $extension;
+                $path = $file->storeAs('icons', $filename, 'public');
+                $iconUrl = '/storage/' . $path;
+                $iconContent = null; // Clear SVG content for non-SVG files
+            }
+        }
+
+        $icon = Icon::create([
+            'name' => $validated['name'],
+            'category' => $validated['category'],
+            'svg_content' => $iconContent,
+            'icon_url' => $iconUrl,
+            'description' => $validated['description'] ?? null,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Icon created successfully!',
+            'icon' => [
+                'id' => $icon->id,
+                'name' => $icon->name,
+                'category' => $icon->category,
+                'svg_content' => $icon->svg_content,
+                'icon_url' => $icon->icon_url,
+                'description' => $icon->description,
+                'is_active' => $icon->is_active,
+                'display_name' => ucwords(str_replace('_', ' ', $icon->name))
+            ]
+        ]);
+    }
+
+    /**
+     * Update an existing icon with file upload support
+     */
+    public function updateIcon(Request $request, $iconId)
+    {
+        $icon = Icon::findOrFail($iconId);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'category' => 'required|string|in:key_facts,amenities,highlights,contact,general',
+            'svg_content' => 'nullable|string',
+            'icon_url' => 'nullable|url|max:500',
+            'icon_file' => 'nullable|file|mimes:svg,png,jpg,jpeg|max:2048',
+            'description' => 'nullable|string|max:500',
+            'is_active' => 'boolean',
+        ]);
+
+        $iconContent = $validated['svg_content'] ?? $icon->svg_content;
+        $iconUrl = $validated['icon_url'] ?? $icon->icon_url;
+
+        // Handle file upload
+        if ($request->hasFile('icon_file')) {
+            $file = $request->file('icon_file');
+            $extension = strtolower($file->getClientOriginalExtension());
+            
+            // Delete old file if it exists
+            if ($icon->icon_url && Storage::disk('public')->exists(str_replace('/storage/', '', $icon->icon_url))) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $icon->icon_url));
+            }
+            
+            // Ensure icons directory exists
+            if (!Storage::disk('public')->exists('icons')) {
+                Storage::disk('public')->makeDirectory('icons');
+            }
+            
+            if ($extension === 'svg') {
+                // For SVG files, store the content directly and also save file
+                $iconContent = file_get_contents($file->getRealPath());
+                $filename = time() . '_' . \Illuminate\Support\Str::slug($validated['name']) . '.svg';
+                $path = $file->storeAs('icons', $filename, 'public');
+                $iconUrl = '/storage/' . $path;
+            } else {
+                // For PNG/JPG files, store the file and save URL
+                $filename = time() . '_' . \Illuminate\Support\Str::slug($validated['name']) . '.' . $extension;
+                $path = $file->storeAs('icons', $filename, 'public');
+                $iconUrl = '/storage/' . $path;
+                $iconContent = null; // Clear SVG content for non-SVG files
+            }
+        }
+
+        $icon->update([
+            'name' => $validated['name'],
+            'category' => $validated['category'],
+            'svg_content' => $iconContent,
+            'icon_url' => $iconUrl,
+            'description' => $validated['description'] ?? null,
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        return redirect()->back()->with('success', 'Icon updated successfully!');
     }
 }
