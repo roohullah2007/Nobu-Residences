@@ -172,10 +172,20 @@ class WebsiteController extends Controller
     /**
      * Display the search page
      */
-    public function search()
+    public function search(Request $request)
     {
+        // Get search filters from request
+        $filters = $request->only([
+            'search', 'forSale', 'bedType', 'minPrice', 'maxPrice'
+        ]);
+        
+        // Mock properties data for now - replace with actual property search logic
+        $properties = [];
+        
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Search All Properties'
+            'title' => 'Search All Properties',
+            'properties' => $properties,
+            'filters' => $filters
         ]));
     }
 

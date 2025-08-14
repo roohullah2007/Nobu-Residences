@@ -21,8 +21,11 @@ export default function MerchandiseLofts() {
               <h2 className="text-xl md:text-2xl font-bold mb-2 font-space-grotesk" style={{ color: '#293056' }}>
                 The Merchandise Lofts
               </h2>
-              <p className="text-gray-600 mb-6 text-sm md:text-base">
+              <p className="text-gray-600 mb-2 text-sm md:text-base">
                 155 Dalhousie St
+              </p>
+              <p className="text-gray-700 mb-6 text-sm md:text-base">
+                Browse all listings at The Merchandise Lofts — condos for sale and rent at 155 Dalhousie St.
               </p>
               </div>
               

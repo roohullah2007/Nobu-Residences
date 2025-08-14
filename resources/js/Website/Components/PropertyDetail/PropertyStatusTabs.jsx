@@ -85,8 +85,8 @@ const PropertyStatusTabs = ({ property }) => {
           </div>
           
           {/* Sold Status Badge */}
-          <div className="flex items-center px-2 gap-2 w-[151px] h-10 bg-[#3E4784] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis w-[135px]">
+          <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#3E4784] rounded-xl">
+            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
               {propertyData.status} on {propertyData.saleDate}
             </span>
           </div>

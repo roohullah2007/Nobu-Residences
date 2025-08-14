@@ -64,7 +64,7 @@ export default function Dashboard({ title, stats, websites }) {
                                 <div>
                                     <p className="text-sm font-medium text-gray-600">{stat.title}</p>
                                     <p className={`text-2xl font-bold ${stat.textColor} mt-1`}>
-                                        {stat.value.toLocaleString()}
+                                        {(stat.value ?? 0).toLocaleString()}
                                     </p>
                                 </div>
                                 <div className={`${stat.lightBg} p-2 rounded-lg`}>

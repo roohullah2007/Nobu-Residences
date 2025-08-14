@@ -219,11 +219,11 @@ export default function PropertyGallery({
                 </div>
               </div>
               
-              {/* Call us Button */}
+              {/* Enquire this Property Button */}
               <div className="bg-black rounded-full h-12 md:h-10 flex items-center justify-center w-full">
                 <button className="w-full h-full flex items-center justify-center">
                   <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
-                    Call us
+                    Enquire this Property
                   </span>
                 </button>
               </div>

@@ -295,26 +295,22 @@ const TourSchedulingComponent = () => {
             <button className="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg font-medium mt-3 cursor-pointer hover:bg-gray-50">
               Ask A Question
             </button>
-          </div>
 
-          {/* Agent Info Card */}
-          <div className="bg-white w-full max-w-[309px] mx-auto p-6 shadow-lg rounded-lg border border-gray-300">
-            <div className="flex items-center mb-6">
-              <img 
-                src="/assets/jatin-gill.png" 
-                alt="Agent" 
-                className="w-14 h-14 rounded-full mr-4"
-              />
-              <div>
-                <h3 className="font-bold mb-1" style={{ color: '#293056' }}>Jatin Gill</h3>
-                <p className="text-gray-500 text-sm mb-1">Nobu Residences</p>
-                <p className="text-gray-700 text-sm">647-490-1532</p>
+            {/* Agent Info Section */}
+            <div className="mt-6 pt-6 border-t border-gray-200 w-full">
+              <div className="flex items-center mb-4 justify-around">
+                <img 
+                  src="/assets/jatin-gill.png" 
+                  alt="Agent" 
+                  className="w-14 h-14 rounded-full mr-4"
+                />
+                <div>
+                  <h3 className="font-bold mb-1" style={{ color: '#293056' }}>Jatin Gill</h3>
+                  <p className="text-gray-500 text-sm mb-1">Nobu Residences</p>
+                  <p className="text-gray-700 text-sm">647-490-1532</p>
+                </div>
               </div>
             </div>
-
-            <button className="w-full bg-black text-white py-2.5 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800">
-              Enquire this Property
-            </button>
           </div>
         </div>
       </div>

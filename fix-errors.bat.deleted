@@ -1,0 +1,44 @@
+@echo off
+echo ========================================
+echo    NOBU RESIDENCES - FIX ADMIN ACCESS
+echo ========================================
+echo.
+
+REM Check if PHP is available
+php --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ PHP is not installed or not in PATH
+    echo Please install PHP and try again
+    pause
+    exit /b 1
+)
+
+echo 📋 Running fix script...
+echo.
+
+REM Run the admin fix script
+php fix-admin-access.php
+
+echo.
+echo 🧹 Clearing Laravel caches...
+
+REM Clear Laravel caches
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
+echo.
+echo ✅ All done! You should now be able to access the admin dashboard.
+echo.
+echo 🌐 URLs to test:
+echo    - Admin Dashboard: http://127.0.0.1:8000/admin/dashboard
+echo    - Property Detail: http://127.0.0.1:8000/property-detail
+echo    - Login: http://127.0.0.1:8000/login
+echo.
+echo 📋 Default admin credentials (if created):
+echo    Email: admin@noburesidences.com
+echo    Password: admin123
+echo.
+
+pause

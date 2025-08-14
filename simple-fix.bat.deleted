@@ -1,0 +1,54 @@
+@echo off
+echo =============================================
+echo    NOBU RESIDENCES - SIMPLE ERROR FIX
+echo =============================================
+echo.
+
+REM Check PHP
+php --version >nul 2>&1
+if errorlevel 1 (
+    echo ❌ PHP not found. Please install PHP first.
+    pause
+    exit /b 1
+)
+
+echo ✅ PHP found
+echo.
+
+REM Check if we're in Laravel project
+if not exist "artisan" (
+    echo ❌ Please run this from the Laravel project root directory
+    pause
+    exit /b 1
+)
+
+echo ✅ Laravel project detected
+echo.
+
+echo 🔧 Step 1: Fixing admin access...
+php fix-admin-access.php
+
+echo.
+echo 🧹 Step 2: Clearing caches...
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
+
+echo.
+echo ✅ FIXES COMPLETE!
+echo.
+echo 🌐 Now test these URLs:
+echo   1. Login: http://127.0.0.1:8000/login
+echo   2. Admin: http://127.0.0.1:8000/admin/dashboard
+echo   3. Property: http://127.0.0.1:8000/property-detail
+echo.
+echo 📋 Admin credentials (if created):
+echo   Email: admin@noburesidences.com
+echo   Password: admin123
+echo.
+echo Press any key to start the server...
+pause
+
+echo Starting Laravel server...
+php artisan serve

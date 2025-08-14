@@ -1,10 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(rmdir:*)",
-      "Bash(npm run build:*)",
-      "Bash(php artisan:*)"
+      "Bash(npm run dev:*)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

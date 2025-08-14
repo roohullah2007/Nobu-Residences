@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
 
-const MoreBuildings = () => {
+const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
 
-  // Sample building data with more items to demonstrate slider
-  const buildings = [
+  // Sample building data for "More Buildings By Agent"
+  const buildingData = [
     {
       id: 1,
       name: "Luxury Downtown Tower",
@@ -57,6 +57,61 @@ const MoreBuildings = () => {
     }
   ];
 
+  // Sample nearby listings data for non-condo properties
+  const nearbyListingsData = [
+    {
+      id: 1,
+      name: "Charming Family Home",
+      image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80",
+      address: "142 Maple Avenue",
+      units: "4 BD, 3 BA",
+      priceRange: "$1.2M"
+    },
+    {
+      id: 2,
+      name: "Modern Townhouse", 
+      image: "https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=400&h=300&fit=crop&auto=format&q=80",
+      address: "78 Oak Street",
+      units: "3 BD, 2.5 BA",
+      priceRange: "$950K"
+    },
+    {
+      id: 3,
+      name: "Luxury Detached Home",
+      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80", 
+      address: "256 Pine Road",
+      units: "5 BD, 4 BA",
+      priceRange: "$2.1M"
+    },
+    {
+      id: 4,
+      name: "Cozy Bungalow",
+      image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop&auto=format&q=80",
+      address: "89 Elm Street",
+      units: "2 BD, 2 BA",
+      priceRange: "$720K"
+    },
+    {
+      id: 5,
+      name: "Executive Villa",
+      image: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=400&h=300&fit=crop&auto=format&q=80",
+      address: "445 Willow Drive",
+      units: "6 BD, 5 BA",
+      priceRange: "$3.8M"
+    },
+    {
+      id: 6,
+      name: "Contemporary Home",
+      image: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=400&h=300&fit=crop&auto=format&q=80",
+      address: "167 Cedar Lane",
+      units: "3 BD, 3 BA",
+      priceRange: "$1.4M"
+    }
+  ];
+
+  // Choose data based on title
+  const buildings = title === "More Buildings By Agent" ? buildingData : nearbyListingsData;
+
   const itemsPerSlide = 3;
   const totalSlides = Math.ceil(buildings.length / itemsPerSlide);
 
@@ -80,7 +135,7 @@ const MoreBuildings = () => {
     <section className="p-4 rounded-xl border-gray-200 border shadow-sm bg-gray-50">
       <div className="max-w-[1280px] mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>More Buildings By Agent</h2>
+          <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
           
           {/* Navigation Arrows - Desktop Only */}
           <div className="hidden md:flex gap-2">

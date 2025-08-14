@@ -27,7 +27,7 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
             <Navbar auth={auth} />
 
             {/* Hero Section */}
-            <main className="relative z-10 flex items-end h-[calc(696px-64px)]">
+            <main className="relative z-10 flex items-end h-[555px]  md:h-[calc(696px-64px)]">
                 <div className="mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-screen-xl">
                     <div className="max-w-3xl gap-y-6 flex flex-col">
                         {/* Welcome Text */}

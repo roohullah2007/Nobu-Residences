@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
-import Navbar from '@/Components/Navbar';
+import Navbar from '@/Website/Global/Navbar';
 
 // Custom SVG Icons to replace lucide-react
 const ChevronLeft = ({ className }) => (
