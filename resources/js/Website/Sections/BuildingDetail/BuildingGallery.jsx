@@ -1,0 +1,275 @@
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
+
+// Building Gallery Component with single image and modal
+const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFavorite }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
+
+  // For Sale and For Rent counts
+  const forSaleCount = 4;
+  const forRentCount = 4;
+
+  const openModal = (imageIndex = 0) => {
+    setModalImageIndex(imageIndex);
+    setShowModal(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    document.body.style.overflow = 'unset';
+  };
+
+  const nextModalImage = () => {
+    setModalImageIndex((prev) => (prev + 1) % buildingImages.length);
+  };
+
+  const prevModalImage = () => {
+    setModalImageIndex((prev) => (prev - 1 + buildingImages.length) % buildingImages.length);
+  };
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (showModal) {
+        if (e.key === 'ArrowLeft') prevModalImage();
+        if (e.key === 'ArrowRight') nextModalImage();
+        if (e.key === 'Escape') closeModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [showModal]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  return (
+    <>
+      {/* Main Container */}
+      <div className="max-w-[1280px] mx-auto px-0 py-0">
+        <div className="flex flex-col md:flex-row gap-0 lg:gap-[17px]">
+          {/* Single Image Section */}
+          <div className="flex-1 order-1 lg:order-none">
+            {/* Single Large Image with click to open modal */}
+            <div className="relative w-full h-[300px] md:h-[400px] lg:h-[645px]">
+              <div 
+                className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+                onClick={() => openModal(0)}
+              >
+                <img 
+                  src={buildingImages[0]}
+                  alt="Building image"
+                  className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+                
+                {/* View Photos overlay on hover */}
+                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="text-white text-lg font-work-sans font-semibold">
+                    Click to view photos
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Building Details Card - Width 387px */}
+          <div className="w-full lg:w-[387px] h-auto lg:h-[645px] bg-gray-50 border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
+            <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
+              <div className="flex flex-col gap-6 md:gap-6 lg:gap-8 mb-[30px] md:mb-0">
+                {/* Building Name Section */}
+                <div className="flex flex-col gap-4 items-center">
+                  <h2 className="font-space-grotesk font-bold text-2xl md:text-3xl leading-tight text-[#293056] text-center">
+                  The Pinnacle
+                  </h2>
+                  <div className="w-full h-px border-t border-[#D5D7DA]"></div>
+                </div>
+                
+                {/* Building Details */}
+                <div className="flex flex-col mt-10 gap-3">
+                  {/* Developer */}
+                  <div className="flex justify-between items-start">
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Developer</span>
+                    <span className="font-work-sans text-sm text-[#535862]">-</span>
+                  </div>
+                  
+                  {/* Management */}
+                  <div className="flex justify-between items-start">
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Management</span>
+                    <span className="font-work-sans text-sm text-[#7E2410] underline cursor-pointer hover:text-[#5A1A0B] text-right max-w-[180px]">
+                      Crossbridge Condominium Services
+                    </span>
+                  </div>
+                  
+                  {/* Corp */}
+                  <div className="flex justify-between items-start">
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Corp</span>
+                    <span className="font-work-sans text-sm text-[#535862]">MTCC-1362</span>
+                  </div>
+                  
+                  {/* Date Registered */}
+                  <div className="flex justify-between items-start">
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Date Registered</span>
+                    <span className="font-work-sans text-sm text-[#535862]">Jan 29, 2001</span>
+                  </div>
+                </div>
+                
+                {/* For Sale and For Rent Buttons */}
+                <div className="flex flex-col gap-3">
+                  <button className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group">
+                    <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
+                      {forSaleCount} For Sale
+                    </span>
+                  </button>
+                  
+                  <button className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group">
+                    <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
+                      {forRentCount} For Rent
+                    </span>
+                  </button>
+                </div>
+                
+                {/* Agent Section */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                      <img 
+                        src="/assets/school/jatin-gill.png"
+                        alt="Julian Kashani"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
+                        Julian Kashani
+                      </h3>
+                      <p className="font-work-sans font-medium text-sm text-[#535862]">
+                        Broker
+                      </p>
+                      <p className="font-work-sans font-normal text-sm text-[#535862]">
+                        Property.ca Inc., Brokerage
+                      </p>
+                      <p className="font-work-sans font-bold text-sm text-[#535862]">
+                        647-492-7260
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              {/* Contact Agent Button */}
+              <div className="rounded-full h-12 flex items-center justify-center w-full" style={{ backgroundColor: 'rgb(126 36 16)' }}>
+                <button className="w-full h-full flex items-center justify-center">
+                  <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
+                    Contact Agent
+                  </span>
+                </button>
+              </div>
+              </div>
+              
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Photo Gallery Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex flex-col">
+          {/* Modal Header */}
+          <div className="bg-black bg-opacity-90 px-4 py-3 flex justify-between items-center border-b border-white border-opacity-10 flex-shrink-0">
+            <div className="text-white flex flex-col gap-1">
+              <span className="font-semibold text-sm">8 Hillcrest Ave, North York</span>
+              <span className="text-white text-opacity-70 text-xs">
+                ({modalImageIndex + 1} of {buildingImages.length})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={onToggleFavorite}
+                className="text-white bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md p-2 w-10 h-10 flex items-center justify-center hover:bg-opacity-20 transition-colors"
+              >
+                <Heart className="w-5 h-5" filled={isFavorited} />
+              </button>
+              <button 
+                onClick={closeModal}
+                className="text-white bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md p-2 w-10 h-10 flex items-center justify-center hover:bg-opacity-20 transition-colors"
+              >
+                <Close className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Main Image Area */}
+          <div className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0">
+            {buildingImages.length > 1 && (
+              <button 
+                onClick={prevModalImage}
+                disabled={modalImageIndex === 0}
+                className="absolute left-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            
+            <div className="w-full h-full flex items-center justify-center overflow-hidden px-16">
+              <div 
+                className="flex h-full w-full transition-transform duration-300 ease-in-out"
+                style={{ transform: `translateX(-${modalImageIndex * 100}%)` }}
+              >
+                {buildingImages.map((image, index) => (
+                  <div key={index} className="min-w-full flex items-center justify-center p-4">
+                    <img 
+                      src={image}
+                      alt={`Building image ${index + 1}`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {buildingImages.length > 1 && (
+              <button 
+                onClick={nextModalImage}
+                disabled={modalImageIndex === buildingImages.length - 1}
+                className="absolute right-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Thumbnail Navigation - Only show if multiple images */}
+          {buildingImages.length > 1 && (
+            <div className="flex gap-2 px-4 py-3 bg-black bg-opacity-90 border-t border-white border-opacity-10 overflow-x-auto">
+              {buildingImages.map((image, index) => (
+                <button
+                  key={index}
+                  onClick={() => setModalImageIndex(index)}
+                  className={`border-2 rounded-md overflow-hidden opacity-70 flex-shrink-0 transition-all hover:opacity-90 ${
+                    index === modalImageIndex 
+                      ? 'border-blue-500 opacity-100 scale-105' 
+                      : 'border-white border-opacity-20'
+                  }`}
+                >
+                  <img 
+                    src={image}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-20 h-15 object-cover block"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
+
+export default BuildingGallery;

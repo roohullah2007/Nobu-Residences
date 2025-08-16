@@ -8,7 +8,6 @@ import {
   ComparableSales,
   MerchandiseLofts,
 } from '@/Website/Components/PropertyDetail';
-import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 
 export default function PropertySections({ 

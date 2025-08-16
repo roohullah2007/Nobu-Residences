@@ -469,8 +469,8 @@ export default function PropertySearch({ auth, siteName, siteUrl, year, properti
           ) : (
             /* Mixed View - Cards + Map */
             <div className="flex gap-12">
-              {/* Cards Section - 770px width */}
-              <div className="w-[770px] flex-shrink-0">
+              {/* Cards Section - Half width */}
+              <div className="w-1/2 flex-shrink-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Show only first 4 cards in mixed view */}
                   {[
@@ -533,13 +533,13 @@ export default function PropertySearch({ auth, siteName, siteUrl, year, properti
                 </div>
               </div>
               
-              {/* Map Section - 494px width */}
-              <div className="w-[494px] h-[600px] bg-green-100 rounded-lg relative overflow-hidden">
+              {/* Map Section - Half width */}
+              <div className="w-1/2 h-[600px] bg-green-100 rounded-lg relative overflow-hidden">
                 {/* Map Background */}
                 <div 
                   className="w-full h-full bg-cover bg-center"
                   style={{
-                    backgroundImage: `url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/-122.4194,37.7749,10,0/494x600@2x?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw')`
+                    backgroundImage: `url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/-122.4194,37.7749,10,0/600x600@2x?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw')`
                   }}
                 >
                   {/* Property Markers */}

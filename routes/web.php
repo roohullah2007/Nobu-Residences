@@ -21,9 +21,11 @@ Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
 Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
+Route::get('/school', [WebsiteController::class, 'school'])->name('school');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 Route::get('/property-detail', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
+Route::get('/building-detail', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

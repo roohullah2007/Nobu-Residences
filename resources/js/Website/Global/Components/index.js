@@ -6,3 +6,5 @@ export { default as FAQ } from './FAQ';
 export { default as ViewingRequestModal } from './ViewingRequestModal';
 export { default as BuildingSlider } from './BuildingSlider';
 export { default as LoginModal } from './LoginModal';
+export { default as RealEstateLinksSection } from './RealEstateLinksSection';
+export { default as PropertyHeader } from './PropertyHeader';

@@ -12,6 +12,7 @@ import NearbySchools from './NearbySchools';
 import PriceHistory from './PriceHistory';
 import Neighbourhoods from './Neighbourhoods';
 import TourScheduling from './TourScheduling';
+import BuildingTourScheduling from './BuildingTourScheduling';
 
 // Export all PropertyDetail components
 export { default as TourSection } from './TourSection';
@@ -27,4 +28,5 @@ export { default as NearbySchools } from './NearbySchools';
 export { default as PriceHistory } from './PriceHistory';
 export { default as Neighbourhoods } from './Neighbourhoods';
 export { default as TourScheduling } from './TourScheduling';
+export { default as BuildingTourScheduling } from './BuildingTourScheduling';
 export { default as MerchandiseLofts } from './MerchandiseLofts';

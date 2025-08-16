@@ -210,6 +210,16 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display the school page
+     */
+    public function school()
+    {
+        return Inertia::render('School', array_merge($this->getWebsiteSettings(), [
+            'title' => 'School Information'
+        ]));
+    }
+
+    /**
      * Display the privacy policy page
      */
     public function privacy()
@@ -236,6 +246,16 @@ class WebsiteController extends Controller
     {
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => 'Property Detail'
+        ]));
+    }
+
+    /**
+     * Display the building detail page
+     */
+    public function buildingDetail()
+    {
+        return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => 'Building Detail'
         ]));
     }
 }
