@@ -454,20 +454,149 @@ class WebsiteController extends Controller
     /**
      * Display the property detail page
      */
-    public function propertyDetail()
+    public function propertyDetail($listingKey)
     {
-        return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Property Detail'
+        // Try to fetch property data from AMPRE API or local database
+        $propertyData = null;
+        $propertyImages = [];
+        
+        // Check if it's a local property (numeric ID)
+        if (is_numeric($listingKey)) {
+            $property = Property::find($listingKey);
+            if ($property) {
+                $propertyData = $property->getDisplayData();
+            }
+        }
+        
+        // If not found locally, try AMPRE API (for MLS listings)
+        if (!$propertyData) {
+            try {
+                $ampreApi = app(\App\Services\AmpreApiService::class);
+                
+                // Fetch property details from AMPRE API
+                $ampreProperty = $ampreApi->getPropertyByKey($listingKey);
+                
+                if ($ampreProperty) {
+                    // Format the property data
+                    $propertyData = $this->formatAmprePropertyData($ampreProperty);
+                    
+                    // Fetch property images
+                    $imagesResponse = $ampreApi->getPropertiesImages([$listingKey]);
+                    if (!empty($imagesResponse) && isset($imagesResponse[$listingKey])) {
+                        // Extract image URLs from the grouped response
+                        $propertyImages = array_map(function($image) {
+                            return $image['MediaURL'] ?? '';
+                        }, $imagesResponse[$listingKey]);
+                        
+                        // Remove any empty URLs
+                        $propertyImages = array_filter($propertyImages);
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to fetch property from AMPRE: ' . $e->getMessage());
+            }
+        }
+        
+        return Inertia::render('Website/Pages/PropertyDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
+            'listingKey' => $listingKey,
+            'propertyData' => $propertyData,
+            'propertyImages' => $propertyImages
         ]));
+    }
+    
+    /**
+     * Format AMPRE property data for display
+     */
+    private function formatAmprePropertyData($property): array
+    {
+        return [
+            'listingKey' => $property['ListingKey'] ?? '',
+            'address' => $property['UnparsedAddress'] ?? '',
+            'city' => $property['City'] ?? '',
+            'province' => $property['StateOrProvince'] ?? '',
+            'postalCode' => $property['PostalCode'] ?? '',
+            'price' => $property['ListPrice'] ?? 0,
+            'originalPrice' => $property['OriginalListPrice'] ?? null,
+            'soldPrice' => $property['ClosePrice'] ?? null,
+            'propertyType' => $property['PropertyType'] ?? '',
+            'propertySubType' => $property['PropertySubType'] ?? '',
+            'bedrooms' => $property['BedroomsTotal'] ?? 0,
+            'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
+            'bathroomsFull' => $property['BathroomsFull'] ?? 0,
+            'bathroomsHalf' => $property['BathroomsHalf'] ?? 0,
+            'livingArea' => $property['LivingArea'] ?? null,
+            'lotSize' => $property['LotSizeArea'] ?? null,
+            'yearBuilt' => $property['YearBuilt'] ?? null,
+            'parkingSpaces' => $property['ParkingTotal'] ?? 0,
+            'garageSpaces' => $property['GarageSpaces'] ?? 0,
+            'description' => $property['PublicRemarks'] ?? '',
+            'features' => $property['Features'] ?? [],
+            'appliances' => $property['Appliances'] ?? [],
+            'heating' => $property['Heating'] ?? [],
+            'cooling' => $property['Cooling'] ?? [],
+            'flooring' => $property['Flooring'] ?? [],
+            'basement' => $property['Basement'] ?? [],
+            'listingDate' => $property['ListingContractDate'] ?? null,
+            'daysOnMarket' => $property['DaysOnMarket'] ?? null,
+            'status' => $property['StandardStatus'] ?? '',
+            'mlsNumber' => $property['ListingId'] ?? '',
+            'latitude' => $property['Latitude'] ?? null,
+            'longitude' => $property['Longitude'] ?? null,
+            'listingOffice' => $property['ListOfficeName'] ?? '',
+            'listingAgent' => $property['ListAgentFullName'] ?? '',
+            'virtualTourUrl' => $property['VirtualTourURLUnbranded'] ?? '',
+            'rooms' => $this->formatRooms($property),
+            'taxYear' => $property['TaxYear'] ?? null,
+            'taxAmount' => $property['TaxAnnualAmount'] ?? null,
+            'associationFee' => $property['AssociationFee'] ?? null,
+            'associationFeeFrequency' => $property['AssociationFeeFrequency'] ?? null,
+        ];
+    }
+    
+    /**
+     * Format room data from AMPRE property
+     */
+    private function formatRooms($property): array
+    {
+        $rooms = [];
+        
+        // Check for room-related fields in the property data
+        // AMPRE API might have different room fields
+        if (isset($property['Rooms']) && is_array($property['Rooms'])) {
+            foreach ($property['Rooms'] as $room) {
+                $rooms[] = [
+                    'type' => $room['RoomType'] ?? '',
+                    'level' => $room['RoomLevel'] ?? '',
+                    'dimensions' => $room['RoomDimensions'] ?? '',
+                    'features' => $room['RoomFeatures'] ?? [],
+                ];
+            }
+        }
+        
+        return $rooms;
     }
 
     /**
      * Display the building detail page
      */
-    public function buildingDetail()
+    public function buildingDetail($buildingId)
     {
-        return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Building Detail'
+        $building = Building::find($buildingId);
+        $buildingData = null;
+        
+        if ($building) {
+            $buildingData = $building->getDisplayData();
+            // Get related properties
+            $buildingData['properties'] = $building->properties()->active()->get()->map(function($property) {
+                return $property->getDisplayData();
+            })->toArray();
+        }
+        
+        return Inertia::render('Website/Pages/BuildingDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $building ? $building->name : 'Building Detail',
+            'buildingId' => $buildingId,
+            'buildingData' => $buildingData
         ]));
     }
 }

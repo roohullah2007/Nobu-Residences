@@ -25,8 +25,8 @@ Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/school', [WebsiteController::class, 'school'])->name('school');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
-Route::get('/property-detail', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
-Route::get('/building-detail', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
+Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
+Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 
 // Property Image API routes (using same mechanism as WordPress plugin)
 Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);
@@ -37,6 +37,9 @@ Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchControl
 Route::post('/api/save-search', [\App\Http\Controllers\PropertySearchController::class, 'saveSearch']); // Removed auth middleware - handled in controller
 Route::get('/api/saved-searches', [\App\Http\Controllers\PropertySearchController::class, 'getSavedSearches'])->middleware('auth');
 Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingController::class, 'searchBuildings']);
+
+// Property Detail API route
+Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

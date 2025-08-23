@@ -640,7 +640,7 @@ export default function EnhancedPropertySearch({
                   />
                 </div>
                 
-                {/* Mobile Price Slider - Functional */}
+                {/* Mobile Price Slider - Functional Dual Handle */}
                 <div className="relative w-full h-5 mt-3">
                   {/* Background track */}
                   <div className="absolute left-0 right-0 top-[45%] h-[2px] bg-gray-200 rounded-full"></div>
@@ -654,53 +654,73 @@ export default function EnhancedPropertySearch({
                     }}
                   ></div>
                   
-                  {/* Min price input (invisible) */}
-                  <input
-                    type="range"
-                    min="0"
-                    max="10000000"
-                    step="50000"
-                    value={searchFilters.price_min || 0}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (value <= (searchFilters.price_max || 10000000)) {
-                        handleFilterChange('price_min', value);
-                      }
-                    }}
-                    className="absolute w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  
-                  {/* Max price input (invisible) */}
-                  <input
-                    type="range"
-                    min="0"
-                    max="10000000"
-                    step="50000"
-                    value={searchFilters.price_max || 10000000}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (value >= (searchFilters.price_min || 0)) {
-                        handleFilterChange('price_max', value);
-                      }
-                    }}
-                    className="absolute w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  
-                  {/* Min thumb */}
+                  {/* Min thumb - LEFT handle for minimum price (draggable) */}
                   <div 
-                    className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center pointer-events-none"
+                    className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
                     style={{
-                      left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`
+                      left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`,
+                      zIndex: 25
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      const slider = e.currentTarget.parentElement;
+                      const rect = slider.getBoundingClientRect();
+                      const touch = e.touches[0];
+                      
+                      const handleDrag = (event) => {
+                        const currentTouch = event.touches[0];
+                        const percentage = Math.max(0, Math.min(100, ((currentTouch.clientX - rect.left) / rect.width) * 100));
+                        const value = Math.round((percentage / 100) * 10000000 / 50000) * 50000;
+                        const maxValue = searchFilters.price_max || 10000000;
+                        
+                        if (value < maxValue) {
+                          handleFilterChange('price_min', value);
+                        }
+                      };
+                      
+                      const handleRelease = () => {
+                        document.removeEventListener('touchmove', handleDrag);
+                        document.removeEventListener('touchend', handleRelease);
+                      };
+                      
+                      document.addEventListener('touchmove', handleDrag);
+                      document.addEventListener('touchend', handleRelease);
                     }}
                   >
                     <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
                   </div>
                   
-                  {/* Max thumb */}
+                  {/* Max thumb - RIGHT handle for maximum price (draggable) */}
                   <div 
-                    className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center pointer-events-none"
+                    className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
                     style={{
-                      left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`
+                      left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`,
+                      zIndex: 25
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      const slider = e.currentTarget.parentElement;
+                      const rect = slider.getBoundingClientRect();
+                      const touch = e.touches[0];
+                      
+                      const handleDrag = (event) => {
+                        const currentTouch = event.touches[0];
+                        const percentage = Math.max(0, Math.min(100, ((currentTouch.clientX - rect.left) / rect.width) * 100));
+                        const value = Math.round((percentage / 100) * 10000000 / 50000) * 50000;
+                        const minValue = searchFilters.price_min || 0;
+                        
+                        if (value > minValue) {
+                          handleFilterChange('price_max', value);
+                        }
+                      };
+                      
+                      const handleRelease = () => {
+                        document.removeEventListener('touchmove', handleDrag);
+                        document.removeEventListener('touchend', handleRelease);
+                      };
+                      
+                      document.addEventListener('touchmove', handleDrag);
+                      document.addEventListener('touchend', handleRelease);
                     }}
                   >
                     <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
@@ -818,7 +838,7 @@ export default function EnhancedPropertySearch({
                       </div>
                     </div>
                     
-                    {/* Price Slider - Functional */}
+                    {/* Price Slider - Functional Dual Handle */}
                     <div className="relative w-full h-5">
                       {/* Background track */}
                       <div className="absolute left-0 right-0 top-[45%] h-[2px] bg-gray-200 rounded-full"></div>
@@ -832,53 +852,138 @@ export default function EnhancedPropertySearch({
                         }}
                       ></div>
                       
-                      {/* Min price input (invisible) */}
-                      <input
-                        type="range"
-                        min="0"
-                        max="10000000"
-                        step="50000"
-                        value={searchFilters.price_min || 0}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          if (value <= (searchFilters.price_max || 10000000)) {
-                            handleFilterChange('price_min', value);
-                          }
-                        }}
-                        className="absolute w-full h-full opacity-0 cursor-pointer z-10"
-                      />
+                      {/* Container for both range inputs with proper z-index handling */}
+                      <div className="absolute w-full h-full">
+                        {/* Min price input - LEFT slider */}
+                        <input
+                          type="range"
+                          min="0"
+                          max="10000000"
+                          step="50000"
+                          value={searchFilters.price_min || 0}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            const maxValue = searchFilters.price_max || 10000000;
+                            // Only update if not crossing over max
+                            if (value < maxValue) {
+                              handleFilterChange('price_min', value);
+                            }
+                          }}
+                          className="absolute w-full h-full opacity-0 cursor-pointer"
+                          style={{ 
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        
+                        {/* Max price input - RIGHT slider */}
+                        <input
+                          type="range"
+                          min="0"
+                          max="10000000"
+                          step="50000"
+                          value={searchFilters.price_max || 10000000}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            const minValue = searchFilters.price_min || 0;
+                            // Only update if not crossing under min
+                            if (value > minValue) {
+                              handleFilterChange('price_max', value);
+                            }
+                          }}
+                          className="absolute w-full h-full opacity-0 cursor-pointer"
+                          style={{ 
+                            pointerEvents: 'none'
+                          }}
+                        />
+                      </div>
                       
-                      {/* Max price input (invisible) */}
-                      <input
-                        type="range"
-                        min="0"
-                        max="10000000"
-                        step="50000"
-                        value={searchFilters.price_max || 10000000}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          if (value >= (searchFilters.price_min || 0)) {
-                            handleFilterChange('price_max', value);
-                          }
-                        }}
-                        className="absolute w-full h-full opacity-0 cursor-pointer z-10"
-                      />
-                      
-                      {/* Min thumb */}
+                      {/* Min thumb - LEFT handle for minimum price (draggable) */}
                       <div 
-                        className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center pointer-events-none"
+                        className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
                         style={{
-                          left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`
+                          left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`,
+                          zIndex: 25,
+                          pointerEvents: 'auto'
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const slider = e.currentTarget.parentElement;
+                          const rect = slider.getBoundingClientRect();
+                          
+                          const handleDrag = (event) => {
+                            const clientX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX;
+                            const percentage = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                            const value = Math.round((percentage / 100) * 10000000 / 50000) * 50000;
+                            const maxValue = searchFilters.price_max || 10000000;
+                            
+                            if (value < maxValue) {
+                              handleFilterChange('price_min', value);
+                            }
+                          };
+                          
+                          const handleRelease = () => {
+                            document.removeEventListener('mousemove', handleDrag);
+                            document.removeEventListener('mouseup', handleRelease);
+                            document.removeEventListener('touchmove', handleDrag);
+                            document.removeEventListener('touchend', handleRelease);
+                          };
+                          
+                          document.addEventListener('mousemove', handleDrag);
+                          document.addEventListener('mouseup', handleRelease);
+                        }}
+                        onTouchStart={(e) => {
+                          const touch = e.touches[0];
+                          const mouseEvent = new MouseEvent('mousedown', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                          });
+                          e.currentTarget.dispatchEvent(mouseEvent);
                         }}
                       >
                         <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
                       </div>
                       
-                      {/* Max thumb */}
+                      {/* Max thumb - RIGHT handle for maximum price (draggable) */}
                       <div 
-                        className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center pointer-events-none"
+                        className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
                         style={{
-                          left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`
+                          left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`,
+                          zIndex: 25,
+                          pointerEvents: 'auto'
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const slider = e.currentTarget.parentElement;
+                          const rect = slider.getBoundingClientRect();
+                          
+                          const handleDrag = (event) => {
+                            const clientX = event.type.includes('touch') ? event.touches[0].clientX : event.clientX;
+                            const percentage = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+                            const value = Math.round((percentage / 100) * 10000000 / 50000) * 50000;
+                            const minValue = searchFilters.price_min || 0;
+                            
+                            if (value > minValue) {
+                              handleFilterChange('price_max', value);
+                            }
+                          };
+                          
+                          const handleRelease = () => {
+                            document.removeEventListener('mousemove', handleDrag);
+                            document.removeEventListener('mouseup', handleRelease);
+                            document.removeEventListener('touchmove', handleDrag);
+                            document.removeEventListener('touchend', handleRelease);
+                          };
+                          
+                          document.addEventListener('mousemove', handleDrag);
+                          document.addEventListener('mouseup', handleRelease);
+                        }}
+                        onTouchStart={(e) => {
+                          const touch = e.touches[0];
+                          const mouseEvent = new MouseEvent('mousedown', {
+                            clientX: touch.clientX,
+                            clientY: touch.clientY
+                          });
+                          e.currentTarget.dispatchEvent(mouseEvent);
                         }}
                       >
                         <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
@@ -901,13 +1006,7 @@ export default function EnhancedPropertySearch({
             </div>
           </div>
 
-          {/* Loading Indicator */}
-          {isLoading && (
-            <div className="text-center py-4">
-              <div className="inline-block w-6 h-6 border-2 border-[#293056] border-t-transparent rounded-full animate-spin"></div>
-              <span className="ml-2 text-[#293056]">Loading...</span>
-            </div>
-          )}
+          {/* Loading Indicator - removed from here, now shown inside content area */}
 
           {/* Property Listing Section */}
           <div className="py-8">
@@ -929,10 +1028,14 @@ export default function EnhancedPropertySearch({
                       activeTab === 'listings' ? 'border-b border-[#252B37]' : ''
                     } box-border`}
                   >
-                    <span className={`w-[148px] h-[30px] font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center tracking-[-0.03em] ${
+                    <span className={`w-[148px] h-[30px] font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center gap-2 tracking-[-0.03em] ${
                       activeTab === 'listings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
-                      Listings {total > 0 && activeTab === 'listings' ? `${total}` : ''}
+                      Listings {total > 0 && activeTab === 'listings' && (
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-sm font-bold text-white bg-[#293056] rounded-full min-w-[28px]">
+                          {total.toLocaleString()}
+                        </span>
+                      )}
                     </span>
                   </button>
                   
@@ -943,10 +1046,14 @@ export default function EnhancedPropertySearch({
                       activeTab === 'buildings' ? 'border-b border-[#252B37]' : ''
                     }`}
                   >
-                    <span className={`font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center tracking-[-0.03em] ${
+                    <span className={`font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center gap-2 tracking-[-0.03em] ${
                       activeTab === 'buildings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
-                      Buildings {total > 0 && activeTab === 'buildings' ? `${total}` : ''}
+                      Buildings {total > 0 && activeTab === 'buildings' && (
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-sm font-bold text-white bg-[#293056] rounded-full min-w-[28px]">
+                          {total.toLocaleString()}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </div>
@@ -1005,7 +1112,15 @@ export default function EnhancedPropertySearch({
             </div>
             
             {/* Main Content Area */}
-            {viewType === 'map' ? (
+            {isLoading ? (
+              // Centered loader in the property listings area
+              <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                  <div className="inline-block w-12 h-12 border-3 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <div className="text-[#293056] text-lg font-medium">Loading properties...</div>
+                </div>
+              </div>
+            ) : viewType === 'map' ? (
               // Full Map View
               <EnhancedPropertyMap 
                 properties={activeTab === 'listings' ? properties : buildings}
@@ -1042,7 +1157,15 @@ export default function EnhancedPropertySearch({
                   
                   {/* Scrollable cards area - IDX-AMPRE style with two cards per row */}
                   <div className="flex-1 overflow-y-auto p-4 mixed-view-scroll">
-                    {activeTab === 'listings' ? (
+                    {isLoading ? (
+                      // Loader for mixed view left panel
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="inline-block w-10 h-10 border-3 border-[#293056] border-t-transparent rounded-full animate-spin mb-3"></div>
+                          <div className="text-[#293056] text-sm">Loading...</div>
+                        </div>
+                      </div>
+                    ) : activeTab === 'listings' ? (
                       properties && properties.length > 0 ? (
                         <div className="idx-ampre-mixed-grid">
                           {properties.map((property) => {

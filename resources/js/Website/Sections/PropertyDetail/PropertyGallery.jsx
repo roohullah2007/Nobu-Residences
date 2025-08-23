@@ -11,6 +11,45 @@ export default function PropertyGallery({
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentMobileSlide, setCurrentMobileSlide] = useState(0);
 
+  // Debug: Log the received images
+  useEffect(() => {
+    console.log('PropertyGallery - Received propertyImages:', propertyImages);
+    console.log('PropertyGallery - propertyImages type:', typeof propertyImages);
+    console.log('PropertyGallery - propertyImages length:', propertyImages?.length);
+  }, [propertyImages]);
+
+  // Ensure we have valid images array with fallback
+  const processImages = () => {
+    let images = [];
+    
+    // Handle different image data structures
+    if (Array.isArray(propertyImages)) {
+      images = propertyImages.filter(img => {
+        // Handle both string URLs and objects with MediaURL property
+        const url = typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL);
+        return url && url.trim() !== '';
+      }).map(img => {
+        return typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL);
+      });
+    }
+    
+    // If no valid images, use fallback
+    if (images.length === 0) {
+      images = [
+        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+        "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+        "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      ];
+      console.log('PropertyGallery - Using fallback images');
+    } else {
+      console.log('PropertyGallery - Using API images:', images.length);
+    }
+    
+    return images;
+  };
+
+  const images = processImages();
+
   const openModal = (imageIndex = 0) => {
     setModalImageIndex(imageIndex);
     setShowModal(true);
@@ -37,18 +76,18 @@ export default function PropertyGallery({
   }, [showModal]);
 
   const nextModalImage = () => {
-    setModalImageIndex((prev) => (prev + 1) % propertyImages.length);
+    setModalImageIndex((prev) => (prev + 1) % images.length);
   };
 
   const prevModalImage = () => {
-    setModalImageIndex((prev) => (prev - 1 + propertyImages.length) % propertyImages.length);
+    setModalImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const changeMobileSlide = (direction) => {
     if (direction === 'next') {
-      setCurrentMobileSlide((prev) => (prev + 1) % propertyImages.length);
+      setCurrentMobileSlide((prev) => (prev + 1) % images.length);
     } else {
-      setCurrentMobileSlide((prev) => (prev - 1 + propertyImages.length) % propertyImages.length);
+      setCurrentMobileSlide((prev) => (prev - 1 + images.length) % images.length);
     }
   };
 
@@ -66,6 +105,35 @@ export default function PropertyGallery({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [showModal]);
 
+  // Helper function to format price
+  const formatPrice = (price) => {
+    if (!price || price === 0) return '$0';
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD',
+      maximumFractionDigits: 0
+    }).format(price);
+  };
+
+  // Get the price to display - prioritize sold price, then list price
+  const getDisplayPrice = () => {
+    if (propertyData?.soldFor) return propertyData.soldFor;
+    if (propertyData?.closePrice) return formatPrice(propertyData.closePrice);
+    if (propertyData?.listPrice) return formatPrice(propertyData.listPrice);
+    if (propertyData?.price) return formatPrice(propertyData.price);
+    return '$0'; // Fallback as shown in image
+  };
+
+  // Handle image loading errors
+  const handleImageError = (e, fallbackIndex = 0) => {
+    const fallbackImages = [
+      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+    ];
+    e.target.src = fallbackImages[fallbackIndex % fallbackImages.length];
+  };
+
   return (
     <>
       {/* Main Container */}
@@ -80,9 +148,10 @@ export default function PropertyGallery({
                 onClick={() => openModal(0)}
               >
                 <img 
-                  src={propertyImages[0]}
+                  src={images[0]}
                   alt="Main property image"
                   className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => handleImageError(e, 0)}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-10"></div>
               </div>
@@ -97,9 +166,10 @@ export default function PropertyGallery({
                   onClick={() => openModal(1)}
                 >
                   <img 
-                    src={propertyImages[1]}
+                    src={images[1] || images[0]}
                     alt="Property image 2"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => handleImageError(e, 1)}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-20"></div>
                 </div>
@@ -112,24 +182,27 @@ export default function PropertyGallery({
                   onClick={() => openModal(2)}
                 >
                   <img 
-                    src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                    src={images[2] || images[1] || images[0]}
                     alt="Property image 3"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => handleImageError(e, 2)}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-20"></div>
                   
-                  {/* See All Photos Button - Hidden on Mobile */}
-                  <div className="hidden md:block absolute bottom-4 right-4">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openModal(0);
-                      }}
-                      className="flex justify-center items-center w-[129px] h-10 bg-black rounded-xl text-white font-work-sans font-bold text-sm hover:bg-gray-800 transition-colors"
-                    >
-                      See all photos
-                    </button>
-                  </div>
+                  {/* See All Photos Button - Only show if we have more than 3 images */}
+                  {images.length > 3 && (
+                    <div className="hidden md:block absolute bottom-4 right-4">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openModal(0);
+                        }}
+                        className="flex justify-center items-center w-[129px] h-10 bg-black rounded-xl text-white font-work-sans font-bold text-sm hover:bg-gray-800 transition-colors"
+                      >
+                        See all photos
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -137,7 +210,7 @@ export default function PropertyGallery({
             {/* Mobile Gallery - Tablet and Mobile Only */}
             <div className="lg:hidden relative w-full h-[300px] md:h-[400px] rounded-xl overflow-hidden">
               <div className="relative w-full h-full">
-                {propertyImages.map((image, index) => (
+                {images.map((image, index) => (
                   <div
                     key={index}
                     className={`absolute inset-0 transition-opacity duration-300 ${
@@ -148,28 +221,33 @@ export default function PropertyGallery({
                       src={image}
                       alt={`Property image ${index + 1}`}
                       className="w-full h-full object-cover object-center"
+                      onError={(e) => handleImageError(e, index)}
                     />
                   </div>
                 ))}
                 
-                {/* Mobile Navigation */}
-                <button 
-                  onClick={() => changeMobileSlide('prev')}
-                  className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
-                >
-                  <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
-                </button>
-                
-                <button 
-                  onClick={() => changeMobileSlide('next')}
-                  className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
-                >
-                  <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
-                </button>
+                {/* Mobile Navigation - Only show if we have more than 1 image */}
+                {images.length > 1 && (
+                  <>
+                    <button 
+                      onClick={() => changeMobileSlide('prev')}
+                      className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+                    >
+                      <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                    
+                    <button 
+                      onClick={() => changeMobileSlide('next')}
+                      className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+                    >
+                      <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+                    </button>
+                  </>
+                )}
                 
                 {/* Mobile Counter */}
                 <div className="absolute bottom-3 md:bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-xs md:text-sm font-medium">
-                  {currentMobileSlide + 1} / {propertyImages.length}
+                  {currentMobileSlide + 1} / {images.length}
                 </div>
               </div>
             </div>
@@ -186,11 +264,11 @@ export default function PropertyGallery({
                       SOLD FOR
                     </span>
                     <span className="font-space-grotesk font-bold text-xl md:text-2xl leading-7 md:leading-[34px] uppercase text-[#93370D]">
-                      {propertyData.soldFor}
+                      {getDisplayPrice()}
                     </span>
                   </div>
                   <div className="font-work-sans font-medium text-sm text-[#535862] text-center">
-                    {propertyData.listedFor}
+                    {propertyData?.listedFor || (propertyData?.listPrice ? `Listed for ${formatPrice(propertyData.listPrice)}` : '')}
                   </div>
                   <div className="w-full h-px border-t border-[#D5D7DA]"></div>
                 </div>
@@ -202,19 +280,97 @@ export default function PropertyGallery({
                   </h3>
                   
                   <div className="flex flex-col gap-4 md:gap-6">
-                    {Object.entries(propertyData.details).map(([key, value]) => (
-                      <div key={key} className="flex justify-between items-center gap-3 w-full">
-                        <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
-                          {key === 'maintenanceFees' ? 'Maintenance Fees' : 
-                           key === 'propertyTaxes' ? 'Property Taxes' : 
-                           key === 'area' ? 'Square Feet' :
-                           key}
-                        </span>
-                        <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                          {value}
-                        </span>
-                      </div>
-                    ))}
+                    {/* Type */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Type
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.type || propertyData?.propertyType || propertyData?.propertySubType || 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Beds */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Beds
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.beds || propertyData?.bedrooms || propertyData?.bedroomsTotal || 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Bathrooms */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Bathrooms
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.bathrooms || propertyData?.bathrooms || propertyData?.bathroomsTotal || 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Area */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Area
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.area || propertyData?.livingArea || 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Parking */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Parking
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {(propertyData?.details?.parking !== undefined && propertyData?.details?.parking !== null && propertyData?.details?.parking !== '') 
+                         ? propertyData.details.parking 
+                         : (propertyData?.parkingTotal !== undefined && propertyData?.parkingTotal !== null && propertyData?.parkingTotal !== '')
+                         ? propertyData.parkingTotal 
+                         : 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Maintenance Fees */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Maintenance Fees
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.maintenanceFees && propertyData.details.maintenanceFees !== 'N/A'
+                         ? propertyData.details.maintenanceFees
+                         : (propertyData?.associationFee && propertyData.associationFee > 0)
+                         ? formatPrice(propertyData.associationFee) + ' CAD'
+                         : 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Property Taxes */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Property Taxes
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.propertyTaxes && propertyData.details.propertyTaxes !== 'N/A'
+                         ? propertyData.details.propertyTaxes
+                         : (propertyData?.taxAnnualAmount && propertyData.taxAnnualAmount > 0)
+                         ? formatPrice(propertyData.taxAnnualAmount) + ' CAD'
+                         : 'N/A'}
+                      </span>
+                    </div>
+                    
+                    {/* Exposure */}
+                    <div className="flex justify-between items-center gap-3 w-full">
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                        Exposure
+                      </span>
+                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                        {propertyData?.details?.exposure || propertyData?.exposure || 'N/A'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -238,9 +394,9 @@ export default function PropertyGallery({
           {/* Modal Header */}
           <div className="bg-black bg-opacity-90 px-4 py-3 flex justify-between items-center border-b border-white border-opacity-10 flex-shrink-0">
             <div className="text-white flex flex-col gap-1">
-              <span className="font-semibold text-sm">{propertyData.address}</span>
+              <span className="font-semibold text-sm">{propertyData?.address || 'Property Details'}</span>
               <span className="text-white text-opacity-70 text-xs">
-                ({modalImageIndex + 1} of {propertyImages.length})
+                ({modalImageIndex + 1} of {images.length})
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -261,60 +417,68 @@ export default function PropertyGallery({
 
           {/* Main Image Area */}
           <div className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0">
-            <button 
-              onClick={prevModalImage}
-              disabled={modalImageIndex === 0}
-              className="absolute left-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
+            {images.length > 1 && (
+              <button 
+                onClick={prevModalImage}
+                disabled={modalImageIndex === 0}
+                className="absolute left-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
             
             <div className="w-full h-full flex items-center justify-center overflow-hidden px-16">
               <div 
                 className="flex h-full w-full transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${modalImageIndex * 100}%)` }}
               >
-                {propertyImages.map((image, index) => (
+                {images.map((image, index) => (
                   <div key={index} className="min-w-full flex items-center justify-center p-4">
                     <img 
                       src={image}
                       alt={`Property image ${index + 1}`}
                       className="max-w-full max-h-full object-contain"
+                      onError={(e) => handleImageError(e, index)}
                     />
                   </div>
                 ))}
               </div>
             </div>
             
-            <button 
-              onClick={nextModalImage}
-              disabled={modalImageIndex === propertyImages.length - 1}
-              className="absolute right-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+            {images.length > 1 && (
+              <button 
+                onClick={nextModalImage}
+                disabled={modalImageIndex === images.length - 1}
+                className="absolute right-3 z-10 bg-white bg-opacity-90 border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer top-1/2 transform -translate-y-1/2 hover:bg-white hover:scale-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
-          {/* Thumbnail Navigation */}
-          <div className="flex gap-2 px-4 py-3 bg-black bg-opacity-90 border-t border-white border-opacity-10 overflow-x-auto">
-            {propertyImages.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => setModalImageIndex(index)}
-                className={`border-2 rounded-md overflow-hidden opacity-70 flex-shrink-0 transition-all hover:opacity-90 ${
-                  index === modalImageIndex 
-                    ? 'border-blue-500 opacity-100 scale-105' 
-                    : 'border-white border-opacity-20'
-                }`}
-              >
-                <img 
-                  src={image}
-                  alt={`Thumbnail ${index + 1}`}
-                  className="w-20 h-15 object-cover block"
-                />
-              </button>
-            ))}
-          </div>
+          {/* Thumbnail Navigation - Only show if we have more than 1 image */}
+          {images.length > 1 && (
+            <div className="flex gap-2 px-4 py-3 bg-black bg-opacity-90 border-t border-white border-opacity-10 overflow-x-auto">
+              {images.map((image, index) => (
+                <button
+                  key={index}
+                  onClick={() => setModalImageIndex(index)}
+                  className={`border-2 rounded-md overflow-hidden opacity-70 flex-shrink-0 transition-all hover:opacity-90 ${
+                    index === modalImageIndex 
+                      ? 'border-blue-500 opacity-100 scale-105' 
+                      : 'border-white border-opacity-20'
+                  }`}
+                >
+                  <img 
+                    src={image}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-20 h-15 object-cover block"
+                    onError={(e) => handleImageError(e, index)}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </>

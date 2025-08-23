@@ -92,7 +92,7 @@ const PropertyCardV5 = ({
   };
 
   return (
-    <div className={`flex-none ${config.container} bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative`}>
+    <div className={`flex-none ${config.container} bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative`}>
       <a 
         href={detailsUrl} 
         className="block h-full text-inherit no-underline"

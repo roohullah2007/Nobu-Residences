@@ -11,7 +11,7 @@ import { BuildingTourScheduling } from '@/Website/Components/PropertyDetail';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
 
-export default function BuildingDetail({ auth, siteName, siteUrl, year }) {
+export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData: initialBuildingData }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   
@@ -161,7 +161,8 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year }) {
     }
   ];
 
-  const buildingData = {
+  // Use initial building data if provided, otherwise use sample data
+  const buildingData = initialBuildingData || {
     name: "8 Hillcrest Ave, North York",
     subtitle: "Modern downtown living",
     description: "Experience luxury living in the heart of downtown.",

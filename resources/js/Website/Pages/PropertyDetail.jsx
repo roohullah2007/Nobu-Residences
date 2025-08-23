@@ -12,9 +12,12 @@ import {
 import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 
-export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
+export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [propertyData, setPropertyData] = useState(initialPropertyData);
+  const [propertyImages, setPropertyImages] = useState(initialImages || []);
+  const [isLoading, setIsLoading] = useState(!initialPropertyData);
   
   // Viewing request modal state
   const [viewingModal, setViewingModal] = useState({
@@ -73,8 +76,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
     setIsFavorited(!isFavorited);
   };
 
-  // Sample property images
-  const propertyImages = [
+  // Sample property images (fallback)
+  const samplePropertyImages = [
     "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
     "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
     "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
@@ -162,12 +165,152 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
     }
   ];
 
-  const propertyData = {
+  // Fetch property data from API if listingKey is provided and no initial data
+  useEffect(() => {
+    if (listingKey && !initialPropertyData) {
+      fetchPropertyData();
+    }
+  }, [listingKey]);
+  
+  const fetchPropertyData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/property-detail', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ listingKey })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Format property data for display
+        const formattedData = formatPropertyDataForDisplay(data.property);
+        setPropertyData(formattedData);
+        
+        // Set images - handle both formats
+        if (data.images && data.images.length > 0) {
+          // Map API images to URL strings
+          const imageUrls = data.images.map(img => img.url || img.MediaURL || img.URL || img);
+          setPropertyImages(imageUrls);
+        } else if (data.property && data.property.Images) {
+          const imageUrls = data.property.Images.map(img => img.MediaURL || img.URL || img.url || img);
+          setPropertyImages(imageUrls);
+        }
+      } else {
+        console.error('Failed to fetch property data');
+        // Use fallback sample data
+        setPropertyData(getSamplePropertyData());
+      }
+    } catch (error) {
+      console.error('Error fetching property data:', error);
+      setPropertyData(getSamplePropertyData());
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const formatPropertyDataForDisplay = (property) => {
+    const formatPrice = (price) => {
+      if (!price) return '';
+      return new Intl.NumberFormat('en-CA', {
+        style: 'currency',
+        currency: 'CAD',
+        maximumFractionDigits: 0
+      }).format(price);
+    };
+    
+    // Handle both old format (from controller) and direct API response
+    const unitNumber = property.unitNumber || property.UnitNumber || property.ApartmentNumber || property.LegalApartmentNumber;
+    const streetNumber = property.streetNumber || property.StreetNumber;
+    const streetName = property.streetName || property.StreetName;
+    const streetSuffix = property.streetSuffix || property.StreetSuffix || '';
+    const city = property.city || property.City;
+    const province = property.province || property.StateOrProvince;
+    const propertySubType = property.propertySubType || property.PropertySubType;
+    const propertyType = property.propertyType || property.PropertyType;
+    const bedroomsTotal = property.bedroomsTotal || property.BedroomsTotal || 0;
+    const bathroomsTotal = property.bathroomsTotal || property.BathroomsTotalInteger || 0;
+    const livingArea = property.livingArea || property.LivingAreaRange;
+    const parkingTotal = property.parkingTotal || property.ParkingTotal || 0;
+    const garageSpaces = property.garageSpaces || property.GarageSpaces || 0;
+    const associationFee = property.associationFee || property.AssociationFee;
+    const taxAnnualAmount = property.taxAnnualAmount || property.TaxAnnualAmount;
+    const yearBuilt = property.yearBuilt || property.YearBuilt;
+    const listPrice = property.listPrice || property.ListPrice;
+    const closePrice = property.closePrice || property.ClosePrice;
+    const publicRemarks = property.publicRemarks || property.PublicRemarks;
+    const standardStatus = property.standardStatus || property.StandardStatus;
+    const mlsStatus = property.mlsStatus || property.MlsStatus;
+    const listingId = property.listingId || property.ListingId || property.ListingKey;
+    const listOfficeName = property.listOfficeName || property.ListOfficeName;
+    const listAgentFullName = property.listAgentFullName || property.ListAgentFullName;
+    const virtualTourURLUnbranded = property.virtualTourURLUnbranded || property.VirtualTourURLUnbranded;
+    const exposure = property.exposure || property.Exposure;
+    const locker = property.locker || property.Locker;
+    const crossStreet = property.crossStreet || property.CrossStreet;
+    
+    // Format address
+    const formattedAddress = unitNumber 
+      ? `${unitNumber} - ${streetNumber} ${streetName} ${streetSuffix}`.trim()
+      : `${streetNumber} ${streetName} ${streetSuffix}`.trim();
+    
+    return {
+      address: formattedAddress,
+      subtitle: `${propertySubType || propertyType} in ${city}, ${province}`,
+      soldFor: closePrice ? formatPrice(closePrice) : null,
+      listedFor: listPrice ? `Listed for ${formatPrice(listPrice)}` : null,
+      listPrice: listPrice,
+      mlsNumber: listingId,
+      details: {
+        type: propertySubType || propertyType || 'Residential',
+        beds: `${bedroomsTotal}${property.BedroomsBelowGrade || property.bedroomsBelowGrade ? '+1' : ''}`,
+        bathrooms: bathroomsTotal,
+        area: livingArea || 'N/A',
+        parking: parkingTotal,
+        garageSpaces: garageSpaces,
+        maintenanceFees: associationFee ? formatPrice(associationFee) : 'N/A',
+        propertyTaxes: taxAnnualAmount ? formatPrice(taxAnnualAmount) : 'N/A',
+        yearBuilt: yearBuilt || 'New',
+        exposure: exposure || 'N/A',
+        locker: locker || 'N/A',
+        crossStreet: crossStreet || 'N/A',
+        status: standardStatus || mlsStatus || 'Active'
+      },
+      description: publicRemarks || '',
+      features: [
+        ...(property.features || property.Features || []),
+        ...(property.appliances || property.Appliances || []),
+        ...(property.interiorFeatures || property.InteriorFeatures || []),
+        ...(property.exteriorFeatures || property.ExteriorFeatures || [])
+      ],
+      heating: property.heating || property.Heating || property.HeatType ? [property.HeatType] : [],
+      cooling: property.cooling || property.Cooling || [],
+      flooring: property.flooring || property.Flooring || [],
+      parkingFeatures: property.parkingFeatures || property.ParkingFeatures || [],
+      latitude: property.latitude || property.Latitude,
+      longitude: property.longitude || property.Longitude,
+      virtualTourUrl: virtualTourURLUnbranded || '',
+      listOfficeName: listOfficeName || '',
+      listAgentName: listAgentFullName || '',
+      listAgentPhone: property.listAgentDirectPhone || property.ListAgentDirectPhone || '',
+      listAgentEmail: property.listAgentEmail || property.ListAgentEmail || '',
+      // Set images - keep as simple URL array for PropertyGallery component
+      Images: propertyImages || [],
+      ImageObjects: propertyImages ? propertyImages.map(img => typeof img === 'string' ? { MediaURL: img } : img) : [],
+      Rooms: property.rooms || property.Rooms || []
+    };
+  };
+  
+  const getSamplePropertyData = () => ({
     address: "408 - 155 Dalhousie Street",
     subtitle: "NO55 Mercer Condos in King West, Downtown, Toronto",
     soldFor: "$1,100,000",
     listedFor: "Listed for 1,139,000 CAD",
-    Images: propertyImages.map(url => ({ MediaURL: url })),
+    Images: samplePropertyImages.map(url => ({ MediaURL: url })),
     details: {
       type: "Residential Condo",
       beds: "2+1",
@@ -178,40 +321,32 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
       propertyTaxes: "$260",
       exposure: "North"
     },
-    Rooms: [
-      {
-        RoomType: 'Living Room',
-        RoomLength: '23.6',
-        RoomWidth: '10.7',
-        RoomLengthWidthUnits: 'feet',
-        RoomFeature1: 'Combined w/Dining',
-        RoomFeature2: 'Window Floor to Ceil',
-        RoomFeature3: 'Laminate'
-      },
-      {
-        RoomType: 'Master Bedroom',
-        RoomLength: '14.8',
-        RoomWidth: '12.5',
-        RoomLengthWidthUnits: 'feet',
-        RoomFeature1: 'Walk-in Closet',
-        RoomFeature2: 'Ensuite Bathroom',
-        RoomFeature3: ''
-      },
-      {
-        RoomType: 'Kitchen',
-        RoomLength: '10.5',
-        RoomWidth: '9.2',
-        RoomLengthWidthUnits: 'feet',
-        RoomFeature1: 'Granite Countertops',
-        RoomFeature2: 'Stainless Steel Appliances',
-        RoomFeature3: 'Island'
-      }
-    ]
-  };
+    Rooms: []
+  });
+  
+  // Use formatted data or fallback
+  const displayData = propertyData || getSamplePropertyData();
 
+  if (isLoading) {
+    return (
+      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
+        <Head title={`Loading Property... - ${siteName}`} />
+        <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
+          <Navbar auth={auth} />
+        </div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="inline-block w-16 h-16 border-4 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="text-[#293056] text-xl font-medium">Loading property details...</div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+  
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
-      <Head title={`${propertyData.address} - Property Details - ${siteName}`} />
+      <Head title={`${displayData.address} - Property Details - ${siteName}`} />
       <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
       <Navbar auth={auth} />
       </div>
@@ -221,7 +356,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
       {/* Property Header */}
         <div className="mb-7">
         <PropertyHeader 
-          data={propertyData}
+          data={displayData}
           isFavorited={isFavorited}
           onToggleFavorite={handleToggleFavorite}
           type="property"
@@ -231,8 +366,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
         {/* Property Gallery with Details Card and Modal */}
         <div className="mb-7">
         <PropertyGallery 
-          propertyImages={propertyImages}
-          propertyData={propertyData}
+          propertyImages={propertyImages && propertyImages.length > 0 ? propertyImages : samplePropertyImages}
+          propertyData={displayData}
           isFavorited={isFavorited}
           onToggleFavorite={handleToggleFavorite}
         />
@@ -243,7 +378,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year }) {
 
         {/* Property Sections */}
         <PropertySections 
-          propertyData={propertyData}
+          propertyData={displayData}
           sampleSaleProperties={sampleSaleProperties}
           sampleRentProperties={sampleRentProperties}
         />

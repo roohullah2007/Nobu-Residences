@@ -1,0 +1,220 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Services\AmpreApiService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+
+class PropertyDetailController extends Controller
+{
+    private AmpreApiService $ampreApi;
+    
+    public function __construct(AmpreApiService $ampreApi)
+    {
+        $this->ampreApi = $ampreApi;
+    }
+    
+    /**
+     * Get property details by listing key
+     */
+    public function getPropertyDetail(Request $request): JsonResponse
+    {
+        $listingKey = $request->input('listingKey');
+        
+        if (!$listingKey) {
+            return response()->json(['error' => 'Listing key is required'], 400);
+        }
+        
+        try {
+            // Cache key for this property
+            $cacheKey = 'property_detail_' . $listingKey;
+            
+            // Try to get from cache first
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData) {
+                return response()->json($cachedData);
+            }
+            
+            // Fetch property details from AMPRE API
+            $property = $this->ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$property) {
+                return response()->json(['error' => 'Property not found'], 404);
+            }
+            
+            // Fetch property images
+            $images = $this->ampreApi->getPropertiesImages([$listingKey]);
+            
+            // Format the response
+            $responseData = [
+                'property' => $this->formatPropertyData($property),
+                'images' => $this->formatImages($images, $listingKey)
+            ];
+            
+            // Cache for 5 minutes
+            Cache::put($cacheKey, $responseData, 300);
+            
+            return response()->json($responseData);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch property detail: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch property details'], 500);
+        }
+    }
+    
+    /**
+     * Format property data for frontend
+     */
+    private function formatPropertyData($property): array
+    {
+        return [
+            'listingKey' => $property['ListingKey'] ?? '',
+            'address' => $property['UnparsedAddress'] ?? '',
+            'streetNumber' => $property['StreetNumber'] ?? '',
+            'streetName' => $property['StreetName'] ?? '',
+            'streetSuffix' => $property['StreetSuffix'] ?? '',
+            'unitNumber' => $property['UnitNumber'] ?? '',
+            'city' => $property['City'] ?? '',
+            'province' => $property['StateOrProvince'] ?? '',
+            'postalCode' => $property['PostalCode'] ?? '',
+            'country' => $property['Country'] ?? 'Canada',
+            
+            // Pricing
+            'listPrice' => $property['ListPrice'] ?? 0,
+            'originalListPrice' => $property['OriginalListPrice'] ?? null,
+            'closePrice' => $property['ClosePrice'] ?? null,
+            
+            // Property details
+            'propertyType' => $property['PropertyType'] ?? '',
+            'propertySubType' => $property['PropertySubType'] ?? '',
+            'standardStatus' => $property['StandardStatus'] ?? '',
+            'mlsStatus' => $property['MlsStatus'] ?? '',
+            
+            // Rooms and spaces
+            'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
+            'bathroomsTotal' => $property['BathroomsTotalInteger'] ?? 0,
+            'bathroomsFull' => $property['BathroomsFull'] ?? 0,
+            'bathroomsHalf' => $property['BathroomsHalf'] ?? 0,
+            'bathroomsThreeQuarter' => $property['BathroomsThreeQuarter'] ?? 0,
+            
+            // Size and dimensions
+            'livingArea' => $property['LivingArea'] ?? null,
+            'livingAreaUnits' => $property['LivingAreaUnits'] ?? 'sqft',
+            'lotSizeArea' => $property['LotSizeArea'] ?? null,
+            'lotSizeUnits' => $property['LotSizeUnits'] ?? 'sqft',
+            'aboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? null,
+            'belowGradeFinishedArea' => $property['BelowGradeFinishedArea'] ?? null,
+            
+            // Year and dates
+            'yearBuilt' => $property['YearBuilt'] ?? null,
+            'listingContractDate' => $property['ListingContractDate'] ?? null,
+            'closeDate' => $property['CloseDate'] ?? null,
+            'daysOnMarket' => $property['DaysOnMarket'] ?? null,
+            'cumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? null,
+            
+            // Parking
+            'parkingTotal' => $property['ParkingTotal'] ?? 0,
+            'garageSpaces' => $property['GarageSpaces'] ?? 0,
+            'coveredSpaces' => $property['CoveredSpaces'] ?? 0,
+            'openParkingSpaces' => $property['OpenParkingSpaces'] ?? 0,
+            'parkingFeatures' => $property['ParkingFeatures'] ?? [],
+            
+            // Description
+            'publicRemarks' => $property['PublicRemarks'] ?? '',
+            'privateRemarks' => $property['PrivateRemarks'] ?? '',
+            
+            // Features and amenities
+            'features' => $property['Features'] ?? [],
+            'appliances' => $property['Appliances'] ?? [],
+            'heating' => $property['Heating'] ?? [],
+            'cooling' => $property['Cooling'] ?? [],
+            'fireplaceFeatures' => $property['FireplaceFeatures'] ?? [],
+            'flooring' => $property['Flooring'] ?? [],
+            'interiorFeatures' => $property['InteriorFeatures'] ?? [],
+            'exteriorFeatures' => $property['ExteriorFeatures'] ?? [],
+            'poolFeatures' => $property['PoolFeatures'] ?? [],
+            'waterSource' => $property['WaterSource'] ?? [],
+            'sewer' => $property['Sewer'] ?? [],
+            'utilities' => $property['Utilities'] ?? [],
+            'view' => $property['View'] ?? [],
+            
+            // Building and construction
+            'architecturalStyle' => $property['ArchitecturalStyle'] ?? [],
+            'constructionMaterials' => $property['ConstructionMaterials'] ?? [],
+            'foundation' => $property['FoundationDetails'] ?? [],
+            'roof' => $property['Roof'] ?? [],
+            'stories' => $property['Stories'] ?? null,
+            'storiesTotal' => $property['StoriesTotal'] ?? null,
+            
+            // HOA and fees
+            'associationFee' => $property['AssociationFee'] ?? null,
+            'associationFeeFrequency' => $property['AssociationFeeFrequency'] ?? null,
+            'associationName' => $property['AssociationName'] ?? null,
+            'associationAmenities' => $property['AssociationAmenities'] ?? [],
+            
+            // Tax
+            'taxYear' => $property['TaxYear'] ?? null,
+            'taxAnnualAmount' => $property['TaxAnnualAmount'] ?? null,
+            'taxAssessedValue' => $property['TaxAssessedValue'] ?? null,
+            
+            // Location
+            'latitude' => $property['Latitude'] ?? null,
+            'longitude' => $property['Longitude'] ?? null,
+            'directions' => $property['Directions'] ?? '',
+            'crossStreet' => $property['CrossStreet'] ?? '',
+            
+            // Listing information
+            'listingId' => $property['ListingId'] ?? '',
+            'listOfficeName' => $property['ListOfficeName'] ?? '',
+            'listOfficePhone' => $property['ListOfficePhone'] ?? '',
+            'listAgentFullName' => $property['ListAgentFullName'] ?? '',
+            'listAgentDirectPhone' => $property['ListAgentDirectPhone'] ?? '',
+            'listAgentEmail' => $property['ListAgentEmail'] ?? '',
+            
+            // Virtual tour
+            'virtualTourURLUnbranded' => $property['VirtualTourURLUnbranded'] ?? '',
+            
+            // Additional info
+            'disclaimer' => $property['Disclaimer'] ?? '',
+            'disclosures' => $property['Disclosures'] ?? [],
+            'exclusions' => $property['Exclusions'] ?? '',
+            'inclusions' => $property['Inclusions'] ?? '',
+            'ownership' => $property['Ownership'] ?? '',
+            'possessionDate' => $property['PossessionDate'] ?? null,
+            'zoning' => $property['Zoning'] ?? '',
+            'zoningDescription' => $property['ZoningDescription'] ?? '',
+        ];
+    }
+    
+    /**
+     * Format images data
+     */
+    private function formatImages($imagesResponse, $listingKey): array
+    {
+        if (empty($imagesResponse) || !isset($imagesResponse[$listingKey])) {
+            return [];
+        }
+        
+        $images = [];
+        foreach ($imagesResponse[$listingKey] as $image) {
+            $images[] = [
+                'url' => $image['MediaURL'] ?? '',
+                'caption' => $image['ShortDescription'] ?? '',
+                'description' => $image['LongDescription'] ?? '',
+                'order' => $image['Order'] ?? 0,
+                'modificationTimestamp' => $image['ModificationTimestamp'] ?? null,
+            ];
+        }
+        
+        // Sort by order
+        usort($images, function($a, $b) {
+            return $a['order'] - $b['order'];
+        });
+        
+        return $images;
+    }
+}
