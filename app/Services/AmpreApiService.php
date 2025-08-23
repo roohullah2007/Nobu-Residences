@@ -8,6 +8,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use App\Models\Setting;
 
 /**
  * AMPRE API Service
@@ -35,10 +36,11 @@ class AmpreApiService
 
     public function __construct()
     {
-        $this->apiUrl = rtrim(config('ampre.api_url'), '/') . '/';
-        $this->vowToken = config('ampre.vow_token');
-        $this->idxToken = config('ampre.idx_token');
-        $this->cacheTtl = config('ampre.cache_ttl', 300);
+        // Try to get settings from database first, fallback to config
+        $this->apiUrl = rtrim(Setting::get('ampre_api_url') ?: config('ampre.api_url'), '/') . '/';
+        $this->vowToken = Setting::get('ampre_vow_token') ?: config('ampre.vow_token');
+        $this->idxToken = Setting::get('ampre_idx_token') ?: config('ampre.idx_token');
+        $this->cacheTtl = Setting::get('cache_ttl') ?: config('ampre.cache_ttl', 300);
         $this->timeout = config('ampre.timeout', 30);
         $this->maxRetries = config('ampre.max_retries', 3);
         $this->retryDelay = config('ampre.retry_delay', 1);
@@ -389,7 +391,7 @@ class AmpreApiService
     /**
      * Make HTTP request to AMPRE API.
      */
-    private function makeRequest(string $method, string $endpoint, array $queryParams = []): Response
+    public function makeRequest(string $method, string $endpoint, array $queryParams = []): Response
     {
         $url = $this->apiUrl . ltrim($endpoint, '/');
         

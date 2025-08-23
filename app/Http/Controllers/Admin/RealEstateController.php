@@ -11,15 +11,11 @@ class RealEstateController extends Controller
 {
     /**
      * Real Estate Buildings management
+     * Redirects to the new building management system
      */
-    public function buildings(): Response
+    public function buildings()
     {
-        return Inertia::render('Admin/RealEstate/Buildings', [
-            'title' => 'Buildings',
-            'buildings' => [
-                // This will be populated with actual building data later
-            ]
-        ]);
+        return redirect()->route('admin.buildings.index');
     }
 
     /**

@@ -4,8 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
-
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -27,7 +26,7 @@ class Property extends Model
     }
 
     protected $fillable = [
-
+        'building_id',
         'title',
         'description',
         'address',
@@ -82,9 +81,13 @@ class Property extends Model
         'deleted_at',
     ];
 
-
-
-
+    /**
+     * Get the building that owns the property
+     */
+    public function building(): BelongsTo
+    {
+        return $this->belongsTo(Building::class);
+    }
 
     /**
      * Scope for active properties
@@ -192,6 +195,7 @@ class Property extends Model
             'images' => $this->images ?? [],
             'virtual_tour_url' => $this->virtual_tour_url,
             'listing_date' => $this->listing_date,
+            'mls_number' => $this->mls_number,
             'is_featured' => $this->is_featured,
             'view_count' => $this->view_count,
         ];

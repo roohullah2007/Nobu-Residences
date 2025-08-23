@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import PropertyImageLoader from '@/Components/PropertyImageLoader';
 
 /**
  * PropertyCardV1 - For Sale Properties
  * 
- * A reusable property card component designed for properties that are for sale.
+ * Enhanced reusable property card component with improved image handling
  * Features white background with white sale/price chips and overlay action buttons.
  * 
  * @param {Object} property - Property data object
@@ -17,6 +18,7 @@ const PropertyCardV1 = ({
   onClick,
   className = '' 
 }) => {
+
   // Format price function
   const formatPrice = (price, isRental = false) => {
     if (!price || price <= 0) return 'Price on request';
@@ -37,6 +39,10 @@ const PropertyCardV1 = ({
     return formattedPrice;
   };
 
+  // Check if we have real MLS data vs dummy data
+  const isRealMLSData = property.source === 'mls' || 
+                       (property.listingKey && property.listingKey.length > 10);
+
   // Build features display
   const buildFeatures = (bedrooms, bathrooms) => {
     const features = [];
@@ -49,7 +55,7 @@ const PropertyCardV1 = ({
     return features.join(' | ');
   };
 
-  const formattedPrice = formatPrice(property.price, property.isRental);
+  const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
   const features = buildFeatures(property.bedrooms, property.bathrooms);
   const detailsUrl = `/property/${property.listingKey}`;
 
@@ -89,16 +95,13 @@ const PropertyCardV1 = ({
         className="block h-full text-inherit no-underline"
         onClick={handleClick}
       >
-        {/* Card Image */}
+        {/* Card Image - Now uses real MLS images */}
         <div className={`relative w-full ${config.image} overflow-hidden bg-gray-100 rounded-t-xl`}>
-          <img 
-            src={property.image}
-            alt={`${property.propertyType} in ${property.address}`}
+          <PropertyImageLoader
+            listingKey={property.listingKey}
+            alt={`${property.propertyType || 'Property'} in ${property.address}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
-            }}
+            enableLazyLoading={true}
           />
           
           {/* Filter Chips and Action Buttons */}
@@ -106,7 +109,7 @@ const PropertyCardV1 = ({
             {/* Top row - Sale and Price chips */}
             <div className="flex justify-between items-center gap-2.5 h-8">
               <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200`}>
-                Sale
+                {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
               </span>
               <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
                 {formattedPrice}
@@ -155,7 +158,7 @@ const PropertyCardV1 = ({
         <div className={`flex flex-col items-start ${config.content} box-border`}>
           {/* Property Type Title */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.propertyType}
+            {property.propertyType || 'Residential'}
           </div>
           
           {/* Property Details */}
@@ -175,7 +178,7 @@ const PropertyCardV1 = ({
             {/* MLS Number */}
             <div className="flex items-center justify-start w-full min-h-8">
               <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
-                MLS#: {property.listingKey}
+                {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
               </div>
             </div>
           </div>

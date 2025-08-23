@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(php artisan:*)",
+      "Bash(mv:*)",
+      "Bash(npm run build:*)",
+      "Bash(rm:*)",
+      "Bash(php:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(taskkill:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

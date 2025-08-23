@@ -22,6 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'agent' => \App\Http\Middleware\AgentMiddleware::class,
             'address.protect' => \App\Http\Middleware\AddressProtectionMiddleware::class,
         ]);
+
+        // Exclude API routes from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'api/property-search',
+            'api/save-search',
+            'api/saved-searches',
+            'api/buildings-search'
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

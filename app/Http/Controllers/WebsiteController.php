@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Website;
 use App\Models\Icon;
+use App\Models\Property;
+use App\Models\Building;
+use App\Services\MLSIntegrationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Foundation\Application;
@@ -170,23 +173,232 @@ class WebsiteController extends Controller
     }
 
     /**
-     * Display the search page
+     * Display the enhanced search page with Ampre API integration
      */
     public function search(Request $request)
     {
         // Get search filters from request
         $filters = $request->only([
-            'search', 'forSale', 'bedType', 'minPrice', 'maxPrice'
+            'search', 'forSale', 'bedType', 'minPrice', 'maxPrice', 'tab', 'page', 'sort'
         ]);
         
-        // Mock properties data for now - replace with actual property search logic
-        $properties = [];
+        $searchTab = $filters['tab'] ?? 'listings';
         
-        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Search All Properties',
-            'properties' => $properties,
-            'filters' => $filters
+        return Inertia::render('Website/Pages/Search', array_merge($this->getWebsiteSettings(), [
+            'title' => 'Property Search - Powered by Ampre API',
+            'filters' => $filters,
+            'searchTab' => $searchTab
         ]));
+    }
+
+    /**
+     * Search local properties with enhanced handling
+     */
+    private function searchLocalProperties(array $filters, int $currentPage, int $perPage): array
+    {
+        $query = Property::with('building')
+            ->active()
+            ->when($filters['search'] ?? null, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('title', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%")
+                          ->orWhere('city', 'like', "%{$search}%")
+                          ->orWhereHas('building', function ($q) use ($search) {
+                              $q->where('name', 'like', "%{$search}%");
+                          });
+                });
+            })
+            ->when($filters['forSale'] ?? null, function ($q, $forSale) {
+                $transactionType = $forSale === 'sale' ? 'sale' : ($forSale === 'rent' ? 'rent' : $forSale);
+                $q->where('transaction_type', $transactionType);
+            })
+            ->when($filters['bedType'] ?? null, function ($q, $bedType) {
+                $q->where('bedrooms', '>=', (int)$bedType);
+            })
+            ->when($filters['minPrice'] ?? null, function ($q, $minPrice) {
+                if ($minPrice !== '0' && $minPrice !== '') {
+                    $price = (int)str_replace(['$', ','], '', $minPrice);
+                    $q->where('price', '>=', $price);
+                }
+            })
+            ->when($filters['maxPrice'] ?? null, function ($q, $maxPrice) {
+                if ($maxPrice !== '$37,000,000' && $maxPrice !== '') {
+                    $price = (int)str_replace(['$', ','], '', $maxPrice);
+                    $q->where('price', '<=', $price);
+                }
+            });
+
+        $total = $query->count();
+        $offset = ($currentPage - 1) * $perPage;
+        
+        $properties = $query->orderBy('created_at', 'desc')
+                           ->skip($offset)
+                           ->limit($perPage)
+                           ->get()
+                           ->map(function ($property) {
+                               $data = $property->getDisplayData();
+                               return [
+                                   'id' => $data['id'],
+                                   'listingKey' => $data['mls_number'] ?? $data['id'],
+                                   'price' => $data['price'],
+                                   'formatted_price' => $this->formatPropertyPrice($data['price'], $data['transaction_type']),
+                                   'propertyType' => $data['property_type'] ?: 'Residential',
+                                   'transactionType' => ucfirst($data['transaction_type']),
+                                   'bedrooms' => $data['bedrooms'] ?? 0,
+                                   'bathrooms' => $data['bathrooms'] ?? 0,
+                                   'address' => $data['address'],
+                                   'city' => $data['city'],
+                                   'province' => $data['province'],
+                                   'latitude' => $data['latitude'],
+                                   'longitude' => $data['longitude'],
+                                   'isRental' => $data['transaction_type'] === 'rent',
+                                   'building' => $property->building?->getDisplayData(),
+                                   'source' => 'local', // Mark as local data (not MLS)
+                                   'uniqueKey' => $this->generateUniqueKey($data['address'], $data['price'])
+                               ];
+                           })
+                           ->toArray();
+
+        return [
+            'properties' => $properties,
+            'total' => $total
+        ];
+    }
+
+    /**
+     * Search local buildings with deduplication
+     */
+    private function searchLocalBuildings(array $filters, int $currentPage, int $perPage): array
+    {
+        $query = Building::active()
+            ->when($filters['search'] ?? null, function ($q, $search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%")
+                          ->orWhere('city', 'like', "%{$search}%")
+                          ->orWhere('developer_name', 'like', "%{$search}%");
+                });
+            });
+
+        $total = $query->count();
+        $offset = ($currentPage - 1) * $perPage;
+        
+        $buildings = $query->orderBy('created_at', 'desc')
+                          ->skip($offset)
+                          ->limit($perPage)
+                          ->get()
+                          ->map(function ($building) {
+                              return array_merge($building->getDisplayData(), [
+                                  'uniqueKey' => $this->generateUniqueKey($building->address, $building->name)
+                              ]);
+                          })
+                          ->toArray();
+
+        return [
+            'buildings' => $buildings,
+            'total' => $total
+        ];
+    }
+
+    /**
+     * Process MLS properties with enhanced image handling and proper formatting
+     */
+    private function processMLSProperties(array $mlsProperties): array
+    {
+        return array_map(function($property) {
+            return [
+                'id' => $property['id'],
+                'listingKey' => $property['listingKey'],
+                'price' => $property['price'],
+                'formatted_price' => $this->formatPropertyPrice($property['price'], 
+                    $property['isRental'] ? 'rent' : 'sale'),
+                'propertyType' => $property['propertyType'] ?: 'Residential',
+                'transactionType' => $property['transactionType'],
+                'bedrooms' => $property['bedrooms'] ?? 0,
+                'bathrooms' => $property['bathrooms'] ?? 0,
+                'sqft' => $property['sqft'] ?? $property['area'] ?? 0,
+                'parking' => $property['parking'] ?? 0,
+                'address' => $property['address'],
+                'city' => $property['city'],
+                'province' => $property['province'],
+                'latitude' => $property['latitude'],
+                'longitude' => $property['longitude'],
+                'isRental' => $property['isRental'],
+                'building' => $property['building'] ?? null,
+                'source' => 'mls', // Mark as real MLS data
+                'uniqueKey' => $this->generateUniqueKey($property['address'], $property['price']),
+                // Use the image URL from MLS if available
+                'imageUrl' => $property['image'] ?? null
+            ];
+        }, $mlsProperties);
+    }
+
+
+
+    /**
+     * Format property price consistently
+     */
+    private function formatPropertyPrice($price, string $transactionType = 'sale'): string
+    {
+        if (!$price || $price <= 0) {
+            return 'Price on request';
+        }
+        
+        $formattedPrice = '';
+        if ($price >= 1000000) {
+            $formattedPrice = '$' . number_format($price / 1000000, 1) . 'M';
+        } else if ($price >= 1000) {
+            $formattedPrice = '$' . number_format($price / 1000, 0) . 'K';
+        } else {
+            $formattedPrice = '$' . number_format($price, 0);
+        }
+        
+        if ($transactionType === 'rent') {
+            $formattedPrice .= '/mo';
+        }
+        
+        return $formattedPrice;
+    }
+
+    /**
+     * Generate unique key for deduplication
+     */
+    private function generateUniqueKey(string $address, $identifier): string
+    {
+        // Normalize address for comparison
+        $normalizedAddress = strtolower(trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $address)));
+        return md5($normalizedAddress . '_' . $identifier);
+    }
+
+    /**
+     * Deduplicate properties array
+     */
+    private function deduplicateProperties(array $properties): array
+    {
+        $seen = [];
+        $deduplicated = [];
+        
+        foreach ($properties as $property) {
+            $key = $property['uniqueKey'];
+            
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $deduplicated[] = $property;
+            } else {
+                // If we already have this property, prefer local over MLS
+                if ($property['source'] === 'local') {
+                    // Replace the existing property with the local one
+                    foreach ($deduplicated as $index => $existingProperty) {
+                        if ($existingProperty['uniqueKey'] === $key) {
+                            $deduplicated[$index] = $property;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $deduplicated;
     }
 
     /**

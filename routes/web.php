@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Api\EnhancedPropertyImagesController;
 use App\Http\Controllers\AmpreTestController;
 use App\Http\Controllers\WebsiteController;
 
@@ -26,6 +27,16 @@ Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 Route::get('/property-detail', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
 Route::get('/building-detail', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
+
+// Property Image API routes (using same mechanism as WordPress plugin)
+Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);
+Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImage']);
+
+// Property Search API routes
+Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
+Route::post('/api/save-search', [\App\Http\Controllers\PropertySearchController::class, 'saveSearch']); // Removed auth middleware - handled in controller
+Route::get('/api/saved-searches', [\App\Http\Controllers\PropertySearchController::class, 'getSavedSearches'])->middleware('auth');
+Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingController::class, 'searchBuildings']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
@@ -60,6 +71,23 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/real-estate/buildings', [RealEstateController::class, 'buildings'])->name('real-estate.buildings');
     Route::get('/real-estate/developers', [RealEstateController::class, 'developers'])->name('real-estate.developers');
     Route::get('/real-estate/schools', [RealEstateController::class, 'schools'])->name('real-estate.schools');
+    
+    // Building Management routes
+    Route::prefix('buildings')->name('buildings.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\BuildingController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Admin\BuildingController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
+        Route::get('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
+        Route::get('/{building}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
+        Route::put('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'update'])->name('update');
+        Route::delete('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'destroy'])->name('destroy');
+    });
+    
+    // Developer Management routes
+    Route::resource('developers', \App\Http\Controllers\Admin\DeveloperController::class);
+    
+    // Amenity Management routes
+    Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
     
     // Website Management routes
     Route::prefix('websites')->name('websites.')->group(function () {
@@ -213,6 +241,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 require __DIR__.'/auth.php';
 
 
+
+// Enhanced Property Images API Routes
+Route::prefix('api')->group(function () {
+    Route::post('/property-images', [EnhancedPropertyImagesController::class, 'getPropertyImages'])->name('api.property-images');
+    Route::post('/property-images/clear-cache', [EnhancedPropertyImagesController::class, 'clearImageCache'])->name('api.property-images.clear-cache');
+});
 
 // AMPRE API Test Routes (remove in production)
 Route::prefix('api/ampre/test')->group(function () {

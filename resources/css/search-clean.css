@@ -1,0 +1,219 @@
+/* Clean Search Page Styling - Matching WordPress Plugin */
+
+/* Remove any colored backgrounds from property cards */
+.property-card {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+.property-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Ensure chips are white with dark text - no green/blue colors */
+.property-card .chip,
+.property-card .status-chip,
+.property-card .price-chip {
+    background: #ffffff !important;
+    color: #293056 !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+}
+
+/* Clean grid layout */
+.properties-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .properties-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        padding: 0.5rem;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .properties-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+    .properties-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1441px) {
+    .properties-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Clean loading states */
+.loading-spinner {
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #293056;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Property card content styling */
+.property-card .card-content {
+    padding: 1.25rem;
+}
+
+.property-card .property-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #293056;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.property-card .property-address {
+    color: #293056;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.property-card .property-features {
+    color: #293056;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.property-card .property-mls {
+    color: #293056;
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Image container */
+.property-card .image-container {
+    height: 200px;
+    overflow: hidden;
+    border-radius: 12px 12px 0 0;
+    position: relative;
+    background: #f3f4f6;
+}
+
+.property-card .property-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.property-card:hover .property-image {
+    transform: scale(1.05);
+}
+
+/* Pagination styling */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+    padding: 1rem;
+}
+
+.pagination button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination button.active {
+    background: #293056;
+    color: white;
+    border-color: #293056;
+}
+
+/* Ensure no map is shown in search - clean grid only */
+.map-section {
+    display: none !important;
+}
+
+/* Clean search filters */
+.search-filters {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.search-filters input,
+.search-filters select {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 0.5rem;
+    background: white;
+}
+
+.search-filters button {
+    background: #293056;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.search-filters button:hover {
+    background: #1e2142;
+}
+
+/* Status indicators */
+.status-notice {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.status-notice.info {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #1e40af;
+}

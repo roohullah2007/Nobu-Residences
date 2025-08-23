@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateApiKeysRequest;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -71,17 +72,60 @@ class AdminController extends Controller
      */
     public function apiKeys(): Response
     {
+        $apiSettings = Setting::apiSettings()->get()->keyBy('key');
+        
         return Inertia::render('Admin/ApiKeys', [
-            'title' => 'API Keys',
+            'title' => 'MLS API Configuration',
             'api_keys' => [
-                'ampre_api_url' => config('ampre.api_url'),
-                'ampre_vow_token' => config('ampre.vow_token') ? '••••••••••••' . substr(config('ampre.vow_token'), -4) : '',
-                'ampre_idx_token' => config('ampre.idx_token') ? '••••••••••••' . substr(config('ampre.idx_token'), -4) : '',
-                'google_maps_api_key' => config('ampre.google_maps_api_key') ? '••••••••••••' . substr(config('ampre.google_maps_api_key'), -4) : '',
-                'walkscore_api_key' => config('ampre.walkscore_api_key') ? '••••••••••••' . substr(config('ampre.walkscore_api_key'), -4) : '',
+                'ampre_api_url' => $apiSettings->get('ampre_api_url')?->value ?? config('ampre.api_url'),
+                'ampre_vow_token' => $this->maskApiKey($apiSettings->get('ampre_vow_token')?->value),
+                'ampre_idx_token' => $this->maskApiKey($apiSettings->get('ampre_idx_token')?->value),
+                'google_maps_api_key' => $this->maskApiKey($apiSettings->get('google_maps_api_key')?->value),
+                'walkscore_api_key' => $this->maskApiKey($apiSettings->get('walkscore_api_key')?->value),
             ],
+            'mls_settings' => [
+                'auto_sync' => $apiSettings->get('mls_auto_sync')?->value ?? true,
+                'sync_interval' => $apiSettings->get('mls_sync_interval')?->value ?? 60,
+                'max_properties' => $apiSettings->get('mls_max_properties')?->value ?? 1000,
+                'default_city' => $apiSettings->get('mls_default_city')?->value ?? 'Toronto',
+                'cache_ttl' => $apiSettings->get('cache_ttl')?->value ?? 300,
+            ],
+            'connection_status' => $this->getConnectionStatus(),
             'status' => session('status')
         ]);
+    }
+
+    /**
+     * Mask API key for display
+     */
+    private function maskApiKey(?string $key): string
+    {
+        if (empty($key)) {
+            return '';
+        }
+        
+        if (strlen($key) <= 8) {
+            return str_repeat('•', strlen($key));
+        }
+        
+        return str_repeat('•', strlen($key) - 4) . substr($key, -4);
+    }
+
+    /**
+     * Get API connection status
+     */
+    private function getConnectionStatus(): array
+    {
+        $vowToken = Setting::get('ampre_vow_token');
+        $idxToken = Setting::get('ampre_idx_token');
+        $googleMapsKey = Setting::get('google_maps_api_key');
+        
+        return [
+            'ampre_vow' => !empty($vowToken) ? 'configured' : 'not_configured',
+            'ampre_idx' => !empty($idxToken) ? 'configured' : 'not_configured', 
+            'google_maps' => !empty($googleMapsKey) ? 'configured' : 'not_configured',
+            'last_test' => Setting::get('api_last_test_date'),
+        ];
     }
 
     /**
@@ -89,23 +133,53 @@ class AdminController extends Controller
      */
     public function updateApiKeys(UpdateApiKeysRequest $request): RedirectResponse
     {
+        $validated = $request->validated();
+        
+        // Update API settings in database
+        $apiSettings = [
+            'ampre_api_url' => $validated['ampre_api_url'] ?? config('ampre.api_url'),
+            'ampre_vow_token' => $validated['ampre_vow_token'] ?? '',
+            'ampre_idx_token' => $validated['ampre_idx_token'] ?? '',
+            'google_maps_api_key' => $validated['google_maps_api_key'] ?? '',
+            'walkscore_api_key' => $validated['walkscore_api_key'] ?? '',
+        ];
 
-        // In a real application, you would save these to a database or update .env file
-        // For now, we'll just show a success message
-        
-        // You could save to database like this:
-        // \App\Models\Setting::updateOrCreate(['key' => 'ampre_vow_token'], ['value' => $request->ampre_vow_token]);
-        
-        // Or update .env file programmatically (be careful with this approach)
+        foreach ($apiSettings as $key => $value) {
+            if (!empty($value)) {
+                Setting::set($key, $value, [
+                    'group' => 'api',
+                    'is_encrypted' => in_array($key, ['ampre_vow_token', 'ampre_idx_token', 'google_maps_api_key', 'walkscore_api_key'])
+                ]);
+            }
+        }
+
+        // Update MLS settings if provided
+        $mlsSettings = [
+            'mls_auto_sync' => $validated['mls_auto_sync'] ?? null,
+            'mls_sync_interval' => $validated['mls_sync_interval'] ?? null,
+            'mls_max_properties' => $validated['mls_max_properties'] ?? null,
+            'mls_default_city' => $validated['mls_default_city'] ?? null,
+            'cache_ttl' => $validated['cache_ttl'] ?? null,
+        ];
+
+        foreach ($mlsSettings as $key => $value) {
+            if ($value !== null) {
+                Setting::set($key, $value, [
+                    'group' => $key === 'cache_ttl' ? 'api' : 'mls'
+                ]);
+            }
+        }
+
+        // Also update .env for immediate config access
         $this->updateEnvFile([
-            'AMPRE_API_URL' => $request->ampre_api_url ?? config('ampre.api_url'),
-            'AMPRE_VOW_TOKEN' => $request->ampre_vow_token ?? '',
-            'AMPRE_IDX_TOKEN' => $request->ampre_idx_token ?? '',
-            'GOOGLE_MAPS_API_KEY' => $request->google_maps_api_key ?? '',
-            'WALKSCORE_API_KEY' => $request->walkscore_api_key ?? '',
+            'AMPRE_API_URL' => $apiSettings['ampre_api_url'],
+            'AMPRE_VOW_TOKEN' => $apiSettings['ampre_vow_token'],
+            'AMPRE_IDX_TOKEN' => $apiSettings['ampre_idx_token'],
+            'GOOGLE_MAPS_API_KEY' => $apiSettings['google_maps_api_key'],
+            'WALKSCORE_API_KEY' => $apiSettings['walkscore_api_key'],
         ]);
 
-        return redirect()->route('admin.api-keys')->with('status', 'API keys updated successfully!');
+        return redirect()->route('admin.api-keys')->with('status', 'MLS API configuration updated successfully!');
     }
 
     /**
@@ -124,7 +198,8 @@ class AdminController extends Controller
             switch ($apiType) {
                 case 'ampre':
                     // Test AMPRE API connection
-                    if (empty(config('ampre.vow_token'))) {
+                    $vowToken = Setting::get('ampre_vow_token') ?: config('ampre.vow_token');
+                    if (empty($vowToken)) {
                         $result['message'] = 'AMPRE VOW token is not configured.';
                         break;
                     }
@@ -135,18 +210,25 @@ class AdminController extends Controller
                     $result['success'] = true;
                     $result['message'] = 'AMPRE API connection successful!';
                     $result['data'] = ['property_count' => count($properties)];
+                    
+                    // Store last test date
+                    Setting::set('api_last_test_date', now()->toDateTimeString(), [
+                        'group' => 'api',
+                        'description' => 'Last successful API test timestamp'
+                    ]);
                     break;
 
                 case 'google_maps':
                     // Test Google Maps API (simple geocoding test)
-                    if (empty(config('ampre.google_maps_api_key'))) {
+                    $googleKey = Setting::get('google_maps_api_key') ?: config('ampre.google_maps_api_key');
+                    if (empty($googleKey)) {
                         $result['message'] = 'Google Maps API key is not configured.';
                         break;
                     }
                     
                     $response = \Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
                         'address' => 'Toronto, ON, Canada',
-                        'key' => config('ampre.google_maps_api_key')
+                        'key' => $googleKey
                     ]);
                     
                     if ($response->successful() && $response->json('status') === 'OK') {
@@ -159,7 +241,8 @@ class AdminController extends Controller
 
                 case 'walkscore':
                     // Test WalkScore API
-                    if (empty(config('ampre.walkscore_api_key'))) {
+                    $walkscoreKey = Setting::get('walkscore_api_key') ?: config('ampre.walkscore_api_key');
+                    if (empty($walkscoreKey)) {
                         $result['message'] = 'WalkScore API key is not configured.';
                         break;
                     }
@@ -169,7 +252,7 @@ class AdminController extends Controller
                         'address' => 'Toronto ON Canada',
                         'lat' => 43.6532,
                         'lon' => -79.3832,
-                        'wsapikey' => config('ampre.walkscore_api_key')
+                        'wsapikey' => $walkscoreKey
                     ]);
                     
                     if ($response->successful()) {

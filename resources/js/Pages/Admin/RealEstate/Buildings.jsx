@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import PrimaryButton from '@/Components/PrimaryButton';
 
@@ -15,9 +15,11 @@ export default function Buildings({ auth, buildings, title }) {
                     </p>
                 </div>
                 <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                    <PrimaryButton>
-                        Add New Building
-                    </PrimaryButton>
+                    <Link href={route('admin.buildings.create')}>
+                        <PrimaryButton>
+                            Add New Building
+                        </PrimaryButton>
+                    </Link>
                 </div>
             </div>
 
@@ -44,9 +46,11 @@ export default function Buildings({ auth, buildings, title }) {
                             Get started by creating a new building listing.
                         </p>
                         <div className="mt-6">
-                            <PrimaryButton>
-                                Add Building
-                            </PrimaryButton>
+                            <Link href={route('admin.buildings.create')}>
+                                <PrimaryButton>
+                                    Add Building
+                                </PrimaryButton>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -122,29 +126,34 @@ export default function Buildings({ auth, buildings, title }) {
                 </div>
             </div>
 
-            {/* Coming Soon Notice */}
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            {/* Building Management Notice */}
+            <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex">
                     <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
                     <div className="ml-3">
-                        <h3 className="text-sm font-medium text-blue-800">
-                            Building Management Coming Soon
+                        <h3 className="text-sm font-medium text-green-800">
+                            Building Management Available
                         </h3>
-                        <div className="mt-2 text-sm text-blue-700">
+                        <div className="mt-2 text-sm text-green-700">
                             <p>
-                                Full building management functionality will be added here, including:
+                                Full building management functionality is now available:
                             </p>
                             <ul className="list-disc list-inside mt-2 space-y-1">
                                 <li>Building listings with photos and details</li>
-                                <li>Integration with AMPRE API for property data</li>
-                                <li>Location mapping and amenities</li>
+                                <li>Location mapping with coordinates</li>
+                                <li>Amenities and features management</li>
                                 <li>Unit management and availability</li>
-                                <li>Developer and contact information</li>
+                                <li>Developer and management company information</li>
                             </ul>
+                            <div className="mt-4">
+                                <Link href={route('admin.buildings.index')} className="font-medium text-green-800 hover:text-green-900 underline">
+                                    Go to Building Management →
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>

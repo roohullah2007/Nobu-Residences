@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { PropertyCardV3 } from './PropertyCards';
+import { PropertyCardV3 } from './PropertyCards/index.js';
 
 export default function BuildingSlider({ 
   title = "More Buildings in the Area", 

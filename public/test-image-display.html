@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Image Display</title>
+</head>
+<body>
+    <h1>Testing AMPRE Image Display</h1>
+    <p>This tests if AMPRE images can be displayed directly:</p>
+    
+    <h2>Test Image 1:</h2>
+    <img src="https://trreb-image.ampre.ca/NVixHvwPE3QO5Jng14D5IKWJvW_zwVGoWUCjc3akHC4/rs:fit/wm:.5:so:0:50:.4/wmsh:10/wmt:PHNwYW4gZm9yZWdyb3VuZD0nd2hpdGUnIGZvbnQ9JzY4Jz5MQU5EUE9XRVIgUkVBTCBFU1RBVEUgTFRELiwgQnJva2VyYWdlPC9zcGFuPg/cb:20250820022856/L3RycmViL2xpc3RpbmdzLzQxLzkzLzEzLzE2L3AvMWM2ZDI1YjQtZDg2Ny00NzAyLTliNWMtOTA3OTViZTllMmYwLmpwZw.jpg" 
+         style="width: 400px; height: 300px; object-fit: cover; border: 2px solid blue;"
+         onload="console.log('Image 1 loaded successfully')"
+         onerror="console.error('Image 1 failed to load')" />
+    
+    <h2>Test Image 2:</h2>
+    <img src="https://trreb-image.ampre.ca/CSmbwDJGRGNcUaVb8sWSyCF7vKkT2N0KfAw399Xc0WE/rs:fit/wm:.5:so:0:50:.4/wmsh:10/wmt:PHNwYW4gZm9yZWdyb3VuZD0nd2hpdGUnIGZvbnQ9JzY4Jz5SRS9NQVggUkVBTFRST04gUkVBTFRZIElOQy4sIEJyb2tlcmFnZTwvc3Bhbj4/cb:20250819225540/L3RycmViL2xpc3RpbmdzLzQxLzg5LzY0LzAyL3AvMTliNjYzYWQtMmU0MS00ZTRkLTk4NDItNWFlOTViNjNmMzViLmpwZw.jpg"
+         style="width: 400px; height: 300px; object-fit: cover; border: 2px solid green;"
+         onload="console.log('Image 2 loaded successfully')"
+         onerror="console.error('Image 2 failed to load')" />
+    
+    <h2>Console Output:</h2>
+    <div id="console-output" style="background: #f0f0f0; padding: 10px; font-family: monospace;"></div>
+    
+    <script>
+        // Override console.log and console.error to display in page
+        const output = document.getElementById('console-output');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            output.innerHTML += '<div style="color: green;">' + args.join(' ') + '</div>';
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            output.innerHTML += '<div style="color: red;">' + args.join(' ') + '</div>';
+        };
+        
+        // Test loading images programmatically
+        setTimeout(() => {
+            console.log('Testing programmatic image loading...');
+            const img = new Image();
+            img.onload = () => console.log('Programmatic image loaded!');
+            img.onerror = () => console.error('Programmatic image failed!');
+            img.src = 'https://trreb-image.ampre.ca/_V5SqDMwDalOUdh501K8u6HrqSkO0HNuvIpZG6Uhces/rs:fit/wm:.5:so:0:50:.4/wmsh:10/wmt:PHNwYW4gZm9yZWdyb3VuZD0nd2hpdGUnIGZvbnQ9JzY4Jz5DRU5UVVJZIDIxIFBST1BFUlRZIFpPTkUgUkVBTFRZIElOQy4sIEJyb2tlcmFnZTwvc3Bhbj4/L3RycmViL2xpc3RpbmdzLzMyLzI3Lzk0LzEzL3AvMzc0MjE5NjctNGNlMi00NzI3LTk1YmUtYmIyNGNiNmZkNDExLmpwZw.jpg';
+        }, 1000);
+    </script>
+</body>
+</html>

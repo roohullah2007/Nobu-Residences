@@ -8,17 +8,26 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import axios from 'axios';
 
-export default function ApiKeys({ title, api_keys, status }) {
+export default function ApiKeys({ title, api_keys, mls_settings, connection_status, status }) {
     const [showValues, setShowValues] = useState({});
     const [testResults, setTestResults] = useState({});
     const [testing, setTesting] = useState({});
+    const [activeTab, setActiveTab] = useState('api_keys');
     
     const { data, setData, post, processing, errors, reset } = useForm({
+        // API Keys
         ampre_api_url: api_keys.ampre_api_url || '',
         ampre_vow_token: '',
         ampre_idx_token: '',
         google_maps_api_key: '',
         walkscore_api_key: '',
+        
+        // MLS Settings
+        mls_auto_sync: mls_settings?.auto_sync ?? true,
+        mls_sync_interval: mls_settings?.sync_interval ?? 60,
+        mls_max_properties: mls_settings?.max_properties ?? 1000,
+        mls_default_city: mls_settings?.default_city ?? 'Toronto',
+        cache_ttl: mls_settings?.cache_ttl ?? 300,
     });
 
     const toggleShowValue = (fieldName) => {
@@ -35,6 +44,22 @@ export default function ApiKeys({ title, api_keys, status }) {
                 reset('ampre_vow_token', 'ampre_idx_token', 'google_maps_api_key', 'walkscore_api_key');
             }
         });
+    };
+
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'configured': return 'text-green-600';
+            case 'not_configured': return 'text-red-600';
+            default: return 'text-gray-600';
+        }
+    };
+
+    const getStatusText = (status) => {
+        switch (status) {
+            case 'configured': return 'Configured';
+            case 'not_configured': return 'Not Configured';
+            default: return 'Unknown';
+        }
     };
 
     const testApiConnection = async (apiType) => {
@@ -144,89 +169,252 @@ export default function ApiKeys({ title, api_keys, status }) {
                     </div>
                 )}
 
-                {/* API Keys Form */}
-                <div className="bg-white shadow rounded-lg">
-                    <form onSubmit={submit} className="space-y-6 p-6">
-                        <div className="grid grid-cols-1 gap-6">
-                            {apiKeysConfig.map((config) => (
-                                <div key={config.id} className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <InputLabel htmlFor={config.id} value={config.label} className="font-semibold" />
-                                        {config.required && (
-                                            <span className="text-sm text-red-500">Required</span>
-                                        )}
-                                    </div>
-                                    
-                                    <p className="text-sm text-gray-600 mb-2">{config.description}</p>
-                                    
-                                    {/* Current Value Display */}
-                                    {config.currentValue && (
-                                        <div className="bg-gray-50 rounded-md p-3 mb-2">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-2">
-                                                    <span className="text-sm text-gray-600">Current:</span>
-                                                    <code className="text-sm bg-gray-200 px-2 py-1 rounded font-mono">
-                                                        {config.showToggle && !showValues[config.id] 
-                                                            ? config.currentValue 
-                                                            : config.currentValue
-                                                        }
-                                                    </code>
-                                                </div>
-                                                {config.showToggle && config.currentValue && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => toggleShowValue(config.id)}
-                                                        className="text-sm text-indigo-600 hover:text-indigo-500"
-                                                    >
-                                                        {showValues[config.id] ? 'Hide' : 'Show'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="relative">
-                                        <TextInput
-                                            id={config.id}
-                                            type={config.showToggle && showValues[config.id] ? 'text' : config.type}
-                                            name={config.id}
-                                            value={data[config.id]}
-                                            className="block w-full"
-                                            placeholder={config.placeholder}
-                                            onChange={(e) => setData(config.id, e.target.value)}
-                                        />
-                                        {config.showToggle && (
-                                            <button
-                                                type="button"
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                                onClick={() => toggleShowValue(config.id)}
-                                            >
-                                                {showValues[config.id] ? (
-                                                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.275 4.057-5.065 7-9.543 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                    </svg>
-                                                )}
-                                            </button>
-                                        )}
-                                    </div>
-                                    
-                                    <InputError message={errors[config.id]} className="mt-2" />
-                                </div>
-                            ))}
+                {/* Connection Status Overview */}
+                {connection_status && (
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4">API Connection Status</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="flex items-center space-x-3">
+                                <div className={`w-3 h-3 rounded-full ${connection_status.ampre_vow === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                <span className="text-sm font-medium">AMPRE VOW</span>
+                                <span className={`text-sm ${getStatusColor(connection_status.ampre_vow)}`}>
+                                    {getStatusText(connection_status.ampre_vow)}
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <div className={`w-3 h-3 rounded-full ${connection_status.ampre_idx === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                <span className="text-sm font-medium">AMPRE IDX</span>
+                                <span className={`text-sm ${getStatusColor(connection_status.ampre_idx)}`}>
+                                    {getStatusText(connection_status.ampre_idx)}
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-3">
+                                <div className={`w-3 h-3 rounded-full ${connection_status.google_maps === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                <span className="text-sm font-medium">Google Maps</span>
+                                <span className={`text-sm ${getStatusColor(connection_status.google_maps)}`}>
+                                    {getStatusText(connection_status.google_maps)}
+                                </span>
+                            </div>
                         </div>
+                        {connection_status.last_test && (
+                            <p className="text-sm text-gray-500 mt-4">
+                                Last tested: {new Date(connection_status.last_test).toLocaleString()}
+                            </p>
+                        )}
+                    </div>
+                )}
 
-                        <div className="flex items-center justify-end pt-6 border-t border-gray-200">
-                            <PrimaryButton disabled={processing}>
-                                {processing ? 'Saving...' : 'Save API Keys'}
-                            </PrimaryButton>
-                        </div>
-                    </form>
+                {/* Tabs */}
+                <div className="border-b border-gray-200">
+                    <nav className="-mb-px flex space-x-8">
+                        <button
+                            onClick={() => setActiveTab('api_keys')}
+                            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'api_keys'
+                                    ? 'border-indigo-500 text-indigo-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            API Keys
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('mls_settings')}
+                            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                activeTab === 'mls_settings'
+                                    ? 'border-indigo-500 text-indigo-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            MLS Settings
+                        </button>
+                    </nav>
                 </div>
+
+                {/* Tab Content */}
+                {activeTab === 'api_keys' && (
+                    <div className="bg-white shadow rounded-lg">
+                        <form onSubmit={submit} className="space-y-6 p-6">
+                            <div className="grid grid-cols-1 gap-6">
+                                {apiKeysConfig.map((config) => (
+                                    <div key={config.id} className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <InputLabel htmlFor={config.id} value={config.label} className="font-semibold" />
+                                            {config.required && (
+                                                <span className="text-sm text-red-500">Required</span>
+                                            )}
+                                        </div>
+                                        
+                                        <p className="text-sm text-gray-600 mb-2">{config.description}</p>
+                                        
+                                        {/* Current Value Display */}
+                                        {config.currentValue && (
+                                            <div className="bg-gray-50 rounded-md p-3 mb-2">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className="text-sm text-gray-600">Current:</span>
+                                                        <code className="text-sm bg-gray-200 px-2 py-1 rounded font-mono">
+                                                            {config.showToggle && !showValues[config.id] 
+                                                                ? config.currentValue 
+                                                                : config.currentValue
+                                                            }
+                                                        </code>
+                                                    </div>
+                                                    {config.showToggle && config.currentValue && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleShowValue(config.id)}
+                                                            className="text-sm text-indigo-600 hover:text-indigo-500"
+                                                        >
+                                                            {showValues[config.id] ? 'Hide' : 'Show'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="relative">
+                                            <TextInput
+                                                id={config.id}
+                                                type={config.showToggle && showValues[config.id] ? 'text' : config.type}
+                                                name={config.id}
+                                                value={data[config.id]}
+                                                className="block w-full"
+                                                placeholder={config.placeholder}
+                                                onChange={(e) => setData(config.id, e.target.value)}
+                                            />
+                                            {config.showToggle && (
+                                                <button
+                                                    type="button"
+                                                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                                    onClick={() => toggleShowValue(config.id)}
+                                                >
+                                                    {showValues[config.id] ? (
+                                                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.543 7-1.275 4.057-5.065 7-9.543 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        <InputError message={errors[config.id]} className="mt-2" />
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex items-center justify-end pt-6 border-t border-gray-200">
+                                <PrimaryButton disabled={processing}>
+                                    {processing ? 'Saving...' : 'Save API Keys'}
+                                </PrimaryButton>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* MLS Settings Tab */}
+                {activeTab === 'mls_settings' && (
+                    <div className="bg-white shadow rounded-lg">
+                        <form onSubmit={submit} className="space-y-6 p-6">
+                            <div className="grid grid-cols-1 gap-6">
+                                {/* Auto Sync */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="mls_auto_sync" value="Auto Sync MLS" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">Automatically synchronize properties from MLS API</p>
+                                    <div className="flex items-center">
+                                        <input
+                                            id="mls_auto_sync"
+                                            type="checkbox"
+                                            checked={data.mls_auto_sync}
+                                            onChange={(e) => setData('mls_auto_sync', e.target.checked)}
+                                            className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                        />
+                                        <label htmlFor="mls_auto_sync" className="ml-2 text-sm text-gray-700">
+                                            Enable automatic MLS synchronization
+                                        </label>
+                                    </div>
+                                    <InputError message={errors.mls_auto_sync} className="mt-2" />
+                                </div>
+
+                                {/* Sync Interval */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="mls_sync_interval" value="Sync Interval (minutes)" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">How often to sync properties from MLS API (5-1440 minutes)</p>
+                                    <TextInput
+                                        id="mls_sync_interval"
+                                        type="number"
+                                        min="5"
+                                        max="1440"
+                                        value={data.mls_sync_interval}
+                                        className="block w-full"
+                                        placeholder="60"
+                                        onChange={(e) => setData('mls_sync_interval', parseInt(e.target.value) || 60)}
+                                    />
+                                    <InputError message={errors.mls_sync_interval} className="mt-2" />
+                                </div>
+
+                                {/* Max Properties */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="mls_max_properties" value="Max Properties" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">Maximum number of properties to sync (10-10,000)</p>
+                                    <TextInput
+                                        id="mls_max_properties"
+                                        type="number"
+                                        min="10"
+                                        max="10000"
+                                        value={data.mls_max_properties}
+                                        className="block w-full"
+                                        placeholder="1000"
+                                        onChange={(e) => setData('mls_max_properties', parseInt(e.target.value) || 1000)}
+                                    />
+                                    <InputError message={errors.mls_max_properties} className="mt-2" />
+                                </div>
+
+                                {/* Default City */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="mls_default_city" value="Default City" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">Default city for MLS property searches</p>
+                                    <TextInput
+                                        id="mls_default_city"
+                                        type="text"
+                                        value={data.mls_default_city}
+                                        className="block w-full"
+                                        placeholder="Toronto"
+                                        onChange={(e) => setData('mls_default_city', e.target.value)}
+                                    />
+                                    <InputError message={errors.mls_default_city} className="mt-2" />
+                                </div>
+
+                                {/* Cache TTL */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="cache_ttl" value="Cache TTL (seconds)" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">Cache time-to-live for API responses (60-3600 seconds)</p>
+                                    <TextInput
+                                        id="cache_ttl"
+                                        type="number"
+                                        min="60"
+                                        max="3600"
+                                        value={data.cache_ttl}
+                                        className="block w-full"
+                                        placeholder="300"
+                                        onChange={(e) => setData('cache_ttl', parseInt(e.target.value) || 300)}
+                                    />
+                                    <InputError message={errors.cache_ttl} className="mt-2" />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end pt-6 border-t border-gray-200">
+                                <PrimaryButton disabled={processing}>
+                                    {processing ? 'Saving...' : 'Save MLS Settings'}
+                                </PrimaryButton>
+                            </div>
+                        </form>
+                    </div>
+                )}
 
                 {/* API Status */}
                 <div className="bg-white shadow rounded-lg">

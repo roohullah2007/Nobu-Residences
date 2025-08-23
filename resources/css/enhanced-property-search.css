@@ -1,0 +1,455 @@
+/* Enhanced Property Search Styles - Inspired by IDX-AMPRE Plugin */
+
+/* Mixed View Scrollbar Styling */
+.mixed-view-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mixed-view-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.mixed-view-scroll::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.mixed-view-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Enhanced Property Card Animations */
+.property-card-enhanced {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.property-card-enhanced:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.property-card-enhanced.active {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+}
+
+/* Enhanced Image Loading States */
+.enhanced-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-image-loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 2s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.enhanced-image-blur {
+  filter: blur(4px);
+  transition: filter 0.5s ease;
+}
+
+.enhanced-image-loaded {
+  filter: blur(0);
+}
+
+/* Map Marker Styles */
+.property-marker-content {
+  position: relative;
+  z-index: 10;
+  font-family: 'Work Sans', sans-serif;
+  cursor: pointer;
+  user-select: none;
+}
+
+.property-marker-content:hover {
+  transform: scale(1.1);
+  z-index: 20;
+}
+
+.property-marker-content.active {
+  animation: marker-pulse 2s infinite;
+}
+
+@keyframes marker-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Map Info Window Styles */
+.property-info-window {
+  font-family: 'Work Sans', sans-serif;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.property-info-window img {
+  transition: transform 0.3s ease;
+}
+
+.property-info-window:hover img {
+  transform: scale(1.05);
+}
+
+/* Mixed View Layout Enhancements */
+.mixed-view-container {
+  height: calc(100vh - 400px);
+  min-height: 600px;
+}
+
+.mixed-view-properties {
+  width: 50%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.mixed-view-map {
+  width: 50%;
+  position: sticky;
+  top: 0;
+}
+
+/* Enhanced Loading States */
+.property-grid-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.loading-overlay {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 20px;
+  border-radius: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e9ecef;
+  border-top: 2px solid #007cba;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Property Card Hover Effects */
+.property-card-v5 {
+  transition: all 0.3s ease;
+}
+
+.property-card-v5:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Mixed View Property Card Styles */
+.mixed-view-property-card {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.mixed-view-property-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.mixed-view-property-card.active {
+  border-color: #3b82f6;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+}
+
+/* Active Property Highlight Animation */
+.property-highlight-active {
+  animation: highlight-pulse 2s infinite;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+}
+
+/* Enhanced Button Styles */
+.enhanced-btn {
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.enhanced-btn:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* View Toggle Styles */
+.view-toggle-btn {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.view-toggle-btn.active {
+  background-color: #293056;
+  color: white;
+}
+
+.view-toggle-btn:not(.active):hover {
+  background-color: #f3f4f6;
+}
+
+/* Enhanced Search Input Styles */
+.enhanced-search-input {
+  transition: all 0.3s ease;
+}
+
+.enhanced-search-input:focus {
+  transform: scale(1.02);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Property Image Overlay Effects */
+.property-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.property-card-enhanced:hover .property-image-overlay {
+  transform: translateX(100%);
+}
+
+/* Map Container Styles */
+.enhanced-map-container {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.map-loading-state {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.map-error-state {
+  background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d63031;
+}
+
+/* Price Badge Enhancements */
+.price-badge {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.price-badge:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+}
+
+/* Status Badge Variations */
+.status-badge {
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.status-badge.for-sale {
+  background: rgba(34, 197, 94, 0.9);
+}
+
+.status-badge.for-rent {
+  background: rgba(59, 130, 246, 0.9);
+}
+
+.status-badge.sold {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.status-badge.pending {
+  background: rgba(245, 158, 11, 0.9);
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+  .mixed-view-container {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .mixed-view-properties,
+  .mixed-view-map {
+    width: 100%;
+  }
+  
+  .mixed-view-map {
+    height: 400px;
+    position: relative;
+  }
+}
+
+@media (max-width: 640px) {
+  .property-card-v5 {
+    width: 100% !important;
+    max-width: none !important;
+  }
+  
+  .enhanced-search-input:focus {
+    transform: none;
+  }
+}
+
+/* Accessibility Enhancements */
+.focus-ring:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Enhanced Tooltip Styles */
+.enhanced-tooltip {
+  position: absolute;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.enhanced-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Custom Scrollbar for Mixed View */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.8);
+}
+
+/* Performance Optimizations */
+.property-image-container {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-auto {
+  will-change: auto;
+}
+
+/* Print Styles */
+@media print {
+  .view-toggle-btn,
+  .enhanced-btn,
+  .loading-overlay {
+    display: none !important;
+  }
+  
+  .mixed-view-container {
+    flex-direction: column;
+  }
+  
+  .property-card-enhanced {
+    break-inside: avoid;
+  }
+}

@@ -9,11 +9,24 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
-    resolve: (name) =>
-        resolvePageComponent(
-            `./Pages/${name}.jsx`,
-            import.meta.glob('./Pages/**/*.jsx'),
-        ),
+    resolve: (name) => {
+        const allPages = import.meta.glob(['./Pages/**/*.jsx', './Website/**/*.jsx']);
+        
+        // First try the exact path
+        let path = `./Pages/${name}.jsx`;
+        if (allPages[path]) {
+            return resolvePageComponent(path, allPages);
+        }
+        
+        // Try as a direct Website path  
+        path = `./${name}.jsx`;
+        if (allPages[path]) {
+            return resolvePageComponent(path, allPages);
+        }
+        
+        // Fallback to default resolution
+        return resolvePageComponent(`./Pages/${name}.jsx`, allPages);
+    },
     setup({ el, App, props }) {
         if (import.meta.env.SSR) {
             hydrateRoot(el, <App {...props} />);

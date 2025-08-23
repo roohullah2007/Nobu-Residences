@@ -1,0 +1,464 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\AmpreApiService;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Inertia\Inertia;
+use Exception;
+
+class PropertySearchController extends Controller
+{
+    private AmpreApiService $ampreApi;
+
+    public function __construct(AmpreApiService $ampreApi)
+    {
+        $this->ampreApi = $ampreApi;
+    }
+
+    /**
+     * Display the enhanced search page with Ampre API integration
+     */
+    public function search(Request $request)
+    {
+        $filters = $request->only([
+            'search', 'transaction_type', 'property_type', 'bedrooms', 'bathrooms',
+            'min_price', 'max_price', 'city', 'province', 'view_type', 'page', 'sort'
+        ]);
+        
+        $viewType = $filters['view_type'] ?? 'grid';
+        $currentPage = (int) ($filters['page'] ?? 1);
+        $perPage = 20;
+        $sort = $filters['sort'] ?? 'ListPrice desc';
+        
+        // Calculate skip value for pagination
+        $skip = ($currentPage - 1) * $perPage;
+        
+        try {
+            // Get properties with count from Ampre API
+            $result = $this->searchAmpreProperties($filters, $perPage, $skip, $sort);
+            
+            // Get property images in batches
+            if (!empty($result['properties'])) {
+                $result['properties'] = $this->enhancePropertiesWithImages($result['properties']);
+            }
+            
+            $lastPage = (int) ceil($result['count'] / $perPage);
+            
+            return Inertia::render('PropertySearch', [
+                'siteName' => config('app.name'),
+                'siteUrl' => config('app.url'),
+                'year' => date('Y'),
+                'properties' => $result['properties'],
+                'filters' => $filters,
+                'viewType' => $viewType,
+                'total' => $result['count'],
+                'currentPage' => $currentPage,
+                'lastPage' => $lastPage,
+                'perPage' => $perPage,
+                'sortOptions' => $this->getSortOptions(),
+                'propertyTypes' => $this->getPropertyTypes(),
+                'cities' => $this->getPopularCities()
+            ]);
+            
+        } catch (Exception $e) {
+            \Log::error('Property Search Error: ' . $e->getMessage());
+            
+            return Inertia::render('PropertySearch', [
+                'siteName' => config('app.name'),
+                'siteUrl' => config('app.url'),
+                'year' => date('Y'),
+                'properties' => [],
+                'filters' => $filters,
+                'viewType' => $viewType,
+                'total' => 0,
+                'currentPage' => 1,
+                'lastPage' => 1,
+                'perPage' => $perPage,
+                'error' => 'Unable to load properties. Please try again.',
+                'sortOptions' => $this->getSortOptions(),
+                'propertyTypes' => $this->getPropertyTypes(),
+                'cities' => $this->getPopularCities()
+            ]);
+        }
+    }
+
+    /**
+     * Search properties using Ampre API
+     */
+    private function searchAmpreProperties(array $filters, int $limit, int $skip, string $sort): array
+    {
+        // Reset filters and set new parameters
+        $this->ampreApi->resetFilters();
+        
+        // Set basic parameters
+        $this->ampreApi
+            ->setTop($limit)
+            ->setSkip($skip)
+            ->setOrderBy($sort)
+            ->setSelect([
+                'ListingKey',
+                'ListingId', 
+                'BedroomsTotal',
+                'BathroomsTotalInteger',
+                'UnparsedAddress',
+                'StreetNumber',
+                'StreetName',
+                'City',
+                'StateOrProvince',
+                'PostalCode',
+                'ListPrice',
+                'TransactionType',
+                'PropertyType',
+                'PropertySubType',
+                'StandardStatus',
+                'ListOfficeName',
+                'ListAgentFirstName',
+                'ListAgentLastName',
+                'Latitude',
+                'Longitude',
+                'LivingArea',
+                'LivingAreaUnits',
+                'YearBuilt',
+                'PublicRemarks',
+                'ListingContractDate',
+                'ModificationTimestamp'
+            ]);
+
+        // Apply filters
+        $this->applySearchFilters($filters);
+        
+        // Fetch properties with count
+        $result = $this->ampreApi->fetchPropertiesWithCount();
+        
+        // Transform properties for frontend
+        $properties = array_map([$this, 'transformAmpreProperty'], $result['properties']);
+        
+        return [
+            'properties' => $properties,
+            'count' => $result['count']
+        ];
+    }
+
+    /**
+     * Apply search filters to Ampre API
+     */
+    private function applySearchFilters(array $filters): void
+    {
+        // Always filter for active listings
+        $this->ampreApi->addFilter('StandardStatus', 'Active');
+        
+        // Search term (address, city, postal code)
+        if (!empty($filters['search'])) {
+            $search = trim($filters['search']);
+            $this->ampreApi->addCustomFilter(
+                "(contains(UnparsedAddress, '{$search}') or contains(City, '{$search}') or contains(PostalCode, '{$search}'))"
+            );
+        }
+        
+        // Transaction type
+        if (!empty($filters['transaction_type'])) {
+            if ($filters['transaction_type'] === 'sale') {
+                $this->ampreApi->addFilter('TransactionType', 'For Sale');
+            } elseif ($filters['transaction_type'] === 'rent') {
+                $this->ampreApi->setFilterOr('TransactionType', ['For Lease', 'For Rent']);
+            }
+        }
+        
+        // Property type
+        if (!empty($filters['property_type'])) {
+            $this->ampreApi->addFilter('PropertyType', $filters['property_type']);
+        }
+        
+        // Bedrooms
+        if (!empty($filters['bedrooms'])) {
+            $this->ampreApi->addFilter('BedroomsTotal', (string)$filters['bedrooms'], 'ge');
+        }
+        
+        // Bathrooms
+        if (!empty($filters['bathrooms'])) {
+            $this->ampreApi->addFilter('BathroomsTotalInteger', (string)$filters['bathrooms'], 'ge');
+        }
+        
+        // Price range
+        $minPrice = !empty($filters['min_price']) ? (int)str_replace(['$', ','], '', $filters['min_price']) : null;
+        $maxPrice = !empty($filters['max_price']) ? (int)str_replace(['$', ','], '', $filters['max_price']) : null;
+        
+        if ($minPrice || $maxPrice) {
+            $this->ampreApi->setPriceRange($minPrice, $maxPrice);
+        }
+        
+        // City
+        if (!empty($filters['city'])) {
+            $this->ampreApi->addFilter('City', $filters['city']);
+        }
+        
+        // Province/State
+        if (!empty($filters['province'])) {
+            $this->ampreApi->addFilter('StateOrProvince', $filters['province']);
+        }
+    }
+
+    /**
+     * Transform Ampre API property data for frontend
+     */
+    private function transformAmpreProperty(array $property): array
+    {
+        $address = $this->buildFullAddress($property);
+        $price = $property['ListPrice'] ?? 0;
+        $transactionType = $property['TransactionType'] ?? 'For Sale';
+        
+        return [
+            'id' => $property['ListingKey'],
+            'listingKey' => $property['ListingKey'],
+            'listingId' => $property['ListingId'] ?? null,
+            'price' => $price,
+            'formattedPrice' => $this->formatPrice($price, $transactionType),
+            'address' => $address,
+            'city' => $property['City'] ?? '',
+            'province' => $property['StateOrProvince'] ?? '',
+            'postalCode' => $property['PostalCode'] ?? '',
+            'bedrooms' => $property['BedroomsTotal'] ?? 0,
+            'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
+            'livingArea' => $property['LivingArea'] ?? null,
+            'livingAreaUnits' => $property['LivingAreaUnits'] ?? null,
+            'yearBuilt' => $property['YearBuilt'] ?? null,
+            'propertyType' => $property['PropertyType'] ?? 'Residential',
+            'propertySubType' => $property['PropertySubType'] ?? '',
+            'transactionType' => $transactionType,
+            'isRental' => in_array($transactionType, ['For Lease', 'For Rent']),
+            'status' => $property['StandardStatus'] ?? 'Active',
+            'listOffice' => $property['ListOfficeName'] ?? '',
+            'listAgent' => trim(($property['ListAgentFirstName'] ?? '') . ' ' . ($property['ListAgentLastName'] ?? '')),
+            'latitude' => $property['Latitude'] ?? null,
+            'longitude' => $property['Longitude'] ?? null,
+            'publicRemarks' => $property['PublicRemarks'] ?? '',
+            'listingDate' => $property['ListingContractDate'] ?? null,
+            'modifiedDate' => $property['ModificationTimestamp'] ?? null,
+            'source' => 'ampre',
+            'images' => [], // Will be populated by enhancePropertiesWithImages
+            'detailUrl' => route('property-detail', ['id' => $property['ListingKey']])
+        ];
+    }
+
+    /**
+     * Build full address from property components
+     */
+    private function buildFullAddress(array $property): string
+    {
+        $parts = [];
+        
+        if (!empty($property['StreetNumber'])) {
+            $parts[] = $property['StreetNumber'];
+        }
+        
+        if (!empty($property['StreetName'])) {
+            $parts[] = $property['StreetName'];
+        }
+        
+        // Fallback to UnparsedAddress if individual components not available
+        if (empty($parts) && !empty($property['UnparsedAddress'])) {
+            return $property['UnparsedAddress'];
+        }
+        
+        return implode(' ', $parts) ?: 'Address not available';
+    }
+
+    /**
+     * Format price for display
+     */
+    private function formatPrice(int $price, string $transactionType): string
+    {
+        if ($price <= 0) {
+            return 'Price on request';
+        }
+        
+        $formatted = '';
+        if ($price >= 1000000) {
+            $formatted = '$' . number_format($price / 1000000, 1) . 'M';
+        } elseif ($price >= 1000) {
+            $formatted = '$' . number_format($price / 1000, 0) . 'K';
+        } else {
+            $formatted = '$' . number_format($price, 0);
+        }
+        
+        if (in_array($transactionType, ['For Lease', 'For Rent'])) {
+            $formatted .= '/mo';
+        }
+        
+        return $formatted;
+    }
+
+    /**
+     * Enhance properties with images from Ampre API
+     */
+    private function enhancePropertiesWithImages(array $properties): array
+    {
+        if (empty($properties)) {
+            return $properties;
+        }
+        
+        // Extract listing keys
+        $listingKeys = array_column($properties, 'listingKey');
+        
+        try {
+            // Get images for all properties in one API call
+            $imagesGrouped = $this->ampreApi->getPropertiesImages($listingKeys, 'Largest', 5);
+            
+            // Enhance each property with its images
+            foreach ($properties as &$property) {
+                $listingKey = $property['listingKey'];
+                $property['images'] = $imagesGrouped[$listingKey] ?? [];
+                
+                // Set primary image
+                if (!empty($property['images'])) {
+                    $property['primaryImage'] = $property['images'][0]['MediaURL'] ?? null;
+                } else {
+                    $property['primaryImage'] = null;
+                }
+            }
+            
+        } catch (Exception $e) {
+            \Log::error('Error fetching property images: ' . $e->getMessage());
+            // Continue without images
+        }
+        
+        return $properties;
+    }
+
+    /**
+     * API endpoint for property search (for AJAX calls)
+     */
+    public function searchApi(Request $request): JsonResponse
+    {
+        $filters = $request->only([
+            'search', 'transaction_type', 'property_type', 'bedrooms', 'bathrooms',
+            'min_price', 'max_price', 'city', 'province', 'page', 'sort'
+        ]);
+        
+        $currentPage = (int) ($filters['page'] ?? 1);
+        $perPage = 20;
+        $sort = $filters['sort'] ?? 'ListPrice desc';
+        $skip = ($currentPage - 1) * $perPage;
+        
+        try {
+            $result = $this->searchAmpreProperties($filters, $perPage, $skip, $sort);
+            
+            if (!empty($result['properties'])) {
+                $result['properties'] = $this->enhancePropertiesWithImages($result['properties']);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'properties' => $result['properties'],
+                'count' => $result['count'],
+                'currentPage' => $currentPage,
+                'lastPage' => (int) ceil($result['count'] / $perPage),
+                'perPage' => $perPage
+            ]);
+            
+        } catch (Exception $e) {
+            \Log::error('API Property Search Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Unable to search properties. Please try again.',
+                'properties' => [],
+                'count' => 0
+            ], 500);
+        }
+    }
+
+    /**
+     * Get property details by listing key
+     */
+    public function getPropertyDetails(string $listingKey): JsonResponse
+    {
+        try {
+            $property = $this->ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$property) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Property not found'
+                ], 404);
+            }
+            
+            // Transform property data
+            $transformedProperty = $this->transformAmpreProperty($property);
+            
+            // Get images for this property
+            $images = $this->ampreApi->getPropertiesImages([$listingKey], 'Largest', 20);
+            $transformedProperty['images'] = $images[$listingKey] ?? [];
+            
+            // Get rooms data
+            $rooms = $this->ampreApi->getPropertyRoomsByKeys([$listingKey]);
+            $transformedProperty['rooms'] = $rooms[$listingKey] ?? [];
+            
+            return response()->json([
+                'success' => true,
+                'property' => $transformedProperty
+            ]);
+            
+        } catch (Exception $e) {
+            \Log::error('Error fetching property details: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Unable to load property details'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get sort options for dropdown
+     */
+    private function getSortOptions(): array
+    {
+        return [
+            'ListPrice desc' => 'Price: High to Low',
+            'ListPrice asc' => 'Price: Low to High',
+            'ModificationTimestamp desc' => 'Newest First',
+            'ModificationTimestamp asc' => 'Oldest First',
+            'BedroomsTotal desc' => 'Most Bedrooms',
+            'BathroomsTotalInteger desc' => 'Most Bathrooms',
+            'LivingArea desc' => 'Largest First',
+            'City asc' => 'City A-Z'
+        ];
+    }
+
+    /**
+     * Get property types for filter
+     */
+    private function getPropertyTypes(): array
+    {
+        return [
+            'Residential' => 'Residential',
+            'Condo' => 'Condo',
+            'Townhouse' => 'Townhouse',
+            'Commercial' => 'Commercial',
+            'Land' => 'Land',
+            'Multi-Family' => 'Multi-Family'
+        ];
+    }
+
+    /**
+     * Get popular cities for filter
+     */
+    private function getPopularCities(): array
+    {
+        return [
+            'Toronto',
+            'Vancouver',
+            'Calgary',
+            'Ottawa',
+            'Montreal',
+            'Edmonton',
+            'Mississauga',
+            'Winnipeg',
+            'Quebec City',
+            'Hamilton'
+        ];
+    }
+}

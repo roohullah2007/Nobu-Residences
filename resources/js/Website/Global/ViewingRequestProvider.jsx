@@ -1,1 +1,59 @@
-import React, { createContext, useContext, useState } from 'react';\nimport { ViewingRequestModal } from '@/Website/Global/Components';\n\n/**\n * Global Viewing Request Context and Provider\n * Provides viewing request modal functionality across the entire application\n */\nconst ViewingRequestContext = createContext();\n\nexport const useViewingRequest = () => {\n  const context = useContext(ViewingRequestContext);\n  if (!context) {\n    throw new Error('useViewingRequest must be used within a ViewingRequestProvider');\n  }\n  return context;\n};\n\nexport const ViewingRequestProvider = ({ children }) => {\n  const [viewingModal, setViewingModal] = useState({\n    isOpen: false,\n    property: null\n  });\n\n  const openViewingModal = (property) => {\n    setViewingModal({\n      isOpen: true,\n      property: property\n    });\n  };\n\n  const closeViewingModal = () => {\n    setViewingModal({\n      isOpen: false,\n      property: null\n    });\n  };\n\n  const contextValue = {\n    openViewingModal,\n    closeViewingModal,\n    isOpen: viewingModal.isOpen,\n    property: viewingModal.property\n  };\n\n  return (\n    <ViewingRequestContext.Provider value={contextValue}>\n      {children}\n      \n      {/* Global Viewing Request Modal */}\n      <ViewingRequestModal \n        isOpen={viewingModal.isOpen}\n        onClose={closeViewingModal}\n        property={viewingModal.property}\n      />\n    </ViewingRequestContext.Provider>\n  );\n};\n\nexport default ViewingRequestProvider;
+import React, { createContext, useContext, useState } from 'react';
+import { ViewingRequestModal } from '@/Website/Global/Components';
+
+/**
+ * Global Viewing Request Context and Provider
+ * Provides viewing request modal functionality across the entire application
+ */
+const ViewingRequestContext = createContext();
+
+export const useViewingRequest = () => {
+  const context = useContext(ViewingRequestContext);
+  if (!context) {
+    throw new Error('useViewingRequest must be used within a ViewingRequestProvider');
+  }
+  return context;
+};
+
+export const ViewingRequestProvider = ({ children }) => {
+  const [viewingModal, setViewingModal] = useState({
+    isOpen: false,
+    property: null
+  });
+
+  const openViewingModal = (property) => {
+    setViewingModal({
+      isOpen: true,
+      property: property
+    });
+  };
+
+  const closeViewingModal = () => {
+    setViewingModal({
+      isOpen: false,
+      property: null
+    });
+  };
+
+  const contextValue = {
+    openViewingModal,
+    closeViewingModal,
+    isOpen: viewingModal.isOpen,
+    property: viewingModal.property
+  };
+
+  return (
+    <ViewingRequestContext.Provider value={contextValue}>
+      {children}
+      
+      {/* Global Viewing Request Modal */}
+      <ViewingRequestModal 
+        isOpen={viewingModal.isOpen}
+        onClose={closeViewingModal}
+        property={viewingModal.property}
+      />
+    </ViewingRequestContext.Provider>
+  );
+};
+
+export default ViewingRequestProvider;

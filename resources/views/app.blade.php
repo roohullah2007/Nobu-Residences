@@ -12,6 +12,9 @@
         <link href="https://fonts.bunny.net/css?family=work-sans:400,500,600,700&family=space-grotesk:700&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
+        <script>
+            window.googleMapsApiKey = "{{ env('GOOGLE_MAPS_API_KEY') }}";
+        </script>
         @routes
         @viteReactRefresh
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])

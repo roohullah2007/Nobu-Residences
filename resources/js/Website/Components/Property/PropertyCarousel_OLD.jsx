@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PropertyCardV1, PropertyCardV2 } from '@/Website/Global/Components/PropertyCards';
+import { PropertyCardV1, PropertyCardV2 } from '@/Website/Global/Components/PropertyCards/index.js';
 
 /**
  * PropertyCarousel - Reusable carousel component for property cards
