@@ -184,7 +184,7 @@ class WebsiteController extends Controller
         
         $searchTab = $filters['tab'] ?? 'listings';
         
-        return Inertia::render('Website/Pages/Search', array_merge($this->getWebsiteSettings(), [
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'title' => 'Property Search - Powered by Ampre API',
             'filters' => $filters,
             'searchTab' => $searchTab
@@ -497,7 +497,7 @@ class WebsiteController extends Controller
             }
         }
         
-        return Inertia::render('Website/Pages/PropertyDetail', array_merge($this->getWebsiteSettings(), [
+        return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
             'listingKey' => $listingKey,
             'propertyData' => $propertyData,
@@ -593,7 +593,7 @@ class WebsiteController extends Controller
             })->toArray();
         }
         
-        return Inertia::render('Website/Pages/BuildingDetail', array_merge($this->getWebsiteSettings(), [
+        return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $building ? $building->name : 'Building Detail',
             'buildingId' => $buildingId,
             'buildingData' => $buildingData
