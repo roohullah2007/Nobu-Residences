@@ -1,9 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
+import { usePage } from '@inertiajs/react';
 
 const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
+  const [nearbyListings, setNearbyListings] = useState([]);
+  const [similarListings, setSimilarListings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const { listingKey } = usePage().props;
 
   // Sample building data for "More Buildings By Agent"
   const buildingData = [
@@ -109,8 +115,147 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
     }
   ];
 
-  // Choose data based on title
-  const buildings = title === "More Buildings By Agent" ? buildingData : nearbyListingsData;
+  // Fetch listings from API based on title
+  useEffect(() => {
+    if (listingKey) {
+      if (title === "Nearby Listings") {
+        fetchNearbyListings();
+      } else if (title === "Similar Listings") {
+        fetchSimilarListings();
+      } else {
+        setIsLoading(false);
+      }
+    }
+  }, [listingKey, title]);
+  
+  const fetchNearbyListings = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/nearby-listings?listingKey=${listingKey}&limit=6`);
+      const data = await response.json();
+      
+      // Debug log to see what we're getting from API
+      console.log('Nearby listings API response:', data);
+      
+      if (data.properties && data.properties.length > 0) {
+        // Format the data for the PropertyCardV3 component
+        const formattedListings = data.properties.map((property, index) => {
+          // Use MediaURL field like the search page does, fallback to image field
+          let imageUrl = property.MediaURL || property.image;
+          
+          // Check for null, undefined, empty string, or "none"
+          if (!imageUrl) {
+            // Fallback to placeholder if no image
+            imageUrl = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80";
+            console.log(`Nearby property ${property.listingKey} - No image, using placeholder`);
+          } else if (imageUrl.includes('ampre.ca')) {
+            // Use the proxy endpoint to avoid SSL issues for AMPRE images
+            const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+            console.log(`Nearby property ${property.listingKey} - Proxying AMPRE image:`, imageUrl.substring(0, 50), '... to', proxiedUrl.substring(0, 50));
+            imageUrl = proxiedUrl;
+          } else {
+            console.log(`Nearby property ${property.listingKey} - Using direct image:`, imageUrl.substring(0, 50));
+          }
+          
+          return {
+            id: property.listingKey || index,
+            // Use the actual property type or subtype from the API
+            name: property.propertySubType || property.propertyType || "Residential",
+            // Use the processed image URL
+            image: imageUrl,
+            address: property.address || "Address not available",
+            units: property.bedrooms ? `${property.bedrooms} BD, ${property.bathrooms || 0} BA` : "Details not available",
+            priceRange: property.price ? `$${property.price.toLocaleString()}` : "Price on request",
+            // Pass the listing key for navigation
+            listingKey: property.listingKey,
+            // Keep all images for potential carousel use
+            images: property.images || []
+          };
+        });
+        
+        // Debug log formatted listings
+        console.log('Formatted nearby listings:', formattedListings);
+        setNearbyListings(formattedListings);
+      }
+    } catch (error) {
+      console.error('Error fetching nearby listings:', error);
+      // Set empty array on error
+      setNearbyListings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSimilarListings = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/similar-listings?listingKey=${listingKey}&limit=6`);
+      const data = await response.json();
+      
+      // Debug log to see what we're getting from API
+      console.log('Similar listings API response:', data);
+      
+      if (data.properties && data.properties.length > 0) {
+        // Format the data for the PropertyCardV3 component - same as nearby listings
+        const formattedListings = data.properties.map((property, index) => {
+          // Use MediaURL field like the search page does, fallback to image field
+          let imageUrl = property.MediaURL || property.image;
+          
+          // Check for null, undefined, empty string, or "none"
+          if (!imageUrl) {
+            // Fallback to placeholder if no image
+            imageUrl = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80";
+            console.log(`Similar property ${property.listingKey} - No image, using placeholder`);
+          } else if (imageUrl.includes('ampre.ca')) {
+            // Use the proxy endpoint to avoid SSL issues for AMPRE images
+            const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+            console.log(`Similar property ${property.listingKey} - Proxying AMPRE image:`, imageUrl.substring(0, 50), '... to', proxiedUrl.substring(0, 50));
+            imageUrl = proxiedUrl;
+          } else {
+            console.log(`Similar property ${property.listingKey} - Using direct image:`, imageUrl.substring(0, 50));
+          }
+          
+          return {
+            id: property.listingKey || index,
+            // Use the actual property type or subtype from the API
+            name: property.propertySubType || property.propertyType || "Residential",
+            // Use the processed image URL
+            image: imageUrl,
+            address: property.address || "Address not available",
+            units: property.bedrooms ? `${property.bedrooms} BD, ${property.bathrooms || 0} BA` : "Details not available",
+            priceRange: property.price ? `$${property.price.toLocaleString()}` : "Price on request",
+            // Pass the listing key for navigation
+            listingKey: property.listingKey,
+            // Keep all images for potential carousel use
+            images: property.images || []
+          };
+        });
+        
+        // Debug log formatted listings
+        console.log('Formatted similar listings:', formattedListings);
+        setSimilarListings(formattedListings);
+      }
+    } catch (error) {
+      console.error('Error fetching similar listings:', error);
+      // Set empty array on error
+      setSimilarListings([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Choose data based on title and API availability
+  const buildings = (() => {
+    if (title === "Nearby Listings") {
+      return nearbyListings.length > 0 ? nearbyListings : (isLoading ? [] : nearbyListingsData);
+    } else if (title === "Similar Listings") {
+      return similarListings.length > 0 ? similarListings : (isLoading ? [] : nearbyListingsData);
+    } else if (title === "More Buildings By Agent") {
+      return buildingData;
+    } else {
+      return nearbyListingsData;
+    }
+  })();
 
   const itemsPerSlide = 3;
   const totalSlides = Math.ceil(buildings.length / itemsPerSlide);
@@ -169,7 +314,22 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#293056]"></div>
+          </div>
+        )}
+        
+        {/* No Data State */}
+        {!isLoading && buildings.length === 0 && (
+          <div className="flex justify-center items-center py-12">
+            <div className="text-gray-500">No listings available at the moment</div>
+          </div>
+        )}
+        
         {/* Mobile: Horizontal Scrollable Row */}
+        {!isLoading && buildings.length > 0 && (
         <div className="block md:hidden">
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
             {buildings.map((building) => (
@@ -178,16 +338,26 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
                   image={building.image}
                   title={building.name}
                   address={building.address}
-                  units={`${building.units} units`}
+                  units={building.units}
                   priceRange={building.priceRange}
-                  onClick={() => console.log('Building clicked:', building.name)}
+                  listingKey={building.listingKey}
+                  onClick={() => {
+                    // Navigate to property detail page if it has a listingKey
+                    if (building.listingKey) {
+                      window.location.href = `/property/${building.listingKey}`;
+                    } else {
+                      console.log('Building clicked:', building.name);
+                    }
+                  }}
                 />
               </div>
             ))}
           </div>
         </div>
+        )}
 
         {/* Desktop: Slider Container */}
+        {!isLoading && buildings.length > 0 && (
         <div className="hidden md:block relative overflow-hidden">
           <div 
             ref={sliderRef}
@@ -205,9 +375,17 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
                         image={building.image}
                         title={building.name}
                         address={building.address}
-                        units={`${building.units} units`}
+                        units={building.units}
                         priceRange={building.priceRange}
-                        onClick={() => console.log('Building clicked:', building.name)}
+                        listingKey={building.listingKey}
+                        onClick={() => {
+                          // Navigate to property detail page if it has a listingKey
+                          if (building.listingKey) {
+                            window.location.href = `/property/${building.listingKey}`;
+                          } else {
+                            console.log('Building clicked:', building.name);
+                          }
+                        }}
                       />
                     ))}
                 </div>
@@ -215,8 +393,10 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
             ))}
           </div>
         </div>
+        )}
 
         {/* Dots Indicator - Desktop Only */}
+        {!isLoading && buildings.length > 0 && totalSlides > 1 && (
         <div className="hidden md:flex justify-center mt-6 gap-2">
           {Array.from({ length: totalSlides }).map((_, index) => (
             <button
@@ -230,6 +410,7 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
             />
           ))}
         </div>
+        )}
       </div>
       
       <style>{`

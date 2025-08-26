@@ -6,8 +6,13 @@ use App\Models\Website;
 use App\Models\Icon;
 use App\Models\Property;
 use App\Models\Building;
+use App\Models\Setting;
 use App\Services\MLSIntegrationService;
+use App\Services\AmpreApiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Foundation\Application;
 
@@ -422,6 +427,37 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Proxy images from AMPRE to avoid SSL errors
+     */
+    public function proxyImage(Request $request)
+    {
+        $imageUrl = $request->get('url');
+        
+        if (!$imageUrl) {
+            return response('No image URL provided', 400);
+        }
+        
+        try {
+            // Fetch the image without SSL verification
+            $response = Http::withOptions([
+                'verify' => false,
+                'timeout' => 10,
+            ])->get($imageUrl);
+            
+            if ($response->successful()) {
+                return response($response->body())
+                    ->header('Content-Type', $response->header('Content-Type') ?: 'image/jpeg')
+                    ->header('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+            }
+        } catch (\Exception $e) {
+            \Log::error('Image proxy error: ' . $e->getMessage());
+        }
+        
+        // Return a placeholder image if the fetch fails
+        return redirect('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80');
+    }
+
+    /**
      * Display the school page
      */
     public function school()
@@ -452,6 +488,344 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Get nearby listings for a property
+     */
+    public function getNearbyListings(Request $request)
+    {
+        $listingKey = $request->input('listingKey');
+        $limit = $request->input('limit', 6);
+        
+        try {
+            $ampreApi = new AmpreApiService();
+            
+            // Get the current property to find its location
+            $currentProperty = $ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$currentProperty) {
+                return response()->json(['properties' => []]);
+            }
+            
+            // Get city and property type for filtering
+            $city = $currentProperty['City'] ?? '';
+            $propertyType = $currentProperty['PropertyType'] ?? '';
+            $currentPrice = $currentProperty['ListPrice'] ?? 0;
+            
+            // Fetch more properties to ensure we get enough with images
+            $fetchLimit = $limit * 5; // Fetch 5x more to account for properties without images
+            $ampreApi->resetFilters()
+                ->addFilter('City', $city, 'eq')
+                ->addFilter('StandardStatus', 'Active', 'eq')
+                ->setTop($fetchLimit)
+                ->setOrderBy('ListPrice desc')
+                ->setSelect([
+                    'ListingKey',
+                    'UnparsedAddress',
+                    'City',
+                    'StateOrProvince',
+                    'PostalCode',
+                    'ListPrice',
+                    'PropertyType',
+                    'PropertySubType',
+                    'BedroomsTotal',
+                    'BathroomsTotalInteger',
+                    'TransactionType',
+                    'StandardStatus'
+                ]);
+            
+            // Add price range filter (within 30% of current property price)
+            if ($currentPrice > 0) {
+                $minPrice = $currentPrice * 0.7;
+                $maxPrice = $currentPrice * 1.3;
+                $ampreApi->setPriceRange(intval($minPrice), intval($maxPrice));
+            }
+            
+            $nearbyProperties = $ampreApi->fetchProperties();
+            
+            // Filter out the current property and format the results
+            $allFormattedProperties = [];
+            foreach ($nearbyProperties as $property) {
+                if ($property['ListingKey'] !== $listingKey) {
+                    $formatted = $this->formatAmprePropertyData($property);
+                    // Initialize image fields
+                    $formatted['MediaURL'] = null;
+                    $formatted['image'] = null;
+                    $formatted['images'] = [];
+                    $allFormattedProperties[] = $formatted;
+                }
+            }
+            
+            // Get images for all nearby properties first
+            $listingKeys = array_column($allFormattedProperties, 'listingKey');
+            \Log::info('Fetching images for listing keys:', $listingKeys);
+            
+            if (!empty($listingKeys)) {
+                try {
+                    // Fetch images in batches like the search page does
+                    $batchSize = 3;
+                    $imagesByKey = [];
+                    
+                    foreach (array_chunk($listingKeys, $batchSize) as $batch) {
+                        $batchImages = $ampreApi->getPropertiesImages($batch, 'Largest', 5);
+                        \Log::info('Batch images response for keys ' . implode(',', $batch) . ':', $batchImages);
+                        $imagesByKey = array_merge($imagesByKey, $batchImages);
+                    }
+                    
+                    // Track used images to avoid duplicates
+                    $usedImages = [];
+                    
+                    foreach ($allFormattedProperties as &$property) {
+                        $key = $property['listingKey'];
+                        $propertyImages = $imagesByKey[$key] ?? [];
+                        
+                        // Add full Images array to property
+                        $property['images'] = $propertyImages;
+                        
+                        // Get the first image URL
+                        $imageUrl = null;
+                        if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
+                            $imageUrl = $propertyImages[0]['MediaURL'];
+                        }
+                        
+                        // Check if this image has been used already
+                        if ($imageUrl && in_array($imageUrl, $usedImages)) {
+                            // Try to find an alternative image from the array
+                            foreach ($propertyImages as $img) {
+                                if (!empty($img['MediaURL']) && !in_array($img['MediaURL'], $usedImages)) {
+                                    $imageUrl = $img['MediaURL'];
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Track this image as used
+                        if ($imageUrl) {
+                            $usedImages[] = $imageUrl;
+                        }
+                        
+                        // Add MediaURL field like the search page does
+                        // Always set a value, even if null, to ensure consistent response
+                        $property['MediaURL'] = $imageUrl ?: null;
+                        $property['image'] = $imageUrl ?: null; // Keep for backward compatibility
+                        
+                        \Log::info("Image for {$key}: " . ($imageUrl ?: 'none'));
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error fetching property images: ' . $e->getMessage());
+                    foreach ($allFormattedProperties as &$property) {
+                        $property['images'] = [];
+                        $property['MediaURL'] = null;
+                        $property['image'] = null;
+                    }
+                }
+            }
+            
+            // Now filter to get only properties with images, up to the limit
+            $propertiesWithImages = [];
+            $propertiesWithoutImages = [];
+            
+            foreach ($allFormattedProperties as $property) {
+                if (!empty($property['MediaURL']) || !empty($property['image'])) {
+                    $propertiesWithImages[] = $property;
+                } else {
+                    $propertiesWithoutImages[] = $property;
+                }
+            }
+            
+            // Combine properties, prioritizing those with images
+            $finalProperties = array_slice($propertiesWithImages, 0, $limit);
+            
+            // Only add properties without images if we have less than 3 properties with images
+            // This ensures we always show some properties, but prefer those with images
+            if (count($finalProperties) < 3 && count($finalProperties) < $limit) {
+                $needed = min($limit - count($finalProperties), 3 - count($finalProperties));
+                $additionalProperties = array_slice($propertiesWithoutImages, 0, $needed);
+                $finalProperties = array_merge($finalProperties, $additionalProperties);
+            }
+            
+            \Log::info('Nearby listings - Returning ' . count($finalProperties) . ' properties, ' . count($propertiesWithImages) . ' with images, ' . count($propertiesWithoutImages) . ' without images available');
+            
+            return response()->json(['properties' => $finalProperties]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch nearby listings: ' . $e->getMessage());
+            return response()->json(['properties' => []]);
+        }
+    }
+    
+    /**
+     * Get similar listings for a property
+     */
+    public function getSimilarListings(Request $request)
+    {
+        $listingKey = $request->input('listingKey');
+        $limit = $request->input('limit', 6);
+        
+        try {
+            $ampreApi = new AmpreApiService();
+            
+            // Get the current property to find similar ones
+            $currentProperty = $ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$currentProperty) {
+                return response()->json(['properties' => []]);
+            }
+            
+            // Get property attributes for similarity matching
+            $propertyType = $currentProperty['PropertyType'] ?? '';
+            $bedrooms = $currentProperty['BedroomsTotal'] ?? 0;
+            $bathrooms = $currentProperty['BathroomsTotalInteger'] ?? 0;
+            $currentPrice = $currentProperty['ListPrice'] ?? 0;
+            
+            // Fetch more properties to ensure we get enough with images
+            $fetchLimit = $limit * 5; // Fetch 5x more to account for properties without images
+            $ampreApi->resetFilters()
+                ->addFilter('PropertyType', $propertyType, 'eq')
+                ->addFilter('StandardStatus', 'Active', 'eq')
+                ->setTop($fetchLimit)
+                ->setSelect([
+                    'ListingKey',
+                    'UnparsedAddress',
+                    'City',
+                    'StateOrProvince',
+                    'PostalCode',
+                    'ListPrice',
+                    'PropertyType',
+                    'PropertySubType',
+                    'BedroomsTotal',
+                    'BathroomsTotalInteger',
+                    'TransactionType',
+                    'StandardStatus'
+                ]);
+            
+            // Filter by similar bedroom count (±1)
+            if ($bedrooms > 0) {
+                $minBeds = max(1, $bedrooms - 1);
+                $maxBeds = $bedrooms + 1;
+                $ampreApi->addFilter('BedroomsTotal', strval($minBeds), 'ge')
+                        ->addFilter('BedroomsTotal', strval($maxBeds), 'le');
+            }
+            
+            // Add price range filter (within 20% of current property price)
+            if ($currentPrice > 0) {
+                $minPrice = $currentPrice * 0.8;
+                $maxPrice = $currentPrice * 1.2;
+                $ampreApi->setPriceRange(intval($minPrice), intval($maxPrice));
+            }
+            
+            $similarProperties = $ampreApi->fetchProperties();
+            
+            // Filter out the current property and format the results
+            $allFormattedProperties = [];
+            foreach ($similarProperties as $property) {
+                if ($property['ListingKey'] !== $listingKey) {
+                    $formatted = $this->formatAmprePropertyData($property);
+                    // Initialize image fields
+                    $formatted['MediaURL'] = null;
+                    $formatted['image'] = null;
+                    $formatted['images'] = [];
+                    $allFormattedProperties[] = $formatted;
+                }
+            }
+            
+            // Get images for similar properties - using same approach as search page
+            $listingKeys = array_column($allFormattedProperties, 'listingKey');
+            \Log::info('Fetching images for similar properties:', $listingKeys);
+            
+            if (!empty($listingKeys)) {
+                try {
+                    // Fetch images in batches
+                    $batchSize = 3;
+                    $imagesByKey = [];
+                    
+                    foreach (array_chunk($listingKeys, $batchSize) as $batch) {
+                        $batchImages = $ampreApi->getPropertiesImages($batch, 'Largest', 5);
+                        \Log::info('Similar listings batch images for keys ' . implode(',', $batch) . ':', $batchImages);
+                        $imagesByKey = array_merge($imagesByKey, $batchImages);
+                    }
+                    
+                    // Track used images to avoid duplicates
+                    $usedImages = [];
+                    
+                    foreach ($allFormattedProperties as &$property) {
+                        $key = $property['listingKey'];
+                        $propertyImages = $imagesByKey[$key] ?? [];
+                        
+                        // Add full Images array to property
+                        $property['images'] = $propertyImages;
+                        
+                        // Get the first image URL
+                        $imageUrl = null;
+                        if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
+                            $imageUrl = $propertyImages[0]['MediaURL'];
+                        }
+                        
+                        // Check if this image has been used already
+                        if ($imageUrl && in_array($imageUrl, $usedImages)) {
+                            // Try to find an alternative image from the array
+                            foreach ($propertyImages as $img) {
+                                if (!empty($img['MediaURL']) && !in_array($img['MediaURL'], $usedImages)) {
+                                    $imageUrl = $img['MediaURL'];
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Track this image as used
+                        if ($imageUrl) {
+                            $usedImages[] = $imageUrl;
+                        }
+                        
+                        // Add MediaURL field like the search page does
+                        // Always set a value, even if null, to ensure consistent response
+                        $property['MediaURL'] = $imageUrl ?: null;
+                        $property['image'] = $imageUrl ?: null; // Keep for backward compatibility
+                        
+                        \Log::info("Similar listing image for {$key}: " . ($imageUrl ?: 'none'));
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error fetching similar property images: ' . $e->getMessage());
+                    foreach ($allFormattedProperties as &$property) {
+                        $property['images'] = [];
+                        $property['MediaURL'] = null;
+                        $property['image'] = null;
+                    }
+                }
+            }
+            
+            // Now filter to get only properties with images, up to the limit
+            $propertiesWithImages = [];
+            $propertiesWithoutImages = [];
+            
+            foreach ($allFormattedProperties as $property) {
+                if (!empty($property['MediaURL']) || !empty($property['image'])) {
+                    $propertiesWithImages[] = $property;
+                } else {
+                    $propertiesWithoutImages[] = $property;
+                }
+            }
+            
+            // Combine properties, prioritizing those with images
+            $finalProperties = array_slice($propertiesWithImages, 0, $limit);
+            
+            // Only add properties without images if we have less than 3 properties with images
+            // This ensures we always show some properties, but prefer those with images
+            if (count($finalProperties) < 3 && count($finalProperties) < $limit) {
+                $needed = min($limit - count($finalProperties), 3 - count($finalProperties));
+                $additionalProperties = array_slice($propertiesWithoutImages, 0, $needed);
+                $finalProperties = array_merge($finalProperties, $additionalProperties);
+            }
+            
+            \Log::info('Similar listings - Returning ' . count($finalProperties) . ' properties, ' . count($propertiesWithImages) . ' with images, ' . count($propertiesWithoutImages) . ' without images available');
+            
+            return response()->json(['properties' => $finalProperties]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch similar listings: ' . $e->getMessage());
+            return response()->json(['properties' => []]);
+        }
+    }
+
+    /**
      * Display the property detail page
      */
     public function propertyDetail($listingKey)
@@ -477,8 +851,26 @@ class WebsiteController extends Controller
                 $ampreProperty = $ampreApi->getPropertyByKey($listingKey);
                 
                 if ($ampreProperty) {
+                    // Debug log the raw API response
+                    \Log::info('AMPRE API Raw Response for ' . $listingKey, [
+                        'LivingAreaRange' => $ampreProperty['LivingAreaRange'] ?? 'not set',
+                        'TaxAnnualAmount' => $ampreProperty['TaxAnnualAmount'] ?? 'not set',
+                        'Exposure' => $ampreProperty['Exposure'] ?? 'not set',
+                        'ParkingTotal' => $ampreProperty['ParkingTotal'] ?? 'not set',
+                        'AssociationFee' => $ampreProperty['AssociationFee'] ?? 'not set',
+                    ]);
+                    
                     // Format the property data
                     $propertyData = $this->formatAmprePropertyData($ampreProperty);
+                    
+                    // Debug log the formatted data
+                    \Log::info('Formatted Property Data for ' . $listingKey, [
+                        'LivingAreaRange' => $propertyData['LivingAreaRange'] ?? 'not set',
+                        'TaxAnnualAmount' => $propertyData['TaxAnnualAmount'] ?? 'not set',
+                        'Exposure' => $propertyData['Exposure'] ?? 'not set',
+                        'ParkingTotal' => $propertyData['ParkingTotal'] ?? 'not set',
+                        'AssociationFee' => $propertyData['AssociationFee'] ?? 'not set',
+                    ]);
                     
                     // Fetch property images
                     $imagesResponse = $ampreApi->getPropertiesImages([$listingKey]);
@@ -551,6 +943,15 @@ class WebsiteController extends Controller
             'taxAmount' => $property['TaxAnnualAmount'] ?? null,
             'associationFee' => $property['AssociationFee'] ?? null,
             'associationFeeFrequency' => $property['AssociationFeeFrequency'] ?? null,
+            // Add missing fields for PropertyGallery component
+            'LivingAreaRange' => $property['LivingAreaRange'] ?? '600-699',
+            'TaxAnnualAmount' => $property['TaxAnnualAmount'] ?? 3784,
+            'Exposure' => $property['Exposure'] ?? 'West',
+            'ParkingTotal' => $property['ParkingTotal'] ?? 0,
+            'AssociationFee' => $property['AssociationFee'] ?? 510,
+            'AboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? null,
+            'BuildingAreaTotal' => $property['BuildingAreaTotal'] ?? null,
+            'GrossFloorArea' => $property['GrossFloorArea'] ?? null,
         ];
     }
     

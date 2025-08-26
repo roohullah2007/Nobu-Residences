@@ -11,12 +11,21 @@ export default function PropertyGallery({
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentMobileSlide, setCurrentMobileSlide] = useState(0);
 
-  // Debug: Log the received images
+  // Debug: Log the received images and property data
   useEffect(() => {
     console.log('PropertyGallery - Received propertyImages:', propertyImages);
     console.log('PropertyGallery - propertyImages type:', typeof propertyImages);
     console.log('PropertyGallery - propertyImages length:', propertyImages?.length);
-  }, [propertyImages]);
+    console.log('PropertyGallery - Full propertyData:', propertyData);
+    console.log('PropertyGallery - Key Fields Check:');
+    console.log('  - LivingAreaRange:', propertyData?.LivingAreaRange);
+    console.log('  - TaxAnnualAmount:', propertyData?.TaxAnnualAmount);
+    console.log('  - Exposure:', propertyData?.Exposure);
+    console.log('  - ParkingTotal:', propertyData?.ParkingTotal);
+    console.log('  - AssociationFee:', propertyData?.AssociationFee);
+    console.log('  - details object:', propertyData?.details);
+    console.log('PropertyGallery - All property keys:', propertyData ? Object.keys(propertyData) : 'No data');
+  }, [propertyImages, propertyData]);
 
   // Ensure we have valid images array with fallback
   const processImages = () => {
@@ -115,13 +124,45 @@ export default function PropertyGallery({
     }).format(price);
   };
 
-  // Get the price to display - prioritize sold price, then list price
+  // Get the status of the property
+  const getPropertyStatus = () => {
+    // Check various status fields from API
+    const status = propertyData?.StandardStatus || propertyData?.standardStatus || 
+                   propertyData?.MlsStatus || propertyData?.mlsStatus || 
+                   propertyData?.status || 'Active';
+    
+    // Check if property is sold
+    if (status.toLowerCase().includes('sold') || propertyData?.ClosePrice || propertyData?.closePrice || propertyData?.soldPrice) {
+      return 'SOLD FOR';
+    }
+    
+    // Check transaction type
+    const transactionType = propertyData?.TransactionType || propertyData?.transactionType || '';
+    if (transactionType.toLowerCase().includes('rent') || transactionType.toLowerCase().includes('lease')) {
+      return 'FOR RENT';
+    }
+    
+    return 'FOR SALE';
+  };
+
+  // Get the price to display based on status
   const getDisplayPrice = () => {
-    if (propertyData?.soldFor) return propertyData.soldFor;
-    if (propertyData?.closePrice) return formatPrice(propertyData.closePrice);
+    const status = getPropertyStatus();
+    
+    if (status === 'SOLD FOR') {
+      // For sold properties, show sold price
+      if (propertyData?.ClosePrice) return formatPrice(propertyData.ClosePrice);
+      if (propertyData?.closePrice) return formatPrice(propertyData.closePrice);
+      if (propertyData?.soldPrice) return formatPrice(propertyData.soldPrice);
+      if (propertyData?.soldFor) return propertyData.soldFor;
+    }
+    
+    // For active listings, show list price
+    if (propertyData?.ListPrice) return formatPrice(propertyData.ListPrice);
     if (propertyData?.listPrice) return formatPrice(propertyData.listPrice);
     if (propertyData?.price) return formatPrice(propertyData.price);
-    return '$0'; // Fallback as shown in image
+    
+    return 'Price on request';
   };
 
   // Handle image loading errors
@@ -131,6 +172,8 @@ export default function PropertyGallery({
       "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
     ];
+    // Prevent infinite error loops
+    e.target.onerror = null;
     e.target.src = fallbackImages[fallbackIndex % fallbackImages.length];
   };
 
@@ -151,7 +194,7 @@ export default function PropertyGallery({
                   src={images[0]}
                   alt="Main property image"
                   className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                  onError={(e) => handleImageError(e, 0)}
+                  onError={handleImageError}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-10"></div>
               </div>
@@ -185,7 +228,7 @@ export default function PropertyGallery({
                     src={images[2] || images[1] || images[0]}
                     alt="Property image 3"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                    onError={(e) => handleImageError(e, 2)}
+                    onError={handleImageError}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-20"></div>
                   
@@ -257,18 +300,33 @@ export default function PropertyGallery({
           <div className="w-full lg:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
-                {/* SOLD FOR Section */}
+                {/* Property Status and Price Section */}
                 <div className="flex flex-col gap-2 items-center">
-                  <div className="flex flex-col md:flex-row gap-2 md:gap-3 items-center justify-between md:justify-center w-full">
+                  <div className="flex justify-between items-center w-full">
                     <span className="font-space-grotesk font-bold text-xl md:text-2xl leading-7 md:leading-[34px] uppercase text-[#93370D]">
-                      SOLD FOR
+                      {getPropertyStatus()}
                     </span>
                     <span className="font-space-grotesk font-bold text-xl md:text-2xl leading-7 md:leading-[34px] uppercase text-[#93370D]">
                       {getDisplayPrice()}
                     </span>
                   </div>
                   <div className="font-work-sans font-medium text-sm text-[#535862] text-center">
-                    {propertyData?.listedFor || (propertyData?.listPrice ? `Listed for ${formatPrice(propertyData.listPrice)}` : '')}
+                    {(() => {
+                      const status = getPropertyStatus();
+                      if (status === 'SOLD FOR') {
+                        // Show original list price for sold properties
+                        const originalPrice = propertyData?.OriginalListPrice || propertyData?.originalListPrice || 
+                                            propertyData?.ListPrice || propertyData?.listPrice;
+                        return originalPrice ? `Listed for ${formatPrice(originalPrice)}` : '';
+                      } else if (status === 'FOR RENT') {
+                        // Show rental period if available
+                        return propertyData?.LeaseTerm ? `${propertyData.LeaseTerm} lease` : 'Available now';
+                      } else {
+                        // For sale properties - show days on market or status
+                        const daysOnMarket = propertyData?.DaysOnMarket || propertyData?.daysOnMarket;
+                        return daysOnMarket ? `${daysOnMarket} days on market` : 'New listing';
+                      }
+                    })()}
                   </div>
                   <div className="w-full h-px border-t border-[#D5D7DA]"></div>
                 </div>
@@ -316,7 +374,42 @@ export default function PropertyGallery({
                         Area
                       </span>
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                        {propertyData?.details?.area || propertyData?.livingArea || 'N/A'}
+                        {(() => {
+                          // Check various area fields from API
+                          console.log('Area Debug - propertyData:', propertyData);
+                          console.log('Area Debug - LivingAreaRange:', propertyData?.LivingAreaRange);
+                          console.log('Area Debug - LivingArea:', propertyData?.LivingArea);
+                          console.log('Area Debug - details.area:', propertyData?.details?.area);
+                          
+                          const livingArea = propertyData?.LivingAreaRange || propertyData?.livingAreaRange || 
+                                           propertyData?.LivingArea || propertyData?.livingArea ||
+                                           propertyData?.AboveGradeFinishedArea || propertyData?.aboveGradeFinishedArea ||
+                                           propertyData?.BuildingAreaTotal || propertyData?.buildingAreaTotal ||
+                                           propertyData?.GrossFloorArea || propertyData?.grossFloorArea ||
+                                           propertyData?.details?.area;
+                          
+                          console.log('Area Debug - Final livingArea value:', livingArea);
+                          
+                          if (livingArea) {
+                            // If it's a range like "500-599" or "1800-1999", take the midpoint
+                            if (typeof livingArea === 'string' && livingArea.includes('-')) {
+                              const [min, max] = livingArea.split('-').map(n => parseInt(n));
+                              const avg = Math.round((min + max) / 2);
+                              // Convert sqft to sqm (1 sqft = 0.092903 sqm)
+                              const sqm = Math.round(avg * 0.092903);
+                              return `${sqm} sqm`;
+                            }
+                            // If it's already a number or contains 'sqft'
+                            else if (livingArea) {
+                              const sqft = parseInt(livingArea.toString().replace(/[^0-9]/g, ''));
+                              if (sqft) {
+                                const sqm = Math.round(sqft * 0.092903);
+                                return `${sqm} sqm`;
+                              }
+                            }
+                          }
+                          return 'N/A';
+                        })()}
                       </span>
                     </div>
                     
@@ -326,11 +419,34 @@ export default function PropertyGallery({
                         Parking
                       </span>
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                        {(propertyData?.details?.parking !== undefined && propertyData?.details?.parking !== null && propertyData?.details?.parking !== '') 
-                         ? propertyData.details.parking 
-                         : (propertyData?.parkingTotal !== undefined && propertyData?.parkingTotal !== null && propertyData?.parkingTotal !== '')
-                         ? propertyData.parkingTotal 
-                         : 'N/A'}
+                        {(() => {
+                          // Check various parking fields
+                          const parkingTotal = propertyData?.ParkingTotal || propertyData?.parkingTotal || 
+                                             propertyData?.ParkingSpaces || propertyData?.parkingSpaces ||
+                                             propertyData?.GarageSpaces || propertyData?.garageSpaces ||
+                                             propertyData?.details?.parking;
+                          
+                          // If parking is a number, show the actual number
+                          if (typeof parkingTotal === 'number') {
+                            return parkingTotal === 0 ? '0' : parkingTotal.toString();
+                          }
+                          // If parking is a string number, show the actual number
+                          else if (typeof parkingTotal === 'string' && !isNaN(parseInt(parkingTotal))) {
+                            const parkingNum = parseInt(parkingTotal);
+                            return parkingNum === 0 ? '0' : parkingNum.toString();
+                          }
+                          // Check parking features array
+                          else if (propertyData?.ParkingFeatures && Array.isArray(propertyData.ParkingFeatures)) {
+                            return propertyData.ParkingFeatures.includes('None') ? '0' : 'Yes';
+                          }
+                          // Check parking type
+                          else if (propertyData?.ParkingType1 || propertyData?.parkingType1) {
+                            const type = propertyData.ParkingType1 || propertyData.parkingType1;
+                            return type.toLowerCase() === 'none' ? '0' : 'Yes';
+                          }
+                          
+                          return '0';
+                        })()}
                       </span>
                     </div>
                     
@@ -340,11 +456,23 @@ export default function PropertyGallery({
                         Maintenance Fees
                       </span>
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                        {propertyData?.details?.maintenanceFees && propertyData.details.maintenanceFees !== 'N/A'
-                         ? propertyData.details.maintenanceFees
-                         : (propertyData?.associationFee && propertyData.associationFee > 0)
-                         ? formatPrice(propertyData.associationFee) + ' CAD'
-                         : 'N/A'}
+                        {(() => {
+                          // Check various fee fields
+                          const fee = propertyData?.AssociationFee || propertyData?.associationFee ||
+                                    propertyData?.details?.maintenanceFees;
+                          
+                          if (fee && fee !== 'N/A') {
+                            // If it's already formatted
+                            if (typeof fee === 'string' && (fee.includes('$') || fee.includes('CAD'))) {
+                              return fee;
+                            }
+                            // If it's a number, format it
+                            else if (fee && parseFloat(fee) > 0) {
+                              return formatPrice(parseFloat(fee));
+                            }
+                          }
+                          return 'N/A';
+                        })()}
                       </span>
                     </div>
                     
@@ -354,11 +482,26 @@ export default function PropertyGallery({
                         Property Taxes
                       </span>
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                        {propertyData?.details?.propertyTaxes && propertyData.details.propertyTaxes !== 'N/A'
-                         ? propertyData.details.propertyTaxes
-                         : (propertyData?.taxAnnualAmount && propertyData.taxAnnualAmount > 0)
-                         ? formatPrice(propertyData.taxAnnualAmount) + ' CAD'
-                         : 'N/A'}
+                        {(() => {
+                          // Check various tax fields
+                          const taxes = propertyData?.TaxTotalAnnual || propertyData?.taxTotalAnnual ||
+                                       propertyData?.TaxAnnualAmount || propertyData?.taxAnnualAmount ||
+                                       propertyData?.PropertyTaxes || propertyData?.propertyTaxes ||
+                                       propertyData?.Tax || propertyData?.tax ||
+                                       propertyData?.details?.propertyTaxes;
+                          
+                          if (taxes && taxes !== 'N/A') {
+                            // If it's already formatted
+                            if (typeof taxes === 'string' && (taxes.includes('$') || taxes.includes('CAD'))) {
+                              return taxes;
+                            }
+                            // If it's a number, format it
+                            else if (taxes && parseFloat(taxes) > 0) {
+                              return formatPrice(parseFloat(taxes));
+                            }
+                          }
+                          return 'N/A';
+                        })()}
                       </span>
                     </div>
                     
@@ -368,7 +511,23 @@ export default function PropertyGallery({
                         Exposure
                       </span>
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
-                        {propertyData?.details?.exposure || propertyData?.exposure || 'N/A'}
+                        {(() => {
+                          // Check various exposure/direction fields
+                          const exposure = propertyData?.DirectionFaces || propertyData?.directionFaces ||
+                                         propertyData?.Exposure || propertyData?.exposure ||
+                                         propertyData?.FrontingOnNSEW || propertyData?.frontingOnNSEW ||
+                                         propertyData?.Direction || propertyData?.direction ||
+                                         propertyData?.details?.exposure;
+                          
+                          if (exposure && exposure !== 'N/A') {
+                            // Return the exposure value, capitalize first letter if it's all lowercase
+                            if (typeof exposure === 'string') {
+                              return exposure.charAt(0).toUpperCase() + exposure.slice(1);
+                            }
+                            return exposure;
+                          }
+                          return 'N/A';
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -438,7 +597,7 @@ export default function PropertyGallery({
                       src={image}
                       alt={`Property image ${index + 1}`}
                       className="max-w-full max-h-full object-contain"
-                      onError={(e) => handleImageError(e, index)}
+                      onError={handleImageError}
                     />
                   </div>
                 ))}
@@ -473,7 +632,7 @@ export default function PropertyGallery({
                     src={image}
                     alt={`Thumbnail ${index + 1}`}
                     className="w-20 h-15 object-cover block"
-                    onError={(e) => handleImageError(e, index)}
+                    onError={handleImageError}
                   />
                 </button>
               ))}

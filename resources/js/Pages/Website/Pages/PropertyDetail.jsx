@@ -14,8 +14,22 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages }) {
   const [isFavorited, setIsFavorited] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [propertyData, setPropertyData] = useState(initialPropertyData);
-  const [propertyImages, setPropertyImages] = useState(initialImages || []);
+  
+  // Process images through proxy if they're from AMPRE CDN
+  const processImages = (images) => {
+    if (!images || images.length === 0) return [];
+    return images.map(img => {
+      if (typeof img === 'string' && img.includes('cdn.repliers.io')) {
+        // Use our proxy to avoid SSL errors
+        return `/api/image-proxy?url=${encodeURIComponent(img)}`;
+      }
+      return img;
+    });
+  };
+  
+  const [propertyImages, setPropertyImages] = useState(processImages(initialImages || []));
   const [isLoading, setIsLoading] = useState(!initialPropertyData);
   
   // Viewing request modal state
@@ -33,9 +47,34 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       });
     };
 
+    // Scroll detection for sidebar visibility
+    const handleScroll = () => {
+      const faqSection = document.querySelector('.description');
+      const footer = document.querySelector('footer');
+      
+      if (faqSection) {
+        const faqRect = faqSection.getBoundingClientRect();
+        const footerRect = footer?.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+        
+        // Hide sidebar when FAQ section comes into view OR when footer appears
+        const faqInView = faqRect.top <= windowHeight * 0.8; // Start hiding when FAQ is 80% in view
+        const footerInView = footerRect && footerRect.top <= windowHeight;
+        
+        if (faqInView || footerInView) {
+          setSidebarVisible(false);
+        } else {
+          setSidebarVisible(true);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
     // Cleanup
     return () => {
       delete window.openViewingModal;
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -233,12 +272,21 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       : `${streetNumber} ${streetName} ${streetSuffix}`.trim();
     
     return {
+      // Preserve all original fields from the API
+      ...property,
+      // Add formatted fields
       address: formattedAddress,
       subtitle: `${propertySubType || propertyType} in ${city}, ${province}`,
       soldFor: closePrice ? formatPrice(closePrice) : null,
       listedFor: listPrice ? `Listed for ${formatPrice(listPrice)}` : null,
       listPrice: listPrice,
       mlsNumber: listingId,
+      // Preserve important raw API fields for PropertyGallery
+      LivingAreaRange: property.LivingAreaRange || property.livingAreaRange,
+      TaxAnnualAmount: property.TaxAnnualAmount || property.taxAnnualAmount,
+      Exposure: property.Exposure || property.exposure,
+      ParkingTotal: property.ParkingTotal || property.parkingTotal,
+      AssociationFee: property.AssociationFee || property.associationFee,
       details: {
         type: propertySubType || propertyType || 'Residential',
         beds: `${bedroomsTotal}${property.BedroomsBelowGrade || property.bedroomsBelowGrade ? '+1' : ''}`,
@@ -298,8 +346,21 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     Rooms: []
   });
   
-  // Use formatted data or fallback
-  const displayData = propertyData || getSamplePropertyData();
+  // Use actual property data, or sample data if loading/not available
+  const displayData = propertyData || (isLoading ? null : getSamplePropertyData());
+  
+  // Debug log the data being passed to PropertyGallery
+  useEffect(() => {
+    console.log('PropertyDetail - Raw propertyData from server:', propertyData);
+    console.log('PropertyDetail - Formatted displayData:', displayData);
+    console.log('PropertyDetail - Key Fields in displayData:');
+    console.log('  - LivingAreaRange:', displayData?.LivingAreaRange);
+    console.log('  - TaxAnnualAmount:', displayData?.TaxAnnualAmount);
+    console.log('  - Exposure:', displayData?.Exposure);
+    console.log('  - ParkingTotal:', displayData?.ParkingTotal);
+    console.log('  - AssociationFee:', displayData?.AssociationFee);
+    console.log('PropertyDetail - All displayData keys:', displayData ? Object.keys(displayData) : 'No data');
+  }, [propertyData, displayData]);
 
   if (isLoading) {
     return (
@@ -367,7 +428,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         </div>
    
             {/* <!-- Right sidebar --> */}
-            <div className="max-w-[309px] md:flex hidden w-full">
+            <div className={`max-w-[309px] md:flex hidden w-full transition-opacity duration-300 ${sidebarVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <TourScheduling />
             </div>
       </div>

@@ -268,6 +268,8 @@ class AmpreApiService
 
         return Cache::remember($cacheKey, $this->cacheTtl, function () use ($endpoint, $listingKey) {
             try {
+                // Don't specify $select to get ALL fields from the API
+                // This ensures we get fields like LivingAreaRange, Exposure, etc.
                 $response = $this->makeRequest('GET', $endpoint);
                 return $this->processResponse($response, 'getPropertyByKey');
             } catch (RequestException $e) {

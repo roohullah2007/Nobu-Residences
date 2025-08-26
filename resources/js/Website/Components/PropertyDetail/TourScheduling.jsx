@@ -5,11 +5,14 @@ const TourSchedulingComponent = () => {
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isFixed, setIsFixed] = useState(false);
+  const [scrollState, setScrollState] = useState('static'); // 'static', 'fixed', 'absolute'
+  const [absoluteTop, setAbsoluteTop] = useState(0);
   
   const rightColumnRef = useRef(null);
   const contentRef = useRef(null);
   const placeholderRef = useRef(null);
+  const initialTopRef = useRef(null);
+  const containerLeftRef = useRef(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -44,51 +47,83 @@ const TourSchedulingComponent = () => {
       if (window.innerWidth < 768) return; // Skip on mobile
       
       const contentElement = contentRef.current;
-      const placeholderElement = placeholderRef.current;
+      const rightColumnElement = rightColumnRef.current;
       
-      if (!contentElement || !placeholderElement) return;
+      if (!contentElement || !rightColumnElement) return;
       
-      const rect = rightColumnRef.current?.getBoundingClientRect();
-      const scrollPosition = window.pageYOffset;
-      const initialTop = rect ? rect.top + scrollPosition : 0;
+      const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+      const navbarHeight = 130; // Height of navbar + buffer
       
-      // Find the RealEstateLinksSection element
-      const realEstateSection = document.querySelector('section');
-      let realEstateSectionTop = 0;
+      // Store initial position and container left position
+      if (initialTopRef.current === null) {
+        const rect = rightColumnElement.getBoundingClientRect();
+        initialTopRef.current = rect.top + scrollPosition;
+        containerLeftRef.current = rect.left;
+      }
       
-      // Look for RealEstateLinksSection by checking for its heading text
-      const sections = document.querySelectorAll('section');
-      for (let section of sections) {
-        const heading = section.querySelector('h2');
-        if (heading && heading.textContent.includes('Explore the North Riverdale')) {
-          realEstateSectionTop = section.getBoundingClientRect().top + scrollPosition;
-          break;
+      const initialTop = initialTopRef.current;
+      
+      // Find the description section (Real Estate Links)
+      const descriptionSection = document.querySelector('.description');
+      let stopScrollPosition = 0;
+      
+      if (descriptionSection) {
+        const descRect = descriptionSection.getBoundingClientRect();
+        stopScrollPosition = descRect.top + scrollPosition;
+      } else {
+        // Fallback: find footer as stop point
+        const footer = document.querySelector('footer');
+        if (footer) {
+          const footerRect = footer.getBoundingClientRect();
+          stopScrollPosition = footerRect.top + scrollPosition;
         }
       }
       
-      // Calculate stop position (when tour component would overlap with RealEstateLinksSection)
+      // Calculate component height and stop position
       const componentHeight = contentElement.offsetHeight;
-      const stopPosition = realEstateSectionTop - componentHeight - 20; // 20px buffer
+      // Stop position should be where bottom of tour component meets top of description section
+      const stopPosition = stopScrollPosition - componentHeight - navbarHeight - 20; // 20px buffer
       
-      if (scrollPosition > initialTop && scrollPosition < stopPosition) {
-        if (!isFixed) {
-          setIsFixed(true);
-        }
+      const scrollTriggerPosition = initialTop - navbarHeight;
+      
+      if (scrollPosition <= scrollTriggerPosition) {
+        // Before scroll trigger - static position
+        setScrollState('static');
+        setAbsoluteTop(0);
+      } else if (scrollPosition > scrollTriggerPosition && scrollPosition < stopPosition) {
+        // Between trigger and stop - fixed position
+        setScrollState('fixed');
+        setAbsoluteTop(0);
       } else {
-        if (isFixed) {
-          setIsFixed(false);
-        }
+        // After stop position - absolute position
+        setScrollState('absolute');
+        // Calculate absolute position relative to parent container
+        const absolutePositionTop = stopPosition - initialTop + navbarHeight;
+        setAbsoluteTop(absolutePositionTop);
       }
     };
 
+    // Initial call to set position
+    handleScroll();
+
     window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleScroll);
+    
+    // Handle resize separately to reset initial position
+    const handleResize = () => {
+      initialTopRef.current = null;
+      containerLeftRef.current = null;
+      handleScroll();
+    };
+    
+    window.addEventListener('resize', handleResize);
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      initialTopRef.current = null;
+      containerLeftRef.current = null;
     };
-  }, [isFixed]);
+  }, []);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -180,21 +215,22 @@ const TourSchedulingComponent = () => {
         {/* Placeholder for fixed positioning */}
         <div 
           ref={placeholderRef}
-          className={`w-full flex-shrink-0 ${isFixed && window.innerWidth >= 768 ? 'block' : 'hidden'}`}
+          className={`w-full flex-shrink-0 ${scrollState === 'fixed' || scrollState === 'absolute' ? 'block' : 'hidden'}`}
           style={{ height: contentRef.current?.offsetHeight || 'auto' }}
         />
 
         {/* Content */}
         <div 
           ref={contentRef}
-          className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] ${
-            isFixed && window.innerWidth >= 768 
-              ? 'fixed top-5 z-50' 
-              : ''
+          className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] transition-all duration-300 ${
+            scrollState === 'fixed' ? 'fixed z-40' : 
+            scrollState === 'absolute' ? 'absolute z-40' : ''
           }`}
           style={{
-            left: isFixed && window.innerWidth >= 768 
-              ? rightColumnRef.current?.getBoundingClientRect().left || 0 
+            top: scrollState === 'fixed' ? '130px' : 
+                 scrollState === 'absolute' ? `${absoluteTop}px` : 'auto',
+            left: scrollState === 'fixed' || scrollState === 'absolute'
+              ? containerLeftRef.current || 0 
               : 'auto'
           }}
         >

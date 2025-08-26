@@ -27,6 +27,7 @@ Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
 Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
+Route::get('/api/image-proxy', [WebsiteController::class, 'proxyImage'])->name('image-proxy');
 
 // Property Image API routes (using same mechanism as WordPress plugin)
 Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);
@@ -40,6 +41,10 @@ Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingContro
 
 // Property Detail API route
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
+
+// Nearby and Similar listings API routes
+Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings']);
+Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListings']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PropertyCarouselV2, FAQ } from '@/Website/Global/Components';
+import { FAQ } from '@/Website/Global/Components';
 import {
   PropertyStatusTabs,
   PriceHistory,
@@ -34,17 +34,10 @@ export default function PropertySections({
         } 
       />
       
-      {/* Similar Listings Section - Using Global PropertyCarouselV2 */}
-      <section className="py-4">
-        <div className="mx-auto max-w-[1280px]">
-          <PropertyCarouselV2
-            properties={sampleSaleProperties.concat(sampleRentProperties)}
-            title="Similar Listings"
-            viewAllLink="/properties"
-            showBackground={true}
-          />
-        </div>
-      </section>
+      {/* Similar Listings Section - Using same MoreBuildings component for consistency */}
+      <MoreBuildings 
+        title="Similar Listings"
+      />
       
       {/* Comparable Sales Section */}
       <ComparableSales />
@@ -76,7 +69,7 @@ export default function PropertySections({
       {/* Comparable Sales Section */}
       
       {/* Property Description Section */}
-      <PropertyDescriptionSection />
+      <PropertyDescriptionSection propertyData={propertyData} />
 
       {/* FAQ Section */}
       <div className="faq-section">
