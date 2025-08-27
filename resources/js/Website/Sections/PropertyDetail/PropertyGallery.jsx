@@ -138,7 +138,10 @@ export default function PropertyGallery({
     
     // Check transaction type
     const transactionType = propertyData?.TransactionType || propertyData?.transactionType || '';
-    if (transactionType.toLowerCase().includes('rent') || transactionType.toLowerCase().includes('lease')) {
+    if (transactionType.toLowerCase().includes('lease')) {
+      return 'FOR LEASE';
+    }
+    if (transactionType.toLowerCase().includes('rent')) {
       return 'FOR RENT';
     }
     
@@ -318,8 +321,8 @@ export default function PropertyGallery({
                         const originalPrice = propertyData?.OriginalListPrice || propertyData?.originalListPrice || 
                                             propertyData?.ListPrice || propertyData?.listPrice;
                         return originalPrice ? `Listed for ${formatPrice(originalPrice)}` : '';
-                      } else if (status === 'FOR RENT') {
-                        // Show rental period if available
+                      } else if (status === 'FOR RENT' || status === 'FOR LEASE') {
+                        // Show rental/lease period if available
                         return propertyData?.LeaseTerm ? `${propertyData.LeaseTerm} lease` : 'Available now';
                       } else {
                         // For sale properties - show days on market or status

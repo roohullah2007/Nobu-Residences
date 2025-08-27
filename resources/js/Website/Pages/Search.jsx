@@ -7,6 +7,7 @@ import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyProp
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import EnhancedPropertyMap from '@/Components/EnhancedPropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
+import { generatePropertyUrl } from '@/utils/propertyUrl';
 
 
 // Icon components
@@ -565,6 +566,11 @@ export default function EnhancedPropertySearch({
                     placeholder="Search"
                     value={searchFilters.query}
                     onChange={(e) => handleFilterChange('query', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSearch(e);
+                      }
+                    }}
                     className="w-full font-work-sans font-bold text-sm text-[#1C1463] bg-transparent border-none outline-none focus:ring-0 focus:border-none placeholder:font-bold placeholder:text-[#1C1463]"
                   />
                 </div>
@@ -756,6 +762,11 @@ export default function EnhancedPropertySearch({
                           placeholder="Search"
                           value={searchFilters.query}
                           onChange={(e) => handleFilterChange('query', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSearch(e);
+                            }
+                          }}
                           className="w-full font-work-sans font-bold text-sm text-[#1C1463] bg-transparent border-none outline-none focus:ring-0 focus:border-none placeholder-[#1C1463] placeholder:font-bold"
                         />
                       </div>
@@ -1128,7 +1139,7 @@ export default function EnhancedPropertySearch({
                 activeProperty={activeProperty}
                 onPropertyHover={handlePropertyHover}
                 onPropertyClick={(property) => {
-                  window.location.href = `/property/${property.ListingKey}`;
+                  window.location.href = generatePropertyUrl(property);
                 }}
                 viewType="full"
                 enableClustering={true}
@@ -1178,7 +1189,7 @@ export default function EnhancedPropertySearch({
                                 property={formattedProperty}
                                 size="mobile"
                                 onClick={(property) => {
-                                window.location.href = `/property/${property.listingKey}`;
+                                window.location.href = generatePropertyUrl(property);
                                 }}
                                 className={`w-full transition-all duration-300 ${
                                     activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
@@ -1305,7 +1316,7 @@ export default function EnhancedPropertySearch({
                             onMouseEnter={() => handlePropertyHover(property.ListingKey)}
                             onMouseLeave={() => handlePropertyHover(null)}
                             onClick={(property) => {
-                              window.location.href = `/property/${property.listingKey}`;
+                              window.location.href = generatePropertyUrl(property);
                             }}
                             className="flex justify-center"
                           />

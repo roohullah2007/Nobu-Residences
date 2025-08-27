@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
+import { generatePropertyUrl } from '@/utils/propertyUrl';
 
 /**
  * PropertyCardV5 - Enhanced for Search Page with IDX-AMPRE Style
@@ -60,7 +61,7 @@ const PropertyCardV5 = ({
 
   const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
   const features = buildFeatures(property.bedrooms, property.bathrooms);
-  const detailsUrl = `/property/${property.listingKey}`;
+  const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations - Optimized for IDX-AMPRE style 4 cards per row
   const sizeConfig = {

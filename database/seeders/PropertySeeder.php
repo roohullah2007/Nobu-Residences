@@ -14,18 +14,18 @@ class PropertySeeder extends Seeder
     public function run(): void
     {
         // First, ensure we have at least one agent user
-        $agent = User::where('role', 'agent')->first();
+        $agent = User::where('email', 'agent@example.com')->first();
         
         if (!$agent) {
             $agent = User::create([
                 'name' => 'John Smith',
                 'email' => 'agent@example.com',
                 'password' => bcrypt('password'),
-                'role' => 'agent',
-                'phone' => '+1 (555) 123-4567',
-                'brokerage' => 'Premium Real Estate',
-                'license_number' => 'RE12345',
-                'is_active' => true,
+                'role' => 'user',
+                // 'phone' => '+1 (555) 123-4567',
+                // 'brokerage' => 'Premium Real Estate',
+                // 'license_number' => 'RE12345',
+                // 'is_active' => true,
             ]);
         }
 
@@ -43,7 +43,6 @@ class PropertySeeder extends Seeder
                 'latitude' => 43.6426,
                 'longitude' => -79.3871,
                 'price' => 850000.00,
-                'contact_price' => 15.00,
                 'property_type' => 'condo',
                 'transaction_type' => 'sale',
                 'status' => 'active',
@@ -207,11 +206,11 @@ class PropertySeeder extends Seeder
             'name' => 'Sarah Wilson',
             'email' => 'sarah@realestate.com',
             'password' => bcrypt('password'),
-            'role' => 'agent',
-            'phone' => '+1 (555) 987-6543',
-            'brokerage' => 'Elite Properties Inc.',
-            'license_number' => 'RE67890',
-            'is_active' => true,
+            'role' => 'user',
+            // 'phone' => '+1 (555) 987-6543',
+            // 'brokerage' => 'Elite Properties Inc.',
+            // 'license_number' => 'RE67890',
+            // 'is_active' => true,
         ]);
 
         // Add a few more properties for the second agent

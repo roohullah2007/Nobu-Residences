@@ -91,6 +91,7 @@ class PropertyDetailController extends Controller
             // Property details
             'propertyType' => $property['PropertyType'] ?? '',
             'propertySubType' => $property['PropertySubType'] ?? '',
+            'transactionType' => $property['TransactionType'] ?? 'For Sale',
             'standardStatus' => $property['StandardStatus'] ?? '',
             'mlsStatus' => $property['MlsStatus'] ?? '',
             

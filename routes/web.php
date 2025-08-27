@@ -25,7 +25,17 @@ Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/school', [WebsiteController::class, 'school'])->name('school');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
-Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetail'])->name('property-detail');
+// New SEO-friendly property route structure: /city/street-address/mls-id
+Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
+    ->where([
+        'city' => '[a-z\-]+',
+        'address' => '[a-z0-9\-]+',
+        'listingKey' => '[A-Z0-9]+'
+    ])
+    ->name('property-detail');
+
+// Keep old route for backwards compatibility (redirect to new format)
+Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 Route::get('/api/image-proxy', [WebsiteController::class, 'proxyImage'])->name('image-proxy');
 
@@ -41,6 +51,18 @@ Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingContro
 
 // Property Detail API route
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
+
+// Building API routes
+Route::prefix('api/buildings')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\BuildingController::class, 'index']);
+    Route::get('/search', [\App\Http\Controllers\Api\BuildingController::class, 'search']);
+    Route::get('/featured', [\App\Http\Controllers\Api\BuildingController::class, 'featured']);
+    Route::get('/types', [\App\Http\Controllers\Api\BuildingController::class, 'buildingTypes']);
+    Route::get('/cities', [\App\Http\Controllers\Api\BuildingController::class, 'cities']);
+    Route::get('/find-by-address', [\App\Http\Controllers\Api\BuildingController::class, 'findByAddress']);
+    Route::get('/count-mls-listings', [\App\Http\Controllers\Api\BuildingController::class, 'countMLSListings']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\BuildingController::class, 'show']);
+});
 
 // Nearby and Similar listings API routes
 Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings']);

@@ -31,7 +31,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             IconSeeder::class,
             WebsiteSeeder::class,
-            PropertySeeder::class,  // Add sample properties with address protection
+            BuildingSeeder::class,  // Seed buildings
+            // PropertySeeder::class,  // Add sample properties with address protection - disabled due to missing columns
         ]);
     }
 }

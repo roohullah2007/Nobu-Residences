@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Building;
-use App\Models\Property;
+use App\Models\Developer;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class BuildingSeeder extends Seeder
 {
@@ -13,184 +14,307 @@ class BuildingSeeder extends Seeder
      */
     public function run(): void
     {
-        // Sample buildings data
+        $developers = Developer::all();
+        
+        if ($developers->isEmpty()) {
+            $developer = Developer::create([
+                'id' => Str::uuid(),
+                'name' => 'Premium Developers Inc.',
+                'email' => 'contact@premiumdev.com',
+                'phone' => '416-555-0100',
+                'website' => 'https://premiumdevelopers.ca',
+                'description' => 'Leading real estate developer in Toronto',
+                'logo' => '/images/developers/premium-logo.png',
+                'established_year' => 2010,
+            ]);
+            $developers = collect([$developer]);
+        }
+
         $buildings = [
             [
-                'name' => 'The Residences at NOBU',
-                'description' => 'Luxury condominiums featuring world-class amenities and stunning city views.',
-                'address' => '15 Mercer Street',
-                'full_address' => '15 Mercer Street, Toronto, ON M5V 1H2',
+                'id' => Str::uuid(),
+                'name' => 'The Skyline Tower',
+                'address' => '100 King Street West',
                 'city' => 'Toronto',
-                'province' => 'Ontario',
-                'postal_code' => 'M5V 1H2',
-                'latitude' => 43.6444,
-                'longitude' => -79.3874,
-                'building_type' => 'Condo',
-                'total_floors' => 45,
-                'total_units' => 660,
-                'year_built' => 2021,
-                'developer_name' => 'Madison Group',
-                'management_company' => 'FirstService Residential',
-                'architect' => 'Teeple Architects',
-                'maintenance_fee_range_min' => 450.00,
-                'maintenance_fee_range_max' => 1200.00,
-                'property_tax_range_min' => 3500.00,
-                'property_tax_range_max' => 12000.00,
-                'amenities' => [
-                    'Concierge', 'Fitness Centre', 'Pool', 'Rooftop Terrace', 
-                    'Party Room', 'Guest Suites', 'Valet Parking'
-                ],
-                'features' => [
-                    'Floor-to-ceiling windows', 'Hardwood floors', 
-                    'Stainless steel appliances', 'Granite countertops'
-                ],
+                'province' => 'ON',
+                'postal_code' => 'M5X 1A9',
+                'country' => 'Canada',
+                'building_type' => 'Condominium',
+                'total_units' => 450,
+                'year_built' => 2024,
+                'description' => 'A luxurious 50-story condominium tower in the heart of downtown Toronto, featuring modern amenities and stunning city views.',
+                'main_image' => 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop',
                 'images' => [
-                    '/assets/nobu-building.jpg'
+                    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800&h=600&fit=crop',
                 ],
+                'developer_id' => $developers->first()->id,
+                'management_name' => 'Skyline Property Management',
+                'corp_number' => 'TSCC-2024-001',
+                'date_registered' => now()->subMonths(6),
                 'status' => 'active',
+                'listing_type' => 'For Sale',
                 'is_featured' => true,
-                'mls_building_id' => 'NOBU_TORONTO_001',
+                'latitude' => 43.6483,
+                'longitude' => -79.3827,
+                'floors' => 50,
+                'parking_spots' => 320,
+                'locker_spots' => 200,
+                'price_range' => '$500,000 - $2,500,000',
+                'bedrooms' => '1-4',
+                'bathrooms' => '1-3',
+                'maintenance_fee_range' => '$450 - $1,500',
+                'website_url' => 'https://skylinetower.ca',
+                'brochure_url' => '/downloads/skyline-tower-brochure.pdf',
+                'floor_plans' => [
+                    ['name' => 'Studio', 'sqft' => '450-550', 'price_from' => '$500,000'],
+                    ['name' => '1 Bedroom', 'sqft' => '550-750', 'price_from' => '$650,000'],
+                    ['name' => '2 Bedroom', 'sqft' => '850-1100', 'price_from' => '$950,000'],
+                    ['name' => '3 Bedroom', 'sqft' => '1200-1500', 'price_from' => '$1,500,000'],
+                    ['name' => 'Penthouse', 'sqft' => '2000+', 'price_from' => '$2,000,000'],
+                ],
+                'virtual_tour_url' => 'https://tours.skylinetower.ca',
+                'features' => [
+                    '24/7 Concierge',
+                    'Fitness Center',
+                    'Swimming Pool',
+                    'Rooftop Terrace',
+                    'Party Room',
+                    'Guest Suites',
+                    'Pet Spa',
+                    'Co-working Space',
+                ],
+                'nearby_transit' => [
+                    ['type' => 'Subway', 'name' => 'King Station', 'distance' => '2 min walk'],
+                    ['type' => 'Streetcar', 'name' => 'King Streetcar', 'distance' => 'At doorstep'],
+                    ['type' => 'Bus', 'name' => 'Multiple routes', 'distance' => '1 min walk'],
+                ],
+                'neighborhood_info' => 'Located in the Financial District, surrounded by world-class dining, shopping, and entertainment venues.',
+                'deposit_structure' => '5% on signing, 5% in 90 days, 5% in 180 days, 5% on occupancy',
+                'estimated_completion' => 'Q4 2025',
+                'architect' => 'Toronto Architecture Group',
+                'interior_designer' => 'Design Studio Toronto',
+                'landscape_architect' => 'Green Spaces Inc.',
             ],
             [
-                'name' => 'One Bloor East',
-                'description' => 'Premium high-rise living in the heart of Yorkville.',
-                'address' => '1 Bloor Street East',
-                'full_address' => '1 Bloor Street East, Toronto, ON M4W 1A9',
+                'id' => Str::uuid(),
+                'name' => 'Maple Gardens Residences',
+                'address' => '225 Yonge Street',
                 'city' => 'Toronto',
-                'province' => 'Ontario',
-                'postal_code' => 'M4W 1A9',
-                'latitude' => 43.6708,
-                'longitude' => -79.3899,
-                'building_type' => 'Condo',
-                'total_floors' => 76,
-                'total_units' => 756,
-                'year_built' => 2017,
-                'developer_name' => 'Great Gulf',
-                'management_company' => 'FirstService Residential',
-                'architect' => 'Hariri Pontarini Architects',
-                'maintenance_fee_range_min' => 500.00,
-                'maintenance_fee_range_max' => 1500.00,
-                'property_tax_range_min' => 4000.00,
-                'property_tax_range_max' => 15000.00,
-                'amenities' => [
-                    'Concierge', 'Fitness Centre', 'Pool', 'Spa', 
-                    'Theatre Room', 'Wine Cellar', 'Outdoor Terraces'
-                ],
-                'features' => [
-                    'Panoramic city views', 'Premium finishes', 
-                    'Smart home technology', 'Built-in appliances'
-                ],
+                'province' => 'ON',
+                'postal_code' => 'M5B 1N8',
+                'country' => 'Canada',
+                'building_type' => 'Condominium',
+                'total_units' => 380,
+                'year_built' => 2023,
+                'description' => 'Modern living spaces with a perfect blend of comfort and style, located at the intersection of culture and convenience.',
+                'main_image' => 'https://images.unsplash.com/photo-1567767292278-a4f21aa2d36e?w=800&h=600&fit=crop',
                 'images' => [
-                    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop'
+                    'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=800&h=600&fit=crop',
                 ],
+                'developer_id' => $developers->first()->id,
+                'management_name' => 'Maple Property Management',
+                'corp_number' => 'TSCC-2023-045',
+                'date_registered' => now()->subMonths(12),
                 'status' => 'active',
+                'listing_type' => 'For Sale',
                 'is_featured' => true,
-                'mls_building_id' => 'ONE_BLOOR_EAST_001',
+                'latitude' => 43.6544,
+                'longitude' => -79.3807,
+                'floors' => 42,
+                'parking_spots' => 280,
+                'locker_spots' => 180,
+                'price_range' => '$450,000 - $1,800,000',
+                'bedrooms' => '1-3',
+                'bathrooms' => '1-2',
+                'maintenance_fee_range' => '$400 - $1,200',
+                'website_url' => 'https://maplegardens.ca',
+                'features' => [
+                    'Gym',
+                    'Yoga Studio',
+                    'Outdoor BBQ Area',
+                    'Library',
+                    'Children\'s Play Area',
+                    'Bike Storage',
+                ],
+                'nearby_transit' => [
+                    ['type' => 'Subway', 'name' => 'Dundas Station', 'distance' => '3 min walk'],
+                    ['type' => 'Bus', 'name' => 'Yonge Bus', 'distance' => 'At doorstep'],
+                ],
+                'neighborhood_info' => 'Steps away from Eaton Centre, Ryerson University, and the vibrant Dundas Square.',
+                'deposit_structure' => '5% on signing, 10% in 120 days, 5% on occupancy',
+                'estimated_completion' => 'Q2 2024',
+                'architect' => 'Modern Architects Ltd.',
+                'interior_designer' => 'Urban Interiors',
             ],
             [
-                'name' => 'Harbour Plaza Residences',
-                'description' => 'Waterfront luxury living with stunning lake views.',
-                'address' => '90 Harbour Street',
-                'full_address' => '90 Harbour Street, Toronto, ON M5J 2N7',
+                'id' => Str::uuid(),
+                'name' => 'Lakeshore Vista',
+                'address' => '2150 Lake Shore Blvd W',
                 'city' => 'Toronto',
-                'province' => 'Ontario',
-                'postal_code' => 'M5J 2N7',
-                'latitude' => 43.6426,
-                'longitude' => -79.3799,
-                'building_type' => 'Condo',
-                'total_floors' => 38,
-                'total_units' => 426,
-                'year_built' => 2019,
-                'developer_name' => 'Menkes Developments',
-                'management_company' => 'Brookfield Properties',
-                'architect' => 'P + S / Kirkor',
-                'maintenance_fee_range_min' => 400.00,
-                'maintenance_fee_range_max' => 1000.00,
-                'property_tax_range_min' => 3000.00,
-                'property_tax_range_max' => 10000.00,
-                'amenities' => [
-                    'Waterfront Promenade', 'Fitness Centre', 'Pool', 
-                    'Party Room', 'Business Centre', 'Pet Spa'
-                ],
-                'features' => [
-                    'Lake views', 'Modern kitchen', 
-                    'Ensuite laundry', 'Balconies'
-                ],
+                'province' => 'ON',
+                'postal_code' => 'M8V 0A3',
+                'country' => 'Canada',
+                'building_type' => 'Condominium',
+                'total_units' => 520,
+                'year_built' => 2025,
+                'description' => 'Waterfront luxury living with panoramic lake views and resort-style amenities.',
+                'main_image' => 'https://images.unsplash.com/photo-1565043666747-69f6646db940?w=800&h=600&fit=crop',
                 'images' => [
-                    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop'
+                    'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=800&h=600&fit=crop',
                 ],
+                'developer_id' => $developers->first()->id,
+                'management_name' => 'Vista Management Corp',
+                'corp_number' => 'TSCC-2025-012',
+                'date_registered' => now()->subMonths(3),
                 'status' => 'active',
+                'listing_type' => 'For Sale',
+                'is_featured' => true,
+                'latitude' => 43.6205,
+                'longitude' => -79.4755,
+                'floors' => 48,
+                'parking_spots' => 400,
+                'locker_spots' => 250,
+                'price_range' => '$600,000 - $3,000,000',
+                'bedrooms' => '1-4',
+                'bathrooms' => '1-4',
+                'maintenance_fee_range' => '$500 - $2,000',
+                'website_url' => 'https://lakeshorevista.ca',
+                'virtual_tour_url' => 'https://tours.lakeshorevista.ca',
+                'features' => [
+                    'Infinity Pool',
+                    'Spa & Sauna',
+                    'Tennis Courts',
+                    'Golf Simulator',
+                    'Wine Cellar',
+                    'Cinema Room',
+                    'Marina Access',
+                    'Beach Club',
+                ],
+                'nearby_transit' => [
+                    ['type' => 'Streetcar', 'name' => 'Lakeshore Streetcar', 'distance' => '2 min walk'],
+                    ['type' => 'GO Train', 'name' => 'Mimico GO', 'distance' => '10 min walk'],
+                ],
+                'neighborhood_info' => 'Prime waterfront location with walking trails, parks, and easy access to downtown.',
+                'deposit_structure' => '10% on signing, 5% in 60 days, 5% in 180 days',
+                'estimated_completion' => 'Q3 2026',
+                'architect' => 'Waterfront Architects',
+                'interior_designer' => 'Luxury Living Designs',
+                'landscape_architect' => 'Coastal Landscapes',
+            ],
+            [
+                'id' => Str::uuid(),
+                'name' => 'The Junction Lofts',
+                'address' => '2885 Dundas Street West',
+                'city' => 'Toronto',
+                'province' => 'ON',
+                'postal_code' => 'M6P 1Y9',
+                'country' => 'Canada',
+                'building_type' => 'Loft',
+                'total_units' => 180,
+                'year_built' => 2024,
+                'description' => 'Industrial-chic loft conversions in the trendy Junction neighborhood.',
+                'main_image' => 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop',
+                'images' => [
+                    'https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=800&h=600&fit=crop',
+                ],
+                'developer_id' => $developers->first()->id,
+                'management_name' => 'Junction Property Services',
+                'corp_number' => 'TSCC-2024-078',
+                'date_registered' => now()->subMonths(4),
+                'status' => 'active',
+                'listing_type' => 'For Rent',
                 'is_featured' => false,
-                'mls_building_id' => 'HARBOUR_PLAZA_001',
-            ]
+                'latitude' => 43.6642,
+                'longitude' => -79.4676,
+                'floors' => 8,
+                'parking_spots' => 150,
+                'locker_spots' => 100,
+                'price_range' => '$2,500 - $5,000/month',
+                'bedrooms' => '1-2',
+                'bathrooms' => '1-2',
+                'maintenance_fee_range' => 'Included in rent',
+                'features' => [
+                    'Exposed Brick',
+                    'High Ceilings',
+                    'Rooftop Patio',
+                    'Art Gallery',
+                    'Makers Space',
+                ],
+                'nearby_transit' => [
+                    ['type' => 'Subway', 'name' => 'Dundas West Station', 'distance' => '5 min walk'],
+                    ['type' => 'UP Express', 'name' => 'Bloor Station', 'distance' => '7 min walk'],
+                ],
+                'neighborhood_info' => 'Hip neighborhood with artisan shops, craft breweries, and farmers markets.',
+                'architect' => 'Industrial Design Co.',
+            ],
+            [
+                'id' => Str::uuid(),
+                'name' => 'Yorkville Estates',
+                'address' => '77 Bloor Street West',
+                'city' => 'Toronto',
+                'province' => 'ON',
+                'postal_code' => 'M5S 1M2',
+                'country' => 'Canada',
+                'building_type' => 'Luxury Condominium',
+                'total_units' => 200,
+                'year_built' => 2023,
+                'description' => 'Ultra-luxury residences in Toronto\'s most prestigious neighborhood.',
+                'main_image' => 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&h=600&fit=crop',
+                'images' => [
+                    'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1613977257592-4871e5fcd7c4?w=800&h=600&fit=crop',
+                    'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=800&h=600&fit=crop',
+                ],
+                'developer_id' => $developers->first()->id,
+                'management_name' => 'Yorkville Luxury Management',
+                'corp_number' => 'TSCC-2023-099',
+                'date_registered' => now()->subMonths(14),
+                'status' => 'active',
+                'listing_type' => 'For Sale',
+                'is_featured' => true,
+                'latitude' => 43.6694,
+                'longitude' => -79.3897,
+                'floors' => 55,
+                'parking_spots' => 250,
+                'locker_spots' => 150,
+                'price_range' => '$1,500,000 - $10,000,000',
+                'bedrooms' => '2-5',
+                'bathrooms' => '2-6',
+                'maintenance_fee_range' => '$1,200 - $5,000',
+                'website_url' => 'https://yorkvilleestates.ca',
+                'brochure_url' => '/downloads/yorkville-estates-brochure.pdf',
+                'virtual_tour_url' => 'https://tours.yorkvilleestates.ca',
+                'features' => [
+                    'Private Elevator Access',
+                    'Butler Service',
+                    'Wine Storage',
+                    'Private Dining Room',
+                    'Valet Parking',
+                    'Helicopter Landing Pad',
+                    'Private Spa',
+                ],
+                'nearby_transit' => [
+                    ['type' => 'Subway', 'name' => 'Bay Station', 'distance' => '1 min walk'],
+                    ['type' => 'Subway', 'name' => 'Bloor-Yonge Station', 'distance' => '3 min walk'],
+                ],
+                'neighborhood_info' => 'The epicenter of luxury shopping, fine dining, and cultural attractions in Toronto.',
+                'deposit_structure' => '15% on signing, 10% in 90 days, 5% on occupancy',
+                'estimated_completion' => 'Immediate Occupancy',
+                'architect' => 'Elite Architecture International',
+                'interior_designer' => 'Parisian Design House',
+                'landscape_architect' => 'Royal Gardens Design',
+            ],
         ];
 
-        foreach ($buildings as $buildingData) {
-            $building = Building::create($buildingData);
-
-            // Create sample properties for each building
-            $this->createSampleProperties($building);
-        }
-    }
-
-    private function createSampleProperties(Building $building)
-    {
-        $propertyTypes = ['1 Bedroom', '2 Bedroom', '3 Bedroom', 'Penthouse'];
-        $transactionTypes = ['sale', 'rent'];
-        
-        for ($i = 0; $i < rand(3, 8); $i++) {
-            $bedrooms = rand(1, 3);
-            $propertyType = $propertyTypes[$bedrooms - 1] ?? '1 Bedroom';
-            $transactionType = $transactionTypes[array_rand($transactionTypes)];
-            
-            $basePrice = match($bedrooms) {
-                1 => rand(400000, 600000),
-                2 => rand(600000, 900000),
-                3 => rand(900000, 1500000),
-                default => rand(400000, 600000)
-            };
-
-            if ($transactionType === 'rent') {
-                $basePrice = intval($basePrice * 0.004); // Convert to monthly rent
-            }
-
-            Property::create([
-                'building_id' => $building->id,
-                'title' => $propertyType . ' at ' . $building->name,
-                'description' => 'Beautiful ' . strtolower($propertyType) . ' with modern finishes and great amenities.',
-                'address' => $building->address,
-                'full_address' => $building->full_address,
-                'city' => $building->city,
-                'province' => $building->province,
-                'postal_code' => $building->postal_code,
-                'country' => $building->country ?? 'Canada',
-                'latitude' => $building->latitude + (rand(-10, 10) / 10000), // Slight variation
-                'longitude' => $building->longitude + (rand(-10, 10) / 10000),
-                'price' => $basePrice,
-                'property_type' => 'Condo Apartment',
-                'transaction_type' => $transactionType,
-                'status' => 'active',
-                'bedrooms' => $bedrooms,
-                'bathrooms' => $bedrooms + rand(0, 1),
-                'area' => rand(500, 1200),
-                'area_unit' => 'sqft',
-                'parking' => rand(0, 2),
-                'maintenance_fees' => rand(400, 800),
-                'property_taxes' => rand(3000, 8000),
-                'year_built' => $building->year_built,
-                'features' => [
-                    'Hardwood floors', 'Stainless steel appliances', 
-                    'Granite countertops', 'In-suite laundry'
-                ],
-                'images' => [
-                    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
-                    'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop'
-                ],
-                'listing_date' => now()->subDays(rand(1, 30)),
-                'mls_number' => 'MLS' . rand(100000, 999999),
-                'is_featured' => rand(0, 1) == 1,
-                'view_count' => rand(0, 100),
-            ]);
+        foreach ($buildings as $building) {
+            Building::create($building);
         }
     }
 }

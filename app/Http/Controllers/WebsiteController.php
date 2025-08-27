@@ -826,9 +826,68 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Redirect old property URL to new SEO-friendly format
+     */
+    public function propertyDetailRedirect($listingKey)
+    {
+        // Fetch basic property data to get city and address
+        try {
+            $ampreApi = app(\App\Services\AmpreApiService::class);
+            $property = $ampreApi->getPropertyByKey($listingKey);
+            
+            if ($property) {
+                $city = strtolower(str_replace(' ', '-', $property['City'] ?? 'toronto'));
+                $address = $property['UnparsedAddress'] ?? '';
+                
+                // Extract and format street address
+                $addressSlug = $this->createAddressSlug($address);
+                
+                return redirect()->route('property-detail', [
+                    'city' => $city,
+                    'address' => $addressSlug,
+                    'listingKey' => $listingKey
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to redirect property: ' . $e->getMessage());
+        }
+        
+        // Fallback to default redirect
+        return redirect()->route('property-detail', [
+            'city' => 'toronto',
+            'address' => 'property',
+            'listingKey' => $listingKey
+        ]);
+    }
+
+    /**
+     * Create URL-friendly slug from address
+     */
+    private function createAddressSlug($address)
+    {
+        // Extract street number and name from full address
+        // Example: "55 Mercer Street, Unit 2507" -> "55-mercer-street"
+        $address = strtolower($address);
+        
+        // Remove unit/suite/apt information
+        $address = preg_replace('/,?\s*(unit|suite|apt|apartment|#)\s*\d+.*/i', '', $address);
+        
+        // Remove city, province, postal code
+        $address = preg_replace('/,?\s*(toronto|mississauga|brampton|vaughan|markham|richmond hill|oakville|burlington).*/i', '', $address);
+        
+        // Clean up the address
+        $address = trim($address);
+        $address = preg_replace('/[^a-z0-9\s\-]/', '', $address);
+        $address = preg_replace('/\s+/', '-', $address);
+        $address = preg_replace('/-+/', '-', $address);
+        
+        return trim($address, '-');
+    }
+
+    /**
      * Display the property detail page
      */
-    public function propertyDetail($listingKey)
+    public function propertyDetail($city, $address, $listingKey)
     {
         // Try to fetch property data from AMPRE API or local database
         $propertyData = null;
@@ -904,15 +963,20 @@ class WebsiteController extends Controller
     {
         return [
             'listingKey' => $property['ListingKey'] ?? '',
+            'ListingKey' => $property['ListingKey'] ?? '',
             'address' => $property['UnparsedAddress'] ?? '',
             'city' => $property['City'] ?? '',
             'province' => $property['StateOrProvince'] ?? '',
             'postalCode' => $property['PostalCode'] ?? '',
             'price' => $property['ListPrice'] ?? 0,
+            'ListPrice' => $property['ListPrice'] ?? 0,
             'originalPrice' => $property['OriginalListPrice'] ?? null,
+            'OriginalListPrice' => $property['OriginalListPrice'] ?? null,
             'soldPrice' => $property['ClosePrice'] ?? null,
+            'ClosePrice' => $property['ClosePrice'] ?? null,
             'propertyType' => $property['PropertyType'] ?? '',
             'propertySubType' => $property['PropertySubType'] ?? '',
+            'transactionType' => $property['TransactionType'] ?? 'For Sale',
             'bedrooms' => $property['BedroomsTotal'] ?? 0,
             'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
             'bathroomsFull' => $property['BathroomsFull'] ?? 0,
@@ -931,7 +995,10 @@ class WebsiteController extends Controller
             'basement' => $property['Basement'] ?? [],
             'listingDate' => $property['ListingContractDate'] ?? null,
             'daysOnMarket' => $property['DaysOnMarket'] ?? null,
+            'DaysOnMarket' => $property['DaysOnMarket'] ?? null,
             'status' => $property['StandardStatus'] ?? '',
+            'StandardStatus' => $property['StandardStatus'] ?? '',
+            'MlsStatus' => $property['MlsStatus'] ?? '',
             'mlsNumber' => $property['ListingId'] ?? '',
             'latitude' => $property['Latitude'] ?? null,
             'longitude' => $property['Longitude'] ?? null,
@@ -943,7 +1010,9 @@ class WebsiteController extends Controller
             'taxAmount' => $property['TaxAnnualAmount'] ?? null,
             'associationFee' => $property['AssociationFee'] ?? null,
             'associationFeeFrequency' => $property['AssociationFeeFrequency'] ?? null,
+            'LeaseTerm' => $property['LeaseTerm'] ?? null,
             // Add missing fields for PropertyGallery component
+            'TransactionType' => $property['TransactionType'] ?? 'For Sale',
             'LivingAreaRange' => $property['LivingAreaRange'] ?? '600-699',
             'TaxAnnualAmount' => $property['TaxAnnualAmount'] ?? 3784,
             'Exposure' => $property['Exposure'] ?? 'West',
@@ -983,15 +1052,36 @@ class WebsiteController extends Controller
      */
     public function buildingDetail($buildingId)
     {
-        $building = Building::find($buildingId);
+        $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+            $query->where('status', 'active')
+                  ->orderBy('created_at', 'desc')
+                  ->limit(10);
+        }])->find($buildingId);
+        
         $buildingData = null;
         
         if ($building) {
-            $buildingData = $building->getDisplayData();
-            // Get related properties
-            $buildingData['properties'] = $building->properties()->active()->get()->map(function($property) {
-                return $property->getDisplayData();
-            })->toArray();
+            // Get all building data including relationships
+            $buildingData = $building->toArray();
+            
+            // Add computed properties
+            $buildingData['available_units_count'] = $building->getAvailableUnitsCountAttribute();
+            
+            // Format properties for display
+            if (isset($buildingData['properties'])) {
+                $buildingData['properties'] = collect($buildingData['properties'])->map(function($property) {
+                    return [
+                        'id' => $property['id'] ?? null,
+                        'title' => $property['title'] ?? '',
+                        'price' => $property['price'] ?? 0,
+                        'bedrooms' => $property['bedrooms'] ?? 0,
+                        'bathrooms' => $property['bathrooms'] ?? 0,
+                        'area' => $property['area'] ?? 0,
+                        'images' => $property['images'] ?? [],
+                        'status' => $property['status'] ?? 'active',
+                    ];
+                })->toArray();
+            }
         }
         
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [

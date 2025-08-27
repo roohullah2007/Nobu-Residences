@@ -24,7 +24,7 @@ export default function PropertySections({
       <PriceHistory propertyData={propertyData} />
       
       {/* The Merchandise Lofts Section */}
-      <MerchandiseLofts />
+      <MerchandiseLofts propertyData={propertyData} />
       
       {/* Dynamic Buildings/Listings Section */}
       <MoreBuildings 

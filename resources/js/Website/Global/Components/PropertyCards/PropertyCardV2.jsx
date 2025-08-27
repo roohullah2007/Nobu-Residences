@@ -1,4 +1,5 @@
 import React from 'react';
+import { generatePropertyUrl } from '@/utils/propertyUrl';
 
 /**
  * PropertyCardV2 - For Rent Properties
@@ -51,7 +52,7 @@ const PropertyCardV2 = ({
 
   const formattedPrice = formatPrice(property.price, property.isRental);
   const features = buildFeatures(property.bedrooms, property.bathrooms);
-  const detailsUrl = `/property/${property.listingKey}`;
+  const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations
   const sizeConfig = {

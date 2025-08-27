@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PropertyImageLoader from '@/Components/PropertyImageLoader';
+import { generatePropertyUrl } from '@/utils/propertyUrl';
 
 /**
  * PropertyCardV1 - For Sale Properties
@@ -57,7 +58,7 @@ const PropertyCardV1 = ({
 
   const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
   const features = buildFeatures(property.bedrooms, property.bathrooms);
-  const detailsUrl = `/property/${property.listingKey}`;
+  const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations
   const sizeConfig = {

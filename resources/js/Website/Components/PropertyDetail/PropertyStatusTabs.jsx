@@ -7,11 +7,33 @@ import Amenities from './Amenities';
 const PropertyStatusTabs = ({ property }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Calculate days on market
+  const calculateDaysOnMarket = () => {
+    if (property?.ListingContractDate) {
+      const listingDate = new Date(property.ListingContractDate);
+      const today = new Date();
+      const diffTime = Math.abs(today - listingDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    }
+    return property?.DaysOnMarket || 0;
+  };
+
+  // Format close date for sold properties
+  const formatCloseDate = () => {
+    if (property?.CloseDate) {
+      const date = new Date(property.CloseDate);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return null;
+  };
+
   const propertyData = {
-    daysOnMarket: 25,
-    saleDate: 'Apr 25, 2025',
-    status: 'Sold',
-    description: 'This is 2nd Bedroom Room Rental. At Luxury and Fashionable Condo alongside world-renowned Nobu Hospitality, state-of-the-art indoor and outdoor amenities including ground floor commercial retail, flexible private social function and meeting space, a state-of-the-art fitness centre and Zen Garden outdoor terrace. All Luxury Finishes, Custom Made Rolling Blinds. Tenant Has Own Bathroom, Sharing Living Room, Kitchen and Laundry. Steps to CN Tower, Rogers Centre, Subways.'
+    daysOnMarket: calculateDaysOnMarket(),
+    closeDate: formatCloseDate(),
+    status: property?.StandardStatus || property?.MlsStatus || 'Active',
+    transactionType: property?.TransactionType || 'For Sale',
+    description: property?.PublicRemarks || property?.description || ''
   };
 
   const tabs = [
@@ -77,19 +99,32 @@ const PropertyStatusTabs = ({ property }) => {
       <div className="flex flex-col items-start gap-6 w-full relative z-10">
         {/* Status Labels Section */}
         <div className="flex flex-row items-start gap-[22px] h-10">
-          {/* Days on Market Badge */}
-          <div className="flex items-center px-2 gap-2 w-[138px] h-10 bg-[#293056] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis w-[122px]">
-              {propertyData.daysOnMarket} Days on Market
-            </span>
-          </div>
+          {/* Days on Market Badge - show only for active listings */}
+          {propertyData.status === 'Active' && (
+            <div className="flex items-center px-2 gap-2 w-[138px] h-10 bg-[#293056] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis w-[122px]">
+                {propertyData.daysOnMarket} Days on Market
+              </span>
+            </div>
+          )}
           
-          {/* Sold Status Badge */}
-          <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#3E4784] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
-              {propertyData.status} on {propertyData.saleDate}
-            </span>
-          </div>
+          {/* Sold Status Badge - show only for sold/closed properties */}
+          {(propertyData.status === 'Sold' || propertyData.status === 'Closed') && propertyData.closeDate && (
+            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#3E4784] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+                Sold on {propertyData.closeDate}
+              </span>
+            </div>
+          )}
+          
+          {/* Leased Status Badge - show only for leased properties */}
+          {propertyData.status === 'Leased' && propertyData.closeDate && (
+            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#3E4784] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+                Leased on {propertyData.closeDate}
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Navigation Tabs Section */}
