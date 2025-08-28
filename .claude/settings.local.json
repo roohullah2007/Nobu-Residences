@@ -19,7 +19,8 @@
       "Bash(if [ -f .env ])",
       "Bash(then grep \"GOOGLE_MAPS\" .env)",
       "Bash(else echo \".env file not found\")",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": [],
