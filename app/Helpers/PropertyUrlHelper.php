@@ -29,8 +29,10 @@ class PropertyUrlHelper
                    $property['address'] ?? 
                    $property['StreetAddress'] ?? '';
         
-        // Format city for URL
-        $citySlug = strtolower(str_replace(' ', '-', $city));
+        // Format city for URL - remove district codes like C08, W04, etc.
+        $citySlug = strtolower($city);
+        $citySlug = preg_replace('/\s*[cewns]\d{2}\b/i', '', $citySlug); // Remove district codes
+        $citySlug = trim(str_replace(' ', '-', $citySlug));
         
         // Format address for URL
         $addressSlug = self::createAddressSlug($address);
@@ -48,8 +50,9 @@ class PropertyUrlHelper
         // Example: "55 Mercer Street, Unit 2507" -> "55-mercer-street"
         $address = strtolower($address);
         
-        // Remove unit/suite/apt information
-        $address = preg_replace('/,?\s*(unit|suite|apt|apartment|#)\s*\d+.*/i', '', $address);
+        // Remove unit/suite/apt information (including #618 format)
+        $address = preg_replace('/[,\s]*#\s*\d+.*/i', '', $address); // Remove #unit format
+        $address = preg_replace('/,?\s*(unit|suite|apt|apartment)\s*\d+.*/i', '', $address); // Remove other unit formats
         
         // Remove city, province, postal code
         $address = preg_replace('/,?\s*(toronto|mississauga|brampton|vaughan|markham|richmond hill|oakville|burlington|hamilton|london|ottawa|kitchener).*/i', '', $address);

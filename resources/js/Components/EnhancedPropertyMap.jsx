@@ -32,6 +32,7 @@ const PropertyMap = ({
   const infoWindowRef = useRef(null);
   const markerClusterRef = useRef(null);
   const initializationRef = useRef(false);
+  const [isMapRefReady, setIsMapRefReady] = useState(false);
   
   const [mapState, setMapState] = useState({
     loaded: false,
@@ -409,7 +410,9 @@ const PropertyMap = ({
 
   // Initialize Google Maps
   const initializeMap = useCallback(() => {
-    if (!window.google || !mapRef.current || initializationRef.current) return;
+    if (!window.google || !window.google.maps || !mapRef.current || initializationRef.current || mapState.loaded) {
+      return;
+    }
 
     initializationRef.current = true;
 
@@ -452,15 +455,40 @@ const PropertyMap = ({
       setMapState(prev => ({ ...prev, error: error.message }));
       initializationRef.current = false;
     }
-  }, [mapCenter, mapConfig, viewType, mapOptions, enableInfoWindows, addPropertyMarkers]);
+  }, [mapCenter, mapConfig, viewType, mapOptions, enableInfoWindows, addPropertyMarkers, mapState.loaded]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clear all markers
+      if (markersRef.current.size > 0) {
+        markersRef.current.forEach(marker => {
+          if (marker && marker.setMap) {
+            marker.setMap(null);
+          }
+        });
+        markersRef.current.clear();
+      }
+      
+      // Clear marker cluster
+      if (markerClusterRef.current) {
+        markerClusterRef.current.clearMarkers();
+        markerClusterRef.current = null;
+      }
+      
+      // Close info window
+      if (infoWindowRef.current) {
+        infoWindowRef.current.close();
+        infoWindowRef.current = null;
+      }
+      
+      // Reset initialization flag
+      initializationRef.current = false;
+    };
+  }, []);
 
   // Load Google Maps API
   useEffect(() => {
-    if (window.google && window.google.maps) {
-      initializeMap();
-      return;
-    }
-
     // Check if we have an API key
     const apiKey = mapConfig.apiKey;
     
@@ -472,18 +500,54 @@ const PropertyMap = ({
       return;
     }
 
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      // Script already loading/loaded
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps) {
+      initializeMap();
       return;
     }
 
+    // Check if script is already in the DOM
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      // Wait for Google Maps to be available
+      const checkGoogleMaps = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkGoogleMaps);
+          initializeMap();
+        }
+      }, 100);
+      
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkGoogleMaps);
+        if (!window.google || !window.google.maps) {
+          setMapState(prev => ({ 
+            ...prev, 
+            error: 'Google Maps API failed to load' 
+          }));
+        }
+      }, 10000);
+      
+      return () => clearInterval(checkGoogleMaps);
+    }
+
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry${enableClustering ? ',marker' : ''}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry${enableClustering ? ',marker' : ''}&loading=async`;
     script.async = true;
     script.defer = true;
     
     script.onload = () => {
-      initializeMap();
+      // Wait a moment for Google Maps to fully initialize
+      setTimeout(() => {
+        if (window.google && window.google.maps) {
+          initializeMap();
+        } else {
+          setMapState(prev => ({ 
+            ...prev, 
+            error: 'Google Maps API not available after loading' 
+          }));
+        }
+      }, 100);
     };
     
     script.onerror = () => {
@@ -496,12 +560,21 @@ const PropertyMap = ({
 
     document.head.appendChild(script);
 
-    return () => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    };
+    // Don't remove the script as other components might need it
+    return () => {};
   }, [initializeMap, enableClustering, mapConfig.apiKey]);
+
+  // Track when map ref is ready
+  useEffect(() => {
+    setIsMapRefReady(!!mapRef.current);
+  }, []);
+
+  // Initialize map when ref is ready and Google Maps is loaded
+  useEffect(() => {
+    if (isMapRefReady && window.google && window.google.maps && !mapState.loaded && !initializationRef.current) {
+      initializeMap();
+    }
+  }, [isMapRefReady, mapState.loaded, initializeMap]);
 
   // Update markers when properties change
   useEffect(() => {
@@ -543,23 +616,41 @@ const PropertyMap = ({
     );
   }
 
-  // Loading state
-  if (!mapState.loaded) {
-    return (
-      <div className={`${className} bg-gray-50 rounded-lg border flex items-center justify-center`}>
-        <div className="text-center p-8">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading Map</h3>
-          <p className="text-sm text-gray-600">Please wait while we load the property locations...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={`${className} relative`}>
-      {/* Map container */}
-      <div ref={mapRef} className="w-full h-full rounded-lg overflow-hidden border bg-gray-50"></div>
+      {/* Map container wrapper to isolate Google Maps DOM manipulation */}
+      <div className="w-full h-full relative">
+        {/* Map container - always render this so ref can be attached */}
+        <div 
+          ref={(el) => {
+            if (el && mapRef.current !== el) {
+              mapRef.current = el;
+              setIsMapRefReady(true);
+            } else if (!el && mapRef.current) {
+              // Don't immediately clear the ref to avoid conflicts
+              setTimeout(() => {
+                if (!el && mapRef.current === el) {
+                  mapRef.current = null;
+                  setIsMapRefReady(false);
+                }
+              }, 100);
+            }
+          }}
+          className="w-full h-full rounded-lg overflow-hidden border bg-gray-50"
+          style={{ minHeight: '400px' }}
+          suppressHydrationWarning={true}>
+          {/* Show loading spinner overlay while map is loading */}
+          {!mapState.loaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+              <div className="text-center p-8">
+                <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Loading Map</h3>
+                <p className="text-sm text-gray-600">Please wait while we load the property locations...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       
       {/* Map controls overlay for full view */}
       {viewType === 'full' && (

@@ -13,7 +13,7 @@
 
         <!-- Scripts -->
         <script>
-            window.googleMapsApiKey = "{{ env('GOOGLE_MAPS_API_KEY') }}";
+            window.googleMapsApiKey = "{{ $googleMapsApiKey ?? '' }}";
         </script>
         @routes
         @viteReactRefresh

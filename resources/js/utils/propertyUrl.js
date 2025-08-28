@@ -20,8 +20,10 @@ export const generatePropertyUrl = (property) => {
                     property.address || 
                     property.StreetAddress || '';
     
-    // Format city for URL
-    const citySlug = city.toLowerCase().replace(/\s+/g, '-');
+    // Format city for URL - remove district codes like C08, W04, etc.
+    let citySlug = city.toLowerCase();
+    citySlug = citySlug.replace(/\s*[cewns]\d{2}\b/gi, ''); // Remove district codes
+    citySlug = citySlug.trim().replace(/\s+/g, '-');
     
     // Format address for URL
     const addressSlug = createAddressSlug(address);
@@ -39,8 +41,9 @@ const createAddressSlug = (address) => {
     // Convert to lowercase
     let slug = address.toLowerCase();
     
-    // Remove unit/suite/apt information
-    slug = slug.replace(/,?\s*(unit|suite|apt|apartment|#)\s*\d+.*/i, '');
+    // Remove unit/suite/apt information (including #618 format)
+    slug = slug.replace(/[,\s]*#\s*\d+.*/i, ''); // Remove #unit format
+    slug = slug.replace(/,?\s*(unit|suite|apt|apartment)\s*\d+.*/i, ''); // Remove other unit formats
     
     // Remove city, province, postal code
     slug = slug.replace(/,?\s*(toronto|mississauga|brampton|vaughan|markham|richmond hill|oakville|burlington|hamilton|london|ottawa|kitchener).*/i, '');

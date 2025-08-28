@@ -74,14 +74,20 @@ class AdminController extends Controller
     {
         $apiSettings = Setting::apiSettings()->get()->keyBy('key');
         
+        // Get API keys from database or config
+        $vowToken = $apiSettings->get('ampre_vow_token')?->value ?? config('ampre.vow_token');
+        $idxToken = $apiSettings->get('ampre_idx_token')?->value ?? config('ampre.idx_token');
+        $googleMapsKey = $apiSettings->get('google_maps_api_key')?->value ?? config('services.google_maps.key');
+        $walkscoreKey = $apiSettings->get('walkscore_api_key')?->value ?? config('services.walkscore.key');
+        
         return Inertia::render('Admin/ApiKeys', [
             'title' => 'MLS API Configuration',
             'api_keys' => [
                 'ampre_api_url' => $apiSettings->get('ampre_api_url')?->value ?? config('ampre.api_url'),
-                'ampre_vow_token' => $this->maskApiKey($apiSettings->get('ampre_vow_token')?->value),
-                'ampre_idx_token' => $this->maskApiKey($apiSettings->get('ampre_idx_token')?->value),
-                'google_maps_api_key' => $this->maskApiKey($apiSettings->get('google_maps_api_key')?->value),
-                'walkscore_api_key' => $this->maskApiKey($apiSettings->get('walkscore_api_key')?->value),
+                'ampre_vow_token' => $this->maskApiKey($vowToken),
+                'ampre_idx_token' => $this->maskApiKey($idxToken),
+                'google_maps_api_key' => $this->maskApiKey($googleMapsKey),
+                'walkscore_api_key' => $this->maskApiKey($walkscoreKey),
             ],
             'mls_settings' => [
                 'auto_sync' => $apiSettings->get('mls_auto_sync')?->value ?? true,
@@ -116,9 +122,10 @@ class AdminController extends Controller
      */
     private function getConnectionStatus(): array
     {
-        $vowToken = Setting::get('ampre_vow_token');
-        $idxToken = Setting::get('ampre_idx_token');
-        $googleMapsKey = Setting::get('google_maps_api_key');
+        // Check from database first, then fallback to config
+        $vowToken = Setting::get('ampre_vow_token') ?: config('ampre.vow_token');
+        $idxToken = Setting::get('ampre_idx_token') ?: config('ampre.idx_token');
+        $googleMapsKey = Setting::get('google_maps_api_key') ?: config('services.google_maps.key');
         
         return [
             'ampre_vow' => !empty($vowToken) ? 'configured' : 'not_configured',

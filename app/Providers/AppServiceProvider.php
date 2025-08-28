@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Services\AmpreApiService;
 use App\Services\MLSIntegrationService;
+use App\Models\Setting;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,5 +31,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        
+        // Share Google Maps API key with all views
+        View::composer('*', function ($view) {
+            // Try to get from database first, then fallback to config
+            $googleMapsApiKey = Setting::get('google_maps_api_key') 
+                ?: config('ampre.google_maps_api_key') 
+                ?: config('maps.google-maps.api_key');
+            
+            $view->with('googleMapsApiKey', $googleMapsApiKey);
+        });
     }
 }

@@ -5,7 +5,7 @@ import Navbar from '@/Website/Global/Navbar';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
-import EnhancedPropertyMap from '@/Components/EnhancedPropertyMap';
+import SimplePropertyMap from '@/Components/SimplePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 
@@ -590,15 +590,14 @@ export default function EnhancedPropertySearch({
                     value={searchFilters.status}
                     onChange={(e) => handleFilterChange('status', e.target.value)}
                     className="px-3 py-2 pr-8 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none whitespace-nowrap appearance-none"
+                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   >
                     <option value="For Sale">For Sale</option>
                     <option value="For Rent">For Rent</option>
                     <option value="Sold">Sold</option>
                     <option value="Leased">Leased</option>
                   </select>
-                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <ChevronDownIcon className="w-4 h-4 text-[#293056]" />
-                  </div>
+                  {/* Removed ChevronDownIcon - icon is being displayed from elsewhere */}
                 </div>
                 
                 <div className="relative bg-white rounded-lg">
@@ -606,6 +605,7 @@ export default function EnhancedPropertySearch({
                     value={activeTab === 'buildings' ? (searchFilters.floors || 0) : searchFilters.bedrooms}
                     onChange={(e) => handleFilterChange(activeTab === 'buildings' ? 'floors' : 'bedrooms', e.target.value)}
                     className="px-3 py-2 pr-8 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none whitespace-nowrap appearance-none"
+                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                   >
                     <option value="0">{activeTab === 'buildings' ? 'Floors' : 'Bed type'}</option>
                     <option value="1">1+</option>
@@ -620,9 +620,7 @@ export default function EnhancedPropertySearch({
                       </>
                     )}
                   </select>
-                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <ChevronDownIcon className="w-4 h-4 text-[#293056]" />
-                  </div>
+                  {/* Removed ChevronDownIcon - icon is being displayed from elsewhere */}
                 </div>
               </div>
               
@@ -786,15 +784,14 @@ export default function EnhancedPropertySearch({
                       value={searchFilters.status}
                       onChange={(e) => handleFilterChange('status', e.target.value)}
                       className="w-full h-full px-3 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none appearance-none cursor-pointer"
+                      style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                     >
                       <option value="For Sale">For Sale</option>
                       <option value="For Rent">For Rent</option>
                       <option value="Sold">Sold</option>
                       <option value="Leased">Leased</option>
                     </select>
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <ChevronDownIcon className="w-4 h-4 text-[#293056]" />
-                    </div>
+                    {/* Removed ChevronDownIcon - icon is being displayed from elsewhere */}
                   </div>
 
                   {/* Bed Type/Floors Dropdown */}
@@ -803,6 +800,7 @@ export default function EnhancedPropertySearch({
                       value={activeTab === 'buildings' ? (searchFilters.floors || 0) : searchFilters.bedrooms}
                       onChange={(e) => handleFilterChange(activeTab === 'buildings' ? 'floors' : 'bedrooms', e.target.value)}
                       className="w-full h-full px-3 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none appearance-none cursor-pointer"
+                      style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
                     >
                       <option value="0">{activeTab === 'buildings' ? 'Floors' : 'Bed type'}</option>
                       <option value="1">1+</option>
@@ -818,9 +816,7 @@ export default function EnhancedPropertySearch({
                         </>
                       )}
                     </select>
-                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <ChevronDownIcon className="w-4 h-4 text-[#293056]" />
-                    </div>
+                    {/* Removed ChevronDownIcon - icon is being displayed from elsewhere */}
                   </div>
 
                   {/* Price Range */}
@@ -1133,17 +1129,13 @@ export default function EnhancedPropertySearch({
               </div>
             ) : viewType === 'map' ? (
               // Full Map View
-              <EnhancedPropertyMap 
+              <SimplePropertyMap 
                 properties={activeTab === 'listings' ? properties : buildings}
                 className="w-full h-[600px]"
-                activeProperty={activeProperty}
-                onPropertyHover={handlePropertyHover}
                 onPropertyClick={(property) => {
                   window.location.href = generatePropertyUrl(property);
                 }}
                 viewType="full"
-                enableClustering={true}
-                enableInfoWindows={true}
               />
             ) : viewType === 'mixed' ? (
               // Enhanced Mixed View - IDX-AMPRE style split layout with two cards per row
@@ -1264,22 +1256,13 @@ export default function EnhancedPropertySearch({
                 
                 {/* Right side - Enhanced Map - IDX-AMPRE style */}
                 <div className="w-1/2 flex flex-col bg-gray-50">
-                  <EnhancedPropertyMap 
+                  <SimplePropertyMap 
                     properties={activeTab === 'listings' ? properties : buildings}
                     className="w-full h-full"
-                    activeProperty={activeProperty}
-                    onPropertyHover={handlePropertyHover}
                     onPropertyClick={(property) => {
-                      window.location.href = `/property/${property.ListingKey}`;
+                      window.location.href = generatePropertyUrl(property);
                     }}
                     viewType="mixed"
-                    enableClustering={true}
-                    enableInfoWindows={true}
-                    mixedViewConfig={{
-                      mapPadding: 30,
-                      autoCenter: true,
-                      syncHover: true
-                    }}
                   />
                 </div>
               </div>
