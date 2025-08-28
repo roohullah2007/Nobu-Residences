@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\AmpreApiService;
+use App\Services\GeocodingService;
 use App\Models\SavedSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,10 +13,12 @@ use Exception;
 class PropertySearchController extends Controller
 {
     private AmpreApiService $ampreApi;
+    private GeocodingService $geocoder;
 
-    public function __construct(AmpreApiService $ampreApi)
+    public function __construct(AmpreApiService $ampreApi, GeocodingService $geocoder)
     {
         $this->ampreApi = $ampreApi;
+        $this->geocoder = $geocoder;
     }
 
     /**
@@ -58,8 +61,12 @@ class PropertySearchController extends Controller
             // Add single image per property for initial display
             // Additional images can be lazy loaded if needed
             $propertiesWithImages = $this->addPropertyImages($properties);
+            
+            // Don't pre-geocode on backend - let frontend handle it for visible properties only
+            // This improves performance by only geocoding what's needed
+            // $propertiesWithCoordinates = $this->addCoordinates($propertiesWithImages);
 
-            // Format properties for JSON response (with single image)
+            // Format properties for JSON response (frontend will handle geocoding)
             $formattedProperties = $this->formatProperties($propertiesWithImages);
 
             return response()->json([
@@ -392,6 +399,83 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * Add coordinates to properties using full UnparsedAddress
+     */
+    private function addCoordinates(array $properties)
+    {
+        if (empty($properties)) {
+            return $properties;
+        }
+
+        foreach ($properties as $index => $property) {
+            // Check if coordinates already exist
+            if (!empty($property['Latitude']) && !empty($property['Longitude'])) {
+                continue;
+            }
+            
+            // Try to geocode using the full UnparsedAddress
+            $unparsedAddress = $property['UnparsedAddress'] ?? '';
+            $city = $property['City'] ?? '';
+            $province = $property['StateOrProvince'] ?? '';
+            $postalCode = $property['PostalCode'] ?? '';
+            
+            // Use only UnparsedAddress for geocoding - it contains the complete address
+            $coordinates = null;
+            
+            if (!empty($unparsedAddress)) {
+                // Pass only the UnparsedAddress to geocoding service
+                // Example: "100 Park Home Avenue, Toronto C07, ON M2N 1W8"
+                $coordinates = $this->geocoder->geocodeAddress($unparsedAddress);
+            }
+            
+            // If geocoding fails or no API key, use test coordinates
+            if (!$coordinates) {
+                $coordinates = $this->geocoder->generateTestCoordinates($unparsedAddress);
+            }
+            
+            $properties[$index]['Latitude'] = (string) $coordinates['lat'];
+            $properties[$index]['Longitude'] = (string) $coordinates['lng'];
+            
+            // Log for debugging
+            Log::debug('Added coordinates for property', [
+                'ListingKey' => $property['ListingKey'] ?? 'unknown',
+                'UnparsedAddress' => $unparsedAddress,
+                'City' => $city,
+                'Province' => $province,
+                'PostalCode' => $postalCode,
+                'Coordinates' => $coordinates,
+                'Source' => $coordinates['source'] ?? 'unknown'
+            ]);
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Check if a URL is valid for an image
+     */
+    private function isValidImageUrl($url)
+    {
+        if (empty($url)) {
+            return false;
+        }
+        
+        // Check if it starts with http, https, or //
+        if (!str_starts_with($url, 'http://') && 
+            !str_starts_with($url, 'https://') && 
+            !str_starts_with($url, '//')) {
+            return false;
+        }
+        
+        // Check if URL is not just a placeholder or invalid format
+        if (strlen($url) < 10 || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
      * Apply global search filter across multiple fields
      */
     private function applyGlobalSearchFilter($query)
@@ -471,15 +555,23 @@ class PropertySearchController extends Controller
                 // Add full Images array to property
                 $properties[$index]['Images'] = $propertyImages;
                 
-                // Get the first image URL
-                $imageUrl = $propertyImages[0]['MediaURL'] ?? null;
+                // Get the first valid image URL
+                $imageUrl = null;
+                foreach ($propertyImages as $img) {
+                    if (!empty($img['MediaURL']) && $this->isValidImageUrl($img['MediaURL'])) {
+                        $imageUrl = $img['MediaURL'];
+                        break;
+                    }
+                }
                 
                 // Check if this image has been used already
                 if ($imageUrl && in_array($imageUrl, $usedImages)) {
                     // Try to find an alternative image from the array
                     $alternativeFound = false;
                     foreach ($propertyImages as $img) {
-                        if (!empty($img['MediaURL']) && !in_array($img['MediaURL'], $usedImages)) {
+                        if (!empty($img['MediaURL']) && 
+                            !in_array($img['MediaURL'], $usedImages) && 
+                            $this->isValidImageUrl($img['MediaURL'])) {
                             $imageUrl = $img['MediaURL'];
                             $alternativeFound = true;
                             break;
@@ -488,7 +580,7 @@ class PropertySearchController extends Controller
                     
                     // If no alternative found, log it for debugging
                     if (!$alternativeFound && $imageUrl) {
-                        Log::warning("Duplicate image detected for property {$listingKey}");
+                        Log::debug("Duplicate image detected for property {$listingKey}, still using it");
                     }
                 }
                 
@@ -497,7 +589,7 @@ class PropertySearchController extends Controller
                     $usedImages[] = $imageUrl;
                 }
                 
-                // Also add MediaURL for backward compatibility
+                // Add MediaURL - ensure it's a valid URL or null
                 $properties[$index]['MediaURL'] = $imageUrl;
             }
 

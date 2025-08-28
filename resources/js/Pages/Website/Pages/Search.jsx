@@ -9,6 +9,7 @@ import EnhancedPropertyMap from '@/Components/EnhancedPropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import ViewingRequestModal from '@/Website/Global/Components/ViewingRequestModal';
 import CompareModal from '@/Website/Global/Components/CompareModal';
+import EnhancedSearchBar from '@/Components/EnhancedSearchBar';
 
 
 // Icon components
@@ -156,9 +157,9 @@ export default function EnhancedPropertySearch({
   searchTab = 'listings', 
 }) {
   const [searchFilters, setSearchFilters] = useState({
-    query: filters.search || '',
+    query: filters.search || '', // Start with empty query - let user search
     status: filters.forSale || 'For Sale',
-    property_type: filters.property_type || [],
+    property_type: filters.property_type || [], // Start with all property types
     price_min: filters.minPrice || 0,
     price_max: filters.maxPrice || 10000000, // Default max price 10M
     bedrooms: filters.bedType || 0,
@@ -166,6 +167,7 @@ export default function EnhancedPropertySearch({
     sort: filters.sort || 'newest',
     tab: filters.tab || searchTab || 'listings',
     page: filters.page || 1,
+    city: filters.city || '', // Start with empty city
   });
 
   const [viewType, setViewType] = useState('grid'); // 'grid', 'map', 'mixed'
@@ -205,7 +207,58 @@ export default function EnhancedPropertySearch({
     setPropertyImages(imageCache);
   }, [imageCache]);
 
-  const handlePropertyHover = (listingKey) => {
+  const handlePropertyHover = (propertyOrKey, action = null) => {
+    // Handle both property object from map and listingKey from cards
+    let listingKey = null;
+    
+    console.log('handlePropertyHover called:', { propertyOrKey, action, viewType });
+    
+    if (typeof propertyOrKey === 'object' && propertyOrKey !== null) {
+      // From map marker hover
+      listingKey = propertyOrKey.ListingKey || propertyOrKey.listingKey;
+      console.log('Map hover - listingKey:', listingKey);
+      
+      // Scroll to property card in the list if in mixed view
+      if (viewType === 'mixed' && listingKey && action === 'enter') {
+        console.log('Attempting to scroll to property:', listingKey);
+        const propertyCard = document.querySelector(`[data-listing-key="${listingKey}"]`);
+        if (propertyCard) {
+          // Find the scrollable container (left side grid)
+          const scrollContainer = document.querySelector('.idx-ampre-property-grid-scroll');
+          if (scrollContainer) {
+            // Calculate the position relative to the scroll container
+            const cardTop = propertyCard.offsetTop;
+            const containerHeight = scrollContainer.clientHeight;
+            const cardHeight = propertyCard.clientHeight;
+            const scrollPosition = cardTop - (containerHeight / 2) + (cardHeight / 2);
+            
+            // Smooth scroll within the container
+            scrollContainer.scrollTo({
+              top: scrollPosition,
+              behavior: 'smooth'
+            });
+          } else {
+            // Fallback to regular scroll
+            propertyCard.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }
+          
+          // Add highlight effect
+          propertyCard.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50', 'shadow-lg', 'scale-[1.02]', 'z-10');
+        }
+      } else if (action === 'leave') {
+        // Remove highlight from all cards
+        document.querySelectorAll('[data-listing-key]').forEach(card => {
+          card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'shadow-lg', 'scale-[1.02]', 'z-10');
+        });
+      }
+    } else {
+      // From property card hover
+      listingKey = propertyOrKey;
+    }
+    
     setActiveProperty(listingKey);
   };
 
@@ -321,7 +374,13 @@ export default function EnhancedPropertySearch({
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []); // Only run on mount, tab changes are handled by handleTabChange
+  }, []); // Only run on mount
+  
+  // Trigger initial search when component mounts
+  useEffect(() => {
+    // Perform initial search to load all properties
+    performSearch(searchFilters, false, activeTab);
+  }, []); // Run once on mount
 
   const handleFilterChange = (field, value) => {
     // Reset to page 1 when filters change
@@ -515,6 +574,16 @@ export default function EnhancedPropertySearch({
       imageUrl = cachedImage.image_url;
     }
     
+    // If no valid image URL, try to get from Images array
+    if (!imageUrl && property.Images && property.Images.length > 0) {
+      imageUrl = property.Images[0]?.MediaURL || property.Images[0]?.url || null;
+    }
+    
+    // Validate the image URL is actually a URL
+    if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('//') && !imageUrl.startsWith('/')) {
+      imageUrl = null; // Invalid URL format
+    }
+    
     return {
       id: property.ListingKey,
       listingKey: property.ListingKey,
@@ -529,7 +598,7 @@ export default function EnhancedPropertySearch({
       city: property.City,
       province: property.StateOrProvince,
       source: 'mls',
-      imageUrl: imageUrl, // Will be updated via lazy loading
+      imageUrl: imageUrl, // Will be null if no valid image
       images: cachedImage?.all_images || property.Images || [],
       isImageLoading: isImageLoading(property.ListingKey)
     };
@@ -585,7 +654,18 @@ export default function EnhancedPropertySearch({
 
         <div className="max-w-[1280px] mx-auto px-4 md:px-0">
           {/* Mobile Search Filters */}
-          <div className="md:hidden mb-6">
+          <div className="md:hidden mb-6 px-4">
+            <EnhancedSearchBar
+              searchFilters={searchFilters}
+              onFilterChange={handleFilterChange}
+              onSearch={handleSearch}
+              isLoading={isLoading}
+              activeTab={activeTab}
+            />
+          </div>
+          
+          {/* Old Mobile Search Filters - Removed */}
+          {false && (
             <div className="bg-[#F5F5F5] p-4 rounded-lg">
               {/* Mobile Search Bar */}
               <div className="flex gap-2 mb-4">
@@ -769,10 +849,23 @@ export default function EnhancedPropertySearch({
                 </button>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Desktop Search Filters Header */}
           <div className="hidden md:block mb-6">
+            <div className="w-full max-w-[1248px] mx-auto px-4">
+              <EnhancedSearchBar
+                searchFilters={searchFilters}
+                onFilterChange={handleFilterChange}
+                onSearch={handleSearch}
+                isLoading={isLoading}
+                activeTab={activeTab}
+              />
+            </div>
+          </div>
+          
+          {/* Old Desktop Search Filters Header - Removed */}
+          {false && (
             <div className="bg-[#F5F5F5] px-4 py-3 h-[75px] flex items-center">
               <div className="w-full max-w-[1248px] mx-auto flex items-center justify-between">
                 {/* Left Side - Search and Filters */}
@@ -1034,7 +1127,7 @@ export default function EnhancedPropertySearch({
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Loading Indicator - removed from here, now shown inside content area */}
 
@@ -1158,7 +1251,8 @@ export default function EnhancedPropertySearch({
                 activeProperty={activeProperty}
                 onPropertyHover={handlePropertyHover}
                 onPropertyClick={(property) => {
-                  window.location.href = `/property/${property.ListingKey}`;
+                  // Don't navigate directly - let the info window handle it
+                  console.log('Property clicked:', property.ListingKey);
                 }}
                 viewType="full"
                 enableClustering={true}
@@ -1203,35 +1297,39 @@ export default function EnhancedPropertySearch({
                             // Use PropertyCardV5 directly if we already have an image
                             if (formattedProperty.imageUrl) {
                               return (
-                                <PropertyCardV5
-                                key={property.ListingKey}
-                                property={formattedProperty}
-                                size="mobile"
-                                onClick={(property) => {
-                                window.location.href = `/property/${property.listingKey}`;
-                                }}
-                                className={`w-full transition-all duration-300 ${
-                                    activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
-                                  }`}
-                                />
+                                <div data-listing-key={property.ListingKey} key={property.ListingKey} className="transition-all duration-300">
+                                  <PropertyCardV5
+                                    property={formattedProperty}
+                                    size="mobile"
+                                    onMouseEnter={() => handlePropertyHover(property.ListingKey)}
+                                    onMouseLeave={() => handlePropertyHover(null)}
+                                    onClick={(property) => {
+                                      window.location.href = `/property/${property.listingKey}`;
+                                    }}
+                                    className={`w-full transition-all duration-300 ${
+                                      activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
+                                    }`}
+                                  />
+                                </div>
                               );
                             }
                             // Use LazyPropertyCard for properties without images
                             return (
-                              <LazyPropertyCard
-                                key={property.ListingKey}
-                                property={formattedProperty}
-                                size="mobile"
-                                observeElement={observeElement}
-                                onMouseEnter={() => handlePropertyHover(property.ListingKey)}
-                                onMouseLeave={() => handlePropertyHover(null)}
-                                onClick={(property) => {
-                                  window.location.href = `/property/${property.listingKey}`;
-                                }}
-                                className={`w-full transition-all duration-300 ${
-                                  activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
-                                }`}
-                              />
+                              <div data-listing-key={property.ListingKey} key={property.ListingKey} className="transition-all duration-300">
+                                <LazyPropertyCard
+                                  property={formattedProperty}
+                                  size="mobile"
+                                  observeElement={observeElement}
+                                  onMouseEnter={() => handlePropertyHover(property.ListingKey)}
+                                  onMouseLeave={() => handlePropertyHover(null)}
+                                  onClick={(property) => {
+                                    window.location.href = `/property/${property.listingKey}`;
+                                  }}
+                                  className={`w-full transition-all duration-300 ${
+                                    activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
+                                  }`}
+                                />
+                              </div>
                             );
                           })
                         }</div>
@@ -1289,7 +1387,8 @@ export default function EnhancedPropertySearch({
                     activeProperty={activeProperty}
                     onPropertyHover={handlePropertyHover}
                     onPropertyClick={(property) => {
-                      window.location.href = `/property/${property.ListingKey}`;
+                      // Don't navigate directly - let the info window handle it
+                      console.log('Property clicked:', property.ListingKey);
                     }}
                     viewType="mixed"
                     enableClustering={true}
@@ -1314,31 +1413,35 @@ export default function EnhancedPropertySearch({
                         // Use PropertyCardV5 directly if we already have an image
                         if (formattedProperty.imageUrl) {
                           return (
-                            <PropertyCardV5
-                              key={property.ListingKey}
+                            <div data-listing-key={property.ListingKey} key={property.ListingKey} className="transition-all duration-300">
+                              <PropertyCardV5
+                                property={formattedProperty}
+                                size="default"
+                                onMouseEnter={() => handlePropertyHover(property.ListingKey)}
+                                onMouseLeave={() => handlePropertyHover(null)}
+                                onClick={(property) => {
+                                  window.location.href = `/property/${property.listingKey}`;
+                                }}
+                                className="flex justify-center"
+                              />
+                            </div>
+                          );
+                        }
+                        // Use LazyPropertyCard for properties without images
+                        return (
+                          <div data-listing-key={property.ListingKey} key={property.ListingKey} className="transition-all duration-300">
+                            <LazyPropertyCard
                               property={formattedProperty}
                               size="default"
+                              observeElement={observeElement}
+                              onMouseEnter={() => handlePropertyHover(property.ListingKey)}
+                              onMouseLeave={() => handlePropertyHover(null)}
                               onClick={(property) => {
                                 window.location.href = `/property/${property.listingKey}`;
                               }}
                               className="flex justify-center"
                             />
-                          );
-                        }
-                        // Use LazyPropertyCard for properties without images
-                        return (
-                          <LazyPropertyCard
-                            key={property.ListingKey}
-                            property={formattedProperty}
-                            size="default"
-                            observeElement={observeElement}
-                            onMouseEnter={() => handlePropertyHover(property.ListingKey)}
-                            onMouseLeave={() => handlePropertyHover(null)}
-                            onClick={(property) => {
-                              window.location.href = `/property/${property.listingKey}`;
-                            }}
-                            className="flex justify-center"
-                          />
+                          </div>
                         );
                       })
                     }</div>

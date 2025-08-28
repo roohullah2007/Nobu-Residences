@@ -78,36 +78,7 @@ const PluginStyleImageLoader = ({
     };
   }, [enableLazyLoading, threshold, rootMargin, imageState.inView]);
 
-  // Working fallback images for real estate - diverse property types
-  const getFallbackImages = () => [
-    'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1572120360610-d971b9d7767c?w=400&h=300&fit=crop&auto=format&q=80',
-    'https://images.unsplash.com/photo-1494526585095-c41746248156?w=400&h=300&fit=crop&auto=format&q=80'
-  ];
-
-  // Get random fallback image - use listing key for consistent randomization
-  const getRandomFallback = () => {
-    const fallbacks = getFallbackImages();
-    // If we have a src that looks like a listing key, use it for consistent random selection
-    let index = Math.floor(Math.random() * fallbacks.length);
-    if (src && typeof src === 'string' && src.length < 20) {
-      // Use listing key to generate consistent index
-      let hash = 0;
-      for (let i = 0; i < src.length; i++) {
-        hash = ((hash << 5) - hash) + src.charCodeAt(i);
-        hash = hash & hash;
-      }
-      index = Math.abs(hash) % fallbacks.length;
-    }
-    return fallbacks[index];
-  };
+  // No fallback images - we'll show a proper "no image" placeholder instead
 
   // Load image with fallback logic
   const loadImage = (imageUrl, attempt = 0) => {
@@ -150,25 +121,16 @@ const PluginStyleImageLoader = ({
     img.onerror = () => {
       if (!mountedRef.current) return;
       
-      const fallbacks = getFallbackImages();
-      
-      // Try fallback images if original fails
-      if (attempt < fallbacks.length) {
-        console.log(`Image load failed, trying fallback ${attempt + 1}`);
-        // Load next fallback immediately
-        loadImage(fallbacks[attempt], attempt + 1);
-      } else {
-        // All attempts failed - show the last working fallback
-        setImageState(prev => ({ 
-          ...prev, 
-          loading: false, 
-          error: false, // Set to false to show last fallback
-          loaded: true,
-          src: fallbacks[fallbacks.length - 1], // Use last fallback
-          attempts: attempt
-        }));
-        if (onError) onError();
-      }
+      // Image load failed - show error state (no fallback)
+      setImageState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: true, // Show error state
+        loaded: false,
+        src: null,
+        attempts: attempt + 1
+      }));
+      if (onError) onError();
     };
     
     // Start loading
@@ -192,21 +154,44 @@ const PluginStyleImageLoader = ({
       // Check if src is a valid URL
       try {
         // Check if it's a full URL or starts with http/https
-        if (src.startsWith('http://') || src.startsWith('https://')) {
-          new URL(src);
+        if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//')) {
+          loadImage(src, 0);
+        } else if (src.startsWith('/')) {
+          // Relative URL - try to load it
           loadImage(src, 0);
         } else {
-          // Not a valid URL, use fallback
-          loadImage(getRandomFallback(), 0);
+          // Not a valid URL, show error state
+          setImageState(prev => ({ 
+            ...prev, 
+            loading: false, 
+            error: true,
+            loaded: false,
+            src: null,
+            inView: true
+          }));
         }
       } catch (e) {
-        // Invalid URL, use fallback
-        console.log('Invalid image URL, using fallback');
-        loadImage(getRandomFallback(), 0);
+        // Invalid URL, show error state
+        console.log('Invalid image URL:', src);
+        setImageState(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: true,
+          loaded: false,
+          src: null,
+          inView: true
+        }));
       }
     } else if (!src && !imageState.loaded && !imageState.loading) {
-      // No src provided, use random fallback once
-      loadImage(getRandomFallback(), 0);
+      // No src provided, show error state
+      setImageState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: true,
+        loaded: false,
+        src: null,
+        inView: true
+      }));
     }
   }, [src, imageState.inView]);
 
@@ -255,20 +240,25 @@ const PluginStyleImageLoader = ({
         </div>
       )}
 
-      {/* Error State - Only show if all attempts failed */}
+      {/* Error State - Show professional no image placeholder */}
       {imageState.error && !imageState.loading && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <div className="flex flex-col items-center space-y-2 text-gray-500">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="text-xs font-medium">Property Image</span>
-            <button 
-              onClick={() => loadImage(getRandomFallback(), 0)}
-              className="text-xs text-blue-500 hover:text-blue-700 underline"
-            >
-              Retry
-            </button>
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+          <div className="flex flex-col items-center space-y-2 text-gray-400">
+            <div className="w-16 h-16 rounded-lg bg-white shadow-sm flex items-center justify-center">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium">No Image Available</span>
+            {src && src.startsWith('http') && (
+              <button 
+                onClick={() => loadImage(src, 0)}
+                className="text-xs text-blue-500 hover:text-blue-700 underline"
+              >
+                Retry
+              </button>
+            )}
           </div>
         </div>
       )}

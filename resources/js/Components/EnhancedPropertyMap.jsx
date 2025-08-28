@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import EnhancedPropertyImageLoader from '@/Components/EnhancedPropertyImageLoader';
+import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
+import frontendGeocoding from '@/services/frontendGeocoding';
 
 /**
  * Enhanced PropertyMap Component with IDX-AMPRE Style Mixed View Support
@@ -67,7 +69,8 @@ const PropertyMap = ({
         streetViewControl: false,
         rotateControl: false,
         fullscreenControl: true,
-        gestureHandling: 'cooperative'
+        scrollwheel: true, // Enable scroll wheel zoom
+        gestureHandling: 'greedy' // Allow single finger/mouse drag and scroll
       },
       mixed: {
         zoomControl: true,
@@ -76,7 +79,8 @@ const PropertyMap = ({
         streetViewControl: false,
         rotateControl: false,
         fullscreenControl: false,
-        gestureHandling: 'cooperative'
+        scrollwheel: true, // Enable scroll wheel zoom
+        gestureHandling: 'greedy' // Allow single finger/mouse drag and scroll on mixed view too
       }
     },
     clustering: {
@@ -149,189 +153,102 @@ const PropertyMap = ({
 
     const priceText = formatPrice(property.ListPrice);
     const isActive = activeProperty === property.ListingKey;
-    
-    // IDX-AMPRE style marker content
-    const markerContent = document.createElement('div');
-    markerContent.className = 'property-marker-ampre';
-    markerContent.innerHTML = `
-      <div class="property-marker-content-ampre ${isActive ? 'active' : ''}" 
-           style="background: ${isActive ? '#e53e3e' : '#3182ce'}; 
-                  color: white; 
-                  padding: 6px 12px; 
-                  border-radius: 16px; 
-                  font-size: 13px; 
-                  font-weight: 600; 
-                  border: 2px solid white; 
-                  box-shadow: ${isActive ? '0 4px 12px rgba(229, 62, 62, 0.4)' : '0 2px 8px rgba(0,0,0,0.25)'};
-                  cursor: pointer;
-                  transition: all 0.3s ease;
-                  white-space: nowrap;
-                  font-family: 'Work Sans', sans-serif;
-                  position: relative;
-                  z-index: ${isActive ? '1000' : '100'};">
-        $${priceText}
-        ${isActive ? '<div style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #fff; border-radius: 50%; animation: pulse 2s infinite;"></div>' : ''}
-      </div>
-    `;
 
-    // Add CSS for pulse animation only once
-    if (!document.querySelector('#marker-pulse-styles')) {
-      const style = document.createElement('style');
-      style.id = 'marker-pulse-styles';
-      style.textContent = `
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.7; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .property-marker-content-ampre:hover {
-          transform: scale(1.05) !important;
-          box-shadow: 0 6px 16px rgba(0,0,0,0.3) !important;
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Always use classic marker with custom icon for consistent display
+    const icon = {
+      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        <svg width="80" height="45" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="shadow${property.ListingKey}" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+            </filter>
+          </defs>
+          <rect x="5" y="5" width="70" height="26" rx="4" fill="${isActive ? '#0056b3' : '#007cba'}" stroke="white" stroke-width="2" filter="url(#shadow${property.ListingKey})"/>
+          <text x="40" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+          <polygon points="40,32 48,32 44,40 36,32" fill="${isActive ? '#0056b3' : '#007cba'}" stroke="white" stroke-width="2"/>
+        </svg>
+      `)}`,
+      scaledSize: new window.google.maps.Size(80, 45),
+      anchor: new window.google.maps.Point(40, 40)
+    };
 
-    // Use AdvancedMarkerElement if available (newer API), fallback to Marker
-    let marker;
-    if (window.google.maps.marker && window.google.maps.marker.AdvancedMarkerElement) {
-      marker = new window.google.maps.marker.AdvancedMarkerElement({
-        map: mapInstanceRef.current,
-        position: position,
-        content: markerContent,
-        title: property.UnparsedAddress,
-        zIndex: isActive ? 1000 : 100
-      });
-    } else {
-      // Fallback to classic marker with custom icon
-      const icon = {
-        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-          <svg width="80" height="36" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)"/>
-              </filter>
-            </defs>
-            <rect x="2" y="2" width="76" height="32" rx="16" fill="${isActive ? '#e53e3e' : '#3182ce'}" stroke="white" stroke-width="2" filter="url(#shadow)"/>
-            <text x="40" y="22" text-anchor="middle" fill="white" font-size="13" font-weight="600" font-family="Work Sans, sans-serif">$${priceText}</text>
-            ${isActive ? '<circle cx="70" cy="8" r="3" fill="white"/>' : ''}
-          </svg>
-        `)}`,
-        scaledSize: new window.google.maps.Size(80, 36),
-        anchor: new window.google.maps.Point(40, 18)
-      };
+    const marker = new window.google.maps.Marker({
+      map: mapInstanceRef.current,
+      position: position,
+      icon: icon,
+      title: property.UnparsedAddress,
+      optimized: false,
+      zIndex: isActive ? 1000 : 100
+    });
 
-      marker = new window.google.maps.Marker({
-        map: mapInstanceRef.current,
-        position: position,
-        icon: icon,
-        title: property.UnparsedAddress,
-        optimized: false,
-        zIndex: isActive ? 1000 : 100
-      });
-    }
-
-    // Add hover effects
+    // Add hover effects and sync with property list
     marker.addListener('mouseover', () => {
       if (onPropertyHover) {
-        onPropertyHover(property.ListingKey);
+        // Pass the full property object and action for proper sync
+        onPropertyHover(property, 'enter');
       }
       
-      // Update marker style
-      if (markerContent) {
-        const content = markerContent.querySelector('.property-marker-content-ampre');
-        if (content) {
-          content.style.transform = 'scale(1.05)';
-          content.style.zIndex = '1001';
-        }
-      }
+      // Update marker icon on hover
+      const hoverIcon = {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+          <svg width="85" height="48" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadowHover${property.ListingKey}" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
+              </filter>
+            </defs>
+            <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${property.ListingKey})"/>
+            <text x="42.5" y="22" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+            <polygon points="42.5,34 50.5,34 46.5,42 38.5,34" fill="#0056b3" stroke="white" stroke-width="2"/>
+          </svg>
+        `)}`,
+        scaledSize: new window.google.maps.Size(85, 48),
+        anchor: new window.google.maps.Point(42.5, 42)
+      };
+      marker.setIcon(hoverIcon);
     });
 
     marker.addListener('mouseout', () => {
       if (onPropertyHover) {
-        onPropertyHover(null);
+        // Pass null and 'leave' action to clear hover state
+        onPropertyHover(null, 'leave');
       }
       
-      // Reset marker style
-      if (markerContent) {
-        const content = markerContent.querySelector('.property-marker-content-ampre');
-        if (content) {
-          content.style.transform = 'scale(1)';
-          content.style.zIndex = isActive ? '1000' : '100';
-        }
-      }
+      // Reset marker icon
+      marker.setIcon(icon);
     });
 
-    // Add click handler
+    // Add click handler - only show info window, don't navigate
     marker.addListener('click', () => {
-      if (onPropertyClick) {
-        onPropertyClick(property);
-      }
-
-      // Show info window
+      // Show info window with PropertyCardV5
       if (enableInfoWindows && infoWindowRef.current) {
         showPropertyInfoWindow(property, marker);
+      }
+      
+      // Optional: notify parent component about click without navigating
+      if (onPropertyClick) {
+        onPropertyClick(property);
       }
     });
 
     return marker;
   }, [activeProperty, onPropertyHover, onPropertyClick, enableInfoWindows]);
 
-  // Show property info window with IDX-AMPRE styling
+  // Show property info window with PropertyCardV5
   const showPropertyInfoWindow = useCallback((property, marker) => {
-    if (!infoWindowRef.current) return;
+    if (!infoWindowRef.current || !mapInstanceRef.current) return;
 
-    const formatPrice = (price) => {
-      if (!price || price <= 0) return 'Price on request';
-      return '$' + price.toLocaleString();
-    };
-
-    const features = [];
-    if (property.BedroomsTotal > 0) {
-      features.push(`${property.BedroomsTotal} bed${property.BedroomsTotal > 1 ? 's' : ''}`);
-    }
-    if (property.BathroomsTotalInteger > 0) {
-      features.push(`${property.BathroomsTotalInteger} bath${property.BathroomsTotalInteger > 1 ? 's' : ''}`);
-    }
-    if (property.AboveGradeFinishedArea > 0) {
-      features.push(`${property.AboveGradeFinishedArea.toLocaleString()} sqft`);
+    // Close any existing info window cleanup
+    if (window.currentInfoWindowCleanup) {
+      window.currentInfoWindowCleanup();
+      window.currentInfoWindowCleanup = null;
     }
 
-    // IDX-AMPRE style info window content
-    const infoContent = `
-      <div class="property-info-window-ampre" style="max-width: 300px; font-family: 'Work Sans', sans-serif; border-radius: 8px; overflow: hidden;">
-        <div style="display: flex; gap: 12px; padding: 16px; background: white;">
-          <div style="width: 90px; height: 70px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #f7fafc;">
-            <img src="${property.MediaURL || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=200&h=150&fit=crop&auto=format&q=80'}" 
-                 alt="${property.UnparsedAddress}" 
-                 style="width: 100%; height: 100%; object-fit: cover;" />
-          </div>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 700; font-size: 16px; color: #1a202c; margin-bottom: 6px; line-height: 1.2;">
-              ${formatPrice(property.ListPrice)}
-            </div>
-            <div style="font-size: 13px; color: #4a5568; margin-bottom: 6px; line-height: 1.3;">
-              ${property.UnparsedAddress || 'Address not available'}
-            </div>
-            ${features.length > 0 ? `
-              <div style="font-size: 12px; color: #718096; line-height: 1.2; margin-bottom: 8px;">
-                ${features.join(' • ')}
-              </div>
-            ` : ''}
-            <div style="margin-top: 10px;">
-              <a href="/property/${property.ListingKey}" 
-                 style="display: inline-block; background: #3182ce; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; transition: background 0.2s ease;"
-                 onmouseover="this.style.background='#2c5282'" onmouseout="this.style.background='#3182ce'">
-                View Details
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    infoWindowRef.current.setContent(infoContent);
+    // Use PropertyCardV5 in the info window
+    const cleanup = renderPropertyCardInInfoWindow(property, infoWindowRef.current, mapInstanceRef.current);
+    window.currentInfoWindowCleanup = cleanup;
     
+    // Open the info window at the marker position
     if (marker.getPosition) {
       infoWindowRef.current.open(mapInstanceRef.current, marker);
     } else {
@@ -339,6 +256,16 @@ const PropertyMap = ({
       infoWindowRef.current.open({
         map: mapInstanceRef.current,
         anchor: marker
+      });
+    }
+
+    // Add close event listener for cleanup
+    if (window.google && window.google.maps) {
+      window.google.maps.event.addListenerOnce(infoWindowRef.current, 'closeclick', () => {
+        if (window.currentInfoWindowCleanup) {
+          window.currentInfoWindowCleanup();
+          window.currentInfoWindowCleanup = null;
+        }
       });
     }
   }, []);
@@ -435,11 +362,12 @@ const PropertyMap = ({
         setMapState(prev => ({ ...prev, bounds: mapCenter.bounds }));
       }
 
-      // Create info window
+      // Create info window for PropertyCardV5 - smaller size
       if (enableInfoWindows) {
         infoWindowRef.current = new window.google.maps.InfoWindow({
-          maxWidth: 300,
-          pixelOffset: new window.google.maps.Size(0, -10)
+          maxWidth: 220,
+          pixelOffset: new window.google.maps.Size(0, -30), // Offset to position above marker arrow
+          disableAutoPan: false
         });
       }
 
@@ -490,12 +418,12 @@ const PropertyMap = ({
   // Load Google Maps API
   useEffect(() => {
     // Check if we have an API key
-    const apiKey = mapConfig.apiKey;
+    const apiKey = mapConfig.apiKey || window.googleMapsApiKey;
     
-    if (!apiKey) {
+    if (!apiKey || apiKey === '' || apiKey === 'YOUR_GOOGLE_MAPS_API_KEY') {
       setMapState(prev => ({ 
         ...prev, 
-        error: 'Google Maps API key not configured' 
+        error: 'Google Maps API key not configured. Please add your API key to the .env file.' 
       }));
       return;
     }
@@ -579,7 +507,17 @@ const PropertyMap = ({
   // Update markers when properties change
   useEffect(() => {
     if (mapState.loaded && mapInstanceRef.current) {
-      addPropertyMarkers();
+      // Geocode visible properties first, then add markers
+      const handlePropertyUpdate = (property) => {
+        console.log('Property geocoded, updating markers:', property.ListingKey);
+        // Re-add markers when a property is geocoded
+        addPropertyMarkers();
+      };
+      
+      frontendGeocoding.geocodeVisibleProperties(validProperties, handlePropertyUpdate).then(() => {
+        // Initial marker add after geocoding queue starts
+        addPropertyMarkers();
+      });
     }
   }, [validProperties, mapState.loaded]);
 
@@ -599,8 +537,83 @@ const PropertyMap = ({
     }
   }, [activeProperty, mapState.loaded, validProperties, viewType, mixedViewConfig]);
 
-  // Error state
+  // Error state with helpful message for missing API key
   if (mapState.error) {
+    const isApiKeyError = mapState.error.includes('API key');
+    
+    // Show property locations in a list if we have them but no map
+    if (isApiKeyError && validProperties.length > 0) {
+      return (
+        <div className={`${className} bg-gray-50 rounded-lg border overflow-hidden`}>
+          <div className="bg-white border-b p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Property Locations</h3>
+                <p className="text-sm text-gray-600 mt-1">{validProperties.length} properties found</p>
+              </div>
+              <div className="text-amber-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-xs text-amber-800">
+                <strong>Map requires Google Maps API key.</strong> Properties are listed below with their coordinates.
+              </p>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto">
+              <div className="space-y-2">
+                {validProperties.slice(0, 20).map((property, index) => (
+                  <div key={property.ListingKey || index} className="bg-white rounded-lg p-3 border hover:shadow-md transition-shadow cursor-pointer"
+                       onClick={() => onPropertyClick && onPropertyClick(property)}>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                          {property.UnparsedAddress || 'Address not available'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          ${property.ListPrice ? property.ListPrice.toLocaleString() : 'Price N/A'}
+                        </p>
+                      </div>
+                      <div className="text-right ml-3">
+                        <p className="text-xs text-gray-400">
+                          {property.Latitude && property.Longitude ? 
+                            `${parseFloat(property.Latitude).toFixed(4)}, ${parseFloat(property.Longitude).toFixed(4)}` : 
+                            'No coordinates'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {validProperties.length > 20 && (
+                  <p className="text-center text-sm text-gray-500 py-2">
+                    And {validProperties.length - 20} more properties...
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {isApiKeyError && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800 font-medium mb-2">To enable the interactive map:</p>
+                <ol className="text-xs text-blue-700 list-decimal list-inside space-y-1">
+                  <li>Get a Google Maps API key from the <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></li>
+                  <li>Add to .env: <code className="bg-blue-100 px-1 rounded">GOOGLE_MAPS_API_KEY=your_key</code></li>
+                  <li>Clear cache: <code className="bg-blue-100 px-1 rounded">php artisan config:clear</code></li>
+                </ol>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
+    // Default error display for other errors or no properties
     return (
       <div className={`${className} bg-gray-100 rounded-lg border flex items-center justify-center`}>
         <div className="text-center p-8">
@@ -610,7 +623,17 @@ const PropertyMap = ({
             </svg>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">Map Unavailable</h3>
-          <p className="text-sm text-gray-600">{mapState.error}</p>
+          <p className="text-sm text-gray-600 mb-3">{mapState.error}</p>
+          {isApiKeyError && (
+            <div className="text-xs text-gray-500 max-w-md mx-auto">
+              <p className="mb-2">To enable the map, please add a Google Maps API key:</p>
+              <ol className="text-left list-decimal list-inside space-y-1">
+                <li>Get an API key from <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google Cloud Console</a></li>
+                <li>Add it to your .env file: <code className="bg-gray-200 px-1 py-0.5 rounded">GOOGLE_MAPS_API_KEY=your_key_here</code></li>
+                <li>Clear cache: <code className="bg-gray-200 px-1 py-0.5 rounded">php artisan config:clear</code></li>
+              </ol>
+            </div>
+          )}
         </div>
       </div>
     );

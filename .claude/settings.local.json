@@ -15,9 +15,16 @@
       "Bash(copy:*)",
       "Bash(cp:*)",
       "Bash(tasklist)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep \"GOOGLE_MAPS\" .env)",
+      "Bash(else echo \".env file not found\")",
+      "Bash(fi)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "F:\\noburesidence\\NOBU"
+    ]
   }
 }

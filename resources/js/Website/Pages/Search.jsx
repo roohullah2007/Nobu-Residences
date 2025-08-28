@@ -1133,7 +1133,8 @@ export default function EnhancedPropertySearch({
                 properties={activeTab === 'listings' ? properties : buildings}
                 className="w-full h-[600px]"
                 onPropertyClick={(property) => {
-                  window.location.href = generatePropertyUrl(property);
+                  // Don't navigate directly - let the info window handle it
+                  console.log('Property clicked:', property.ListingKey);
                 }}
                 viewType="full"
               />
@@ -1260,7 +1261,8 @@ export default function EnhancedPropertySearch({
                     properties={activeTab === 'listings' ? properties : buildings}
                     className="w-full h-full"
                     onPropertyClick={(property) => {
-                      window.location.href = generatePropertyUrl(property);
+                      // Don't navigate directly - let the info window handle it
+                      console.log('Property clicked:', property.ListingKey);
                     }}
                     viewType="mixed"
                   />

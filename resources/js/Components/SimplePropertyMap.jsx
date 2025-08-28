@@ -1,14 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
+import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
+import frontendGeocoding from '@/services/frontendGeocoding';
 
 const SimplePropertyMap = ({ 
   properties = [], 
   className = '', 
   onPropertyClick = null,
+  onPropertyHover = null,
   viewType = 'full'
 }) => {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const infoWindowRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
 
@@ -60,7 +64,9 @@ const SimplePropertyMap = ({
           scaleControl: true,
           streetViewControl: false,
           rotateControl: false,
-          fullscreenControl: viewType === 'full'
+          fullscreenControl: viewType === 'full',
+          scrollwheel: true, // Enable scroll wheel zoom
+          gestureHandling: 'greedy' // Allow single finger/mouse drag and scroll
         });
 
         mapInstanceRef.current = map;
@@ -156,6 +162,14 @@ const SimplePropertyMap = ({
   };
 
 
+  // Format price for marker display
+  const formatPrice = (price) => {
+    if (!price || price <= 0) return '?';
+    if (price >= 1000000) return Math.round(price / 1000000) + 'M';
+    if (price >= 1000) return Math.round(price / 1000) + 'K';
+    return Math.round(price / 1000) + 'K';
+  };
+
   // Add markers to the map
   const addMarkers = useCallback(() => {
     if (!mapInstanceRef.current || !window.google) return;
@@ -166,7 +180,16 @@ const SimplePropertyMap = ({
     });
     markersRef.current = [];
 
-    // Add new markers
+    // Create info window once (reused for all markers) - smaller size
+    if (!infoWindowRef.current) {
+      infoWindowRef.current = new window.google.maps.InfoWindow({
+        maxWidth: 240,
+        pixelOffset: new window.google.maps.Size(0, -30),
+        disableAutoPan: false
+      });
+    }
+
+    // Add new markers with custom price labels
     properties.forEach((property, index) => {
       if (!property.Latitude || !property.Longitude) return;
 
@@ -175,34 +198,112 @@ const SimplePropertyMap = ({
       
       if (isNaN(lat) || isNaN(lng)) return;
 
+      const priceText = formatPrice(property.ListPrice);
+      
+      // Create custom marker icon with blue background and price
+      const icon = {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+          <svg width="80" height="45" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadow${property.ListingKey || index}" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+              </filter>
+            </defs>
+            <rect x="5" y="5" width="70" height="26" rx="4" fill="#007cba" stroke="white" stroke-width="2" filter="url(#shadow${property.ListingKey || index})"/>
+            <text x="40" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+            <polygon points="40,32 48,32 44,40 36,32" fill="#007cba" stroke="white" stroke-width="2"/>
+          </svg>
+        `)}`,
+        scaledSize: new window.google.maps.Size(80, 45),
+        anchor: new window.google.maps.Point(40, 40)
+      };
+
       const marker = new window.google.maps.Marker({
         position: { lat, lng },
         map: mapInstanceRef.current,
-        title: property.UnparsedAddress || property.address || `Property ${index + 1}`
+        icon: icon,
+        title: property.UnparsedAddress || property.address || `Property ${index + 1}`,
+        optimized: false,
+        zIndex: 100
       });
 
-      // Add click listener
-      if (onPropertyClick) {
-        marker.addListener('click', () => {
-          onPropertyClick(property);
-        });
-      }
-
-      // Simple info window
-      const infoWindow = new window.google.maps.InfoWindow({
-        content: `
-          <div style="padding: 8px; min-width: 200px;">
-            <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">
-              ${property.UnparsedAddress || property.address || 'Property'}
-            </h3>
-            ${property.ListPrice ? `<p style="margin: 0; color: #2563eb; font-weight: 600;">$${parseInt(property.ListPrice).toLocaleString()}</p>` : ''}
-            ${property.BedroomsTotal ? `<p style="margin: 4px 0 0 0; font-size: 12px;">${property.BedroomsTotal} bed${property.BedroomsTotal > 1 ? 's' : ''}</p>` : ''}
-          </div>
-        `
+      // Add hover effect and sync with property list
+      marker.addListener('mouseover', () => {
+        const hoverIcon = {
+          url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+            <svg width="85" height="48" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="shadowHover${property.ListingKey || index}" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
+                </filter>
+              </defs>
+              <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${property.ListingKey || index})"/>
+              <text x="42.5" y="22" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+              <polygon points="42.5,34 50.5,34 46.5,42 38.5,34" fill="#0056b3" stroke="white" stroke-width="2"/>
+            </svg>
+          `)}`,
+          scaledSize: new window.google.maps.Size(85, 48),
+          anchor: new window.google.maps.Point(42.5, 42)
+        };
+        marker.setIcon(hoverIcon);
+        
+        // Notify parent about hover
+        if (onPropertyHover) {
+          onPropertyHover(property, 'enter');
+        }
       });
 
+      marker.addListener('mouseout', () => {
+        marker.setIcon(icon);
+        
+        // Notify parent about hover end
+        if (onPropertyHover) {
+          onPropertyHover(null, 'leave');
+        }
+      });
+
+      // Add click listener to show PropertyCardV5 in info window
       marker.addListener('click', () => {
-        infoWindow.open(mapInstanceRef.current, marker);
+        console.log('Marker clicked for property:', property.ListingKey, property);
+        
+        try {
+          // Close any existing info window cleanup
+          if (window.currentInfoWindowCleanup) {
+            window.currentInfoWindowCleanup();
+            window.currentInfoWindowCleanup = null;
+          }
+
+          // Check if we have the required data
+          if (!property || !property.ListingKey) {
+            console.error('Invalid property data for info window');
+            return;
+          }
+
+          // Pass the property with its image to the info window
+          // The property should already have imageUrl from the formatPropertyForCard function
+          const cleanup = renderPropertyCardInInfoWindow(property, infoWindowRef.current, mapInstanceRef.current);
+          window.currentInfoWindowCleanup = cleanup;
+          
+          // Open the info window at the marker position
+          infoWindowRef.current.open(mapInstanceRef.current, marker);
+          
+          console.log('Info window opened successfully');
+
+          // Add close event listener for cleanup
+          window.google.maps.event.addListenerOnce(infoWindowRef.current, 'closeclick', () => {
+            if (window.currentInfoWindowCleanup) {
+              window.currentInfoWindowCleanup();
+              window.currentInfoWindowCleanup = null;
+            }
+          });
+
+          // Optional: notify parent component about click without navigating
+          if (onPropertyClick) {
+            onPropertyClick(property);
+          }
+        } catch (error) {
+          console.error('Error showing property card in info window:', error);
+        }
       });
 
       markersRef.current.push(marker);
@@ -221,7 +322,17 @@ const SimplePropertyMap = ({
   // Update markers when properties change
   useEffect(() => {
     if (mapLoaded && mapInstanceRef.current) {
-      addMarkers();
+      // Geocode properties that need it, then add markers
+      const handlePropertyUpdate = (property) => {
+        console.log('Property geocoded, updating markers:', property.ListingKey);
+        // Re-add markers when a property is geocoded
+        addMarkers();
+      };
+      
+      frontendGeocoding.geocodeVisibleProperties(properties, handlePropertyUpdate).then(() => {
+        // Initial marker add after geocoding queue starts
+        addMarkers();
+      });
     }
   }, [properties, mapLoaded, addMarkers]);
 
