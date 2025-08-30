@@ -31,16 +31,46 @@ export default function PropertyGallery({
   const processImages = () => {
     let images = [];
     
+    // First check if propertyData has Images field
+    const dataImages = propertyData?.Images || propertyData?.images || propertyData?.ImageObjects;
+    const imagesToProcess = propertyImages || dataImages || [];
+    
+    console.log('ProcessImages - Raw input:', imagesToProcess);
+    
     // Handle different image data structures
-    if (Array.isArray(propertyImages)) {
-      images = propertyImages.filter(img => {
+    if (Array.isArray(imagesToProcess)) {
+      images = imagesToProcess.filter(img => {
         // Handle both string URLs and objects with MediaURL property
-        const url = typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL);
+        const url = typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL || img?.src || img?.MediaUrl);
         return url && url.trim() !== '';
       }).map(img => {
-        return typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL);
+        let url = typeof img === 'string' ? img : (img?.MediaURL || img?.url || img?.URL || img?.src || img?.MediaUrl);
+        
+        // Clean up the URL
+        if (url) {
+          // Remove any duplicate slashes except for http://
+          url = url.replace(/([^:]\/)\/+/g, "$1");
+          
+          // Ensure URL is absolute
+          if (!url.startsWith('http') && !url.startsWith('//')) {
+            // If it's a relative URL, prepend the base URL
+            url = window.location.origin + (url.startsWith('/') ? '' : '/') + url;
+          }
+        }
+        return url;
       });
     }
+    
+    // If we only have one image or no images, check if propertyData has a main image
+    if (images.length <= 1) {
+      const mainImage = propertyData?.mainImage || propertyData?.main_image || propertyData?.MediaURL;
+      if (mainImage && !images.includes(mainImage)) {
+        images.unshift(mainImage); // Add main image as first
+      }
+    }
+    
+    // Remove duplicates
+    images = [...new Set(images)];
     
     // If no valid images, use fallback
     if (images.length === 0) {
@@ -51,7 +81,8 @@ export default function PropertyGallery({
       ];
       console.log('PropertyGallery - Using fallback images');
     } else {
-      console.log('PropertyGallery - Using API images:', images.length);
+      console.log('PropertyGallery - Using API images:', images.length, 'images');
+      console.log('PropertyGallery - Image URLs:', images);
     }
     
     return images;
@@ -168,16 +199,27 @@ export default function PropertyGallery({
     return 'Price on request';
   };
 
-  // Handle image loading errors
+  // Handle image loading errors with better fallback logic
   const handleImageError = (e, fallbackIndex = 0) => {
     const fallbackImages = [
       "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
       "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
     ];
-    // Prevent infinite error loops
-    e.target.onerror = null;
-    e.target.src = fallbackImages[fallbackIndex % fallbackImages.length];
+    
+    // Check if this is already a fallback image
+    const currentSrc = e.target.src;
+    const isFallback = fallbackImages.some(img => currentSrc.includes(img));
+    
+    if (!isFallback) {
+      // First attempt - use fallback image
+      e.target.src = fallbackImages[fallbackIndex % fallbackImages.length];
+      console.log('Image failed to load, using fallback:', e.target.src);
+    } else {
+      // Fallback also failed, prevent infinite loop
+      e.target.onerror = null;
+      console.error('Fallback image also failed to load');
+    }
   };
 
   return (

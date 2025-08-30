@@ -8,6 +8,7 @@ import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Components/SimplePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
+import IDXAmpreSearchBar from '@/Components/IDXAmpreSearchBar';
 
 
 // Icon components
@@ -176,6 +177,7 @@ export default function EnhancedPropertySearch({
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [activeProperty, setActiveProperty] = useState(null);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [propertyImages, setPropertyImages] = useState({});
 
   // Initialize lazy loading hook for property images
@@ -555,7 +557,8 @@ export default function EnhancedPropertySearch({
         </div>
 
         <div className="max-w-[1280px] mx-auto px-4 md:px-0">
-          {/* Mobile Search Filters */}
+          {/* OLD Mobile Search Filters - REPLACED BY SearchBar Component */}
+          {false && (
           <div className="md:hidden mb-6">
             <div className="bg-[#F5F5F5] p-4 rounded-lg">
               {/* Mobile Search Bar */}
@@ -744,8 +747,53 @@ export default function EnhancedPropertySearch({
               </div>
             </div>
           </div>
+          )}
 
-          {/* Desktop Search Filters Header */}
+          {/* Search Bar Component - Replaces both Mobile and Desktop Search Filters */}
+          <div className="mb-6">
+            <IDXAmpreSearchBar
+              initialValues={{
+                location: searchFilters.query || '',
+                propertyType: searchFilters.status || 'For Sale',
+                propertySubType: searchFilters.property_type && searchFilters.property_type.length > 0 ? searchFilters.property_type[0] : '',
+                bedrooms: String(searchFilters.bedrooms || '0'),
+                bathrooms: String(searchFilters.bathrooms || '0'),
+                minPrice: searchFilters.price_min || 0,
+                maxPrice: searchFilters.price_max || 10000000,
+              }}
+              onSearch={(searchData) => {
+                setSearchFilters(prev => ({
+                  ...prev,
+                  query: searchData.location,
+                  status: searchData.propertyType,
+                  property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
+                  bedrooms: parseInt(searchData.bedrooms) || 0,
+                  bathrooms: parseInt(searchData.bathrooms) || 0,
+                  price_min: searchData.minPrice,
+                  price_max: searchData.maxPrice,
+                  search_type: searchData.searchType || 'street',
+                  sort: searchData.sortBy || 'newest',
+                  page: 1
+                }));
+                performSearch({
+                  ...searchFilters,
+                  query: searchData.location,
+                  status: searchData.propertyType,
+                  property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
+                  bedrooms: parseInt(searchData.bedrooms) || 0,
+                  bathrooms: parseInt(searchData.bathrooms) || 0,
+                  price_min: searchData.minPrice,
+                  price_max: searchData.maxPrice,
+                  search_type: searchData.searchType || 'street',
+                  sort: searchData.sortBy || 'newest',
+                  page: 1
+                }, true, activeTab);
+              }}
+            />
+          </div>
+
+          {/* OLD Desktop Search Filters Header - REPLACED BY SearchBar Component Above */}
+          {false && (
           <div className="hidden md:block mb-6">
             <div className="bg-[#F5F5F5] px-4 py-3 h-[75px] flex items-center">
               <div className="w-full max-w-[1248px] mx-auto flex items-center justify-between">
@@ -1012,6 +1060,7 @@ export default function EnhancedPropertySearch({
               </div>
             </div>
           </div>
+          )}
 
           {/* Loading Indicator - removed from here, now shown inside content area */}
 
@@ -1092,26 +1141,76 @@ export default function EnhancedPropertySearch({
                     </button>
                   </div>
 
-                  {/* Sort Dropdown */}
+                  {/* Sort Control */}
                   <div className="flex items-center gap-4">
-                    <div className="flex flex-row justify-center items-center px-3 py-[12px] gap-2 w-[80px] h-[25px] rounded-lg">
-                      <span className="w-8 h-[25px] font-work-sans font-medium text-base leading-[25px] flex items-center text-center tracking-[-0.03em] text-black">
-                        Sort
-                      </span>
-                      <div className="w-4 h-4">
-                        <ChevronDownIcon className="w-4 h-4 text-black" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-start px-6 py-4 w-[176px] h-[57px] bg-white border border-black rounded-xl box-border">
-                      <div className="flex flex-row justify-between items-center gap-[72px] w-[128px] h-[25px]">
-                        <span className="w-10 h-[25px] font-work-sans font-medium text-base leading-[25px] tracking-[-0.03em] text-black">
-                          Filter
+                    {/* Sort Dropdown */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowSortDropdown(!showSortDropdown)}
+                        className="flex flex-row justify-center items-center px-4 py-2 gap-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 bg-white transition-colors"
+                      >
+                        <span className="font-work-sans font-medium text-base leading-[25px] flex items-center text-center tracking-[-0.03em] text-black">
+                          Sort
                         </span>
-                        <div className="w-4 h-4 relative">
+                        <div className="w-4 h-4">
                           <ChevronDownIcon className="w-4 h-4 text-black" />
                         </div>
-                      </div>
+                      </button>
+                      
+                      {/* Sort Dropdown Menu */}
+                      {showSortDropdown && (
+                        <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-300 rounded-lg shadow-xl z-50">
+                          <button
+                            onClick={() => {
+                              setSearchFilters(prev => ({ ...prev, sort: 'newest' }));
+                              setShowSortDropdown(false);
+                              performSearch({ ...searchFilters, sort: 'newest' }, false, activeTab);
+                            }}
+                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 rounded-t-lg ${
+                              searchFilters.sort === 'newest' ? 'bg-[#912018] text-white' : ''
+                            }`}
+                          >
+                            Newest First
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSearchFilters(prev => ({ ...prev, sort: 'price-high' }));
+                              setShowSortDropdown(false);
+                              performSearch({ ...searchFilters, sort: 'price-high' }, false, activeTab);
+                            }}
+                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
+                              searchFilters.sort === 'price-high' ? 'bg-[#912018] text-white' : ''
+                            }`}
+                          >
+                            Price: High to Low
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSearchFilters(prev => ({ ...prev, sort: 'price-low' }));
+                              setShowSortDropdown(false);
+                              performSearch({ ...searchFilters, sort: 'price-low' }, false, activeTab);
+                            }}
+                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
+                              searchFilters.sort === 'price-low' ? 'bg-[#912018] text-white' : ''
+                            }`}
+                          >
+                            Price: Low to High
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSearchFilters(prev => ({ ...prev, sort: 'bedrooms' }));
+                              setShowSortDropdown(false);
+                              performSearch({ ...searchFilters, sort: 'bedrooms' }, false, activeTab);
+                            }}
+                            className={`w-full px-4 py-2 text-left hover:bg-gray-100 rounded-b-lg ${
+                              searchFilters.sort === 'bedrooms' ? 'bg-[#912018] text-white' : ''
+                            }`}
+                          >
+                            Bedrooms: Most First
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -154,6 +154,30 @@ const SimilarListings = ({ currentProperty = null, similarProperties = null }) =
     const formattedPrice = formatPrice(property.price, property.isRental);
     const features = buildFeatures(property.bedrooms, property.bathrooms);
     const detailsUrl = `/property/${property.listingKey}`;
+    
+    // Extract image URL from various possible sources
+    const getImageUrl = () => {
+      // Check for various image properties
+      const imageUrl = property.image || 
+                      property.imageUrl || 
+                      property.MediaURL || 
+                      property.mainImage ||
+                      property.main_image ||
+                      (property.images && property.images.length > 0 ? property.images[0] : null) ||
+                      (property.Images && property.Images.length > 0 ? 
+                        (typeof property.Images[0] === 'string' ? property.Images[0] : property.Images[0]?.MediaURL) : null);
+      
+      // If we have an image URL, ensure it's absolute
+      if (imageUrl) {
+        if (!imageUrl.startsWith('http') && !imageUrl.startsWith('//')) {
+          return window.location.origin + (imageUrl.startsWith('/') ? '' : '/') + imageUrl;
+        }
+        return imageUrl;
+      }
+      
+      // Return fallback image
+      return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
+    };
 
     return (
       <div className="flex-none w-[360px] h-[470px] bg-white shadow-lg rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl group">
@@ -161,12 +185,15 @@ const SimilarListings = ({ currentProperty = null, similarProperties = null }) =
           {/* Card Image */}
           <div className="relative w-full h-[275px] overflow-hidden bg-gray-100 rounded-t-xl">
             <img 
-              src={property.image}
+              src={getImageUrl()}
               alt={`${property.propertyType} in ${property.address}`}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading="lazy"
               onError={(e) => {
-                e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
+                // Only set fallback if not already a fallback image
+                if (!e.target.src.includes('unsplash')) {
+                  e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
+                }
               }}
             />
             

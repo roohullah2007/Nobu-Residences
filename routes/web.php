@@ -37,7 +37,7 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
-Route::get('/api/image-proxy', [WebsiteController::class, 'proxyImage'])->name('image-proxy');
+Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::class, 'proxy'])->name('image-proxy');
 
 // Property Image API routes (using same mechanism as WordPress plugin)
 Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);

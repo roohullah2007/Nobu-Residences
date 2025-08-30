@@ -94,8 +94,9 @@ const SimplePropertyMap = ({
     
     console.log('Loading Google Maps script, API key:', apiKey ? 'Present' : 'Missing');
     
-    if (!apiKey) {
-      setMapError('Google Maps API key not configured');
+    if (!apiKey || apiKey === '') {
+      setMapError('Google Maps API key not configured. Please add your API key in the .env file.');
+      console.error('Google Maps API key is missing. Add GOOGLE_MAPS_API_KEY to your .env file');
       return;
     }
 
@@ -322,17 +323,25 @@ const SimplePropertyMap = ({
   // Update markers when properties change
   useEffect(() => {
     if (mapLoaded && mapInstanceRef.current) {
-      // Geocode properties that need it, then add markers
+      console.log('Updating markers for', properties.length, 'properties');
+      
+      // Add markers immediately for properties that have coordinates
+      addMarkers();
+      
+      // Then geocode properties that need it
       const handlePropertyUpdate = (property) => {
         console.log('Property geocoded, updating markers:', property.ListingKey);
         // Re-add markers when a property is geocoded
         addMarkers();
       };
       
-      frontendGeocoding.geocodeVisibleProperties(properties, handlePropertyUpdate).then(() => {
-        // Initial marker add after geocoding queue starts
-        addMarkers();
-      });
+      // Only geocode if geocoding service is available
+      if (frontendGeocoding && frontendGeocoding.geocodeVisibleProperties) {
+        frontendGeocoding.geocodeVisibleProperties(properties, handlePropertyUpdate).catch(err => {
+          console.error('Geocoding error:', err);
+          // Still show markers for properties that already have coordinates
+        });
+      }
     }
   }, [properties, mapLoaded, addMarkers]);
 

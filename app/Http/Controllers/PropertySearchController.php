@@ -268,16 +268,27 @@ class PropertySearchController extends Controller
      */
     private function hasUserSearchCriteria(array $params): bool
     {
-        $hasQuery = !empty($params['query']);
-        $hasPropertyType = !empty($params['property_type']) && count($params['property_type']) > 0;
+        // Check if query is provided and is not just 'Toronto' (our default)
+        $hasQuery = !empty($params['query']) && trim($params['query']) !== '' && trim($params['query']) !== 'Toronto';
+        
+        // Check if property type is provided and is not just 'Condo Apt' (our default)
+        $hasPropertyType = !empty($params['property_type']) && count($params['property_type']) > 0 && 
+                          !(count($params['property_type']) === 1 && $params['property_type'][0] === 'Condo Apt');
+        
         $hasMinPrice = $params['price_min'] > 0;
-        $hasMaxPrice = $params['price_max'] > 0;
+        $hasMaxPrice = $params['price_max'] > 0 && $params['price_max'] < 10000000;
         $hasBedrooms = $params['bedrooms'] > 0;
         $hasBathrooms = $params['bathrooms'] > 0;
         $hasNonDefaultStatus = $params['status'] !== 'For Sale';
         
-        return $hasQuery || $hasPropertyType || $hasMinPrice || $hasMaxPrice || 
-               $hasBedrooms || $hasBathrooms || $hasNonDefaultStatus;
+        // If we only have default values (Toronto + Condo Apt + For Sale), use default filters
+        $onlyDefaults = ($params['query'] === 'Toronto' || empty($params['query'])) &&
+                       (empty($params['property_type']) || (count($params['property_type']) === 1 && $params['property_type'][0] === 'Condo Apt')) &&
+                       ($params['status'] === 'For Sale' || empty($params['status'])) &&
+                       !$hasMinPrice && !$hasMaxPrice && !$hasBedrooms && !$hasBathrooms;
+        
+        // Return false if only defaults, true if any custom criteria
+        return !$onlyDefaults;
     }
 
     /**
@@ -289,14 +300,13 @@ class PropertySearchController extends Controller
         $this->ampreApi->addFilter('TransactionType', 'For Sale');
         $this->ampreApi->addFilter('StandardStatus', 'Active');
         
-        // Default property types: Condo Apartment OR Detached
-        $defaultPropertyTypes = ['Condo Apartment', 'Detached'];
-        $this->ampreApi->setFilterOr('PropertySubType', $defaultPropertyTypes);
+        // Default property type: Condo Apartment only (changed from both Condo and Detached)
+        $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
         
         // Default minimum price: $50,000 for sale properties
         $this->ampreApi->setPriceRange(50000, null);
         
-        // Default to Toronto area
+        // Default to Toronto area (using contains to match subdivisions like Toronto W08, Toronto C01, etc)
         $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
     }
 
@@ -344,7 +354,18 @@ class PropertySearchController extends Controller
 
         // Apply search query
         if (!empty($params['query']) && trim($params['query']) !== '') {
-            $this->applyGlobalSearchFilter($params['query']);
+            $query = trim($params['query']);
+            
+            // If query is just 'Toronto', apply it as a city contains filter to match subdivisions
+            if (strtolower($query) === 'toronto') {
+                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+            } else {
+                // Otherwise do a global search
+                $this->applyGlobalSearchFilter($query);
+            }
+        } else {
+            // Default to Toronto area if no query provided (using contains for subdivisions)
+            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
         }
 
         // Apply property type filter
@@ -359,9 +380,8 @@ class PropertySearchController extends Controller
                 $this->ampreApi->setFilterOr('PropertySubType', $validPropertyTypes);
             }
         } else {
-            // Apply default property types: Condo Apartment OR Detached
-            $defaultPropertyTypes = ['Condo Apartment', 'Detached'];
-            $this->ampreApi->setFilterOr('PropertySubType', $defaultPropertyTypes);
+            // Default to Condo Apartment only when no property type is specified
+            $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
         }
 
         // Apply price filters
@@ -482,8 +502,60 @@ class PropertySearchController extends Controller
     {
         $escapedQuery = addslashes($query);
         
+        // Extract key parts from the address for more flexible matching
+        // Handle Google Maps formatted addresses like "65 Bremner Blvd, Toronto, ON M5J 0A7, Canada"
+        $parts = array_map('trim', explode(',', $query));
+        
+        // Check if this looks like a full address (has multiple parts)
+        if (count($parts) >= 2) {
+            // Extract street address (first part)
+            $streetAddress = $parts[0];
+            
+            // Extract postal code if present (look for pattern like M5J 0A7)
+            $postalCode = '';
+            foreach ($parts as $part) {
+                if (preg_match('/[A-Z]\d[A-Z]\s*\d[A-Z]\d/i', $part, $matches)) {
+                    $postalCode = trim($matches[0]);
+                    break;
+                }
+            }
+            
+            // Extract street number and name for better matching
+            $streetParts = [];
+            if (preg_match('/^(\d+)\s+(.+)$/i', $streetAddress, $matches)) {
+                $streetNumber = $matches[1];
+                $streetName = $matches[2];
+                
+                // Handle abbreviations (Blvd -> Boulevard, St -> Street, etc.)
+                $streetName = str_ireplace(
+                    ['Blvd', 'Ave', 'St', 'Rd', 'Dr', 'Crt', 'Pl', 'Sq', 'Ter'],
+                    ['Boulevard', 'Avenue', 'Street', 'Road', 'Drive', 'Court', 'Place', 'Square', 'Terrace'],
+                    $streetName
+                );
+                
+                // Build search filter for flexible matching
+                $filters = [];
+                
+                // Search by street number and name (partial match to handle unit numbers)
+                $filters[] = "contains(UnparsedAddress, '" . addslashes($streetNumber . ' ' . $streetName) . "')";
+                
+                // Also try with original street name in case it's already full
+                $filters[] = "contains(UnparsedAddress, '" . addslashes($streetAddress) . "')";
+                
+                // If we have postal code, add it as an additional filter
+                if ($postalCode) {
+                    $searchFilter = "(" . implode(' or ', $filters) . ") and contains(PostalCode, '" . addslashes($postalCode) . "')";
+                } else {
+                    $searchFilter = "(" . implode(' or ', $filters) . ")";
+                }
+                
+                $this->ampreApi->addCustomFilter($searchFilter);
+                return;
+            }
+        }
+        
+        // Fallback to original search for simple queries
         $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
-                       "or contains(PublicRemarks, '" . $escapedQuery . "') " .
                        "or contains(City, '" . $escapedQuery . "') " .
                        "or contains(PostalCode, '" . $escapedQuery . "'))";
         

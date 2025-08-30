@@ -69,6 +69,15 @@ select {
     appearance: none;
 }
 
+/* Ensure buttons are clickable and not selectable */
+button {
+    cursor: pointer !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
 select::-ms-expand {
     display: none;
 }
@@ -91,4 +100,31 @@ textarea:focus {
 
 .focus\:border-none:focus {
     border: none !important;
+}
+
+/* Google Places Autocomplete Dropdown Styles */
+.pac-container {
+    z-index: 9999 !important;
+    font-family: 'Work Sans', sans-serif;
+    border-radius: 8px;
+    margin-top: 2px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.pac-item {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.pac-item:hover {
+    background-color: #f3f4f6;
+}
+
+.pac-item-selected {
+    background-color: #e5e7eb;
+}
+
+.pac-matched {
+    font-weight: 600;
 }

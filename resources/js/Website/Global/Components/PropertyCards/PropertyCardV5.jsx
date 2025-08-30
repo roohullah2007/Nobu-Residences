@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
+import RequestTourModal from '@/Components/RequestTourModal';
 
 /**
  * PropertyCardV5 - Enhanced for Search Page with IDX-AMPRE Style
@@ -23,6 +24,8 @@ const PropertyCardV5 = ({
   onClick,
   className = '' 
 }) => {
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  
   // Format price function (same as CardV1)
   const formatPrice = (price, isRental = false) => {
     if (!price || price <= 0) return 'Price on request';
@@ -113,54 +116,52 @@ const PropertyCardV5 = ({
             data-listing-key={property.listingKey}
           />
           
-          {/* IDX-AMPRE Style Filter Chips and Action Buttons */}
-          <div className="absolute inset-2 flex flex-col justify-between">
-            {/* Top row - Sale and Price chips - IDX-AMPRE style */}
-            <div className="flex justify-between items-center gap-2.5 h-8">
-              <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
-                {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
-              </span>
-              <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
-                {formattedPrice}
-              </span>
+          {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
+          {property.source !== 'building' && (
+            <div className="absolute inset-2 flex flex-col justify-between">
+              {/* Top row - Sale and Price chips - IDX-AMPRE style */}
+              <div className="flex justify-between items-center gap-2.5 h-8">
+                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
+                  {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
+                </span>
+                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
+                  {formattedPrice}
+                </span>
+              </div>
+              
+              {/* Bottom row - Compare and Request buttons - IDX-AMPRE style */}
+              <div className="flex justify-between items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Handle compare functionality
+                    if (window.addToCompare) {
+                      window.addToCompare(property);
+                    } else {
+                      alert(`Added ${property.address} to compare`);
+                    }
+                  }}
+                  className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
+                  aria-label={`Add ${property.address} to compare`}
+                >
+                  Compare
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Open the Request Tour modal
+                    setShowRequestModal(true);
+                  }}
+                  className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
+                  aria-label={`Request viewing for ${property.address}`}
+                >
+                  Request
+                </button>
+              </div>
             </div>
-            
-            {/* Bottom row - Compare and Request buttons - IDX-AMPRE style */}
-            <div className="flex justify-between items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Handle compare functionality
-                  if (window.addToCompare) {
-                    window.addToCompare(property);
-                  } else {
-                    alert(`Added ${property.address} to compare`);
-                  }
-                }}
-                className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
-                aria-label={`Add ${property.address} to compare`}
-              >
-                Compare
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Handle request viewing
-                  if (window.openViewingModal) {
-                    window.openViewingModal(property);
-                  } else {
-                    alert(`Request a viewing for ${property.address}`);
-                  }
-                }}
-                className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
-                aria-label={`Request viewing for ${property.address}`}
-              >
-                Request
-              </button>
-            </div>
-          </div>
+          )}
         </div>
         
         {/* Card Content - IDX-AMPRE Enhanced */}
@@ -193,6 +194,13 @@ const PropertyCardV5 = ({
           </div>
         </div>
       </a>
+      
+      {/* Request Tour Modal */}
+      <RequestTourModal
+        isOpen={showRequestModal}
+        onClose={() => setShowRequestModal(false)}
+        property={property}
+      />
     </div>
   );
 };
