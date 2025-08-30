@@ -1,7 +1,7 @@
 import React from 'react';
 
 const PriceHistory = ({ propertyData = null }) => {
-  // Get property image from propertyData or use placeholder
+  // Get property image from propertyData - no fallback
   const getPropertyImage = () => {
     if (propertyData?.Images && Array.isArray(propertyData.Images) && propertyData.Images.length > 0) {
       const firstImage = propertyData.Images[0];
@@ -9,8 +9,8 @@ const PriceHistory = ({ propertyData = null }) => {
         return firstImage.MediaURL;
       }
     }
-    // Fallback placeholder image
-    return "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+    // No fallback - return null if no image
+    return null;
   };
 
   const propertyImage = getPropertyImage();
@@ -36,13 +36,21 @@ const PriceHistory = ({ propertyData = null }) => {
         {/* Unblurred Row */}
         <div className="flex flex-col md:flex-row shadow-sm bg-[#F8F8F8] rounded-lg">
           <div className="w-full md:w-[69px] p-3 md:py-3 md:px-2">
-            <img 
-              src={propertyImage} 
-              alt="Property" 
-              className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
-              onError={(e) => {
-                e.target.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
-              }}
+            {propertyImage ? (
+              <img 
+                src={propertyImage} 
+                alt="Property" 
+                className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
+                onError={(e) => {
+                  // Hide image on error instead of showing fallback
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full md:w-full h-[120px] md:h-[52px] bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-gray-400 text-xs">No image</span>
+              </div>
+            )}
             />
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 w-full space-y-3 md:space-y-0">
@@ -63,13 +71,21 @@ const PriceHistory = ({ propertyData = null }) => {
         {/* Blurred Row (Original) */}
         <div className="flex flex-col md:flex-row shadow-sm bg-[#F8F8F8] rounded-lg">
           <div className="w-full md:w-[69px] p-3 md:py-3 md:px-2">
-            <img 
-              src={propertyImage} 
-              alt="Property" 
-              className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
-              onError={(e) => {
-                e.target.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
-              }}
+            {propertyImage ? (
+              <img 
+                src={propertyImage} 
+                alt="Property" 
+                className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
+                onError={(e) => {
+                  // Hide image on error instead of showing fallback
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full md:w-full h-[120px] md:h-[52px] bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-gray-400 text-xs">No image</span>
+              </div>
+            )}
             />
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 space-y-3 md:space-y-0">

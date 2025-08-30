@@ -1,47 +1,8 @@
 import React from 'react';
 
 const ComparableSales = ({ comparableSales = null }) => {
-  // Sample data if none provided
-  const defaultComparableSales = [
-    {
-      address: '408-155 Dalhousie Str',
-      sold_price: 1139000,
-      sold_date: '2025-03-15',
-      days_on_market: 5,
-      url: '#',
-      latitude: null,
-      longitude: null
-    },
-    {
-      address: '301-200 King Street',
-      sold_price: 1250000,
-      sold_date: '2025-03-22',
-      days_on_market: 12,
-      url: '#',
-      latitude: null,
-      longitude: null
-    },
-    {
-      address: '505-75 Queens Avenue',
-      sold_price: 899000,
-      sold_date: '2025-03-10',
-      days_on_market: 8,
-      url: '#',
-      latitude: null,
-      longitude: null
-    },
-    {
-      address: '1202-180 University St',
-      sold_price: 1575000,
-      sold_date: '2025-03-28',
-      days_on_market: 15,
-      url: '#',
-      latitude: null,
-      longitude: null
-    }
-  ];
-
-  const salesData = comparableSales || defaultComparableSales;
+  // NO DEFAULT DATA - only show real comparable sales
+  const salesData = comparableSales || [];
 
   const formatPrice = (price) => {
     if (typeof price === 'string' && price.startsWith('$')) {
@@ -67,14 +28,9 @@ const ComparableSales = ({ comparableSales = null }) => {
         </h2>
 
         <div className="w-full h-[200px] md:h-[250px] my-4 text-center bg-gray-50 rounded-lg overflow-hidden relative flex items-center justify-center">
-          <img 
-            src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&h=400&fit=crop&auto=format&q=80" 
-            alt="Comparable Sales Map" 
-            className="w-full h-full object-cover rounded-lg shadow-sm"
-          />
-          <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+          <div className="bg-gray-100 w-full h-full flex items-center justify-center">
             <div className="bg-white bg-opacity-90 px-4 py-2 rounded-lg">
-              <span className="text-gray-700 font-medium">Interactive Map View</span>
+              <span className="text-gray-700 font-medium">Map View Coming Soon</span>
             </div>
           </div>
         </div>

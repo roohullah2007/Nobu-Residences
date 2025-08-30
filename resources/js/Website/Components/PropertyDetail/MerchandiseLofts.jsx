@@ -99,11 +99,10 @@ export default function MerchandiseLofts({ propertyData }) {
     );
   }
 
-  // Use building data or fallback
+  // Use building data only - no fallbacks
   const buildingName = buildingData?.name || 'The Building';
   const buildingAddress = buildingData?.address || extractAddress()?.streetNumber + ' ' + extractAddress()?.streetName;
-  const buildingImage = buildingData?.main_image || buildingData?.images?.[0] || 
-    "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+  const buildingImage = buildingData?.main_image || buildingData?.images?.[0] || null;
   const buildingId = buildingData?.id;
 
   return (
@@ -113,14 +112,21 @@ export default function MerchandiseLofts({ propertyData }) {
           <div className="flex flex-col md:flex-row h-full">
             {/* Left side - Image */}
             <div className="md:w-[330px]">
-              <img 
-                src={buildingImage}
-                alt={buildingName}
-                className="w-full h-48 md:h-full object-cover"
-                onError={(e) => {
-                  e.target.src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
-                }}
-              />
+              {buildingImage ? (
+                <img 
+                  src={buildingImage}
+                  alt={buildingName}
+                  className="w-full h-48 md:h-full object-cover"
+                  onError={(e) => {
+                    // Hide image on error instead of showing fallback
+                    e.target.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div className="w-full h-48 md:h-full bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-400">No image available</span>
+                </div>
+              )}
             </div>
             
             {/* Right side - Content */}

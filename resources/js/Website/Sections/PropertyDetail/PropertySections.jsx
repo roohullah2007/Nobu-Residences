@@ -11,9 +11,7 @@ import {
 import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 
 export default function PropertySections({ 
-  propertyData, 
-  sampleSaleProperties, 
-  sampleRentProperties,
+  propertyData,
   auth 
 }) {
   return (

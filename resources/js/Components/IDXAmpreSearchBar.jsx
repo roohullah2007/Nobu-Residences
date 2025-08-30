@@ -30,10 +30,12 @@ const Home = ({ className }) => (
 );
 
 const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
+    const [availablePropertyTypes, setAvailablePropertyTypes] = useState([]);
+    const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(true);
     const [searchData, setSearchData] = useState({
         location: initialValues.location || '',
         propertyType: initialValues.propertyType || 'For Sale',
-        propertySubType: initialValues.propertySubType || '',
+        propertySubType: initialValues.propertySubType || 'Condo Apartment', // Default to Condo Apartment
         bedrooms: initialValues.bedrooms || '0',
         bathrooms: initialValues.bathrooms || '0',
         minPrice: initialValues.minPrice || 0,
@@ -44,10 +46,12 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
     const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [showPricePopup, setShowPricePopup] = useState(false);
+    const [showPropertyTypeDropdown, setShowPropertyTypeDropdown] = useState(false);
     const locationInputRef = useRef(null);
     const autocompleteRef = useRef(null);
     const dropdownRef = useRef(null);
     const pricePopupRef = useRef(null);
+    const propertyTypeRef = useRef(null);
 
     // Search type options
     const searchTypes = [
@@ -60,19 +64,91 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
     // Get current search type config
     const currentSearchType = searchTypes.find(t => t.value === searchType) || searchTypes[0];
 
-    // Property type options - must match backend PropertySubType values exactly
-    const propertyTypes = [
-        { value: '', label: 'All Types' },
-        { value: 'Condo Apartment', label: 'Condo Apartment' },
-        { value: 'Detached', label: 'Detached' },
-        { value: 'Semi-Detached', label: 'Semi-Detached' },
-        { value: 'Attached/Townhouse', label: 'Townhouse' },
-        { value: 'Condo Townhouse', label: 'Condo Townhouse' },
-        { value: 'Link', label: 'Link' },
-        { value: 'Vacant Land', label: 'Vacant Land' },
-        { value: 'Commercial', label: 'Commercial' },
-    ];
+    // Map property types with icons
+    const getPropertyTypeWithIcon = (type) => {
+        const iconMap = {
+            '': <Search className="w-4 h-4" />,
+            'Condo Apartment': <Home className="w-4 h-4" />,
+            'Condo Townhouse': <Home className="w-4 h-4" />,
+            'Detached': <Home className="w-4 h-4" />,
+            'Semi-Detached': <Home className="w-4 h-4" />,
+            'Attached/Townhouse': <Home className="w-4 h-4" />,
+            'Link': <Home className="w-4 h-4" />,
+            'Vacant Land': <MapPin className="w-4 h-4" />,
+            'Commercial': <Home className="w-4 h-4" />,
+        };
+        return {
+            ...type,
+            icon: iconMap[type.value] || <Home className="w-4 h-4" />
+        };
+    };
+    
+    // Add icons to available property types
+    const propertyTypes = availablePropertyTypes.map(type => getPropertyTypeWithIcon(type));
+    
+    // Get current property type config
+    const currentPropertyType = propertyTypes.find(t => t.value === searchData.propertySubType) || 
+                              propertyTypes.find(t => t.value === 'Condo Apartment') || 
+                              propertyTypes[0] || 
+                              { value: '', label: 'All Types', icon: <Search className="w-4 h-4" /> };
 
+    // Fetch available property types on mount and when location/status changes
+    useEffect(() => {
+        const fetchPropertyTypes = async () => {
+            setLoadingPropertyTypes(true);
+            try {
+                const response = await fetch('/api/property-types', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    },
+                    body: JSON.stringify({
+                        filters: {
+                            query: searchData.location,
+                            status: searchData.propertyType
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success && result.data?.propertyTypes) {
+                    setAvailablePropertyTypes(result.data.propertyTypes);
+                    
+                    // Check if current selection is still available
+                    const currentTypeStillAvailable = result.data.propertyTypes.some(
+                        type => type.value === searchData.propertySubType
+                    );
+                    
+                    // If current type is not available, reset to first available type
+                    if (!currentTypeStillAvailable && result.data.propertyTypes.length > 0) {
+                        // Default to Condo Apartment if available, otherwise first type
+                        const condoType = result.data.propertyTypes.find(t => t.value === 'Condo Apartment');
+                        const defaultType = condoType || result.data.propertyTypes[0];
+                        setSearchData(prev => ({ ...prev, propertySubType: defaultType.value }));
+                    }
+                } else {
+                    // Use default types on error
+                    setAvailablePropertyTypes([
+                        { value: '', label: 'All Types', count: 0 },
+                        { value: 'Condo Apartment', label: 'Condo Apartment', count: 0 }
+                    ]);
+                }
+            } catch (error) {
+                console.error('Error fetching property types:', error);
+                // Use default types on error
+                setAvailablePropertyTypes([
+                    { value: '', label: 'All Types', count: 0 },
+                    { value: 'Condo Apartment', label: 'Condo Apartment', count: 0 }
+                ]);
+            } finally {
+                setLoadingPropertyTypes(false);
+            }
+        };
+        
+        fetchPropertyTypes();
+    }, [searchData.location, searchData.propertyType]); // Re-fetch when location or status changes
+    
     // Handle clicking outside dropdowns and popups
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -81,6 +157,9 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
             }
             if (pricePopupRef.current && !pricePopupRef.current.contains(event.target)) {
                 setShowPricePopup(false);
+            }
+            if (propertyTypeRef.current && !propertyTypeRef.current.contains(event.target)) {
+                setShowPropertyTypeDropdown(false);
             }
         };
 
@@ -387,17 +466,54 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
 
                 {/* Filters Row - Always visible */}
                 <div className="flex flex-col lg:flex-row gap-4 pt-4 border-t border-gray-300">
-                    {/* Property Type */}
-                    <div className="mb-3 lg:mb-0">
-                        <select
-                            className="appearance-none min-w-[160px] px-4 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all cursor-pointer"
-                            value={searchData.propertySubType}
-                            onChange={(e) => setSearchData({ ...searchData, propertySubType: e.target.value })}
+                    {/* Property Type - Custom Dropdown with Icon */}
+                    <div className="relative mb-3 lg:mb-0" ref={propertyTypeRef}>
+                        <button
+                            type="button"
+                            onClick={() => setShowPropertyTypeDropdown(!showPropertyTypeDropdown)}
+                            disabled={loadingPropertyTypes}
+                            className="min-w-[180px] px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all cursor-pointer flex items-center gap-2 focus:ring-2 focus:ring-[#912018] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {propertyTypes.map(type => (
-                                <option key={type.value} value={type.value}>{type.label}</option>
-                            ))}
-                        </select>
+                            {loadingPropertyTypes ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-gray-300 border-t-[#912018] rounded-full animate-spin"></div>
+                                    <span className="flex-1 text-left">Loading...</span>
+                                </>
+                            ) : (
+                                <>
+                                    {currentPropertyType.icon}
+                                    <span className="flex-1 text-left">
+                                        {currentPropertyType.label}
+                                    </span>
+                                </>
+                            )}
+                            <ChevronDown className="w-4 h-4" />
+                        </button>
+                        
+                        {showPropertyTypeDropdown && (
+                            <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+                                {propertyTypes.map((type, index) => (
+                                    <button
+                                        key={type.value}
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchData({ ...searchData, propertySubType: type.value });
+                                            setShowPropertyTypeDropdown(false);
+                                        }}
+                                        className={`w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 ${
+                                            searchData.propertySubType === type.value ? 'bg-blue-50 text-blue-600' : ''
+                                        } ${index === 0 ? 'rounded-t-lg' : ''} ${
+                                            index === propertyTypes.length - 1 ? 'rounded-b-lg' : ''
+                                        }`}
+                                    >
+                                        {type.icon}
+                                        <span className="flex-1">
+                                            {type.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Bedrooms */}

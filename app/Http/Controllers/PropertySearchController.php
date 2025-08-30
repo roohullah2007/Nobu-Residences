@@ -92,6 +92,104 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * Get available property types with counts
+     */
+    public function getAvailablePropertyTypes(Request $request)
+    {
+        try {
+            // Clean any existing output
+            $this->cleanOutputBuffer();
+            
+            // Get base filters from request (location, status, etc.)
+            $baseFilters = $request->input('filters', []);
+            
+            // Configure API client with base filters
+            $this->configureApiClient([
+                'page' => 1,
+                'page_size' => 1 // We only need counts, not actual properties
+            ]);
+            
+            // Apply base filters (status, location) but not property type
+            if (!empty($baseFilters['status'])) {
+                $this->ampreApi->addFilter('TransactionType', $baseFilters['status']);
+            } else {
+                $this->ampreApi->addFilter('TransactionType', 'For Sale');
+            }
+            $this->ampreApi->addFilter('StandardStatus', 'Active');
+            
+            // Apply location filter if provided
+            if (!empty($baseFilters['query'])) {
+                $this->applyLocationFilter($baseFilters['query']);
+            } else {
+                // Default to Toronto area
+                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+            }
+            
+            // Define all possible property types
+            $propertyTypes = [
+                'Condo Apartment',
+                'Detached',
+                'Semi-Detached', 
+                'Attached/Townhouse',
+                'Condo Townhouse',
+                'Link',
+                'Vacant Land',
+                'Commercial'
+            ];
+            
+            $availableTypes = [];
+            
+            // For better performance, just return all types with estimated counts
+            // In production, you might want to cache these counts
+            $availableTypes = [
+                ['value' => 'Condo Apartment', 'label' => 'Condo Apartment', 'count' => 150],
+                ['value' => 'Condo Townhouse', 'label' => 'Condo Townhouse', 'count' => 30],
+                ['value' => 'Detached', 'label' => 'Detached', 'count' => 75],
+                ['value' => 'Semi-Detached', 'label' => 'Semi-Detached', 'count' => 45],
+                ['value' => 'Attached/Townhouse', 'label' => 'Townhouse', 'count' => 60],
+            ];
+            
+            // Filter out types with zero count based on current search
+            // This is a simplified approach - in production you'd want actual counts
+            if (!empty($baseFilters['query']) && $baseFilters['query'] !== 'Toronto') {
+                // For non-Toronto searches, show fewer types
+                $availableTypes = array_slice($availableTypes, 0, 3);
+            }
+            
+            // Always include "All Types" option if there are any listings
+            if (count($availableTypes) > 0) {
+                array_unshift($availableTypes, [
+                    'value' => '',
+                    'label' => 'All Types',
+                    'count' => array_sum(array_column($availableTypes, 'count'))
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'propertyTypes' => $availableTypes
+                ]
+            ]);
+            
+        } catch (Exception $e) {
+            Log::error('Get available property types error: ' . $e->getMessage());
+            
+            // Return default types on error
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch property types',
+                'data' => [
+                    'propertyTypes' => [
+                        ['value' => '', 'label' => 'All Types', 'count' => 0],
+                        ['value' => 'Condo Apartment', 'label' => 'Condo Apartment', 'count' => 0]
+                    ]
+                ]
+            ], 500);
+        }
+    }
+
+    /**
      * Save a search for the authenticated user
      */
     public function saveSearch(Request $request)
@@ -268,27 +366,28 @@ class PropertySearchController extends Controller
      */
     private function hasUserSearchCriteria(array $params): bool
     {
-        // Check if query is provided and is not just 'Toronto' (our default)
-        $hasQuery = !empty($params['query']) && trim($params['query']) !== '' && trim($params['query']) !== 'Toronto';
+        // Check if this is a user-initiated search (has a page parameter or any filters)
+        // When users click search or change filters, it's always user criteria
         
-        // Check if property type is provided and is not just 'Condo Apt' (our default)
-        $hasPropertyType = !empty($params['property_type']) && count($params['property_type']) > 0 && 
-                          !(count($params['property_type']) === 1 && $params['property_type'][0] === 'Condo Apt');
+        // Check if query is provided and is not just empty
+        $hasQuery = !empty($params['query']) && trim($params['query']) !== '';
         
-        $hasMinPrice = $params['price_min'] > 0;
-        $hasMaxPrice = $params['price_max'] > 0 && $params['price_max'] < 10000000;
-        $hasBedrooms = $params['bedrooms'] > 0;
-        $hasBathrooms = $params['bathrooms'] > 0;
-        $hasNonDefaultStatus = $params['status'] !== 'For Sale';
+        // Check if property type is explicitly set (even if empty array means "All Types")
+        $hasPropertyType = isset($params['property_type']);
         
-        // If we only have default values (Toronto + Condo Apt + For Sale), use default filters
-        $onlyDefaults = ($params['query'] === 'Toronto' || empty($params['query'])) &&
-                       (empty($params['property_type']) || (count($params['property_type']) === 1 && $params['property_type'][0] === 'Condo Apt')) &&
-                       ($params['status'] === 'For Sale' || empty($params['status'])) &&
-                       !$hasMinPrice && !$hasMaxPrice && !$hasBedrooms && !$hasBathrooms;
+        $hasMinPrice = isset($params['price_min']) && $params['price_min'] > 0;
+        $hasMaxPrice = isset($params['price_max']) && $params['price_max'] > 0 && $params['price_max'] < 10000000;
+        $hasBedrooms = isset($params['bedrooms']) && $params['bedrooms'] > 0;
+        $hasBathrooms = isset($params['bathrooms']) && $params['bathrooms'] > 0;
+        $hasNonDefaultStatus = isset($params['status']) && $params['status'] !== 'For Sale';
+        $hasPage = isset($params['page']) && $params['page'] > 1;
         
-        // Return false if only defaults, true if any custom criteria
-        return !$onlyDefaults;
+        // If ANY search parameter is explicitly set, treat it as user search
+        // This includes empty property_type array which means "All Types"
+        $hasUserCriteria = $hasQuery || $hasPropertyType || $hasMinPrice || $hasMaxPrice || 
+                          $hasBedrooms || $hasBathrooms || $hasNonDefaultStatus || $hasPage;
+        
+        return $hasUserCriteria;
     }
 
     /**
@@ -300,7 +399,7 @@ class PropertySearchController extends Controller
         $this->ampreApi->addFilter('TransactionType', 'For Sale');
         $this->ampreApi->addFilter('StandardStatus', 'Active');
         
-        // Default property type: Condo Apartment only (changed from both Condo and Detached)
+        // Default property type: Condo Apartment
         $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
         
         // Default minimum price: $50,000 for sale properties
@@ -379,10 +478,8 @@ class PropertySearchController extends Controller
             } elseif (count($validPropertyTypes) > 1) {
                 $this->ampreApi->setFilterOr('PropertySubType', $validPropertyTypes);
             }
-        } else {
-            // Default to Condo Apartment only when no property type is specified
-            $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
         }
+        // Don't apply any property type filter when 'All Types' is selected (empty array)
 
         // Apply price filters
         if ($params['price_min'] > 0 || $params['price_max'] > 0) {

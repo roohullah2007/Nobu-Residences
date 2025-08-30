@@ -15,7 +15,15 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [propertyData, setPropertyData] = useState(initialPropertyData);
-  const [propertyImages, setPropertyImages] = useState(initialImages || []);
+  // Process initial images - they come as an array of URLs from the server
+  const [propertyImages, setPropertyImages] = useState(() => {
+    if (initialImages && Array.isArray(initialImages) && initialImages.length > 0) {
+      console.log('PropertyDetail - Using initial images from server:', initialImages);
+      return initialImages;
+    }
+    console.log('PropertyDetail - No initial images provided');
+    return [];
+  });
   const [isLoading, setIsLoading] = useState(!initialPropertyData);
   
   // Viewing request modal state
@@ -50,94 +58,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     setIsFavorited(!isFavorited);
   };
 
-  // Sample property images (fallback)
-  const samplePropertyImages = [
-    "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1484154218962-a197022b5858?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-  ];
-
-  // Sample properties for sale data
-  const sampleSaleProperties = [
-    {
-      id: 1,
-      listingKey: "X9234419",
-      image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 0,
-      propertyType: "Vacant Land",
-      transactionType: "For Sale",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "Deleted Deleted Deleted, Deleted, ON DELETED",
-      isRental: false
-    },
-    {
-      id: 2,
-      listingKey: "N1209765",
-      image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 899000,
-      propertyType: "Detached",
-      transactionType: "For Sale",
-      bedrooms: 3,
-      bathrooms: 2,
-      address: "108 Moore's Beach Road, Georgina, ON L0E 1N0",
-      isRental: false
-    },
-    {
-      id: 3,
-      listingKey: "X11947982",
-      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 1700000,
-      propertyType: "Commercial Retail",
-      transactionType: "For Sale",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "284 Dundas Street, London East, ON N6B 1T6",
-      isRental: false
-    }
-  ];
-
-  // Sample properties for rent data
-  const sampleRentProperties = [
-    {
-      id: 1,
-      listingKey: "X11930665",
-      image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 2000,
-      propertyType: "Co-op Apartment",
-      transactionType: "For Rent",
-      bedrooms: 2,
-      bathrooms: 1,
-      address: "104 Devonshire Avenue, London South, ON N6C 2H8",
-      isRental: true
-    },
-    {
-      id: 2,
-      listingKey: "X11884737",
-      image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 4000,
-      propertyType: "Commercial Retail",
-      transactionType: "For Lease",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "924 Oxford Street E 3, London East, ON N5Y 3J9",
-      isRental: true
-    },
-    {
-      id: 3,
-      listingKey: "X12009946",
-      image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 3000,
-      propertyType: "Commercial Retail",
-      transactionType: "For Rent",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "211 DUNDAS Street, London East, ON N6A 1G4",
-      isRental: true
-    }
-  ];
+  // NO SAMPLE DATA - only use real property data from API
 
   // Fetch property data from API if listingKey is provided and no initial data
   useEffect(() => {
@@ -168,11 +89,21 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         // Set images - handle both formats
         if (data.images && data.images.length > 0) {
           // Map API images to URL strings
-          const imageUrls = data.images.map(img => img.url || img.MediaURL || img.URL || img);
+          const imageUrls = data.images.map(img => {
+            const url = img.url || img.MediaURL || img.URL || img;
+            // Log each image URL for debugging
+            console.log('PropertyDetail - Processing image URL:', url);
+            return url;
+          });
+          console.log('PropertyDetail - Setting property images:', imageUrls);
           setPropertyImages(imageUrls);
         } else if (data.property && data.property.Images) {
           const imageUrls = data.property.Images.map(img => img.MediaURL || img.URL || img.url || img);
+          console.log('PropertyDetail - Setting property images from property.Images:', imageUrls);
           setPropertyImages(imageUrls);
+        } else {
+          console.log('PropertyDetail - No images found in API response');
+          console.log('PropertyDetail - Full API response:', data);
         }
       } else {
         console.error('Failed to fetch property data');
@@ -280,20 +211,20 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
   };
   
   const getSamplePropertyData = () => ({
-    address: "408 - 155 Dalhousie Street",
-    subtitle: "NO55 Mercer Condos in King West, Downtown, Toronto",
-    soldFor: "$1,100,000",
-    listedFor: "Listed for 1,139,000 CAD",
-    Images: samplePropertyImages.map(url => ({ MediaURL: url })),
+    address: "Loading...",
+    subtitle: "Loading property details...",
+    soldFor: null,
+    listedFor: null,
+    Images: [],
     details: {
-      type: "Residential Condo",
-      beds: "2+1",
-      bathrooms: "2",
-      area: "1276 sqft",
-      parking: "2",
-      maintenanceFees: "$2375",
-      propertyTaxes: "$260",
-      exposure: "North"
+      type: "Loading...",
+      beds: "0",
+      bathrooms: "0",
+      area: "N/A",
+      parking: "0",
+      maintenanceFees: "N/A",
+      propertyTaxes: "N/A",
+      exposure: "N/A"
     },
     Rooms: []
   });
@@ -340,7 +271,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         {/* Property Gallery with Details Card and Modal */}
         <div className="mb-7">
         <PropertyGallery 
-          propertyImages={propertyImages && propertyImages.length > 0 ? propertyImages : samplePropertyImages}
+          propertyImages={propertyImages}
           propertyData={displayData}
           isFavorited={isFavorited}
           onToggleFavorite={handleToggleFavorite}
@@ -353,8 +284,6 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         {/* Property Sections */}
         <PropertySections 
           propertyData={displayData}
-          sampleSaleProperties={sampleSaleProperties}
-          sampleRentProperties={sampleRentProperties}
           auth={auth}
         />
         

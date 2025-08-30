@@ -51,6 +51,12 @@ export default function PropertyGallery({
           // Remove any duplicate slashes except for http://
           url = url.replace(/([^:]\/)\/+/g, "$1");
           
+          // Handle AMPRE CDN URLs - convert HTTPS to HTTP to avoid SSL issues
+          if (url.includes('ampre.ca') && url.startsWith('https://')) {
+            console.log('PropertyGallery - Converting AMPRE HTTPS to HTTP:', url);
+            url = url.replace('https://', 'http://');
+          }
+          
           // Ensure URL is absolute
           if (!url.startsWith('http') && !url.startsWith('//')) {
             // If it's a relative URL, prepend the base URL
@@ -72,14 +78,11 @@ export default function PropertyGallery({
     // Remove duplicates
     images = [...new Set(images)];
     
-    // If no valid images, use fallback
+    // NO FALLBACK IMAGES - only use real property images
     if (images.length === 0) {
-      images = [
-        "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-        "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-        "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      ];
-      console.log('PropertyGallery - Using fallback images');
+      console.log('PropertyGallery - No images available for property:', propertyData?.listingKey);
+      // Return empty array - no dummy images
+      return [];
     } else {
       console.log('PropertyGallery - Using API images:', images.length, 'images');
       console.log('PropertyGallery - Image URLs:', images);
@@ -199,27 +202,13 @@ export default function PropertyGallery({
     return 'Price on request';
   };
 
-  // Handle image loading errors with better fallback logic
+  // Handle image loading errors - NO FALLBACK IMAGES
   const handleImageError = (e, fallbackIndex = 0) => {
-    const fallbackImages = [
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-    ];
-    
-    // Check if this is already a fallback image
-    const currentSrc = e.target.src;
-    const isFallback = fallbackImages.some(img => currentSrc.includes(img));
-    
-    if (!isFallback) {
-      // First attempt - use fallback image
-      e.target.src = fallbackImages[fallbackIndex % fallbackImages.length];
-      console.log('Image failed to load, using fallback:', e.target.src);
-    } else {
-      // Fallback also failed, prevent infinite loop
-      e.target.onerror = null;
-      console.error('Fallback image also failed to load');
-    }
+    console.error('PropertyGallery - Failed to load image:', e.target.src);
+    // Hide the broken image by setting display to none
+    e.target.style.display = 'none';
+    // Prevent infinite error loop
+    e.target.onerror = null;
   };
 
   return (
@@ -641,8 +630,13 @@ export default function PropertyGallery({
                     <img 
                       src={image}
                       alt={`Property image ${index + 1}`}
+                      onError={(e) => {
+                        console.error('PropertyGallery - Failed to load modal image:', image);
+                        // Hide broken image - no fallback
+                        e.target.style.display = 'none';
+                        e.target.onerror = null;
+                      }}
                       className="max-w-full max-h-full object-contain"
-                      onError={handleImageError}
                     />
                   </div>
                 ))}

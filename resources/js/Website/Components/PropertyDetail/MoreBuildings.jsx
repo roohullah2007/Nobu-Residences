@@ -12,109 +12,7 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
   
   const { listingKey } = usePage().props;
 
-  // Sample building data for "More Buildings By Agent"
-  const buildingData = [
-    {
-      id: 1,
-      name: "Luxury Downtown Tower",
-      image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "123 King Street West",
-      units: 45,
-      priceRange: "$800K - $2.5M"
-    },
-    {
-      id: 2,
-      name: "Riverside Condominiums", 
-      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "456 Queen Street East",
-      units: 32,
-      priceRange: "$600K - $1.8M"
-    },
-    {
-      id: 3,
-      name: "Modern Urban Living",
-      image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80", 
-      address: "789 Bay Street",
-      units: 67,
-      priceRange: "$900K - $3.2M"
-    },
-    {
-      id: 4,
-      name: "Executive Suites",
-      image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "321 Yonge Street",
-      units: 28,
-      priceRange: "$1.2M - $4.5M"
-    },
-    {
-      id: 5,
-      name: "Waterfront Towers",
-      image: "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "555 Lake Shore Boulevard",
-      units: 89,
-      priceRange: "$750K - $2.8M"
-    },
-    {
-      id: 6,
-      name: "Downtown Residences",
-      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "888 University Avenue",
-      units: 156,
-      priceRange: "$650K - $3.5M"
-    }
-  ];
-
-  // Sample nearby listings data for non-condo properties
-  const nearbyListingsData = [
-    {
-      id: 1,
-      name: "Charming Family Home",
-      image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "142 Maple Avenue",
-      units: "4 BD, 3 BA",
-      priceRange: "$1.2M"
-    },
-    {
-      id: 2,
-      name: "Modern Townhouse", 
-      image: "https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "78 Oak Street",
-      units: "3 BD, 2.5 BA",
-      priceRange: "$950K"
-    },
-    {
-      id: 3,
-      name: "Luxury Detached Home",
-      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80", 
-      address: "256 Pine Road",
-      units: "5 BD, 4 BA",
-      priceRange: "$2.1M"
-    },
-    {
-      id: 4,
-      name: "Cozy Bungalow",
-      image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "89 Elm Street",
-      units: "2 BD, 2 BA",
-      priceRange: "$720K"
-    },
-    {
-      id: 5,
-      name: "Executive Villa",
-      image: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "445 Willow Drive",
-      units: "6 BD, 5 BA",
-      priceRange: "$3.8M"
-    },
-    {
-      id: 6,
-      name: "Contemporary Home",
-      image: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=400&h=300&fit=crop&auto=format&q=80",
-      address: "167 Cedar Lane",
-      units: "3 BD, 3 BA",
-      priceRange: "$1.4M"
-    }
-  ];
+  // NO SAMPLE DATA - only show real listings from API
 
   // Fetch listings from API based on title
   useEffect(() => {
@@ -305,16 +203,15 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
     }
   };
 
-  // Choose data based on title and API availability
+  // Choose data based on title and API availability - NO FALLBACK DATA
   const buildings = (() => {
     if (title === "Nearby Listings") {
-      return nearbyListings.length > 0 ? nearbyListings : (isLoading ? [] : nearbyListingsData);
+      return nearbyListings;
     } else if (title === "Similar Listings") {
-      return similarListings.length > 0 ? similarListings : (isLoading ? [] : nearbyListingsData);
-    } else if (title === "More Buildings By Agent") {
-      return buildingData;
+      return similarListings;
     } else {
-      return nearbyListingsData;
+      // For "More Buildings By Agent" or any other title, return empty array if no API data
+      return [];
     }
   })();
 

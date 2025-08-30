@@ -858,14 +858,21 @@ class WebsiteController extends Controller
                     
                     // Fetch property images
                     $imagesResponse = $ampreApi->getPropertiesImages([$listingKey]);
+                    \Log::info('AMPRE Images Response for ' . $listingKey . ':', ['response' => $imagesResponse]);
+                    
                     if (!empty($imagesResponse) && isset($imagesResponse[$listingKey])) {
                         // Extract image URLs from the grouped response
                         $propertyImages = array_map(function($image) {
-                            return $image['MediaURL'] ?? '';
+                            $url = $image['MediaURL'] ?? '';
+                            \Log::info('Processing image URL: ' . $url);
+                            return $url;
                         }, $imagesResponse[$listingKey]);
                         
                         // Remove any empty URLs
                         $propertyImages = array_filter($propertyImages);
+                        \Log::info('Final property images array:', $propertyImages);
+                    } else {
+                        \Log::warning('No images found for listing: ' . $listingKey);
                     }
                 }
             } catch (\Exception $e) {

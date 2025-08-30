@@ -158,7 +158,7 @@ export default function EnhancedPropertySearch({
   const [searchFilters, setSearchFilters] = useState({
     query: filters.search || '',
     status: filters.forSale || 'For Sale',
-    property_type: filters.property_type || [],
+    property_type: filters.property_type || ['Condo Apartment'], // Default to Condo Apartment
     price_min: filters.minPrice || 0,
     price_max: filters.maxPrice || 10000000, // Default max price 10M
     bedrooms: filters.bedType || 0,
@@ -755,7 +755,7 @@ export default function EnhancedPropertySearch({
               initialValues={{
                 location: searchFilters.query || '',
                 propertyType: searchFilters.status || 'For Sale',
-                propertySubType: searchFilters.property_type && searchFilters.property_type.length > 0 ? searchFilters.property_type[0] : '',
+                propertySubType: searchFilters.property_type && searchFilters.property_type.length > 0 ? searchFilters.property_type[0] : 'Condo Apartment',
                 bedrooms: String(searchFilters.bedrooms || '0'),
                 bathrooms: String(searchFilters.bathrooms || '0'),
                 minPrice: searchFilters.price_min || 0,
