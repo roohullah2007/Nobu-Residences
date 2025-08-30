@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 
-const MortgageCalculator = () => {
-  const [propertyPrice, setPropertyPrice] = useState(1139000);
-  const [taxes, setTaxes] = useState(0);
-  const [condoFees, setCondoFees] = useState(0);
+const MortgageCalculator = ({ property }) => {
+  // Get property price from property data or default
+  const defaultPrice = property?.ListPrice || property?.OriginalPrice || 1139000;
+  
+  // Get property tax from property data
+  const propertyTax = property?.Taxes || property?.TaxAnnualAmount || 0;
+  
+  // Get condo fees from property data
+  const monthlyCondoFees = property?.AssociationFee || property?.MaintenanceExpense || 0;
+  
+  const [propertyPrice, setPropertyPrice] = useState(defaultPrice);
+  const [taxes, setTaxes] = useState(propertyTax);
+  const [condoFees, setCondoFees] = useState(monthlyCondoFees);
   const [amortization, setAmortization] = useState('30 Years');
   const [interestRate, setInterestRate] = useState(5.5);
-  const [downPayment, setDownPayment] = useState(52450);
+  // Calculate default down payment (5% minimum for Canadian properties)
+  const defaultDownPayment = Math.max(defaultPrice * 0.05, 52450);
+  const [downPayment, setDownPayment] = useState(defaultDownPayment);
   const [taxesBottom, setTaxesBottom] = useState(0);
 
   // Calculate mortgage values
@@ -115,11 +126,11 @@ const MortgageCalculator = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6">
           <div>
             <label className="block text-xs font-normal text-gray-700 mb-1 font-work-sans">
-              Taxes
+              Property Tax (Annual)
             </label>
             <input
               type="text"
-              value={`$ ${taxes}`}
+              value={`$ ${formatNumber(taxes)}`}
               onChange={(e) => {
                 const value = e.target.value.replace(/[$,\s]/g, '');
                 setTaxes(Number(value) || 0);
@@ -130,11 +141,11 @@ const MortgageCalculator = () => {
           
           <div>
             <label className="block text-xs font-normal text-gray-700 mb-1 font-work-sans">
-              Condo Fees
+              Condo Fees (Monthly)
             </label>
             <input
               type="text"
-              value={`$ ${condoFees}`}
+              value={`$ ${formatNumber(condoFees)}`}
               onChange={(e) => {
                 const value = e.target.value.replace(/[$,\s]/g, '');
                 setCondoFees(Number(value) || 0);

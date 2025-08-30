@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
+import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { usePage } from '@inertiajs/react';
 
 const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
@@ -134,52 +135,82 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
       const response = await fetch(`/api/nearby-listings?listingKey=${listingKey}&limit=6`);
       const data = await response.json();
       
-      // Debug log to see what we're getting from API
       console.log('Nearby listings API response:', data);
       
       if (data.properties && data.properties.length > 0) {
-        // Format the data for the PropertyCardV3 component
-        const formattedListings = data.properties.map((property, index) => {
-          // Use MediaURL field like the search page does, fallback to image field
-          let imageUrl = property.MediaURL || property.image;
-          
-          // Check for null, undefined, empty string, or "none"
-          if (!imageUrl) {
-            // Fallback to placeholder if no image
-            imageUrl = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80";
-            console.log(`Nearby property ${property.listingKey} - No image, using placeholder`);
-          } else if (imageUrl.includes('ampre.ca')) {
-            // Use the proxy endpoint to avoid SSL issues for AMPRE images
-            const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
-            console.log(`Nearby property ${property.listingKey} - Proxying AMPRE image:`, imageUrl.substring(0, 50), '... to', proxiedUrl.substring(0, 50));
-            imageUrl = proxiedUrl;
-          } else {
-            console.log(`Nearby property ${property.listingKey} - Using direct image:`, imageUrl.substring(0, 50));
-          }
+        // Format the data exactly like search page does for PropertyCardV5
+        const formattedListings = data.properties.map((property) => {
+          let imageUrl = property.MediaURL || null;
           
           return {
-            id: property.listingKey || index,
-            // Use the actual property type or subtype from the API
-            name: property.propertySubType || property.propertyType || "Residential",
-            // Use the processed image URL
-            image: imageUrl,
-            address: property.address || "Address not available",
-            units: property.bedrooms ? `${property.bedrooms} BD, ${property.bathrooms || 0} BA` : "Details not available",
-            priceRange: property.price ? `$${property.price.toLocaleString()}` : "Price on request",
-            // Pass the listing key for navigation
+            // Match PropertyCardV5 expected format
             listingKey: property.listingKey,
-            // Keep all images for potential carousel use
-            images: property.images || []
+            propertyType: property.propertySubType || property.propertyType || "Residential",
+            address: property.address || "Address not available",
+            bedrooms: property.bedrooms || 0,
+            bathrooms: property.bathrooms || 0,
+            price: property.price || 0,
+            isRental: property.transactionType === 'Rent',
+            transactionType: property.transactionType || 'Sale',
+            imageUrl: imageUrl,
+            images: property.images || [],
+            source: 'mls'
           };
         });
         
-        // Debug log formatted listings
         console.log('Formatted nearby listings:', formattedListings);
         setNearbyListings(formattedListings);
+        
+        // Fetch ALL images directly via API 
+        const listingKeysToFetch = formattedListings
+          .filter(listing => listing.listingKey)
+          .map(listing => listing.listingKey);
+        
+        if (listingKeysToFetch.length > 0) {
+          console.log('Fetching images for listings:', listingKeysToFetch);
+          
+          // Fetch all images in one API call
+          try {
+            const imageResponse = await fetch('/api/property-images', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+              },
+              body: JSON.stringify({ listing_keys: listingKeysToFetch })
+            });
+            
+            const imageResult = await imageResponse.json();
+            console.log('Image API response:', imageResult);
+            
+            // Check both possible response structures
+            const imagesData = imageResult.data?.images || imageResult.images;
+            
+            if (imageResult.success && imagesData) {
+              console.log('Images data found:', imagesData);
+              // Update listings with fetched images
+              setNearbyListings(prev => prev.map(listing => {
+                const imageData = imagesData[listing.listingKey];
+                if (imageData && imageData.image_url) {
+                  console.log(`Updating image for ${listing.listingKey}:`, imageData.image_url);
+                  return { 
+                    ...listing, 
+                    imageUrl: imageData.image_url, 
+                    images: imageData.all_images || [] 
+                  };
+                }
+                return listing;
+              }));
+            }
+          } catch (imgError) {
+            console.error('Error fetching images:', imgError);
+          }
+        }
+      } else {
+        setNearbyListings([]);
       }
     } catch (error) {
       console.error('Error fetching nearby listings:', error);
-      // Set empty array on error
       setNearbyListings([]);
     } finally {
       setIsLoading(false);
@@ -192,52 +223,82 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
       const response = await fetch(`/api/similar-listings?listingKey=${listingKey}&limit=6`);
       const data = await response.json();
       
-      // Debug log to see what we're getting from API
       console.log('Similar listings API response:', data);
       
       if (data.properties && data.properties.length > 0) {
-        // Format the data for the PropertyCardV3 component - same as nearby listings
-        const formattedListings = data.properties.map((property, index) => {
-          // Use MediaURL field like the search page does, fallback to image field
-          let imageUrl = property.MediaURL || property.image;
-          
-          // Check for null, undefined, empty string, or "none"
-          if (!imageUrl) {
-            // Fallback to placeholder if no image
-            imageUrl = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80";
-            console.log(`Similar property ${property.listingKey} - No image, using placeholder`);
-          } else if (imageUrl.includes('ampre.ca')) {
-            // Use the proxy endpoint to avoid SSL issues for AMPRE images
-            const proxiedUrl = `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
-            console.log(`Similar property ${property.listingKey} - Proxying AMPRE image:`, imageUrl.substring(0, 50), '... to', proxiedUrl.substring(0, 50));
-            imageUrl = proxiedUrl;
-          } else {
-            console.log(`Similar property ${property.listingKey} - Using direct image:`, imageUrl.substring(0, 50));
-          }
+        // Format the data exactly like search page does for PropertyCardV5
+        const formattedListings = data.properties.map((property) => {
+          let imageUrl = property.MediaURL || null;
           
           return {
-            id: property.listingKey || index,
-            // Use the actual property type or subtype from the API
-            name: property.propertySubType || property.propertyType || "Residential",
-            // Use the processed image URL
-            image: imageUrl,
-            address: property.address || "Address not available",
-            units: property.bedrooms ? `${property.bedrooms} BD, ${property.bathrooms || 0} BA` : "Details not available",
-            priceRange: property.price ? `$${property.price.toLocaleString()}` : "Price on request",
-            // Pass the listing key for navigation
+            // Match PropertyCardV5 expected format
             listingKey: property.listingKey,
-            // Keep all images for potential carousel use
-            images: property.images || []
+            propertyType: property.propertySubType || property.propertyType || "Residential",
+            address: property.address || "Address not available",
+            bedrooms: property.bedrooms || 0,
+            bathrooms: property.bathrooms || 0,
+            price: property.price || 0,
+            isRental: property.transactionType === 'Rent',
+            transactionType: property.transactionType || 'Sale',
+            imageUrl: imageUrl,
+            images: property.images || [],
+            source: 'mls'
           };
         });
         
-        // Debug log formatted listings
         console.log('Formatted similar listings:', formattedListings);
         setSimilarListings(formattedListings);
+        
+        // Fetch ALL images directly via API 
+        const listingKeysToFetch = formattedListings
+          .filter(listing => listing.listingKey)
+          .map(listing => listing.listingKey);
+        
+        if (listingKeysToFetch.length > 0) {
+          console.log('Fetching images for listings:', listingKeysToFetch);
+          
+          // Fetch all images in one API call
+          try {
+            const imageResponse = await fetch('/api/property-images', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+              },
+              body: JSON.stringify({ listing_keys: listingKeysToFetch })
+            });
+            
+            const imageResult = await imageResponse.json();
+            console.log('Image API response:', imageResult);
+            
+            // Check both possible response structures
+            const imagesData = imageResult.data?.images || imageResult.images;
+            
+            if (imageResult.success && imagesData) {
+              console.log('Images data found:', imagesData);
+              // Update listings with fetched images
+              setSimilarListings(prev => prev.map(listing => {
+                const imageData = imagesData[listing.listingKey];
+                if (imageData && imageData.image_url) {
+                  console.log(`Updating image for ${listing.listingKey}:`, imageData.image_url);
+                  return { 
+                    ...listing, 
+                    imageUrl: imageData.image_url, 
+                    images: imageData.all_images || [] 
+                  };
+                }
+                return listing;
+              }));
+            }
+          } catch (imgError) {
+            console.error('Error fetching images:', imgError);
+          }
+        }
+      } else {
+        setSimilarListings([]);
       }
     } catch (error) {
       console.error('Error fetching similar listings:', error);
-      // Set empty array on error
       setSimilarListings([]);
     } finally {
       setIsLoading(false);
@@ -333,23 +394,35 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
         <div className="block md:hidden">
           <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
             {buildings.map((building) => (
-              <div key={building.id} className="flex-shrink-0 w-72">
-                <PropertyCardV3
-                  image={building.image}
-                  title={building.name}
-                  address={building.address}
-                  units={building.units}
-                  priceRange={building.priceRange}
-                  listingKey={building.listingKey}
-                  onClick={() => {
-                    // Navigate to property detail page if it has a listingKey
-                    if (building.listingKey) {
-                      window.location.href = `/property/${building.listingKey}`;
-                    } else {
-                      console.log('Building clicked:', building.name);
-                    }
-                  }}
-                />
+              <div key={building.listingKey || building.id} className="flex-shrink-0 w-72">
+                {/* Use PropertyCardV5 for actual listings, PropertyCardV3 for sample data */}
+                {building.source === 'mls' ? (
+                  <PropertyCardV5
+                    property={building}
+                    size="mobile"
+                    onClick={() => {
+                      if (building.listingKey) {
+                        window.location.href = `/property/${building.listingKey}`;
+                      }
+                    }}
+                  />
+                ) : (
+                  <PropertyCardV3
+                    image={building.image}
+                    title={building.name}
+                    address={building.address}
+                    units={building.units}
+                    priceRange={building.priceRange}
+                    listingKey={building.listingKey}
+                    onClick={() => {
+                      if (building.listingKey) {
+                        window.location.href = `/property/${building.listingKey}`;
+                      } else {
+                        console.log('Building clicked:', building.name);
+                      }
+                    }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -370,23 +443,35 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
                   {buildings
                     .slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide)
                     .map((building) => (
-                      <PropertyCardV3
-                        key={building.id}
-                        image={building.image}
-                        title={building.name}
-                        address={building.address}
-                        units={building.units}
-                        priceRange={building.priceRange}
-                        listingKey={building.listingKey}
-                        onClick={() => {
-                          // Navigate to property detail page if it has a listingKey
-                          if (building.listingKey) {
-                            window.location.href = `/property/${building.listingKey}`;
-                          } else {
-                            console.log('Building clicked:', building.name);
-                          }
-                        }}
-                      />
+                      building.source === 'mls' ? (
+                        <PropertyCardV5
+                          key={building.listingKey}
+                          property={building}
+                          size="default"
+                          onClick={() => {
+                            if (building.listingKey) {
+                              window.location.href = `/property/${building.listingKey}`;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <PropertyCardV3
+                          key={building.id}
+                          image={building.image}
+                          title={building.name}
+                          address={building.address}
+                          units={building.units}
+                          priceRange={building.priceRange}
+                          listingKey={building.listingKey}
+                          onClick={() => {
+                            if (building.listingKey) {
+                              window.location.href = `/property/${building.listingKey}`;
+                            } else {
+                              console.log('Building clicked:', building.name);
+                            }
+                          }}
+                        />
+                      )
                     ))}
                 </div>
               </div>

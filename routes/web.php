@@ -272,11 +272,11 @@ require __DIR__.'/auth.php';
 
 
 
-// Enhanced Property Images API Routes
-Route::prefix('api')->group(function () {
-    Route::post('/property-images', [EnhancedPropertyImagesController::class, 'getPropertyImages'])->name('api.property-images');
-    Route::post('/property-images/clear-cache', [EnhancedPropertyImagesController::class, 'clearImageCache'])->name('api.property-images.clear-cache');
-});
+// Enhanced Property Images API Routes - DISABLED to use PropertyImageController instead
+// Route::prefix('api')->group(function () {
+//     Route::post('/property-images', [EnhancedPropertyImagesController::class, 'getPropertyImages'])->name('api.property-images');
+//     Route::post('/property-images/clear-cache', [EnhancedPropertyImagesController::class, 'clearImageCache'])->name('api.property-images.clear-cache');
+// });
 
 // AMPRE API Test Routes (remove in production)
 Route::prefix('api/ampre/test')->group(function () {

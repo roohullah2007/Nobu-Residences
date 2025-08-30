@@ -355,6 +355,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
           propertyData={displayData}
           sampleSaleProperties={sampleSaleProperties}
           sampleRentProperties={sampleRentProperties}
+          auth={auth}
         />
         
         {/* Global Viewing Request Modal */}

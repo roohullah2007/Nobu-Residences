@@ -153,12 +153,19 @@ const PluginStyleImageLoader = ({
     if (src && (imageState.src !== src || (!imageState.loaded && !imageState.loading))) {
       // Check if src is a valid URL
       try {
+        // For AMPRE images, ensure we're using HTTP
+        let processedSrc = src;
+        if (src.includes('ampre.ca') && src.startsWith('https://')) {
+          processedSrc = src.replace('https://', 'http://');
+          console.log('Converting AMPRE URL to HTTP:', processedSrc);
+        }
+        
         // Check if it's a full URL or starts with http/https
-        if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//')) {
-          loadImage(src, 0);
-        } else if (src.startsWith('/')) {
+        if (processedSrc.startsWith('http://') || processedSrc.startsWith('https://') || processedSrc.startsWith('//')) {
+          loadImage(processedSrc, 0);
+        } else if (processedSrc.startsWith('/')) {
           // Relative URL - try to load it
-          loadImage(src, 0);
+          loadImage(processedSrc, 0);
         } else {
           // Not a valid URL, show error state
           setImageState(prev => ({ 

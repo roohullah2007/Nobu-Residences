@@ -554,13 +554,13 @@ class WebsiteController extends Controller
                 }
             }
             
-            // Get images for all nearby properties first
+            // Get images for all nearby properties
             $listingKeys = array_column($allFormattedProperties, 'listingKey');
             \Log::info('Fetching images for listing keys:', $listingKeys);
             
             if (!empty($listingKeys)) {
                 try {
-                    // Fetch images in batches like the search page does
+                    // Fetch images in batches
                     $batchSize = 3;
                     $imagesByKey = [];
                     
@@ -570,42 +570,22 @@ class WebsiteController extends Controller
                         $imagesByKey = array_merge($imagesByKey, $batchImages);
                     }
                     
-                    // Track used images to avoid duplicates
-                    $usedImages = [];
-                    
                     foreach ($allFormattedProperties as &$property) {
                         $key = $property['listingKey'];
                         $propertyImages = $imagesByKey[$key] ?? [];
                         
-                        // Add full Images array to property
+                        // Add images array
                         $property['images'] = $propertyImages;
                         
-                        // Get the first image URL
+                        // Get first image URL
                         $imageUrl = null;
                         if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
                             $imageUrl = $propertyImages[0]['MediaURL'];
                         }
                         
-                        // Check if this image has been used already
-                        if ($imageUrl && in_array($imageUrl, $usedImages)) {
-                            // Try to find an alternative image from the array
-                            foreach ($propertyImages as $img) {
-                                if (!empty($img['MediaURL']) && !in_array($img['MediaURL'], $usedImages)) {
-                                    $imageUrl = $img['MediaURL'];
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        // Track this image as used
-                        if ($imageUrl) {
-                            $usedImages[] = $imageUrl;
-                        }
-                        
-                        // Add MediaURL field like the search page does
-                        // Always set a value, even if null, to ensure consistent response
-                        $property['MediaURL'] = $imageUrl ?: null;
-                        $property['image'] = $imageUrl ?: null; // Keep for backward compatibility
+                        // Set MediaURL and image fields
+                        $property['MediaURL'] = $imageUrl;
+                        $property['image'] = $imageUrl;
                         
                         \Log::info("Image for {$key}: " . ($imageUrl ?: 'none'));
                     }
@@ -619,30 +599,10 @@ class WebsiteController extends Controller
                 }
             }
             
-            // Now filter to get only properties with images, up to the limit
-            $propertiesWithImages = [];
-            $propertiesWithoutImages = [];
+            // Return properties, limited to requested amount
+            $finalProperties = array_slice($allFormattedProperties, 0, $limit);
             
-            foreach ($allFormattedProperties as $property) {
-                if (!empty($property['MediaURL']) || !empty($property['image'])) {
-                    $propertiesWithImages[] = $property;
-                } else {
-                    $propertiesWithoutImages[] = $property;
-                }
-            }
-            
-            // Combine properties, prioritizing those with images
-            $finalProperties = array_slice($propertiesWithImages, 0, $limit);
-            
-            // Only add properties without images if we have less than 3 properties with images
-            // This ensures we always show some properties, but prefer those with images
-            if (count($finalProperties) < 3 && count($finalProperties) < $limit) {
-                $needed = min($limit - count($finalProperties), 3 - count($finalProperties));
-                $additionalProperties = array_slice($propertiesWithoutImages, 0, $needed);
-                $finalProperties = array_merge($finalProperties, $additionalProperties);
-            }
-            
-            \Log::info('Nearby listings - Returning ' . count($finalProperties) . ' properties, ' . count($propertiesWithImages) . ' with images, ' . count($propertiesWithoutImages) . ' without images available');
+            \Log::info('Nearby listings - Returning ' . count($finalProperties) . ' properties');
             
             return response()->json(['properties' => $finalProperties]);
             
@@ -727,7 +687,7 @@ class WebsiteController extends Controller
                 }
             }
             
-            // Get images for similar properties - using same approach as search page
+            // Get images for similar properties
             $listingKeys = array_column($allFormattedProperties, 'listingKey');
             \Log::info('Fetching images for similar properties:', $listingKeys);
             
@@ -743,42 +703,22 @@ class WebsiteController extends Controller
                         $imagesByKey = array_merge($imagesByKey, $batchImages);
                     }
                     
-                    // Track used images to avoid duplicates
-                    $usedImages = [];
-                    
                     foreach ($allFormattedProperties as &$property) {
                         $key = $property['listingKey'];
                         $propertyImages = $imagesByKey[$key] ?? [];
                         
-                        // Add full Images array to property
+                        // Add images array
                         $property['images'] = $propertyImages;
                         
-                        // Get the first image URL
+                        // Get first image URL
                         $imageUrl = null;
                         if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
                             $imageUrl = $propertyImages[0]['MediaURL'];
                         }
                         
-                        // Check if this image has been used already
-                        if ($imageUrl && in_array($imageUrl, $usedImages)) {
-                            // Try to find an alternative image from the array
-                            foreach ($propertyImages as $img) {
-                                if (!empty($img['MediaURL']) && !in_array($img['MediaURL'], $usedImages)) {
-                                    $imageUrl = $img['MediaURL'];
-                                    break;
-                                }
-                            }
-                        }
-                        
-                        // Track this image as used
-                        if ($imageUrl) {
-                            $usedImages[] = $imageUrl;
-                        }
-                        
-                        // Add MediaURL field like the search page does
-                        // Always set a value, even if null, to ensure consistent response
-                        $property['MediaURL'] = $imageUrl ?: null;
-                        $property['image'] = $imageUrl ?: null; // Keep for backward compatibility
+                        // Set MediaURL and image fields
+                        $property['MediaURL'] = $imageUrl;
+                        $property['image'] = $imageUrl;
                         
                         \Log::info("Similar listing image for {$key}: " . ($imageUrl ?: 'none'));
                     }
@@ -792,30 +732,10 @@ class WebsiteController extends Controller
                 }
             }
             
-            // Now filter to get only properties with images, up to the limit
-            $propertiesWithImages = [];
-            $propertiesWithoutImages = [];
+            // Return properties, limited to requested amount
+            $finalProperties = array_slice($allFormattedProperties, 0, $limit);
             
-            foreach ($allFormattedProperties as $property) {
-                if (!empty($property['MediaURL']) || !empty($property['image'])) {
-                    $propertiesWithImages[] = $property;
-                } else {
-                    $propertiesWithoutImages[] = $property;
-                }
-            }
-            
-            // Combine properties, prioritizing those with images
-            $finalProperties = array_slice($propertiesWithImages, 0, $limit);
-            
-            // Only add properties without images if we have less than 3 properties with images
-            // This ensures we always show some properties, but prefer those with images
-            if (count($finalProperties) < 3 && count($finalProperties) < $limit) {
-                $needed = min($limit - count($finalProperties), 3 - count($finalProperties));
-                $additionalProperties = array_slice($propertiesWithoutImages, 0, $needed);
-                $finalProperties = array_merge($finalProperties, $additionalProperties);
-            }
-            
-            \Log::info('Similar listings - Returning ' . count($finalProperties) . ' properties, ' . count($propertiesWithImages) . ' with images, ' . count($propertiesWithoutImages) . ' without images available');
+            \Log::info('Similar listings - Returning ' . count($finalProperties) . ' properties');
             
             return response()->json(['properties' => $finalProperties]);
             

@@ -70,7 +70,7 @@ const PropertyStatusTabs = ({ property }) => {
       case 'mortgage':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <MortgageCalculator />
+            <MortgageCalculator property={property} />
           </div>
         );
       

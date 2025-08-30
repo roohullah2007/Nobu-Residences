@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 
 const PropertyCardV3 = ({ 
   image,
@@ -9,28 +10,6 @@ const PropertyCardV3 = ({
   onClick,
   listingKey
 }) => {
-  const [imageLoading, setImageLoading] = useState(true);
-  const [currentImage, setCurrentImage] = useState(image);
-  
-  // Update image when prop changes
-  useEffect(() => {
-    setCurrentImage(image);
-    setImageLoading(true);
-  }, [image]);
-  
-  const handleImageLoad = () => {
-    setImageLoading(false);
-  };
-  
-  const handleImageError = (e) => {
-    console.log('Image failed to load:', image);
-    setImageLoading(false);
-    // Set fallback image
-    const fallbackImage = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80";
-    if (e.target.src !== fallbackImage) {
-      e.target.src = fallbackImage;
-    }
-  };
 
   return (
     <div 
@@ -39,19 +18,16 @@ const PropertyCardV3 = ({
     >
       {/* Image Container */}
       <div className="relative bg-gray-100 h-[200px] overflow-hidden">
-        {imageLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
-            <div className="animate-pulse w-full h-full bg-gray-200"></div>
-          </div>
-        )}
-        <img 
-          src={currentImage} 
+        <PluginStyleImageLoader
+          src={image}
           alt={`${title} - ${address}`}
-          className="w-full h-full object-cover transition-opacity duration-300"
-          style={{ opacity: imageLoading ? 0 : 1 }}
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-          loading="lazy"
+          className="w-full h-full"
+          enableLazyLoading={true}
+          rootMargin="200px"
+          threshold={0.01}
+          enableBlurEffect={true}
+          priority="normal"
+          data-listing-key={listingKey}
         />
       </div>
       

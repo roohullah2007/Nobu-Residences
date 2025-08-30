@@ -204,7 +204,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                             ref={locationInputRef}
                             type="text"
                             placeholder="Enter address, city, or neighborhood..."
-                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full pl-10 pr-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all relative z-10"
                             value={searchData.location}
                             onChange={(e) => setSearchData({ ...searchData, location: e.target.value })}
                             onKeyPress={handleKeyPress}
@@ -214,7 +214,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                     {/* Property Type */}
                     <div className="relative">
                         <select
-                            className="appearance-none w-full md:px-8 gap-2 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                            className="appearance-none w-full md:px-8 gap-2 py-3 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                             value={searchData.propertyType}
                             onChange={(e) => setSearchData({ ...searchData, propertyType: e.target.value })}
                         >
@@ -248,7 +248,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                     {/* Bedrooms */}
                     <div className="mb-3 lg:mb-0">
                         <select
-                            className="appearance-none min-w-[140px] px-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                            className="appearance-none min-w-[140px] px-4 py-2 bg-white border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                             value={searchData.bedrooms}
                             onChange={(e) => setSearchData({ ...searchData, bedrooms: e.target.value })}
                         >
@@ -264,7 +264,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                     {/* Bathrooms */}
                     <div className="mb-3 lg:mb-0">
                         <select
-                            className="appearance-none min-w-[140px] px-4 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                            className="appearance-none min-w-[140px] px-4 py-2 bg-white border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
                             value={searchData.bathrooms}
                             onChange={(e) => setSearchData({ ...searchData, bathrooms: e.target.value })}
                         >
@@ -283,7 +283,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                             <input
                                 type="number"
                                 placeholder="Min Price"
-                                className="w-32 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                className="w-32 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all"
                                 value={searchData.minPrice}
                                 onChange={(e) => setSearchData({ ...searchData, minPrice: parseInt(e.target.value) || 0 })}
                             />
@@ -291,7 +291,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                             <input
                                 type="number"
                                 placeholder="Max Price"
-                                className="w-32 px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                className="w-32 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all"
                                 value={searchData.maxPrice}
                                 onChange={(e) => setSearchData({ ...searchData, maxPrice: parseInt(e.target.value) || 10000000 })}
                             />

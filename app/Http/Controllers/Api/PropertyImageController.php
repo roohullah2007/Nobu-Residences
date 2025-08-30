@@ -45,8 +45,8 @@ class PropertyImageController extends Controller
                 ], 400);
             }
             
-            // Limit batch size to prevent API overload
-            $batchSize = min(count($listingKeys), 10);
+            // Limit batch size to prevent API overload - increased to handle more images
+            $batchSize = min(count($listingKeys), 20); // Increased from 10 to 20
             $listingKeys = array_slice($listingKeys, 0, $batchSize);
             
             // Fetch images for the listing keys

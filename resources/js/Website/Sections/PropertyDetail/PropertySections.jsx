@@ -13,7 +13,8 @@ import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/Prop
 export default function PropertySections({ 
   propertyData, 
   sampleSaleProperties, 
-  sampleRentProperties 
+  sampleRentProperties,
+  auth 
 }) {
   return (
     <div className="min-h-screen space-y-4 font-work-sans overflow-x-hidden">
@@ -39,8 +40,8 @@ export default function PropertySections({
         title="Similar Listings"
       />
       
-      {/* Comparable Sales Section */}
-      <ComparableSales />
+      {/* Comparable Sales Section - Only visible to logged-in users */}
+      {auth?.user && <ComparableSales />}
       
       {/* Properties For Sale Section - Using Global PropertyCarousel
       <section className="py-4 bg-gray-50">
