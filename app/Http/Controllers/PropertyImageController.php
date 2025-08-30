@@ -112,8 +112,16 @@ class PropertyImageController extends Controller
                     $primaryImage = $mlsImages[$key][0] ?? null;
                     
                     if ($primaryImage && isset($primaryImage['MediaURL']) && !empty($primaryImage['MediaURL'])) {
+                        $imageUrl = $primaryImage['MediaURL'];
+                        
+                        // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                        if (strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                            $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                            Log::info('PropertyImageController - Converting AMPRE URL to HTTP: ' . $imageUrl);
+                        }
+                        
                         $images[$key] = [
-                            'image_url' => $primaryImage['MediaURL'],
+                            'image_url' => $imageUrl,
                             'is_placeholder' => false,
                             'media_key' => $primaryImage['MediaKey'] ?? null
                         ];

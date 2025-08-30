@@ -52,9 +52,15 @@ export default function PropertyGallery({
           url = url.replace(/([^:]\/)\/+/g, "$1");
           
           // Handle AMPRE CDN URLs - convert HTTPS to HTTP to avoid SSL issues
-          if (url.includes('ampre.ca') && url.startsWith('https://')) {
-            console.log('PropertyGallery - Converting AMPRE HTTPS to HTTP:', url);
-            url = url.replace('https://', 'http://');
+          if (url && url.includes && url.includes('ampre.ca')) {
+            // Always ensure HTTP for AMPRE URLs, even if already HTTP
+            if (url.startsWith('https://')) {
+              console.log('PropertyGallery - Converting AMPRE HTTPS to HTTP:', url);
+              url = url.replace('https://', 'http://');
+            } else if (!url.startsWith('http://') && !url.startsWith('//')) {
+              // If it's a relative AMPRE URL, make it absolute with HTTP
+              url = 'http://' + (url.startsWith('/') ? url.substring(1) : url);
+            }
           }
           
           // Ensure URL is absolute
@@ -225,7 +231,7 @@ export default function PropertyGallery({
                 onClick={() => openModal(0)}
               >
                 <img 
-                  src={images[0]}
+                  src={images[0] && images[0].includes && images[0].includes('ampre.ca') && images[0].startsWith('https://') ? images[0].replace('https://', 'http://') : images[0]}
                   alt="Main property image"
                   className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                   onError={handleImageError}
@@ -243,7 +249,13 @@ export default function PropertyGallery({
                   onClick={() => openModal(1)}
                 >
                   <img 
-                    src={images[1] || images[0]}
+                    src={(function() {
+                      let url = images[1] || images[0];
+                      if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
+                        return url.replace('https://', 'http://');
+                      }
+                      return url;
+                    })()}
                     alt="Property image 2"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                     onError={(e) => handleImageError(e, 1)}
@@ -259,7 +271,13 @@ export default function PropertyGallery({
                   onClick={() => openModal(2)}
                 >
                   <img 
-                    src={images[2] || images[1] || images[0]}
+                    src={(function() {
+                      let url = images[2] || images[1] || images[0];
+                      if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
+                        return url.replace('https://', 'http://');
+                      }
+                      return url;
+                    })()}
                     alt="Property image 3"
                     className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                     onError={handleImageError}
@@ -295,7 +313,7 @@ export default function PropertyGallery({
                     }`}
                   >
                     <img 
-                      src={image}
+                      src={image && image.includes && image.includes('ampre.ca') && image.startsWith('https://') ? image.replace('https://', 'http://') : image}
                       alt={`Property image ${index + 1}`}
                       className="w-full h-full object-cover object-center"
                       onError={(e) => handleImageError(e, index)}
@@ -625,21 +643,28 @@ export default function PropertyGallery({
                 className="flex h-full w-full transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${modalImageIndex * 100}%)` }}
               >
-                {images.map((image, index) => (
-                  <div key={index} className="min-w-full flex items-center justify-center p-4">
-                    <img 
-                      src={image}
-                      alt={`Property image ${index + 1}`}
-                      onError={(e) => {
-                        console.error('PropertyGallery - Failed to load modal image:', image);
-                        // Hide broken image - no fallback
-                        e.target.style.display = 'none';
-                        e.target.onerror = null;
-                      }}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                ))}
+                {images.map((image, index) => {
+                  // Ensure AMPRE images use HTTP in modal too
+                  let modalImageUrl = image;
+                  if (modalImageUrl && modalImageUrl.includes && modalImageUrl.includes('ampre.ca') && modalImageUrl.startsWith('https://')) {
+                    modalImageUrl = modalImageUrl.replace('https://', 'http://');
+                  }
+                  return (
+                    <div key={index} className="min-w-full flex items-center justify-center p-4">
+                      <img 
+                        src={modalImageUrl}
+                        alt={`Property image ${index + 1}`}
+                        onError={(e) => {
+                          console.error('PropertyGallery - Failed to load modal image:', modalImageUrl);
+                          // Hide broken image - no fallback
+                          e.target.style.display = 'none';
+                          e.target.onerror = null;
+                        }}
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
@@ -657,24 +682,31 @@ export default function PropertyGallery({
           {/* Thumbnail Navigation - Only show if we have more than 1 image */}
           {images.length > 1 && (
             <div className="flex gap-2 px-4 py-3 bg-black bg-opacity-90 border-t border-white border-opacity-10 overflow-x-auto">
-              {images.map((image, index) => (
-                <button
-                  key={index}
-                  onClick={() => setModalImageIndex(index)}
-                  className={`border-2 rounded-md overflow-hidden opacity-70 flex-shrink-0 transition-all hover:opacity-90 ${
-                    index === modalImageIndex 
-                      ? 'border-blue-500 opacity-100 scale-105' 
-                      : 'border-white border-opacity-20'
-                  }`}
-                >
-                  <img 
-                    src={image}
-                    alt={`Thumbnail ${index + 1}`}
-                    className="w-20 h-15 object-cover block"
-                    onError={handleImageError}
-                  />
-                </button>
-              ))}
+              {images.map((image, index) => {
+                // Ensure AMPRE images use HTTP in thumbnails too
+                let thumbUrl = image;
+                if (thumbUrl && thumbUrl.includes && thumbUrl.includes('ampre.ca') && thumbUrl.startsWith('https://')) {
+                  thumbUrl = thumbUrl.replace('https://', 'http://');
+                }
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setModalImageIndex(index)}
+                    className={`border-2 rounded-md overflow-hidden opacity-70 flex-shrink-0 transition-all hover:opacity-90 ${
+                      index === modalImageIndex 
+                        ? 'border-blue-500 opacity-100 scale-105' 
+                        : 'border-white border-opacity-20'
+                    }`}
+                  >
+                    <img 
+                      src={thumbUrl}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-20 h-15 object-cover block"
+                      onError={handleImageError}
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

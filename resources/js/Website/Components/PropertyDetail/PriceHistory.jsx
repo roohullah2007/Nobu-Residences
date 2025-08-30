@@ -51,7 +51,6 @@ const PriceHistory = ({ propertyData = null }) => {
                 <span className="text-gray-400 text-xs">No image</span>
               </div>
             )}
-            />
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 w-full space-y-3 md:space-y-0">
             <div className="flex flex-col">
@@ -86,7 +85,6 @@ const PriceHistory = ({ propertyData = null }) => {
                 <span className="text-gray-400 text-xs">No image</span>
               </div>
             )}
-            />
           </div>
           <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 space-y-3 md:space-y-0">
             <div className="flex flex-col md:justify-between">

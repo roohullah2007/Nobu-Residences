@@ -58,9 +58,24 @@ class PropertyImageController extends Controller
                 $images = $imagesByKey[$listingKey] ?? [];
                 
                 if (!empty($images) && isset($images[0]['MediaURL'])) {
+                    $imageUrl = $images[0]['MediaURL'];
+                    
+                    // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                    if (strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                        $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                    }
+                    
+                    // Also convert all images in the array
+                    $processedImages = array_map(function($img) {
+                        if (isset($img['MediaURL']) && strpos($img['MediaURL'], 'ampre.ca') !== false && strpos($img['MediaURL'], 'https://') === 0) {
+                            $img['MediaURL'] = str_replace('https://', 'http://', $img['MediaURL']);
+                        }
+                        return $img;
+                    }, $images);
+                    
                     $formattedImages[$listingKey] = [
-                        'image_url' => $images[0]['MediaURL'],
-                        'all_images' => $images,
+                        'image_url' => $imageUrl,
+                        'all_images' => $processedImages,
                         'status' => 'success'
                     ];
                 } else {
@@ -125,11 +140,26 @@ class PropertyImageController extends Controller
             $propertyImages = $images[$listingKey] ?? [];
             
             if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
+                $imageUrl = $propertyImages[0]['MediaURL'];
+                
+                // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                if (strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                    $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                }
+                
+                // Also convert all images in the array
+                $processedImages = array_map(function($img) {
+                    if (isset($img['MediaURL']) && strpos($img['MediaURL'], 'ampre.ca') !== false && strpos($img['MediaURL'], 'https://') === 0) {
+                        $img['MediaURL'] = str_replace('https://', 'http://', $img['MediaURL']);
+                    }
+                    return $img;
+                }, $propertyImages);
+                
                 return response()->json([
                     'success' => true,
                     'data' => [
-                        'image_url' => $propertyImages[0]['MediaURL'],
-                        'all_images' => $propertyImages
+                        'image_url' => $imageUrl,
+                        'all_images' => $processedImages
                     ]
                 ]);
             }

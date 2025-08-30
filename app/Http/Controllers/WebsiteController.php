@@ -581,11 +581,31 @@ class WebsiteController extends Controller
                         $imageUrl = null;
                         if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
                             $imageUrl = $propertyImages[0]['MediaURL'];
+                            
+                            // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                            if ($imageUrl && strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                                $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                                \Log::info("Converting AMPRE URL to HTTP: {$imageUrl}");
+                            }
+                        }
+                        
+                        // Process all images array too
+                        $processedImages = [];
+                        foreach ($propertyImages as $img) {
+                            if (isset($img['MediaURL'])) {
+                                $url = $img['MediaURL'];
+                                // Convert HTTPS to HTTP for AMPRE images
+                                if ($url && strpos($url, 'ampre.ca') !== false && strpos($url, 'https://') === 0) {
+                                    $url = str_replace('https://', 'http://', $url);
+                                }
+                                $processedImages[] = ['MediaURL' => $url];
+                            }
                         }
                         
                         // Set MediaURL and image fields
                         $property['MediaURL'] = $imageUrl;
                         $property['image'] = $imageUrl;
+                        $property['images'] = $processedImages;
                         
                         \Log::info("Image for {$key}: " . ($imageUrl ?: 'none'));
                     }
@@ -714,11 +734,31 @@ class WebsiteController extends Controller
                         $imageUrl = null;
                         if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
                             $imageUrl = $propertyImages[0]['MediaURL'];
+                            
+                            // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                            if ($imageUrl && strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                                $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                                \Log::info("Converting AMPRE URL to HTTP: {$imageUrl}");
+                            }
+                        }
+                        
+                        // Process all images array too
+                        $processedImages = [];
+                        foreach ($propertyImages as $img) {
+                            if (isset($img['MediaURL'])) {
+                                $url = $img['MediaURL'];
+                                // Convert HTTPS to HTTP for AMPRE images
+                                if ($url && strpos($url, 'ampre.ca') !== false && strpos($url, 'https://') === 0) {
+                                    $url = str_replace('https://', 'http://', $url);
+                                }
+                                $processedImages[] = ['MediaURL' => $url];
+                            }
                         }
                         
                         // Set MediaURL and image fields
                         $property['MediaURL'] = $imageUrl;
                         $property['image'] = $imageUrl;
+                        $property['images'] = $processedImages;
                         
                         \Log::info("Similar listing image for {$key}: " . ($imageUrl ?: 'none'));
                     }
@@ -864,7 +904,15 @@ class WebsiteController extends Controller
                         // Extract image URLs from the grouped response
                         $propertyImages = array_map(function($image) {
                             $url = $image['MediaURL'] ?? '';
-                            \Log::info('Processing image URL: ' . $url);
+                            
+                            // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                            if ($url && strpos($url, 'ampre.ca') !== false && strpos($url, 'https://') === 0) {
+                                $url = str_replace('https://', 'http://', $url);
+                                \Log::info('Converting AMPRE URL to HTTP: ' . $url);
+                            } else {
+                                \Log::info('Processing image URL: ' . $url);
+                            }
+                            
                             return $url;
                         }, $imagesResponse[$listingKey]);
                         
