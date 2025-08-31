@@ -98,12 +98,23 @@ const PropertyCardV1 = ({
       >
         {/* Card Image - Now uses real MLS images */}
         <div className={`relative w-full ${config.image} overflow-hidden bg-gray-100 rounded-t-xl`}>
-          <PropertyImageLoader
-            listingKey={property.listingKey}
-            alt={`${property.propertyType || 'Property'} in ${property.address}`}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            enableLazyLoading={true}
-          />
+          {property.image ? (
+            // Use pre-fetched image from API if available
+            <img
+              src={property.image}
+              alt={`${property.propertyType || 'Property'} in ${property.address}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            // Fallback to PropertyImageLoader for dynamic loading
+            <PropertyImageLoader
+              listingKey={property.listingKey}
+              alt={`${property.propertyType || 'Property'} in ${property.address}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              enableLazyLoading={true}
+            />
+          )}
           
           {/* Filter Chips and Action Buttons */}
           <div className="absolute inset-2 flex flex-col justify-between">

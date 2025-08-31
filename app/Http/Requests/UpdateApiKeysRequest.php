@@ -34,6 +34,7 @@ class UpdateApiKeysRequest extends FormRequest
             'mls_sync_interval' => 'nullable|integer|min:5|max:1440', // 5 minutes to 24 hours
             'mls_max_properties' => 'nullable|integer|min:10|max:10000',
             'mls_default_city' => 'nullable|string|max:100',
+            'default_building_address' => 'nullable|string|max:255',
             'cache_ttl' => 'nullable|integer|min:60|max:3600', // 1 minute to 1 hour
         ];
     }
@@ -73,6 +74,7 @@ class UpdateApiKeysRequest extends FormRequest
             'mls_sync_interval' => 'Sync Interval',
             'mls_max_properties' => 'Max Properties',
             'mls_default_city' => 'Default City',
+            'default_building_address' => 'Default Building Address',
             'cache_ttl' => 'Cache TTL',
         ];
     }

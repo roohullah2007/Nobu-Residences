@@ -1,4 +1,5 @@
 import React from 'react';
+import PropertyImageLoader from '@/Components/PropertyImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 
 /**
@@ -90,17 +91,25 @@ const PropertyCardV2 = ({
         className="block h-full text-inherit no-underline"
         onClick={handleClick}
       >
-        {/* Card Image */}
+        {/* Card Image - Now uses real MLS images */}
         <div className={`relative w-full ${config.image} overflow-hidden bg-gray-100 rounded-t-xl`}>
-          <img 
-            src={property.image}
-            alt={`${property.propertyType} in ${property.address}`}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
-            }}
-          />
+          {property.image ? (
+            // Use pre-fetched image from API if available
+            <img
+              src={property.image}
+              alt={`${property.propertyType || 'Property'} in ${property.address}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+            />
+          ) : (
+            // Fallback to PropertyImageLoader for dynamic loading
+            <PropertyImageLoader
+              listingKey={property.listingKey}
+              alt={`${property.propertyType || 'Property'} in ${property.address}`}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              enableLazyLoading={true}
+            />
+          )}
           
           {/* Filter Chips and Action Buttons */}
           <div className="absolute inset-2 flex flex-col justify-between">

@@ -27,6 +27,7 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
         mls_sync_interval: mls_settings?.sync_interval ?? 60,
         mls_max_properties: mls_settings?.max_properties ?? 1000,
         mls_default_city: mls_settings?.default_city ?? 'Toronto',
+        default_building_address: mls_settings?.default_building_address ?? '55 Mercer Street',
         cache_ttl: mls_settings?.cache_ttl ?? 300,
     });
 
@@ -387,6 +388,21 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                                         onChange={(e) => setData('mls_default_city', e.target.value)}
                                     />
                                     <InputError message={errors.mls_default_city} className="mt-2" />
+                                </div>
+
+                                {/* Default Building Address */}
+                                <div className="space-y-2">
+                                    <InputLabel htmlFor="default_building_address" value="Default Building Address" className="font-semibold" />
+                                    <p className="text-sm text-gray-600 mb-2">Default building address for homepage property listings (e.g., "55 Mercer Street")</p>
+                                    <TextInput
+                                        id="default_building_address"
+                                        type="text"
+                                        value={data.default_building_address}
+                                        className="block w-full"
+                                        placeholder="55 Mercer Street"
+                                        onChange={(e) => setData('default_building_address', e.target.value)}
+                                    />
+                                    <InputError message={errors.default_building_address} className="mt-2" />
                                 </div>
 
                                 {/* Cache TTL */}

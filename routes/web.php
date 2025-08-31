@@ -53,6 +53,9 @@ Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingContro
 // Property Detail API route
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
 
+// Homepage Properties API route
+Route::get('/api/homepage-properties', [\App\Http\Controllers\Api\HomepagePropertiesController::class, 'getHomepageProperties']);
+
 // Building API routes
 Route::prefix('api/buildings')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\BuildingController::class, 'index']);
