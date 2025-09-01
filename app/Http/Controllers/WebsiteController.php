@@ -1070,4 +1070,44 @@ class WebsiteController extends Controller
             'buildingData' => $buildingData
         ]));
     }
+    
+    /**
+     * Display the school detail page
+     */
+    public function schoolDetail($schoolId)
+    {
+        $school = \App\Models\School::active()->find($schoolId);
+        
+        $schoolData = null;
+        
+        if ($school) {
+            $schoolData = $school->getDisplayData();
+        }
+        
+        return Inertia::render('Website/Pages/SchoolDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $school ? $school->name : 'School Detail',
+            'schoolId' => $schoolId,
+            'schoolData' => $schoolData
+        ]));
+    }
+    
+    /**
+     * Display the school detail page by slug
+     */
+    public function schoolDetailBySlug($schoolSlug)
+    {
+        $school = \App\Models\School::active()->where('slug', $schoolSlug)->first();
+        
+        $schoolData = null;
+        
+        if ($school) {
+            $schoolData = $school->getDisplayData();
+        }
+        
+        return Inertia::render('Website/Pages/SchoolDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $school ? $school->name : 'School Detail',
+            'schoolSlug' => $schoolSlug,
+            'schoolData' => $schoolData
+        ]));
+    }
 }

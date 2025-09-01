@@ -36,11 +36,7 @@ class RealEstateController extends Controller
      */
     public function schools(): Response
     {
-        return Inertia::render('Admin/RealEstate/Schools', [
-            'title' => 'Schools',
-            'schools' => [
-                // This will be populated with actual school data later
-            ]
-        ]);
+        // Redirect to the new school management system
+        return redirect()->route('admin.schools.index');
     }
 }

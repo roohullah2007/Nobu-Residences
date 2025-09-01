@@ -20,7 +20,9 @@
       "Bash(then grep \"GOOGLE_MAPS\" .env)",
       "Bash(else echo \".env file not found\")",
       "Bash(fi)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(dir \"F:\\noburesidence\\NOBU\\laravel-react-starter\\routes\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": [],

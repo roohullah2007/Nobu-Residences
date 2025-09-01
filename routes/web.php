@@ -37,6 +37,15 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
+
+// School routes
+Route::get('/school/{schoolId}', [WebsiteController::class, 'schoolDetail'])
+    ->where('schoolId', '[0-9]+')
+    ->name('school-detail');
+Route::get('/schools/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySlug'])
+    ->where('schoolSlug', '[a-z0-9\-]+')
+    ->name('school-detail-slug');
+
 Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::class, 'proxy'])->name('image-proxy');
 
 // Property Image API routes (using same mechanism as WordPress plugin)
@@ -66,6 +75,20 @@ Route::prefix('api/buildings')->group(function () {
     Route::get('/find-by-address', [\App\Http\Controllers\Api\BuildingController::class, 'findByAddress']);
     Route::get('/count-mls-listings', [\App\Http\Controllers\Api\BuildingController::class, 'countMLSListings']);
     Route::get('/{id}', [\App\Http\Controllers\Api\BuildingController::class, 'show']);
+});
+
+// School API routes
+Route::prefix('api/schools')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\SchoolController::class, 'index']);
+    Route::get('/nearby', [\App\Http\Controllers\Api\SchoolController::class, 'getNearbySchools']);
+    Route::get('/featured', [\App\Http\Controllers\Api\SchoolController::class, 'featured']);
+    Route::get('/types', [\App\Http\Controllers\Api\SchoolController::class, 'schoolTypes']);
+    Route::get('/grade-levels', [\App\Http\Controllers\Api\SchoolController::class, 'gradeLevels']);
+    Route::get('/cities', [\App\Http\Controllers\Api\SchoolController::class, 'cities']);
+    Route::post('/geocode/{schoolId}', [\App\Http\Controllers\Api\SchoolController::class, 'geocodeSchool']);
+    Route::post('/batch-geocode', [\App\Http\Controllers\Api\SchoolController::class, 'batchGeocodeSchools']);
+    Route::get('/slug/{slug}', [\App\Http\Controllers\Api\SchoolController::class, 'showBySlug']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\SchoolController::class, 'show']);
 });
 
 // Nearby and Similar listings API routes
@@ -122,6 +145,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     
     // Amenity Management routes
     Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
+    
+    // School Management routes
+    Route::prefix('schools')->name('schools.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\SchoolController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Admin\SchoolController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Admin\SchoolController::class, 'store'])->name('store');
+        Route::get('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'show'])->name('show');
+        Route::get('/{school}/edit', [\App\Http\Controllers\Admin\SchoolController::class, 'edit'])->name('edit');
+        Route::put('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'update'])->name('update');
+        Route::delete('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('destroy');
+    });
     
     // Website Management routes
     Route::prefix('websites')->name('websites.')->group(function () {

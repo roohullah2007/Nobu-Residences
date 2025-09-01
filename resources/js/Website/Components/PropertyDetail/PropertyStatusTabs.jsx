@@ -77,7 +77,7 @@ const PropertyStatusTabs = ({ property }) => {
       case 'schools':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <NearbySchools />
+            <NearbySchools propertyData={property} />
           </div>
         );
       

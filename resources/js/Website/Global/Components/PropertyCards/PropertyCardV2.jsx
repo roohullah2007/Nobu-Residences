@@ -123,9 +123,10 @@ const PropertyCardV2 = ({
               </span>
             </div>
             
-            {/* Bottom row - Compare and Request buttons */}
-            <div className="flex justify-between items-center gap-2.5 h-8">
-              <button
+            {/* Bottom row - Request button only (Compare hidden for next phase) */}
+            <div className="flex justify-end items-center gap-2.5 h-8">
+              {/* Compare Button - Hidden for next phase */}
+              {/* <button
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -140,7 +141,7 @@ const PropertyCardV2 = ({
                 aria-label={`Add ${property.address} to compare`}
               >
                 Compare
-              </button>
+              </button> */}
               <button
                 onClick={(e) => {
                   e.preventDefault();

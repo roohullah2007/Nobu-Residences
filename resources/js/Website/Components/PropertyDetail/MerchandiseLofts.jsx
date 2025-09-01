@@ -132,9 +132,19 @@ export default function MerchandiseLofts({ propertyData }) {
             {/* Right side - Content */}
             <div className="flex-1 p-6 flex flex-col justify-between">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold mb-2 font-space-grotesk" style={{ color: '#293056' }}>
-                  {buildingName}
-                </h2>
+                {buildingId ? (
+                  <Link 
+                    href={`/building/${buildingId}`}
+                    className="text-xl md:text-2xl font-bold mb-2 font-space-grotesk hover:underline cursor-pointer transition-all duration-200 block"
+                    style={{ color: '#293056' }}
+                  >
+                    {buildingName}
+                  </Link>
+                ) : (
+                  <h2 className="text-xl md:text-2xl font-bold mb-2 font-space-grotesk" style={{ color: '#293056' }}>
+                    {buildingName}
+                  </h2>
+                )}
                 <p className="text-gray-600 mb-2 text-sm md:text-base">
                   {buildingAddress}
                 </p>

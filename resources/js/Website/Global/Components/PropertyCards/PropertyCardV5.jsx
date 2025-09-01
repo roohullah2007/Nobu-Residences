@@ -129,9 +129,10 @@ const PropertyCardV5 = ({
                 </span>
               </div>
               
-              {/* Bottom row - Compare and Request buttons - IDX-AMPRE style */}
-              <div className="flex justify-between items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <button
+              {/* Bottom row - Request button only (Compare hidden for next phase) - IDX-AMPRE style */}
+              <div className="flex justify-end items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                {/* Compare Button - Hidden for next phase */}
+                {/* <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -146,7 +147,7 @@ const PropertyCardV5 = ({
                   aria-label={`Add ${property.address} to compare`}
                 >
                   Compare
-                </button>
+                </button> */}
                 <button
                   onClick={(e) => {
                     e.preventDefault();

@@ -59,8 +59,11 @@ const BuildingCard = ({ building, size = "default", className = "" }) => {
 
         {/* Building Details */}
         <div className="p-4">
-          {/* Building Name */}
-          <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
+          {/* Building Name - Clickable */}
+          <h3 
+            className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 cursor-pointer hover:text-gray-700 transition-colors duration-200"
+            onClick={() => window.location.href = `/building/${id}`}
+          >
             {name}
           </h3>
 
