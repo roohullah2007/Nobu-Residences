@@ -1,15 +1,52 @@
 import { Link } from '@inertiajs/react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/Website/Global/Navbar';
 
 export default function HeroSection({ auth, siteName = 'Nobu Residences', website, pageContent }) {
+    const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
+    const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+    
     const heroContent = pageContent?.hero || {};
     const welcomeText = heroContent.welcome_text || `WELCOME TO ${siteName.toUpperCase()}`;
     const mainHeading = heroContent.main_heading || 'Your Next Home Is\nJust a Click Away';
     const subheading = heroContent.subheading || 'Whether buying or renting, Nobu makes finding your home easy and reliable.';
     const backgroundImage = heroContent.background_image || '/assets/hero-section.jpg';
+    
+    // Fetch property counts on component mount
+    useEffect(() => {
+        const fetchPropertyCounts = async () => {
+            try {
+                // Default to 55 Mercer Street
+                const response = await fetch('/api/buildings/count-mls-listings?street_number=55&street_name=Mercer');
+                const data = await response.json();
+                if (data.success) {
+                    setPropertyCounts(data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching property counts:', error);
+            } finally {
+                setIsLoadingCounts(false);
+            }
+        };
+        
+        fetchPropertyCounts();
+    }, []);
+    
     const buttons = heroContent.buttons || [
-        { text: '6 Condos for rent', url: '/rent', style: 'primary' },
-        { text: '6 Condos for sale', url: '/sale', style: 'secondary' }
+        { 
+            text: isLoadingCounts 
+                ? 'Loading...' 
+                : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Property' : 'Properties'} for rent`, 
+            url: '/search?building_id=55-mercer&transaction_type=rent', 
+            style: 'primary' 
+        },
+        { 
+            text: isLoadingCounts 
+                ? 'Loading...' 
+                : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Property' : 'Properties'} for sale`, 
+            url: '/search?building_id=55-mercer&transaction_type=sale', 
+            style: 'secondary' 
+        }
     ];
     
     const brandColors = website?.brand_colors || {

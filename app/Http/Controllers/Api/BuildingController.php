@@ -299,8 +299,7 @@ class BuildingController extends Controller
             $ampreService->addFilter('TransactionType', 'For Sale', 'eq');
             $ampreService->addFilter('StandardStatus', 'Active', 'eq');
             
-            // Filter for Condo Apartments only
-            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
+            // Don't filter by property type - show all types
             
             // Set minimal fields for counting
             $ampreService->setTop(1);
@@ -323,8 +322,7 @@ class BuildingController extends Controller
             $ampreService->addFilter('TransactionType', 'For Lease', 'eq');
             $ampreService->addFilter('StandardStatus', 'Active', 'eq');
             
-            // Filter for Condo Apartments only
-            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
+            // Don't filter by property type - show all types
             
             // Set minimal fields for counting
             $ampreService->setTop(1);

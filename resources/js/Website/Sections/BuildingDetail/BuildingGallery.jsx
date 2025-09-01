@@ -5,10 +5,39 @@ import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Ic
 const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFavorite }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
-
-  // For Sale and For Rent counts
-  const forSaleCount = 4;
-  const forRentCount = 4;
+  const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+  
+  // Extract building address from buildingData
+  const getBuildingAddress = () => {
+    const address = buildingData?.address || buildingData?.name || '';
+    const match = address.match(/^(\d+)\s+(.+?)(?:,|$)/);
+    if (match) {
+      return { streetNumber: match[1], streetName: match[2] };
+    }
+    // Default to 55 Mercer if no address found
+    return { streetNumber: '55', streetName: 'Mercer' };
+  };
+  
+  // Fetch property counts on component mount
+  useEffect(() => {
+    const fetchPropertyCounts = async () => {
+      try {
+        const { streetNumber, streetName } = getBuildingAddress();
+        const response = await fetch(`/api/buildings/count-mls-listings?street_number=${streetNumber}&street_name=${encodeURIComponent(streetName)}`);
+        const data = await response.json();
+        if (data.success) {
+          setPropertyCounts(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching property counts:', error);
+      } finally {
+        setIsLoadingCounts(false);
+      }
+    };
+    
+    fetchPropertyCounts();
+  }, [buildingData]);
 
   const openModal = (imageIndex = 0) => {
     setModalImageIndex(imageIndex);
@@ -123,17 +152,29 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                 
                 {/* For Sale and For Rent Buttons */}
                 <div className="flex flex-col gap-3">
-                  <button className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group">
+                  <a 
+                    href={`/search?building_id=${buildingData?.id || ''}&transaction_type=sale`}
+                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
+                  >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
-                      {forSaleCount} For Sale
+                      {isLoadingCounts 
+                        ? 'Loading...' 
+                        : `${propertyCounts.for_sale || 0} for sale`
+                      }
                     </span>
-                  </button>
+                  </a>
                   
-                  <button className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group">
+                  <a 
+                    href={`/search?building_id=${buildingData?.id || ''}&transaction_type=rent`}
+                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
+                  >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
-                      {forRentCount} For Rent
+                      {isLoadingCounts 
+                        ? 'Loading...' 
+                        : `${propertyCounts.for_rent || 0} for rent`
+                      }
                     </span>
-                  </button>
+                  </a>
                 </div>
                 
                 {/* Agent Section */}

@@ -8,7 +8,7 @@ import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Components/SimplePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
-import IDXAmpreSearchBar from '@/Components/IDXAmpreSearchBar';
+// import IDXAmpreSearchBar from '@/Components/IDXAmpreSearchBar';
 
 
 // Icon components
@@ -155,14 +155,25 @@ export default function EnhancedPropertySearch({
   filters = {}, 
   searchTab = 'listings', 
 }) {
+  // Get property type from URL params if available
+  const urlParams = new URLSearchParams(window.location.search);
+  const propertySubType = urlParams.get('property_sub_type');
+  
+  // Convert property_sub_type to property_type array
+  let propertyTypeArray = filters.property_type || [];
+  if (propertySubType !== null) {
+    // If property_sub_type is explicitly set in URL (even as empty), use it
+    propertyTypeArray = propertySubType ? [propertySubType] : [];
+  }
+  
   const [searchFilters, setSearchFilters] = useState({
-    query: filters.search || '',
-    status: filters.forSale || 'For Sale',
-    property_type: filters.property_type || ['Condo Apartment'], // Default to Condo Apartment
-    price_min: filters.minPrice || 0,
-    price_max: filters.maxPrice || 10000000, // Default max price 10M
-    bedrooms: filters.bedType || 0,
-    bathrooms: filters.bathrooms || 0,
+    query: filters.search || urlParams.get('location') || '',
+    status: filters.forSale || urlParams.get('property_type') || 'For Sale',
+    property_type: propertyTypeArray, // Empty array means all types
+    price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
+    price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
+    bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
+    bathrooms: filters.bathrooms || parseInt(urlParams.get('bathrooms')) || 0,
     sort: filters.sort || 'newest',
     tab: filters.tab || searchTab || 'listings',
     page: filters.page || 1,
@@ -755,7 +766,7 @@ export default function EnhancedPropertySearch({
               initialValues={{
                 location: searchFilters.query || '',
                 propertyType: searchFilters.status || 'For Sale',
-                propertySubType: searchFilters.property_type && searchFilters.property_type.length > 0 ? searchFilters.property_type[0] : 'Condo Apartment',
+                propertySubType: searchFilters.property_type && searchFilters.property_type.length > 0 ? searchFilters.property_type[0] : '',
                 bedrooms: String(searchFilters.bedrooms || '0'),
                 bathrooms: String(searchFilters.bathrooms || '0'),
                 minPrice: searchFilters.price_min || 0,

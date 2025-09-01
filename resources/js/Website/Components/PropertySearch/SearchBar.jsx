@@ -35,6 +35,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
     const [searchData, setSearchData] = useState({
         location: initialValues.location || '',
         propertyType: initialValues.propertyType || 'For Sale',
+        propertySubType: initialValues.propertySubType || '',
         bedrooms: initialValues.bedrooms || '0',
         bathrooms: initialValues.bathrooms || '0',
         minPrice: initialValues.minPrice || 0,
@@ -166,6 +167,7 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
             
             if (searchData.location) params.append('location', searchData.location);
             if (searchData.propertyType) params.append('property_type', searchData.propertyType);
+            if (searchData.propertySubType) params.append('property_sub_type', searchData.propertySubType);
             if (searchData.bedrooms && searchData.bedrooms !== '0') params.append('bedrooms', searchData.bedrooms);
             if (searchData.bathrooms && searchData.bathrooms !== '0') params.append('bathrooms', searchData.bathrooms);
             if (searchData.minPrice > 0) params.append('min_price', searchData.minPrice);
@@ -222,6 +224,22 @@ const SearchBar = ({ initialValues = {}, onSearch }) => {
                             <option value="For Rent">For Rent</option>
                             <option value="Sold">Sold</option>
                             <option value="Leased">Leased</option>
+                        </select>
+                    </div>
+
+                    {/* Property Sub Type */}
+                    <div className="relative">
+                        <select
+                            className="appearance-none w-full md:px-8 gap-2 py-3 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
+                            value={searchData.propertySubType}
+                            onChange={(e) => setSearchData({ ...searchData, propertySubType: e.target.value })}
+                        >
+                            <option value="">All Types</option>
+                            <option value="Vacant Land">Vacant Land</option>
+                            <option value="Detached">Detached</option>
+                            <option value="Condo Apartment">Condo Apartment</option>
+                            <option value="Condo Townhouse">Condo Townhouse</option>
+                            <option value="Attached/Townhouse">Townhouse</option>
                         </select>
                     </div>
 

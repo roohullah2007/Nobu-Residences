@@ -125,36 +125,43 @@ class PropertySearchController extends Controller
                 $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
             }
             
-            // Define all possible property types
+            // Define all possible property types based on MLS standards
             $propertyTypes = [
                 'Condo Apartment',
+                'Condo Townhouse',
                 'Detached',
                 'Semi-Detached', 
                 'Attached/Townhouse',
-                'Condo Townhouse',
                 'Link',
+                'Duplex',
+                'Triplex',
+                'Fourplex',
+                'Multiplex',
+                'Co-op Apartment',
+                'Co-operative Apartment',
                 'Vacant Land',
-                'Commercial'
+                'Commercial',
+                'Store W/Apartment/Office',
+                'Mobile/Trailer',
+                'Farm',
+                'Cottage',
+                'Investment',
+                'Other'
             ];
             
             $availableTypes = [];
             
-            // For better performance, just return all types with estimated counts
-            // In production, you might want to cache these counts
+            // Return only the 5 requested property types with estimated counts
             $availableTypes = [
+                ['value' => 'Vacant Land', 'label' => 'Vacant Land', 'count' => 15],
+                ['value' => 'Detached', 'label' => 'Detached', 'count' => 75],
                 ['value' => 'Condo Apartment', 'label' => 'Condo Apartment', 'count' => 150],
                 ['value' => 'Condo Townhouse', 'label' => 'Condo Townhouse', 'count' => 30],
-                ['value' => 'Detached', 'label' => 'Detached', 'count' => 75],
-                ['value' => 'Semi-Detached', 'label' => 'Semi-Detached', 'count' => 45],
-                ['value' => 'Attached/Townhouse', 'label' => 'Townhouse', 'count' => 60],
+                ['value' => 'Attached/Townhouse', 'label' => 'Townhouse', 'count' => 60]
             ];
             
-            // Filter out types with zero count based on current search
-            // This is a simplified approach - in production you'd want actual counts
-            if (!empty($baseFilters['query']) && $baseFilters['query'] !== 'Toronto') {
-                // For non-Toronto searches, show fewer types
-                $availableTypes = array_slice($availableTypes, 0, 3);
-            }
+            // Don't filter out any types - show all available property types
+            // In production, you might want to get actual counts from the API
             
             // Always include "All Types" option if there are any listings
             if (count($availableTypes) > 0) {
@@ -339,6 +346,15 @@ class PropertySearchController extends Controller
         
         // Enable count to get total number of results
         $this->ampreApi->setCount(true);
+    }
+
+    /**
+     * Apply location filter for property type search
+     */
+    private function applyLocationFilter($query)
+    {
+        // Just call the global search filter
+        $this->applyGlobalSearchFilter($query);
     }
 
     /**
