@@ -98,16 +98,16 @@ class HomepagePropertiesController extends Controller
                 'PublicRemarks'
             ]);
 
-            // Set pagination - get up to 12 properties for carousel
-            $this->ampreApi->setTop(12);
+            // Set pagination - get all properties from 55 Mercer Street (increase limit)
+            $this->ampreApi->setTop(50); // Increased to show all available listings
             $this->ampreApi->setSkip(0);
 
             // Apply filters
             $this->ampreApi->addFilter('TransactionType', $transactionType);
             $this->ampreApi->addFilter('StandardStatus', 'Active');
             
-            // Filter for Condo Apartments only
-            $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
+            // Show all property types from 55 Mercer Street (not just Condo Apartments)
+            // $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
             
             // Filter specifically for the building address
             // Try multiple variations to catch different formats
@@ -149,7 +149,7 @@ class HomepagePropertiesController extends Controller
             if (empty($properties)) {
                 Log::info("No properties found at {$address}, trying broader search");
                 
-                // Reset and search for any Toronto condos as fallback
+                // Reset and search for any Toronto properties as fallback
                 $this->ampreApi->resetFilters();
                 $this->ampreApi->setSelect([
                     'ListingKey',
@@ -169,11 +169,12 @@ class HomepagePropertiesController extends Controller
                     'PublicRemarks'
                 ]);
                 
-                $this->ampreApi->setTop(12);
+                $this->ampreApi->setTop(50); // Show all available properties
                 $this->ampreApi->setSkip(0);
                 $this->ampreApi->addFilter('TransactionType', $transactionType);
                 $this->ampreApi->addFilter('StandardStatus', 'Active');
-                $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
+                // Show all property types, not just condos
+                // $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
                 
                 // Try to find properties on the same street (any number)
                 $streetName = implode(' ', array_slice(explode(' ', $address), 1));
@@ -226,30 +227,53 @@ class HomepagePropertiesController extends Controller
         $listingKeys = array_column($properties, 'ListingKey');
 
         try {
-            // Fetch images in batches
-            $batchSize = 5;
+            // Fetch images in smaller batches for better reliability
+            $batchSize = 3;
             $imagesByKey = [];
             
             foreach (array_chunk($listingKeys, $batchSize) as $batch) {
                 $batchImages = $this->ampreApi->getPropertiesImages($batch);
                 $imagesByKey = array_merge($imagesByKey, $batchImages);
+                
+                // Log batch results for debugging
+                Log::info('Image batch fetched', [
+                    'batch' => $batch,
+                    'image_count' => count($batchImages)
+                ]);
             }
 
             foreach ($properties as $index => $property) {
                 $listingKey = $property['ListingKey'] ?? null;
                 $propertyImages = $imagesByKey[$listingKey] ?? [];
 
-                // Get the first valid image URL
+                // Get the first valid image URL - be less strict with validation
                 $imageUrl = null;
                 foreach ($propertyImages as $img) {
-                    if (!empty($img['MediaURL']) && $this->isValidImageUrl($img['MediaURL'])) {
-                        $imageUrl = $img['MediaURL'];
-                        break;
+                    if (!empty($img['MediaURL'])) {
+                        // More lenient validation - just check if it's not empty
+                        $candidateUrl = trim($img['MediaURL']);
+                        if (strlen($candidateUrl) > 10) {
+                            $imageUrl = $candidateUrl;
+                            break;
+                        }
                     }
                 }
 
                 $properties[$index]['MediaURL'] = $imageUrl;
-                $properties[$index]['Images'] = array_slice($propertyImages, 0, 5); // Limit to 5 images
+                $properties[$index]['Images'] = array_slice($propertyImages, 0, 10); // Show more images
+                
+                // Log image results for debugging
+                if ($imageUrl) {
+                    Log::info('Image found for property', [
+                        'listing_key' => $listingKey,
+                        'image_url' => substr($imageUrl, 0, 50) . '...'
+                    ]);
+                } else {
+                    Log::warning('No image found for property', [
+                        'listing_key' => $listingKey,
+                        'image_count' => count($propertyImages)
+                    ]);
+                }
             }
 
         } catch (Exception $e) {
@@ -297,13 +321,34 @@ class HomepagePropertiesController extends Controller
         $isRental = in_array($transactionType, ['For Lease', 'For Rent']);
 
         foreach ($properties as $property) {
+            // Try to get image from multiple sources
+            $imageUrl = null;
+            
+            // First try the fetched MediaURL (from addPropertyImages)
+            if (!empty($property['MediaURL'])) {
+                $imageUrl = $property['MediaURL'];
+            }
+            // If no fetched image, try the original MediaURL from API response
+            elseif (!empty($property['MediaURL'])) {
+                $imageUrl = $property['MediaURL'];
+            }
+            // If still no image, try from Images array
+            elseif (!empty($property['Images']) && is_array($property['Images'])) {
+                foreach ($property['Images'] as $img) {
+                    if (!empty($img['MediaURL'])) {
+                        $imageUrl = $img['MediaURL'];
+                        break;
+                    }
+                }
+            }
+            
             $formatted[] = [
                 'id' => uniqid(), // Generate unique ID for React key
                 'listingKey' => $property['ListingKey'] ?? '',
-                'image' => $property['MediaURL'] ?? null,
+                'image' => $imageUrl, // Use the best available image URL
                 'images' => $property['Images'] ?? [],
                 'price' => $property['ListPrice'] ?? 0,
-                'propertyType' => $property['PropertySubType'] ?? 'Condo Apartment',
+                'propertyType' => $property['PropertySubType'] ?? 'Property',
                 'transactionType' => $property['TransactionType'] ?? $transactionType,
                 'bedrooms' => $property['BedroomsTotal'] ?? 0,
                 'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
@@ -313,7 +358,8 @@ class HomepagePropertiesController extends Controller
                 'sqft' => $property['AboveGradeFinishedArea'] ?? 0,
                 'parking' => $property['ParkingTotal'] ?? 0,
                 'description' => $property['PublicRemarks'] ?? '',
-                'isRental' => $isRental
+                'isRental' => $isRental,
+                'source' => 'mls' // Mark as real MLS data
             ];
         }
 

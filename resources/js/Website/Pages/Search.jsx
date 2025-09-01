@@ -8,7 +8,7 @@ import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Components/SimplePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
-// import IDXAmpreSearchBar from '@/Components/IDXAmpreSearchBar';
+import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
 
 
 // Icon components

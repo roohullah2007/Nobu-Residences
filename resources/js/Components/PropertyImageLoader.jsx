@@ -100,8 +100,8 @@ const PropertyImageLoader = ({
     if (imageUrl) return imageUrl;
     if (fallbackImage) return fallbackImage;
     
-    // Use professional real estate placeholder (same as plugin approach)
-    return 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80';
+    // Return null if no real image available - don't show placeholder
+    return null;
   };
 
   // Show placeholder while not in view (same as plugin)
@@ -116,6 +116,8 @@ const PropertyImageLoader = ({
     );
   }
 
+  const displayImage = getDisplayImage();
+
   return (
     <div ref={imgRef} className="relative w-full h-full">
       {/* Loading animation (similar to plugin) */}
@@ -125,19 +127,25 @@ const PropertyImageLoader = ({
         </div>
       )}
       
-      <img 
-        src={getDisplayImage()}
-        alt={alt}
-        className={`${className} ${loading ? 'opacity-50' : 'opacity-100'} transition-opacity duration-300`}
-        onError={() => {
-          if (!error) {
-            setError(true);
-            setLoading(false);
-          }
-        }}
-        onLoad={() => setLoading(false)}
-      />
-      
+      {displayImage ? (
+        <img 
+          src={displayImage}
+          alt={alt}
+          className={`${className} ${loading ? 'opacity-50' : 'opacity-100'} transition-opacity duration-300`}
+          onError={() => {
+            if (!error) {
+              setError(true);
+              setLoading(false);
+            }
+          }}
+          onLoad={() => setLoading(false)}
+        />
+      ) : (
+        // Show a gray placeholder when no image available
+        <div className={`${className} bg-gray-200 flex items-center justify-center`}>
+          <div className="text-gray-500 text-sm">No Image</div>
+        </div>
+      )}
 
     </div>
   );
