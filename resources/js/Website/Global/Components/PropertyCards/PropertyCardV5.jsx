@@ -64,7 +64,7 @@ const PropertyCardV5 = ({
   // Size configurations - Optimized for IDX-AMPRE style 4 cards per row
   const sizeConfig = {
     default: {
-      container: 'w-full h-[420px] idx-ampre-property-card',
+      container: 'w-[360px] h-[420px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
       content: 'p-4 gap-2.5 h-[220px]',
       chip: 'px-3 py-1.5 text-sm property-badge',
@@ -72,12 +72,20 @@ const PropertyCardV5 = ({
       details: 'text-base'
     },
     mobile: {
-      container: 'w-full h-[450px] idx-ampre-property-card',
+      container: 'w-[320px] h-[450px] idx-ampre-property-card',
       image: 'h-60 property-image-container',
       content: 'p-3 gap-2 h-44',
       chip: 'px-2 py-1 text-xs property-badge',
       title: 'text-lg',
       details: 'text-sm'
+    },
+    grid: {
+      container: 'w-full h-[420px] idx-ampre-property-card',
+      image: 'h-[200px] property-image-container',
+      content: 'p-4 gap-2.5 h-[220px]',
+      chip: 'px-3 py-1.5 text-sm property-badge',
+      title: 'text-lg',
+      details: 'text-base'
     }
   };
 

@@ -6,6 +6,7 @@ import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCa
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Components/SimplePropertyMap';
+import ViewportAwarePropertyMap from '@/Components/ViewportAwarePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
@@ -1287,8 +1288,8 @@ export default function EnhancedPropertySearch({
                 </div>
               </div>
             ) : viewType === 'map' ? (
-              // Full Map View
-              <SimplePropertyMap 
+              // Full Map View with viewport-aware loading
+              <ViewportAwarePropertyMap 
                 properties={activeTab === 'listings' ? properties : buildings}
                 className="w-full h-[600px]"
                 onPropertyClick={(property) => {
@@ -1296,6 +1297,13 @@ export default function EnhancedPropertySearch({
                   console.log('Property clicked:', property.ListingKey);
                 }}
                 viewType="full"
+                searchFilters={searchFilters}
+                isLoading={isLoading}
+                onViewportChange={(viewportProperties, bounds) => {
+                  console.log(`Loaded ${viewportProperties.length} properties for viewport`, bounds);
+                  // Optionally update the properties state if you want to show them in a list
+                  // setProperties(viewportProperties);
+                }}
               />
             ) : viewType === 'mixed' ? (
               // Enhanced Mixed View - IDX-AMPRE style split layout with two cards per row
@@ -1414,9 +1422,9 @@ export default function EnhancedPropertySearch({
                   </div>
                 </div>
                 
-                {/* Right side - Enhanced Map - IDX-AMPRE style */}
+                {/* Right side - Enhanced Map with viewport loading - IDX-AMPRE style */}
                 <div className="w-1/2 flex flex-col bg-gray-50">
-                  <SimplePropertyMap 
+                  <ViewportAwarePropertyMap 
                     properties={activeTab === 'listings' ? properties : buildings}
                     className="w-full h-full"
                     onPropertyClick={(property) => {
@@ -1424,6 +1432,20 @@ export default function EnhancedPropertySearch({
                       console.log('Property clicked:', property.ListingKey);
                     }}
                     viewType="mixed"
+                    searchFilters={searchFilters}
+                    isLoading={isLoading}
+                    onViewportChange={(viewportProperties, bounds) => {
+                      console.log(`Loaded ${viewportProperties.length} properties for viewport`, bounds);
+                      // In mixed view, we might want to update the left-side list
+                      if (viewportProperties.length > 0) {
+                        setProperties(prevProps => {
+                          // Merge new viewport properties with existing ones, avoiding duplicates
+                          const existingKeys = new Set(prevProps.map(p => p.ListingKey));
+                          const newProps = viewportProperties.filter(p => !existingKeys.has(p.ListingKey));
+                          return [...prevProps, ...newProps];
+                        });
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -1442,7 +1464,7 @@ export default function EnhancedPropertySearch({
                             <PropertyCardV5
                               key={property.ListingKey}
                               property={formattedProperty}
-                              size="default"
+                              size="grid"
                               onClick={(property) => {
                                 window.location.href = `/property/${property.listingKey}`;
                               }}
@@ -1483,7 +1505,7 @@ export default function EnhancedPropertySearch({
                           <PropertyCardV5
                             key={building.id}
                             property={formattedBuilding}
-                            size="default"
+                            size="grid"
                             onClick={() => {
                               window.location.href = `/building/${building.id}`;
                             }}

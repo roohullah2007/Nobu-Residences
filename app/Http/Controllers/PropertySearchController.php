@@ -92,6 +92,116 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * Search properties based on map viewport bounds
+     */
+    public function searchByViewport(Request $request)
+    {
+        try {
+            // Clean any existing output
+            $this->cleanOutputBuffer();
+
+            // Get and sanitize search parameters
+            $searchParams = $request->input('search_params', []);
+            $sanitizedParams = $this->sanitizeSearchParams($searchParams);
+            
+            // Extract viewport bounds
+            $viewportBounds = $searchParams['viewport_bounds'] ?? null;
+            
+            if (!$viewportBounds || !isset($viewportBounds['north']) || !isset($viewportBounds['south']) || 
+                !isset($viewportBounds['east']) || !isset($viewportBounds['west'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid viewport bounds provided'
+                ], 400);
+            }
+
+            // Set higher page size for map searches
+            $sanitizedParams['page_size'] = min($sanitizedParams['page_size'] ?? 100, 200);
+            
+            // Configure API client
+            $this->configureApiClient($sanitizedParams);
+
+            // Apply search filters (status, property type, etc.)
+            $this->applySearchFilters($sanitizedParams);
+            
+            // Apply viewport bounds filter
+            $this->applyViewportBoundsFilter($viewportBounds);
+
+            // Fetch properties from API with count
+            $apiResult = $this->ampreApi->fetchPropertiesWithCount();
+            $properties = $apiResult['properties'];
+            $totalCount = $apiResult['count'];
+
+            if (empty($properties)) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'properties' => [],
+                        'total' => 0,
+                        'viewport_bounds' => $viewportBounds,
+                        'message' => 'No properties found in this area'
+                    ]
+                ]);
+            }
+
+            // Add single image per property for initial display
+            $propertiesWithImages = $this->addPropertyImages($properties);
+            
+            // Format properties for JSON response
+            $formattedProperties = $this->formatProperties($propertiesWithImages);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'properties' => $formattedProperties,
+                    'total' => $totalCount,
+                    'displayed' => count($formattedProperties),
+                    'viewport_bounds' => $viewportBounds,
+                    'has_more' => $totalCount > count($formattedProperties)
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Viewport property search error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Viewport search failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Apply viewport bounds filter to the API query
+     */
+    private function applyViewportBoundsFilter($bounds)
+    {
+        // Add latitude filter
+        $this->ampreApi->addCustomFilter(
+            sprintf("Latitude ge %f and Latitude le %f", 
+                $bounds['south'], 
+                $bounds['north']
+            )
+        );
+        
+        // Add longitude filter
+        $this->ampreApi->addCustomFilter(
+            sprintf("Longitude ge %f and Longitude le %f", 
+                $bounds['west'], 
+                $bounds['east']
+            )
+        );
+        
+        // Log the viewport being searched
+        Log::info('Searching viewport bounds', [
+            'north' => $bounds['north'],
+            'south' => $bounds['south'],
+            'east' => $bounds['east'],
+            'west' => $bounds['west']
+        ]);
+    }
+
+    /**
      * Get available property types with counts
      */
     public function getAvailablePropertyTypes(Request $request)

@@ -345,7 +345,8 @@ class HomepagePropertiesController extends Controller
             $formatted[] = [
                 'id' => uniqid(), // Generate unique ID for React key
                 'listingKey' => $property['ListingKey'] ?? '',
-                'image' => $imageUrl, // Use the best available image URL
+                'imageUrl' => $imageUrl, // Use the best available image URL - changed to imageUrl
+                'image' => $imageUrl, // Keep for backward compatibility
                 'images' => $property['Images'] ?? [],
                 'price' => $property['ListPrice'] ?? 0,
                 'propertyType' => $property['PropertySubType'] ?? 'Property',

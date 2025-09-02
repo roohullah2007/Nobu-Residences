@@ -58,6 +58,7 @@ Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageContr
 
 // Property Search API routes
 Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
+Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
 Route::post('/api/save-search', [\App\Http\Controllers\PropertySearchController::class, 'saveSearch']); // Removed auth middleware - handled in controller
 Route::get('/api/saved-searches', [\App\Http\Controllers\PropertySearchController::class, 'getSavedSearches'])->middleware('auth');

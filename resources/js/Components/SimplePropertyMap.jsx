@@ -3,18 +3,36 @@ import GoogleMapContainer from './GoogleMapContainer';
 import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
 
-const SimplePropertyMap = ({ 
+const SimplePropertyMap = React.forwardRef(({ 
   properties = [], 
   className = '', 
   onPropertyClick = null,
   onPropertyHover = null,
-  viewType = 'full'
-}) => {
+  viewType = 'full',
+  onMapReady = null
+}, ref) => {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const infoWindowRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
+  
+  // Expose map instance through ref
+  React.useImperativeHandle(ref, () => ({
+    getMapInstance: () => mapInstanceRef.current,
+    getMarkers: () => markersRef.current,
+    centerOnProperties: () => {
+      if (mapInstanceRef.current && properties.length > 0) {
+        const bounds = new window.google.maps.LatLngBounds();
+        properties.forEach(p => {
+          if (p.Latitude && p.Longitude) {
+            bounds.extend({ lat: parseFloat(p.Latitude), lng: parseFloat(p.Longitude) });
+          }
+        });
+        mapInstanceRef.current.fitBounds(bounds);
+      }
+    }
+  }), [properties]);
 
   // Clean map center calculation
   const getMapCenter = useCallback(() => {
@@ -74,6 +92,11 @@ const SimplePropertyMap = ({
         
         console.log('Map created successfully');
         setMapLoaded(true);
+        
+        // Call onMapReady callback if provided
+        if (onMapReady) {
+          onMapReady(map);
+        }
         
       } catch (error) {
         console.error('Error initializing map:', error);
@@ -381,6 +404,6 @@ const SimplePropertyMap = ({
       )}
     </div>
   );
-};
+});
 
 export default SimplePropertyMap;

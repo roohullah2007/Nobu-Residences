@@ -32,7 +32,8 @@ const PropertyCardV6 = ({
   auth,
   size = 'default',
   onClick,
-  className = '' 
+  className = '',
+  showFavourite = true // Default to showing favourite icon
 }) => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -73,7 +74,7 @@ const PropertyCardV6 = ({
   // Size configurations - Optimized for IDX-AMPRE style 4 cards per row
   const sizeConfig = {
     default: {
-      container: 'w-full h-[420px] idx-ampre-property-card',
+      container: 'w-[360px] h-[420px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
       content: 'p-4 gap-2.5 h-[220px]',
       chip: 'px-3 py-1.5 text-sm property-badge',
@@ -81,12 +82,20 @@ const PropertyCardV6 = ({
       details: 'text-base'
     },
     mobile: {
-      container: 'w-full h-[450px] idx-ampre-property-card',
+      container: 'w-[320px] h-[450px] idx-ampre-property-card',
       image: 'h-60 property-image-container',
       content: 'p-3 gap-2 h-44',
       chip: 'px-2 py-1 text-xs property-badge',
       title: 'text-lg',
       details: 'text-sm'
+    },
+    grid: {
+      container: 'w-full h-[420px] idx-ampre-property-card',
+      image: 'h-[200px] property-image-container',
+      content: 'p-4 gap-2.5 h-[220px]',
+      chip: 'px-3 py-1.5 text-sm property-badge',
+      title: 'text-lg',
+      details: 'text-base'
     }
   };
 
@@ -133,23 +142,25 @@ const PropertyCardV6 = ({
               data-listing-key={property.listingKey}
             />
             
-            {/* Favourite Heart Button - Top Right */}
-            <button
-              onClick={handleFavouriteClick}
-              disabled={favouriteLoading}
-              className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 z-10 ${
-                isFavourited 
-                  ? 'bg-red-500 text-white shadow-lg hover:bg-red-600' 
-                  : 'bg-white/90 backdrop-blur-sm text-gray-600 hover:bg-white hover:text-red-500 shadow-md'
-              } ${favouriteLoading ? 'animate-pulse' : 'hover:scale-110'}`}
-              aria-label={isFavourited ? 'Remove from favourites' : 'Add to favourites'}
-            >
-              {favouriteLoading ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Heart className="w-5 h-5" filled={isFavourited} />
-              )}
-            </button>
+            {/* Favourite Heart Button - Top Right - Only show if showFavourite is true */}
+            {showFavourite && (
+              <button
+                onClick={handleFavouriteClick}
+                disabled={favouriteLoading}
+                className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 z-10 ${
+                  isFavourited 
+                    ? 'bg-red-500 text-white shadow-lg hover:bg-red-600' 
+                    : 'bg-white/90 backdrop-blur-sm text-gray-600 hover:bg-white hover:text-red-500 shadow-md'
+                } ${favouriteLoading ? 'animate-pulse' : 'hover:scale-110'}`}
+                aria-label={isFavourited ? 'Remove from favourites' : 'Add to favourites'}
+              >
+                {favouriteLoading ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Heart className="w-5 h-5" filled={isFavourited} />
+                )}
+              </button>
+            )}
             
             {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
             {property.source !== 'building' && (

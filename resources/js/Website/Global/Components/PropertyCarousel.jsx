@@ -101,18 +101,18 @@ const PropertyCarousel = ({
               </button>
             </div>
             
-            {/* Cards Container */}
-            <div className="overflow-hidden" style={{ width: 'calc(3 * 360px + 2 * 20px)' }}>
+            {/* Cards Container - Show 3 cards at once */}
+            <div className="overflow-hidden flex-1" style={{ maxWidth: '1120px' }}>
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
+                style={{ transform: `translateX(-${currentIndex * 380}px)` }}
               >
                 {properties.map((property, index) => {
                   const cardProps = {
-                    key: `desktop-${property.id}-${index}`,
                     property,
                     size: "default",
-                    onClick: onCardClick
+                    onClick: onCardClick,
+                    showFavourite: false // Disable favourite icon in carousel
                   };
                   
                   // Only pass auth if using PropertyCardV6
@@ -120,7 +120,7 @@ const PropertyCarousel = ({
                     cardProps.auth = auth;
                   }
                   
-                  return <PropertyCard {...cardProps} />;
+                  return <PropertyCard key={`desktop-${property.id}-${index}`} {...cardProps} />;
                 })}
               </div>
             </div>
@@ -162,18 +162,18 @@ const PropertyCarousel = ({
               </button>
             </div>
             
-            {/* Cards Container */}
-            <div className="overflow-hidden" style={{ width: 'calc(2 * 360px + 1 * 20px)' }}>
+            {/* Cards Container - Show 2 cards at once */}
+            <div className="overflow-hidden flex-1" style={{ maxWidth: '740px' }}>
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
+                style={{ transform: `translateX(-${currentIndex * 380}px)` }}
               >
                 {properties.map((property, index) => {
                   const cardProps = {
-                    key: `tablet-${property.id}-${index}`,
                     property,
                     size: "default",
-                    onClick: onCardClick
+                    onClick: onCardClick,
+                    showFavourite: false // Disable favourite icon in carousel
                   };
                   
                   // Only pass auth if using PropertyCardV6
@@ -181,7 +181,7 @@ const PropertyCarousel = ({
                     cardProps.auth = auth;
                   }
                   
-                  return <PropertyCard {...cardProps} />;
+                  return <PropertyCard key={`tablet-${property.id}-${index}`} {...cardProps} />;
                 })}
               </div>
             </div>
@@ -209,11 +209,11 @@ const PropertyCarousel = ({
           <div className="flex gap-5">
             {properties.map((property, index) => {
               const cardProps = {
-                key: `mobile-${property.id}-${index}`,
                 property,
                 size: "mobile",
                 onClick: onCardClick,
-                className: "flex-none"
+                className: "flex-none",
+                showFavourite: false // Disable favourite icon in carousel
               };
               
               // Only pass auth if using PropertyCardV6
@@ -221,7 +221,7 @@ const PropertyCarousel = ({
                 cardProps.auth = auth;
               }
               
-              return <PropertyCard {...cardProps} />;
+              return <PropertyCard key={`mobile-${property.id}-${index}`} {...cardProps} />;
             })}
           </div>
         </div>
