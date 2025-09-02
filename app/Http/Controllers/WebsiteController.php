@@ -640,6 +640,10 @@ class WebsiteController extends Controller
         $listingKey = $request->input('listingKey');
         $limit = $request->input('limit', 6);
         
+        // Get property type filters from request (for Similar Listings filtering)
+        $requestedPropertyType = $request->input('propertyType');
+        $requestedPropertySubType = $request->input('propertySubType');
+        
         try {
             $ampreApi = new AmpreApiService();
             
@@ -651,16 +655,25 @@ class WebsiteController extends Controller
             }
             
             // Get property attributes for similarity matching
-            $propertyType = $currentProperty['PropertyType'] ?? '';
+            // Use requested type/subtype if provided, otherwise use current property's type
+            $propertyType = $requestedPropertyType ?? $currentProperty['PropertyType'] ?? '';
+            $propertySubType = $requestedPropertySubType ?? $currentProperty['PropertySubType'] ?? '';
             $bedrooms = $currentProperty['BedroomsTotal'] ?? 0;
             $bathrooms = $currentProperty['BathroomsTotalInteger'] ?? 0;
             $currentPrice = $currentProperty['ListPrice'] ?? 0;
             
             // Fetch more properties to ensure we get enough with images
             $fetchLimit = $limit * 5; // Fetch 5x more to account for properties without images
-            $ampreApi->resetFilters()
-                ->addFilter('PropertyType', $propertyType, 'eq')
-                ->addFilter('StandardStatus', 'Active', 'eq')
+            $ampreApi->resetFilters();
+            
+            // Add property type filter - prefer subtype if available
+            if ($propertySubType) {
+                $ampreApi->addFilter('PropertySubType', $propertySubType, 'eq');
+            } elseif ($propertyType) {
+                $ampreApi->addFilter('PropertyType', $propertyType, 'eq');
+            }
+            
+            $ampreApi->addFilter('StandardStatus', 'Active', 'eq')
                 ->setTop($fetchLimit)
                 ->setSelect([
                     'ListingKey',

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { PropertyCardV1, PropertyCardV2 } from './PropertyCards/index.js';
+import PropertyCardV5 from './PropertyCards/PropertyCardV5';
+import PropertyCardV6 from './PropertyCards/PropertyCardV6';
 
 /**
  * PropertyCarousel - Reusable carousel component for property cards
  * 
- * A responsive property carousel that works with both PropertyCardV1 (sale) and PropertyCardV2 (rent).
+ * A responsive property carousel with favourite functionality.
  * Handles desktop (3 cards), tablet (2 cards), and mobile (horizontal scroll) layouts.
  * 
  * @param {Array} properties - Array of property objects
+ * @param {Object} auth - Auth object from Inertia
  * @param {string} title - Section title
  * @param {string} type - Card type ('sale' or 'rent')
  * @param {string} viewAllLink - Link for "View all" button
@@ -16,6 +18,7 @@ import { PropertyCardV1, PropertyCardV2 } from './PropertyCards/index.js';
  */
 const PropertyCarousel = ({ 
   properties = [], 
+  auth,
   title = 'Properties',
   type = 'sale',
   viewAllLink = '/properties',
@@ -60,8 +63,8 @@ const PropertyCarousel = ({
     </svg>
   );
 
-  // Choose the appropriate card component
-  const PropertyCard = type === 'rent' ? PropertyCardV2 : PropertyCardV1;
+  // Use PropertyCardV6 when auth is provided, otherwise fallback to V5
+  const PropertyCard = auth ? PropertyCardV6 : PropertyCardV5;
 
   // Don't render if no properties
   if (!properties.length) {
@@ -104,14 +107,21 @@ const PropertyCarousel = ({
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
               >
-                {properties.map((property, index) => (
-                  <PropertyCard 
-                    key={`desktop-${property.id}-${index}`} 
-                    property={property} 
-                    size="default"
-                    onClick={onCardClick}
-                  />
-                ))}
+                {properties.map((property, index) => {
+                  const cardProps = {
+                    key: `desktop-${property.id}-${index}`,
+                    property,
+                    size: "default",
+                    onClick: onCardClick
+                  };
+                  
+                  // Only pass auth if using PropertyCardV6
+                  if (auth) {
+                    cardProps.auth = auth;
+                  }
+                  
+                  return <PropertyCard {...cardProps} />;
+                })}
               </div>
             </div>
             
@@ -158,14 +168,21 @@ const PropertyCarousel = ({
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
                 style={{ transform: `translateX(-${currentIndex * (360 + 20)}px)` }}
               >
-                {properties.map((property, index) => (
-                  <PropertyCard 
-                    key={`tablet-${property.id}-${index}`} 
-                    property={property} 
-                    size="default"
-                    onClick={onCardClick}
-                  />
-                ))}
+                {properties.map((property, index) => {
+                  const cardProps = {
+                    key: `tablet-${property.id}-${index}`,
+                    property,
+                    size: "default",
+                    onClick: onCardClick
+                  };
+                  
+                  // Only pass auth if using PropertyCardV6
+                  if (auth) {
+                    cardProps.auth = auth;
+                  }
+                  
+                  return <PropertyCard {...cardProps} />;
+                })}
               </div>
             </div>
             
@@ -190,15 +207,22 @@ const PropertyCarousel = ({
         {/* Mobile Layout (horizontal scroll) */}
         <div className="md:hidden overflow-x-auto scrollbar-hide py-4">
           <div className="flex gap-5">
-            {properties.map((property, index) => (
-              <PropertyCard 
-                key={`mobile-${property.id}-${index}`} 
-                property={property} 
-                size="mobile"
-                onClick={onCardClick}
-                className="flex-none"
-              />
-            ))}
+            {properties.map((property, index) => {
+              const cardProps = {
+                key: `mobile-${property.id}-${index}`,
+                property,
+                size: "mobile",
+                onClick: onCardClick,
+                className: "flex-none"
+              };
+              
+              // Only pass auth if using PropertyCardV6
+              if (auth) {
+                cardProps.auth = auth;
+              }
+              
+              return <PropertyCard {...cardProps} />;
+            })}
           </div>
         </div>
       </div>

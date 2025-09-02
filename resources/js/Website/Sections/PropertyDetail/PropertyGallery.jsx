@@ -1,31 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
+import { Link } from '@inertiajs/react';
+import PropertyEnquiryModal from '@/Website/Components/PropertyEnquiryModal';
 
 export default function PropertyGallery({ 
   propertyImages, 
   propertyData, 
-  isFavorited, 
-  onToggleFavorite 
+  auth 
 }) {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentMobileSlide, setCurrentMobileSlide] = useState(0);
+  const [showEnquiryModal, setShowEnquiryModal] = useState(false);
 
-  // Debug: Log the received images and property data
-  useEffect(() => {
-    console.log('PropertyGallery - Received propertyImages:', propertyImages);
-    console.log('PropertyGallery - propertyImages type:', typeof propertyImages);
-    console.log('PropertyGallery - propertyImages length:', propertyImages?.length);
-    console.log('PropertyGallery - Full propertyData:', propertyData);
-    console.log('PropertyGallery - Key Fields Check:');
-    console.log('  - LivingAreaRange:', propertyData?.LivingAreaRange);
-    console.log('  - TaxAnnualAmount:', propertyData?.TaxAnnualAmount);
-    console.log('  - Exposure:', propertyData?.Exposure);
-    console.log('  - ParkingTotal:', propertyData?.ParkingTotal);
-    console.log('  - AssociationFee:', propertyData?.AssociationFee);
-    console.log('  - details object:', propertyData?.details);
-    console.log('PropertyGallery - All property keys:', propertyData ? Object.keys(propertyData) : 'No data');
-  }, [propertyImages, propertyData]);
 
   // Ensure we have valid images array with fallback
   const processImages = () => {
@@ -34,8 +21,6 @@ export default function PropertyGallery({
     // First check if propertyData has Images field
     const dataImages = propertyData?.Images || propertyData?.images || propertyData?.ImageObjects;
     const imagesToProcess = propertyImages || dataImages || [];
-    
-    console.log('ProcessImages - Raw input:', imagesToProcess);
     
     // Handle different image data structures
     if (Array.isArray(imagesToProcess)) {
@@ -55,7 +40,6 @@ export default function PropertyGallery({
           if (url && url.includes && url.includes('ampre.ca')) {
             // Always ensure HTTP for AMPRE URLs, even if already HTTP
             if (url.startsWith('https://')) {
-              console.log('PropertyGallery - Converting AMPRE HTTPS to HTTP:', url);
               url = url.replace('https://', 'http://');
             } else if (!url.startsWith('http://') && !url.startsWith('//')) {
               // If it's a relative AMPRE URL, make it absolute with HTTP
@@ -86,12 +70,8 @@ export default function PropertyGallery({
     
     // NO FALLBACK IMAGES - only use real property images
     if (images.length === 0) {
-      console.log('PropertyGallery - No images available for property:', propertyData?.listingKey);
       // Return empty array - no dummy images
       return [];
-    } else {
-      console.log('PropertyGallery - Using API images:', images.length, 'images');
-      console.log('PropertyGallery - Image URLs:', images);
     }
     
     return images;
@@ -210,12 +190,14 @@ export default function PropertyGallery({
 
   // Handle image loading errors - NO FALLBACK IMAGES
   const handleImageError = (e, fallbackIndex = 0) => {
-    console.error('PropertyGallery - Failed to load image:', e.target.src);
     // Hide the broken image by setting display to none
     e.target.style.display = 'none';
     // Prevent infinite error loop
     e.target.onerror = null;
   };
+
+  // Check if user is logged in
+  const isLoggedIn = auth?.user ? true : false;
 
   return (
     <>
@@ -223,20 +205,48 @@ export default function PropertyGallery({
       <div className="max-w-[1280px] mx-auto px-0 py-0">
         <div className="flex flex-col md:flex-row gap-0 lg:gap-[17px]">
           {/* Images Section */}
-          <div className="flex gap-0 md:gap-[17px] flex-1 order-1 lg:order-none">
+          <div className="flex gap-0 md:gap-[17px] flex-1 order-1 lg:order-none relative">
             {/* Main Large Image - Desktop Only */}
             <div className="hidden lg:block relative w-[619px] h-[645px] flex-shrink-0">
               <div 
                 className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                onClick={() => openModal(0)}
+                onClick={() => isLoggedIn && openModal(0)}
               >
                 <img 
                   src={images[0] && images[0].includes && images[0].includes('ampre.ca') && images[0].startsWith('https://') ? images[0].replace('https://', 'http://') : images[0]}
                   alt="Main property image"
-                  className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                  className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                   onError={handleImageError}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+                
+                {/* Login Overlay for Main Image */}
+                {!isLoggedIn && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl p-6 max-w-sm mx-4 text-center shadow-2xl">
+                      <h3 className="text-xl font-bold text-[#293056] mb-2">
+                        Sign in to view photos
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Create a free account to see all property images and details
+                      </p>
+                      <div className="flex flex-col gap-3">
+                        <Link
+                          href="/login"
+                          className="block w-full py-2.5 px-4 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                        >
+                          Sign In
+                        </Link>
+                        <Link
+                          href="/register"
+                          className="block w-full py-2.5 px-4 border border-[#293056] text-[#293056] rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          Create Account
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -246,7 +256,7 @@ export default function PropertyGallery({
               <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
                 <div 
                   className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                  onClick={() => openModal(1)}
+                  onClick={() => isLoggedIn && openModal(1)}
                 >
                   <img 
                     src={(function() {
@@ -257,10 +267,22 @@ export default function PropertyGallery({
                       return url;
                     })()}
                     alt="Property image 2"
-                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                     onError={(e) => handleImageError(e, 1)}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+                  
+                  {/* Login Overlay for Small Image 1 */}
+                  {!isLoggedIn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                      <Link
+                        href="/login"
+                        className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
+                      >
+                        Sign In
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -268,7 +290,7 @@ export default function PropertyGallery({
               <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
                 <div 
                   className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                  onClick={() => openModal(2)}
+                  onClick={() => isLoggedIn && openModal(2)}
                 >
                   <img 
                     src={(function() {
@@ -279,13 +301,25 @@ export default function PropertyGallery({
                       return url;
                     })()}
                     alt="Property image 3"
-                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                     onError={handleImageError}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-20"></div>
                   
-                  {/* See All Photos Button - Only show if we have more than 3 images */}
-                  {images.length > 3 && (
+                  {/* Login Overlay for Small Image 2 */}
+                  {!isLoggedIn && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                      <Link
+                        href="/register"
+                        className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
+                      >
+                        Create Account
+                      </Link>
+                    </div>
+                  )}
+                  
+                  {/* See All Photos Button - Only show if logged in and we have more than 3 images */}
+                  {isLoggedIn && images.length > 3 && (
                     <div className="hidden md:block absolute bottom-4 right-4">
                       <button 
                         onClick={(e) => {
@@ -315,35 +349,65 @@ export default function PropertyGallery({
                     <img 
                       src={image && image.includes && image.includes('ampre.ca') && image.startsWith('https://') ? image.replace('https://', 'http://') : image}
                       alt={`Property image ${index + 1}`}
-                      className="w-full h-full object-cover object-center"
+                      className={`w-full h-full object-cover object-center ${!isLoggedIn ? 'blur-lg' : ''}`}
                       onError={(e) => handleImageError(e, index)}
                     />
                   </div>
                 ))}
                 
-                {/* Mobile Navigation - Only show if we have more than 1 image */}
-                {images.length > 1 && (
+                {/* Login Overlay for Mobile Gallery */}
+                {!isLoggedIn && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                    <div className="bg-white rounded-xl p-5 max-w-xs mx-4 text-center shadow-2xl">
+                      <h3 className="text-lg font-bold text-[#293056] mb-2">
+                        Sign in to view photos
+                      </h3>
+                      <p className="text-gray-600 text-xs mb-3">
+                        Create a free account to see all property images
+                      </p>
+                      <div className="flex flex-col gap-2">
+                        <Link
+                          href="/login"
+                          className="block w-full py-2 px-3 bg-[#293056] text-white rounded-lg font-medium text-sm hover:bg-[#1f2441] transition-colors"
+                        >
+                          Sign In
+                        </Link>
+                        <Link
+                          href="/register"
+                          className="block w-full py-2 px-3 border border-[#293056] text-[#293056] rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+                        >
+                          Create Account
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Mobile Navigation - Only show if logged in and we have more than 1 image */}
+                {isLoggedIn && images.length > 1 && (
                   <>
                     <button 
                       onClick={() => changeMobileSlide('prev')}
-                      className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+                      className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300 z-20"
                     >
                       <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                     
                     <button 
                       onClick={() => changeMobileSlide('next')}
-                      className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+                      className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300 z-20"
                     >
                       <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                   </>
                 )}
                 
-                {/* Mobile Counter */}
-                <div className="absolute bottom-3 md:bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-xs md:text-sm font-medium">
-                  {currentMobileSlide + 1} / {images.length}
-                </div>
+                {/* Mobile Counter - Only show if logged in */}
+                {isLoggedIn && (
+                  <div className="absolute bottom-3 md:bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-xs md:text-sm font-medium z-20">
+                    {currentMobileSlide + 1} / {images.length}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -428,11 +492,6 @@ export default function PropertyGallery({
                       <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various area fields from API
-                          console.log('Area Debug - propertyData:', propertyData);
-                          console.log('Area Debug - LivingAreaRange:', propertyData?.LivingAreaRange);
-                          console.log('Area Debug - LivingArea:', propertyData?.LivingArea);
-                          console.log('Area Debug - details.area:', propertyData?.details?.area);
-                          
                           const livingArea = propertyData?.LivingAreaRange || propertyData?.livingAreaRange || 
                                            propertyData?.LivingArea || propertyData?.livingArea ||
                                            propertyData?.AboveGradeFinishedArea || propertyData?.aboveGradeFinishedArea ||
@@ -440,23 +499,17 @@ export default function PropertyGallery({
                                            propertyData?.GrossFloorArea || propertyData?.grossFloorArea ||
                                            propertyData?.details?.area;
                           
-                          console.log('Area Debug - Final livingArea value:', livingArea);
-                          
                           if (livingArea) {
-                            // If it's a range like "500-599" or "1800-1999", take the midpoint
+                            // If it's a range like "500-599" or "1800-1999", show the range as-is
                             if (typeof livingArea === 'string' && livingArea.includes('-')) {
-                              const [min, max] = livingArea.split('-').map(n => parseInt(n));
-                              const avg = Math.round((min + max) / 2);
-                              // Convert sqft to sqm (1 sqft = 0.092903 sqm)
-                              const sqm = Math.round(avg * 0.092903);
-                              return `${sqm} sqm`;
+                              return `${livingArea} sqft`;
                             }
-                            // If it's already a number or contains 'sqft'
+                            // If it's already a number or string
                             else if (livingArea) {
-                              const sqft = parseInt(livingArea.toString().replace(/[^0-9]/g, ''));
-                              if (sqft) {
-                                const sqm = Math.round(sqft * 0.092903);
-                                return `${sqm} sqm`;
+                              // Remove any existing "sqft" or unit text
+                              const value = livingArea.toString().replace(/[^0-9\-]/g, '');
+                              if (value) {
+                                return `${value} sqft`;
                               }
                             }
                           }
@@ -588,7 +641,10 @@ export default function PropertyGallery({
               
               {/* Enquire this Property Button */}
               <div className="bg-black rounded-full h-12 md:h-10 flex items-center justify-center w-full">
-                <button className="w-full h-full flex items-center justify-center">
+                <button 
+                  onClick={() => setShowEnquiryModal(true)}
+                  className="w-full h-full flex items-center justify-center hover:bg-gray-800 transition-colors rounded-full"
+                >
                   <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
                     Enquire this Property
                   </span>
@@ -611,12 +667,6 @@ export default function PropertyGallery({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button 
-                onClick={onToggleFavorite}
-                className="text-white bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md p-2 w-10 h-10 flex items-center justify-center hover:bg-opacity-20 transition-colors"
-              >
-                <Heart className="w-5 h-5" filled={isFavorited} />
-              </button>
               <button 
                 onClick={closeModal}
                 className="text-white bg-white bg-opacity-10 border border-white border-opacity-20 rounded-md p-2 w-10 h-10 flex items-center justify-center hover:bg-opacity-20 transition-colors"
@@ -711,6 +761,14 @@ export default function PropertyGallery({
           )}
         </div>
       )}
+
+      {/* Property Enquiry Modal */}
+      <PropertyEnquiryModal
+        isOpen={showEnquiryModal}
+        onClose={() => setShowEnquiryModal(false)}
+        propertyData={propertyData}
+        auth={auth}
+      />
     </>
   );
 }

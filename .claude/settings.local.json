@@ -22,7 +22,8 @@
       "Bash(fi)",
       "Bash(git log:*)",
       "Bash(dir \"F:\\noburesidence\\NOBU\\laravel-react-starter\\routes\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": [],

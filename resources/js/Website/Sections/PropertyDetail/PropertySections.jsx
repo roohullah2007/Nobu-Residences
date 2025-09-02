@@ -30,12 +30,14 @@ export default function PropertySections({
         title={propertyData.details?.type?.toLowerCase().includes('condo') 
           ? "More Buildings By Agent" 
           : "Nearby Listings"
-        } 
+        }
+        propertyData={propertyData} 
       />
       
       {/* Similar Listings Section - Using same MoreBuildings component for consistency */}
       <MoreBuildings 
         title="Similar Listings"
+        propertyData={propertyData}
       />
       
       {/* Comparable Sales Section - Only visible to logged-in users */}

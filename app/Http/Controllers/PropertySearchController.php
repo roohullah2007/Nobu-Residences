@@ -817,6 +817,19 @@ class PropertySearchController extends Controller
                 'Latitude' => $property['Latitude'] ?? '',
                 'Longitude' => $property['Longitude'] ?? '',
                 
+                // Address components for card formatting
+                'UnitNumber' => $property['UnitNumber'] ?? '',
+                'StreetNumber' => $property['StreetNumber'] ?? '',
+                'StreetName' => $property['StreetName'] ?? '',
+                'StreetSuffix' => $property['StreetSuffix'] ?? '',
+                'StreetDirSuffix' => $property['StreetDirSuffix'] ?? '',
+                
+                // Additional fields for display
+                'LivingAreaRange' => $property['LivingAreaRange'] ?? '',
+                'LivingArea' => $property['LivingArea'] ?? '',
+                'ParkingSpaces' => $property['ParkingSpaces'] ?? 0,
+                'ListOfficeName' => $property['ListOfficeName'] ?? '',
+                
                 // Additional fields
                 'ListingContractDate' => $property['ListingContractDate'] ?? '',
                 'DaysOnMarket' => $this->calculateDaysOnMarket($property['ListingContractDate'] ?? ''),

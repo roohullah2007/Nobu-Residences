@@ -42,7 +42,7 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
             <div className="overflow-x-hidden">
                 <HeroSection auth={auth} siteName={siteName} website={website} pageContent={pageContent} />
                 <AboutSection website={website} pageContent={pageContent} availableIcons={availableIcons} />
-                <PropertiesSection />
+                <PropertiesSection auth={auth} />
                 <FAQSection website={website} pageContent={pageContent} />
             </div>
 

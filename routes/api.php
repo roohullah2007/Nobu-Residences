@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SchoolController;
+use App\Http\Controllers\FavouritesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,6 +18,14 @@ use App\Http\Controllers\Api\SchoolController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
+});
+
+// Favourites API Routes
+Route::prefix('favourites')->group(function () {
+    Route::post('/properties/check', [FavouritesController::class, 'checkProperty']);
+    Route::post('/properties/toggle', [FavouritesController::class, 'toggleProperty']);
+    Route::get('/properties', [FavouritesController::class, 'getProperties']);
+    Route::delete('/properties', [FavouritesController::class, 'removeProperty']);
 });
 
 // School API Routes

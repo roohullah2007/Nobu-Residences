@@ -3,7 +3,7 @@ import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
 import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { usePage } from '@inertiajs/react';
 
-const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
+const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
   const [nearbyListings, setNearbyListings] = useState([]);
@@ -11,6 +11,10 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
   const [isLoading, setIsLoading] = useState(true);
   
   const { listingKey } = usePage().props;
+  
+  // Get property type and subtype from propertyData
+  const propertyType = propertyData?.propertyType || null;
+  const propertySubType = propertyData?.propertySubType || null;
 
   // NO SAMPLE DATA - only show real listings from API
 
@@ -45,8 +49,32 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
             listingKey: property.listingKey,
             propertyType: property.propertySubType || property.propertyType || "Residential",
             address: property.address || "Address not available",
-            bedrooms: property.bedrooms || 0,
-            bathrooms: property.bathrooms || 0,
+            // Include fields needed for formatCardAddress
+            UnitNumber: property.UnitNumber || property.unitNumber || '',
+            unitNumber: property.unitNumber || property.UnitNumber || '',
+            StreetNumber: property.StreetNumber || property.streetNumber || '',
+            streetNumber: property.streetNumber || property.StreetNumber || '',
+            StreetName: property.StreetName || property.streetName || '',
+            streetName: property.streetName || property.StreetName || '',
+            StreetSuffix: property.StreetSuffix || property.streetSuffix || '',
+            streetSuffix: property.streetSuffix || property.StreetSuffix || '',
+            // Include fields for buildCardFeatures
+            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
+            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
+            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
+            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
+            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
+            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
+            LivingAreaRange: property.LivingAreaRange || property.livingAreaRange || '',
+            livingAreaRange: property.livingAreaRange || property.LivingAreaRange || '',
+            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
+            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
+            ParkingSpaces: property.ParkingSpaces || property.parkingSpaces || 0,
+            parkingSpaces: property.parkingSpaces || property.ParkingSpaces || 0,
+            ParkingTotal: property.ParkingTotal || property.parkingTotal || 0,
+            parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
+            ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
+            listOfficeName: property.listOfficeName || property.ListOfficeName || '',
             price: property.price || 0,
             isRental: property.transactionType === 'Rent',
             transactionType: property.transactionType || 'Sale',
@@ -132,7 +160,22 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
   const fetchSimilarListings = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/similar-listings?listingKey=${listingKey}&limit=6`);
+      // Build query params with property type filtering
+      const params = new URLSearchParams({
+        listingKey: listingKey,
+        limit: 6
+      });
+      
+      // Add property type filters if available
+      if (propertySubType) {
+        params.append('propertySubType', propertySubType);
+      } else if (propertyType) {
+        params.append('propertyType', propertyType);
+      }
+      
+      console.log('Fetching similar listings with params:', params.toString());
+      
+      const response = await fetch(`/api/similar-listings?${params.toString()}`);
       const data = await response.json();
       
       console.log('Similar listings API response:', data);
@@ -147,8 +190,32 @@ const MoreBuildings = ({ title = "More Buildings By Agent" }) => {
             listingKey: property.listingKey,
             propertyType: property.propertySubType || property.propertyType || "Residential",
             address: property.address || "Address not available",
-            bedrooms: property.bedrooms || 0,
-            bathrooms: property.bathrooms || 0,
+            // Include fields needed for formatCardAddress
+            UnitNumber: property.UnitNumber || property.unitNumber || '',
+            unitNumber: property.unitNumber || property.UnitNumber || '',
+            StreetNumber: property.StreetNumber || property.streetNumber || '',
+            streetNumber: property.streetNumber || property.StreetNumber || '',
+            StreetName: property.StreetName || property.streetName || '',
+            streetName: property.streetName || property.StreetName || '',
+            StreetSuffix: property.StreetSuffix || property.streetSuffix || '',
+            streetSuffix: property.streetSuffix || property.StreetSuffix || '',
+            // Include fields for buildCardFeatures
+            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
+            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
+            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
+            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
+            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
+            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
+            LivingAreaRange: property.LivingAreaRange || property.livingAreaRange || '',
+            livingAreaRange: property.livingAreaRange || property.LivingAreaRange || '',
+            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
+            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
+            ParkingSpaces: property.ParkingSpaces || property.parkingSpaces || 0,
+            parkingSpaces: property.parkingSpaces || property.ParkingSpaces || 0,
+            ParkingTotal: property.ParkingTotal || property.parkingTotal || 0,
+            parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
+            ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
+            listOfficeName: property.listOfficeName || property.ListOfficeName || '',
             price: property.price || 0,
             isRental: property.transactionType === 'Rent',
             transactionType: property.transactionType || 'Sale',

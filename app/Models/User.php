@@ -4,7 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -53,6 +53,34 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's property favourites
+     */
+    public function propertyFavourites(): HasMany
+    {
+        return $this->hasMany(UserPropertyFavourite::class);
+    }
+
+    /**
+     * Check if user has favourited a specific property
+     */
+    public function hasFavouritedProperty(string $listingKey): bool
+    {
+        return $this->propertyFavourites()
+                   ->where('property_listing_key', $listingKey)
+                   ->exists();
+    }
+
+    /**
+     * Get user's favourite property listing keys
+     */
+    public function getFavouritePropertyKeys(): array
+    {
+        return $this->propertyFavourites()
+                   ->pluck('property_listing_key')
+                   ->toArray();
+    }
+
+    /**
      * Check if user is admin
      */
     public function isAdmin(): bool
@@ -75,6 +103,4 @@ class User extends Authenticatable
     {
         return $this->role === $role;
     }
-
-
 }

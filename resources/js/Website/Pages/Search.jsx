@@ -168,8 +168,8 @@ export default function EnhancedPropertySearch({
   
   const [searchFilters, setSearchFilters] = useState({
     query: filters.search || urlParams.get('location') || '',
-    status: filters.forSale || urlParams.get('property_type') || 'For Sale',
-    property_type: propertyTypeArray, // Empty array means all types
+    status: filters.forSale || urlParams.get('status') || urlParams.get('property_type') || 'For Sale',
+    property_type: propertyTypeArray.length > 0 ? propertyTypeArray : ['Condo Apartment'], // Default to Condo Apartment if no type specified
     price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
     price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
@@ -268,6 +268,10 @@ export default function EnhancedPropertySearch({
       if (result.success) {
         const currentTab = tabOverride || activeTab;
         if (currentTab === 'listings') {
+          // Log first property to debug
+          if (result.data.properties && result.data.properties.length > 0) {
+            console.log('📦 First property from API:', result.data.properties[0]);
+          }
           setProperties(result.data.properties || []);
           setBuildings([]);
         } else {
@@ -296,18 +300,32 @@ export default function EnhancedPropertySearch({
   // Initial search on mount and handle URL changes
   useEffect(() => {
     const loadFromUrl = () => {
-      // Get page and tab from URL query params
+      // Get all params from URL
       const urlParams = new URLSearchParams(window.location.search);
       const pageFromUrl = parseInt(urlParams.get('page')) || 1;
       const tabFromUrl = urlParams.get('tab') || activeTab;
+      const statusFromUrl = urlParams.get('status') || urlParams.get('property_type');
+      const propertySubType = urlParams.get('property_sub_type');
       
       // Update tab if different from URL
       if (tabFromUrl !== activeTab) {
         setActiveTab(tabFromUrl);
       }
       
-      // Update search filters with page from URL
-      const initialFilters = { ...searchFilters, page: pageFromUrl };
+      // Build filters from URL params
+      const initialFilters = {
+        query: urlParams.get('location') || '',
+        status: statusFromUrl || 'For Sale',
+        property_type: propertySubType ? [propertySubType] : ['Condo Apartment'],
+        price_min: parseInt(urlParams.get('min_price')) || 0,
+        price_max: parseInt(urlParams.get('max_price')) || 10000000,
+        bedrooms: parseInt(urlParams.get('bedrooms')) || 0,
+        bathrooms: parseInt(urlParams.get('bathrooms')) || 0,
+        sort: urlParams.get('sort') || 'newest',
+        tab: tabFromUrl,
+        page: pageFromUrl
+      };
+      
       setSearchFilters(initialFilters);
       setCurrentPage(pageFromUrl);
       
@@ -490,6 +508,11 @@ export default function EnhancedPropertySearch({
 
   // Format property data for PropertyCardV5
   const formatPropertyForCard = (property) => {
+    // Debug: Log raw property to see what fields are available
+    if (property.ListingKey === 'C12373183') {
+      console.log('🔍 Raw property from API:', property);
+    }
+    
     // Get image from lazy loaded cache if available
     const cachedImage = propertyImages[property.ListingKey];
     let imageUrl = property.MediaURL; // Use MediaURL from initial response
@@ -515,7 +538,33 @@ export default function EnhancedPropertySearch({
       source: 'mls',
       imageUrl: imageUrl, // Will be updated via lazy loading
       images: cachedImage?.all_images || property.Images || [],
-      isImageLoading: isImageLoading(property.ListingKey)
+      isImageLoading: isImageLoading(property.ListingKey),
+      // Add all MLS fields needed for formatters (both cases for compatibility)
+      UnitNumber: property.UnitNumber,
+      unitNumber: property.UnitNumber,
+      StreetNumber: property.StreetNumber,
+      streetNumber: property.StreetNumber,
+      StreetName: property.StreetName,
+      streetName: property.StreetName,
+      StreetSuffix: property.StreetSuffix,
+      streetSuffix: property.StreetSuffix,
+      LivingAreaRange: property.LivingAreaRange,
+      livingAreaRange: property.LivingAreaRange,
+      LivingArea: property.LivingArea,
+      livingArea: property.LivingArea,
+      BuildingAreaTotal: property.BuildingAreaTotal || property.AboveGradeFinishedArea,
+      buildingAreaTotal: property.BuildingAreaTotal || property.AboveGradeFinishedArea,
+      AboveGradeFinishedArea: property.AboveGradeFinishedArea,
+      ParkingSpaces: property.ParkingSpaces,
+      parkingSpaces: property.ParkingSpaces,
+      ParkingTotal: property.ParkingTotal,
+      parkingTotal: property.ParkingTotal,
+      ListOfficeName: property.ListOfficeName,
+      listOfficeName: property.ListOfficeName,
+      BedroomsTotal: property.BedroomsTotal,
+      bedroomsTotal: property.BedroomsTotal,
+      BathroomsTotalInteger: property.BathroomsTotalInteger,
+      bathroomsTotalInteger: property.BathroomsTotalInteger
     };
   };
 

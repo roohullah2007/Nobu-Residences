@@ -11,9 +11,9 @@ import {
 } from '@/Website/Sections/PropertyDetail';
 import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
+import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages }) {
-  const [isFavorited, setIsFavorited] = useState(false);
   const [propertyData, setPropertyData] = useState(initialPropertyData);
   // Process initial images - they come as an array of URLs from the server
   const [propertyImages, setPropertyImages] = useState(() => {
@@ -52,10 +52,6 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       isOpen: false,
       property: null
     });
-  };
-
-  const handleToggleFavorite = () => {
-    setIsFavorited(!isFavorited);
   };
 
   // NO SAMPLE DATA - only use real property data from API
@@ -158,12 +154,23 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     const locker = property.locker || property.Locker;
     const crossStreet = property.crossStreet || property.CrossStreet;
     
-    // Format address
-    const formattedAddress = unitNumber 
-      ? `${unitNumber} - ${streetNumber} ${streetName} ${streetSuffix}`.trim()
-      : `${streetNumber} ${streetName} ${streetSuffix}`.trim();
+    // Format address using the utility function
+    const formattedAddress = formatCardAddress(property);
+    
+    // Format area using the utility function
+    const formattedArea = formatArea(property);
     
     return {
+      // Raw fields for formatCardAddress function
+      UnitNumber: unitNumber,
+      unitNumber: unitNumber,
+      StreetNumber: streetNumber,
+      streetNumber: streetNumber,
+      StreetName: streetName,
+      streetName: streetName,
+      StreetSuffix: streetSuffix,
+      streetSuffix: streetSuffix,
+      // Formatted fields
       address: formattedAddress,
       subtitle: `${propertySubType || propertyType} in ${city}, ${province}`,
       soldFor: closePrice ? formatPrice(closePrice) : null,
@@ -174,7 +181,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         type: propertySubType || propertyType || 'Residential',
         beds: `${bedroomsTotal}${property.BedroomsBelowGrade || property.bedroomsBelowGrade ? '+1' : ''}`,
         bathrooms: bathroomsTotal,
-        area: livingArea || 'N/A',
+        area: formattedArea || 'N/A',
         parking: parkingTotal,
         garageSpaces: garageSpaces,
         maintenanceFees: associationFee ? formatPrice(associationFee) : 'N/A',
@@ -262,8 +269,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         <div className="mb-7">
         <PropertyHeader 
           data={displayData}
-          isFavorited={isFavorited}
-          onToggleFavorite={handleToggleFavorite}
+          auth={auth}
           type="property"
         />
         </div>
@@ -273,8 +279,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         <PropertyGallery 
           propertyImages={propertyImages}
           propertyData={displayData}
-          isFavorited={isFavorited}
-          onToggleFavorite={handleToggleFavorite}
+          auth={auth}
         />
         </div>
  

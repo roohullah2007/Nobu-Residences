@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { LoginModal } from '@/Website/Global/Components';
+import Dropdown from '@/Components/Dropdown';
+import { Heart } from '@/Website/Components/Icons';
 
 export default function Navbar({ auth = {} }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -88,7 +90,7 @@ export default function Navbar({ auth = {} }) {
                             Home
                         </Link>
                         <Link 
-                            href="/rent" 
+                            href="/search?status=For%20Rent" 
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{ 
                                 fontSize: '16px', 
@@ -98,7 +100,7 @@ export default function Navbar({ auth = {} }) {
                             Rent
                         </Link>
                         <Link 
-                            href="/sale" 
+                            href="/search?status=For%20Sale" 
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{ 
                                 fontSize: '16px', 
@@ -138,16 +140,6 @@ export default function Navbar({ auth = {} }) {
                             Contact Us
                         </Link>
                         <Link 
-                            href="/property-detail" 
-                            className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
-                            }}
-                        >
-                            Property Detail
-                        </Link>
-                        <Link 
                             href="/school" 
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{ 
@@ -158,16 +150,55 @@ export default function Navbar({ auth = {} }) {
                             School
                         </Link>
                         {auth?.user ? (
-                            <Link
-                                href="/user/dashboard"
-                                className="px-4 py-2 rounded-lg transition-colors font-work-sans"
-                                style={{ 
-                                    fontSize: '16px', 
-                                    fontWeight: '500' 
-                                }}
-                            >
-                                My Account
-                            </Link>
+                            <Dropdown>
+                                <Dropdown.Trigger>
+                                    <button className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-work-sans hover:bg-gray-100">
+                                        <div className="w-8 h-8 bg-[#293056] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                            {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                        </div>
+                                        <span className="text-gray-900" style={{ fontSize: '16px', fontWeight: '500' }}>
+                                            {auth.user.name || 'User'}
+                                        </span>
+                                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                </Dropdown.Trigger>
+                                <Dropdown.Content align="right" width="56">
+                                    <Dropdown.Link href="/user/dashboard">
+                                        <div className="flex items-center gap-3">
+                                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            My Account
+                                        </div>
+                                    </Dropdown.Link>
+                                    <Dropdown.Link href="/user/favourites">
+                                        <div className="flex items-center gap-3">
+                                            <Heart className="w-4 h-4 text-red-500" filled={true} />
+                                            My Favourites
+                                        </div>
+                                    </Dropdown.Link>
+                                    <div className="border-t border-gray-100 my-1"></div>
+                                    <Dropdown.Link href="/profile" method="get">
+                                        <div className="flex items-center gap-3">
+                                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            Settings
+                                        </div>
+                                    </Dropdown.Link>
+                                    <Dropdown.Link href="/logout" method="post" as="button">
+                                        <div className="flex items-center gap-3">
+                                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                            </svg>
+                                            Log Out
+                                        </div>
+                                    </Dropdown.Link>
+                                </Dropdown.Content>
+                            </Dropdown>
                         ) : (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
@@ -268,14 +299,6 @@ export default function Navbar({ auth = {} }) {
                                     Contact Us
                                 </Link>
                                 <Link 
-                                    href="/property-detail" 
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Property Detail
-                                </Link>
-                                <Link 
                                     href="/school" 
                                     className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
@@ -288,14 +311,25 @@ export default function Navbar({ auth = {} }) {
                             {/* Action Button */}
                             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
                                 {auth?.user ? (
-                                    <Link
-                                        href="/user/dashboard"
-                                        className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center"
-                                        style={{ fontSize: '16px', fontWeight: '600' }}
-                                        onClick={() => setMobileMenuOpen(false)}
-                                    >
-                                        My Account
-                                    </Link>
+                                    <div className="space-y-3">
+                                        <Link
+                                            href="/user/dashboard"
+                                            className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center"
+                                            style={{ fontSize: '16px', fontWeight: '600' }}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                        >
+                                            My Account
+                                        </Link>
+                                        <Link
+                                            href="/user/favourites"
+                                            className="flex items-center justify-center gap-2 w-full border border-red-500 text-red-600 px-4 py-3 rounded-lg hover:bg-red-50 transition-colors font-work-sans"
+                                            style={{ fontSize: '16px', fontWeight: '600' }}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                        >
+                                            <Heart className="w-4 h-4" filled={true} />
+                                            My Favourites
+                                        </Link>
+                                    </div>
                                 ) : (
                                     <button
                                         onClick={() => {

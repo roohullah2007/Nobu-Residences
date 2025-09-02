@@ -1,7 +1,7 @@
 import PropertiesForSale from '@/Website/Components/Property/PropertiesForSale';
 import PropertiesForRent from '@/Website/Components/Property/PropertiesForRent';
 
-export default function PropertiesSection() {
+export default function PropertiesSection({ auth }) {
     return (
         <section className="py-4 md:py-16 bg-gray-50">
             <div className="mx-auto px-4 md:px-0 max-w-screen-[1280px]">
@@ -23,10 +23,10 @@ export default function PropertiesSection() {
                 </div>
                 
                 {/* Properties For Sale Component */}
-                <PropertiesForSale />
+                <PropertiesForSale auth={auth} />
                 
                 {/* Properties For Rent Component */}
-                <PropertiesForRent />
+                <PropertiesForRent auth={auth} />
             </div>
         </section>
     );

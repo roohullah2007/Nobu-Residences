@@ -5,5 +5,10 @@ export {
   Share, 
   Close, 
   Phone, 
-  Calendar 
+  Calendar,
+  FacebookIcon,
+  TwitterIcon,
+  EmailIcon,
+  LinkIcon,
+  Trash2
 } from './PropertyDetailIcons';

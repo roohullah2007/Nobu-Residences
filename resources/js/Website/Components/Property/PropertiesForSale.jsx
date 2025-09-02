@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PropertyCarousel } from '@/Website/Global/Components';
 import axios from 'axios';
 
-const PropertiesForSale = ({ forSaleProperties = null }) => {
+const PropertiesForSale = ({ auth, forSaleProperties = null }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +50,7 @@ const PropertiesForSale = ({ forSaleProperties = null }) => {
   return (
     <PropertyCarousel
       properties={propertiesData}
+      auth={auth}
       title="Properties For Sale"
       type="sale"
       viewAllLink="/sale"

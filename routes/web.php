@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\EnhancedPropertyImagesController;
 use App\Http\Controllers\AmpreTestController;
 use App\Http\Controllers\WebsiteController;
+use App\Http\Controllers\PropertyEnquiryController;
 
 use App\Http\Controllers\Admin\AdminController;
 
@@ -48,6 +49,9 @@ Route::get('/schools/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySl
 
 Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::class, 'proxy'])->name('image-proxy');
 
+// Property Enquiry route
+Route::post('/property-enquiry', [PropertyEnquiryController::class, 'store'])->name('property.enquiry');
+
 // Property Image API routes (using same mechanism as WordPress plugin)
 Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);
 Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImage']);
@@ -61,6 +65,16 @@ Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingContro
 
 // Property Detail API route
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
+
+// Property Favourites API routes
+Route::middleware('auth')->prefix('api/favourites')->group(function () {
+    Route::get('/properties', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'index']);
+    Route::post('/properties', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'store']);
+    Route::delete('/properties', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'destroy']);
+    Route::post('/properties/toggle', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'toggle']);
+    Route::post('/properties/check', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'check']);
+    Route::get('/properties/with-data', [\App\Http\Controllers\Api\PropertyFavouriteController::class, 'getFavouritesWithData']);
+});
 
 // Homepage Properties API route
 Route::get('/api/homepage-properties', [\App\Http\Controllers\Api\HomepagePropertiesController::class, 'getHomepageProperties']);
@@ -107,6 +121,15 @@ Route::get('/user/dashboard', function () {
         'year' => date('Y')
     ]);
 })->middleware(['auth', 'verified'])->name('user.dashboard');
+
+// User Favourites Route
+Route::get('/user/favourites', function () {
+    return Inertia::render('UserFavourites', [
+        'siteName' => 'X Houses',
+        'siteUrl' => config('app.url'),
+        'year' => date('Y')
+    ]);
+})->middleware(['auth', 'verified'])->name('user.favourites');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

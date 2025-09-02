@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import PropertyImageLoader from '@/Components/PropertyImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
+import { 
+  formatCardAddress, 
+  buildCardFeatures, 
+  getBrokerageName 
+} from '@/utils/propertyFormatters';
 
 /**
  * PropertyCardV1 - For Sale Properties
@@ -44,20 +49,10 @@ const PropertyCardV1 = ({
   const isRealMLSData = property.source === 'mls' || 
                        (property.listingKey && property.listingKey.length > 10);
 
-  // Build features display
-  const buildFeatures = (bedrooms, bathrooms) => {
-    const features = [];
-    if (bedrooms > 0) {
-      features.push(bedrooms + ' Bed' + (bedrooms > 1 ? 's' : ''));
-    }
-    if (bathrooms > 0) {
-      features.push(bathrooms + ' Bath' + (bathrooms > 1 ? 's' : ''));
-    }
-    return features.join(' | ');
-  };
-
   const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
-  const features = buildFeatures(property.bedrooms, property.bathrooms);
+  const displayAddress = formatCardAddress(property);
+  const features = buildCardFeatures(property);
+  const brokerageName = getBrokerageName(property);
   const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations
@@ -178,13 +173,20 @@ const PropertyCardV1 = ({
           <div className="flex flex-col items-start gap-2 w-full flex-1">
             {/* Address */}
             <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
-              {property.address}
+              {displayAddress}
             </div>
             
             {/* Features */}
             {features && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
                 {features}
+              </div>
+            )}
+            
+            {/* Brokerage Name */}
+            {brokerageName && (
+              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
+                {brokerageName}
               </div>
             )}
             

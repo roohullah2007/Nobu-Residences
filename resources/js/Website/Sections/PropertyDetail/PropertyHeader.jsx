@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { Heart, Share } from '@/Website/Components/Icons';
+import { formatCardAddress } from '@/utils/propertyFormatters';
 
 export default function PropertyHeader({ propertyData, isFavorited, onToggleFavorite }) {
   const [showShareDropdown, setShowShareDropdown] = useState(false);
+  
+  // Format the property title using the new format
+  const displayTitle = formatCardAddress(propertyData);
 
   const handleShare = (platform) => {
     const currentUrl = window.location.href;
-    const propertyTitle = propertyData?.address || 'Property Details';
+    const propertyTitle = displayTitle || 'Property Details';
     const propertySubtitle = propertyData?.subtitle || '';
     const shareText = `Check out this property: ${propertyTitle}${propertySubtitle ? ' - ' + propertySubtitle : ''}`;
     
@@ -52,7 +56,7 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
             {/* Property Info */}
             <div className="flex-1 pr-5">
               <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] text-[#293056] tracking-tight mb-3">
-                {propertyData.address}
+                {displayTitle}
               </h1>
               <div className="font-work-sans font-medium text-lg leading-[27px] text-[#293056] tracking-tight underline">
                 {propertyData.subtitle}
