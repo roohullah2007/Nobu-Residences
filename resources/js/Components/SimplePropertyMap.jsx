@@ -9,13 +9,16 @@ const SimplePropertyMap = React.forwardRef(({
   onPropertyClick = null,
   onPropertyHover = null,
   viewType = 'full',
-  onMapReady = null
+  onMapReady = null,
+  activeTab = 'listings' // Add activeTab prop to know if we're showing buildings or properties
 }, ref) => {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const infoWindowRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
+  
+  console.log('🗺️ SimplePropertyMap activeTab:', activeTab, 'Properties count:', properties.length); // Debug
   
   // Expose map instance through ref
   React.useImperativeHandle(ref, () => ({
@@ -89,6 +92,33 @@ const SimplePropertyMap = React.forwardRef(({
 
         mapInstanceRef.current = map;
         mapDiv._mapInstance = map;
+        
+        // Track when user interacts with the map to prevent auto-centering
+        map._hasUserInteracted = false;
+        map._isInitializing = true;
+        
+        // Mark as user-interacted when they drag, zoom, or click
+        map.addListener('dragstart', () => {
+          map._hasUserInteracted = true;
+          console.log('User started dragging the map');
+        });
+        
+        map.addListener('zoom_changed', () => {
+          // Only mark as interacted if map is not initializing
+          if (!map._isInitializing) {
+            map._hasUserInteracted = true;
+            console.log('User changed zoom level');
+          }
+        });
+        
+        map.addListener('click', () => {
+          map._hasUserInteracted = true;
+        });
+        
+        // Mark initialization complete after a short delay
+        setTimeout(() => {
+          map._isInitializing = false;
+        }, 1000);
         
         console.log('Map created successfully');
         setMapLoaded(true);
@@ -185,7 +215,6 @@ const SimplePropertyMap = React.forwardRef(({
     document.head.appendChild(script);
   };
 
-
   // Format price for marker display
   const formatPrice = (price) => {
     if (!price || price <= 0) return '?';
@@ -194,9 +223,35 @@ const SimplePropertyMap = React.forwardRef(({
     return Math.round(price / 1000) + 'K';
   };
 
+  // Get label text based on tab - building name for buildings tab, price for properties
+  const getMarkerLabel = (property) => {
+    console.log('🏷️ Getting marker label for activeTab:', activeTab, 'Property name:', property.name || property.building_name || 'NO NAME'); // Debug
+    
+    if (activeTab === 'buildings') {
+      // For buildings, show building name - use the 'name' field from building data
+      const buildingName = property.name || property.building_name || property.address || 'Building';
+      console.log('🏢 Building marker label:', buildingName);
+      return buildingName;
+    } else {
+      // For properties, show price
+      return '$' + formatPrice(property.ListPrice);
+    }
+  };
+
+  // Get truncated text for marker display (max ~12 characters to fit in marker)
+  const getTruncatedLabel = (text) => {
+    if (!text) return '?';
+    // Remove $ prefix for length calculation if present
+    const cleanText = text.toString().replace(/^\$/, '');
+    if (cleanText.length <= 12) return text;
+    return text.toString().substring(0, 9) + '...';
+  };
+
   // Add markers to the map
   const addMarkers = useCallback(() => {
     if (!mapInstanceRef.current || !window.google) return;
+
+    console.log('🗺️ Adding markers for', properties.length, 'properties, activeTab:', activeTab);
 
     // Clear existing markers
     markersRef.current.forEach(marker => {
@@ -213,28 +268,48 @@ const SimplePropertyMap = React.forwardRef(({
       });
     }
 
-    // Add new markers with custom price labels
+    // Add new markers with custom labels (building names or prices)
     properties.forEach((property, index) => {
-      if (!property.Latitude || !property.Longitude) return;
+      console.log(`🏢 Processing property ${index}:`, {
+        hasLatitude: !!property.Latitude,
+        hasLongitude: !!property.Longitude,
+        latitude: property.Latitude,
+        longitude: property.Longitude,
+        name: property.name,
+        building_name: property.building_name,
+        address: property.address
+      });
+
+      if (!property.Latitude || !property.Longitude) {
+        console.warn(`⚠️ Skipping property ${index} - missing coordinates`);
+        return;
+      }
 
       const lat = parseFloat(property.Latitude);
       const lng = parseFloat(property.Longitude);
       
-      if (isNaN(lat) || isNaN(lng)) return;
+      if (isNaN(lat) || isNaN(lng)) {
+        console.warn(`⚠️ Skipping property ${index} - invalid coordinates`);
+        return;
+      }
 
-      const priceText = formatPrice(property.ListPrice);
+      // Get the appropriate label based on activeTab
+      const fullLabel = getMarkerLabel(property);
+      const displayLabel = getTruncatedLabel(fullLabel);
       
-      // Create custom marker icon with blue background and price
+      console.log(`📍 Creating marker ${index} at [${lat}, ${lng}] with label: "${displayLabel}"`);
+      
+      // Create custom marker icon with blue background and label
       const icon = {
         url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
           <svg width="80" height="45" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <filter id="shadow${property.ListingKey || index}" x="-50%" y="-50%" width="200%" height="200%">
+              <filter id="shadow${property.ListingKey || property.id || index}" x="-50%" y="-50%" width="200%" height="200%">
                 <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
               </filter>
             </defs>
-            <rect x="5" y="5" width="70" height="26" rx="4" fill="#007cba" stroke="white" stroke-width="2" filter="url(#shadow${property.ListingKey || index})"/>
-            <text x="40" y="21" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+            <rect x="5" y="5" width="70" height="26" rx="4" fill="#007cba" stroke="white" stroke-width="2" filter="url(#shadow${property.ListingKey || property.id || index})"/>
+            <text x="40" y="21" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial, sans-serif">${displayLabel}</text>
             <polygon points="40,32 48,32 44,40 36,32" fill="#007cba" stroke="white" stroke-width="2"/>
           </svg>
         `)}`,
@@ -246,7 +321,7 @@ const SimplePropertyMap = React.forwardRef(({
         position: { lat, lng },
         map: mapInstanceRef.current,
         icon: icon,
-        title: property.UnparsedAddress || property.address || `Property ${index + 1}`,
+        title: property.UnparsedAddress || property.address || `${activeTab === 'buildings' ? 'Building' : 'Property'} ${index + 1}`,
         optimized: false,
         zIndex: 100
       });
@@ -257,12 +332,12 @@ const SimplePropertyMap = React.forwardRef(({
           url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
             <svg width="85" height="48" xmlns="http://www.w3.org/2000/svg">
               <defs>
-                <filter id="shadowHover${property.ListingKey || index}" x="-50%" y="-50%" width="200%" height="200%">
+                <filter id="shadowHover${property.ListingKey || property.id || index}" x="-50%" y="-50%" width="200%" height="200%">
                   <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
                 </filter>
               </defs>
-              <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${property.ListingKey || index})"/>
-              <text x="42.5" y="22" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="Arial, sans-serif">$${priceText}</text>
+              <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${property.ListingKey || property.id || index})"/>
+              <text x="42.5" y="22" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="Arial, sans-serif">${displayLabel}</text>
               <polygon points="42.5,34 50.5,34 46.5,42 38.5,34" fill="#0056b3" stroke="white" stroke-width="2"/>
             </svg>
           `)}`,
@@ -286,9 +361,15 @@ const SimplePropertyMap = React.forwardRef(({
         }
       });
 
-      // Add click listener to show PropertyCardV5 in info window
+      // Add click listener to show PropertyCardV5 in info window or navigate to building
       marker.addListener('click', () => {
-        console.log('Marker clicked for property:', property.ListingKey, property);
+        console.log('Marker clicked for property:', property.ListingKey || property.id, property);
+        
+        // If it's a building, navigate to building detail page
+        if (property.source === 'building' || activeTab === 'buildings') {
+          window.location.href = `/building/${property.id}`;
+          return;
+        }
         
         try {
           // Close any existing info window cleanup
@@ -298,7 +379,7 @@ const SimplePropertyMap = React.forwardRef(({
           }
 
           // Check if we have the required data
-          if (!property || !property.ListingKey) {
+          if (!property || (!property.ListingKey && !property.id)) {
             console.error('Invalid property data for info window');
             return;
           }
@@ -333,15 +414,18 @@ const SimplePropertyMap = React.forwardRef(({
       markersRef.current.push(marker);
     });
 
-    // Fit bounds to show all markers
-    if (markersRef.current.length > 0) {
+    console.log(`📍 Created ${markersRef.current.length} markers on the map`);
+
+    // Only fit bounds on initial load, not on every update
+    // This prevents the map from jumping back when user is exploring
+    if (markersRef.current.length > 0 && !mapInstanceRef.current._hasUserInteracted) {
       const bounds = new window.google.maps.LatLngBounds();
       markersRef.current.forEach(marker => {
         bounds.extend(marker.getPosition());
       });
       mapInstanceRef.current.fitBounds(bounds);
     }
-  }, [properties, onPropertyClick]);
+  }, [properties, onPropertyClick, activeTab]);
 
   // Update markers when properties change
   useEffect(() => {

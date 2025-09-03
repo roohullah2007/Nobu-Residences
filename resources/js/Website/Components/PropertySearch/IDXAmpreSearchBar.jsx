@@ -29,7 +29,7 @@ const Home = ({ className }) => (
     </svg>
 );
 
-const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
+const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
     const [searchData, setSearchData] = useState({
         location: initialValues.location || '',
         propertyType: initialValues.propertyType || 'For Sale',
@@ -401,7 +401,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                     {/* Property Type */}
                     <div className="relative">
                         <select
-                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3 bg-gradient-to-b ${searchData.propertyType !== 'For Sale' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyType !== 'For Sale' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                             value={searchData.propertyType}
                             onChange={(e) => setSearchData({ ...searchData, propertyType: e.target.value })}
                         >
@@ -443,7 +443,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Property Type</label>
                         <div className="relative">
                             <select
-                                className={`idx-ampre-search-bar appearance-none min-w-[180px] pl-4 pr-10 py-3 bg-gradient-to-b ${searchData.propertySubType !== 'Condo Apartment' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                                className={`idx-ampre-search-bar appearance-none min-w-[180px] pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertySubType !== 'Condo Apartment' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                                 value={searchData.propertySubType}
                                 onChange={(e) => setSearchData({ ...searchData, propertySubType: e.target.value })}
                             >
@@ -466,7 +466,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                         <div className="relative">
                             <select
-                                className={`idx-ampre-search-bar appearance-none min-w-[160px] pl-4 pr-10 py-3 bg-gradient-to-b ${searchData.bedrooms !== '0' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                                className={`idx-ampre-search-bar appearance-none min-w-[160px] pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.bedrooms !== '0' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                                 value={searchData.bedrooms}
                                 onChange={(e) => setSearchData({ ...searchData, bedrooms: e.target.value })}
                             >
@@ -488,7 +488,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                         <div className="relative">
                             <select
-                                className={`idx-ampre-search-bar appearance-none min-w-[160px] pl-4 pr-10 py-3 bg-gradient-to-b ${searchData.bathrooms !== '0' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                                className={`idx-ampre-search-bar appearance-none min-w-[160px] pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.bathrooms !== '0' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                                 value={searchData.bathrooms}
                                 onChange={(e) => setSearchData({ ...searchData, bathrooms: e.target.value })}
                             >
@@ -513,7 +513,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                                 e.stopPropagation();
                                 setShowPriceSlider(!showPriceSlider);
                             }}
-                            className={`min-w-[220px] pl-4 pr-10 py-3 bg-gradient-to-b ${(searchData.minPrice > 0 || searchData.maxPrice < 10000000) ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 focus:border-[#912018] focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20 transition-all text-left text-gray-900 shadow-sm font-medium text-sm relative`}
+                            className={`min-w-[220px] pl-4 pr-10 py-3.5 bg-gradient-to-b ${(searchData.minPrice > 0 || searchData.maxPrice < 10000000) ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 focus:border-[#912018] focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20 transition-all text-left text-gray-900 shadow-sm font-medium text-sm relative`}
                         >
                             {searchData.minPrice > 0 || searchData.maxPrice < 10000000 
                                 ? `${formatPrice(searchData.minPrice)} - ${formatPrice(searchData.maxPrice)}`
@@ -625,6 +625,15 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch }) => {
                     {/* Save Search Button - Aligned to the right */}
                     <div className="flex items-end">
                         <button 
+                            onClick={() => {
+                                if (onSaveSearch) {
+                                    onSaveSearch({ ...searchData, searchType });
+                                } else {
+                                    // Default save search handler
+                                    console.log('Save search:', { ...searchData, searchType });
+                                    alert('Save search functionality not connected. Please implement onSaveSearch prop.');
+                                }
+                            }}
                             className="flex items-center justify-center px-6 py-3 text-white rounded-xl hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium shadow-sm h-fit"
                             style={{ backgroundColor: '#912018' }}
                         >

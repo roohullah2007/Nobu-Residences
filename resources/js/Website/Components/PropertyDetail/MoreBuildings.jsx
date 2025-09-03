@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
-import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
+import PropertyCardV6 from '../../Global/Components/PropertyCards/PropertyCardV6';
 import { usePage } from '@inertiajs/react';
 
 const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null }) => {
@@ -10,7 +10,7 @@ const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null 
   const [similarListings, setSimilarListings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const { listingKey } = usePage().props;
+  const { listingKey, auth } = usePage().props;
   
   // Get property type and subtype from propertyData
   const propertyType = propertyData?.propertyType || null;
@@ -330,7 +330,10 @@ const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null 
   };
 
   return (
-    <section className="p-4 rounded-xl border-gray-200 border shadow-sm bg-gray-50">
+    <section className={`p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 ${
+      title === "Nearby Listings" ? 'nearby-listings-container' : 
+      title === "Similar Listings" ? 'similar-listings-container' : ''
+    }`}>
       <div className="max-w-[1280px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
@@ -384,19 +387,21 @@ const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null 
         {/* Mobile: Horizontal Scrollable Row */}
         {!isLoading && buildings.length > 0 && (
         <div className="block md:hidden">
-          <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+          <div className="mobile-listings-scroll">
             {buildings.map((building) => (
-              <div key={building.listingKey || building.id} className="flex-shrink-0 w-72">
-                {/* Use PropertyCardV5 for actual listings, PropertyCardV3 for sample data */}
+              <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item">
+                {/* Use PropertyCardV6 for actual listings, PropertyCardV3 for sample data */}
                 {building.source === 'mls' ? (
-                  <PropertyCardV5
+                  <PropertyCardV6
                     property={building}
+                    auth={auth}
                     size="mobile"
                     onClick={() => {
                       if (building.listingKey) {
                         window.location.href = `/property/${building.listingKey}`;
                       }
                     }}
+                    className="w-[280px] max-w-[280px]"
                   />
                 ) : (
                   <PropertyCardV3
@@ -413,6 +418,7 @@ const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null 
                         console.log('Building clicked:', building.name);
                       }
                     }}
+                    className="w-[280px] max-w-[280px]"
                   />
                 )}
               </div>
@@ -431,39 +437,42 @@ const MoreBuildings = ({ title = "More Buildings By Agent", propertyData = null 
           >
             {Array.from({ length: totalSlides }).map((_, slideIndex) => (
               <div key={slideIndex} className="w-full flex-shrink-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="desktop-listings-grid">
                   {buildings
                     .slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide)
                     .map((building) => (
-                      building.source === 'mls' ? (
-                        <PropertyCardV5
-                          key={building.listingKey}
-                          property={building}
-                          size="default"
-                          onClick={() => {
-                            if (building.listingKey) {
-                              window.location.href = `/property/${building.listingKey}`;
-                            }
-                          }}
-                        />
-                      ) : (
-                        <PropertyCardV3
-                          key={building.id}
-                          image={building.image}
-                          title={building.name}
-                          address={building.address}
-                          units={building.units}
-                          priceRange={building.priceRange}
-                          listingKey={building.listingKey}
-                          onClick={() => {
-                            if (building.listingKey) {
-                              window.location.href = `/property/${building.listingKey}`;
-                            } else {
-                              console.log('Building clicked:', building.name);
-                            }
-                          }}
-                        />
-                      )
+                      <div key={building.listingKey || building.id} className="flex justify-center slider-item">
+                        {building.source === 'mls' ? (
+                          <PropertyCardV6
+                            property={building}
+                            auth={auth}
+                            size="default"
+                            onClick={() => {
+                              if (building.listingKey) {
+                                window.location.href = `/property/${building.listingKey}`;
+                              }
+                            }}
+                            className="w-[295px] max-w-[295px]"
+                          />
+                        ) : (
+                          <PropertyCardV3
+                            image={building.image}
+                            title={building.name}
+                            address={building.address}
+                            units={building.units}
+                            priceRange={building.priceRange}
+                            listingKey={building.listingKey}
+                            onClick={() => {
+                              if (building.listingKey) {
+                                window.location.href = `/property/${building.listingKey}`;
+                              } else {
+                                console.log('Building clicked:', building.name);
+                              }
+                            }}
+                            className="w-[295px] max-w-[295px]"
+                          />
+                        )}
+                      </div>
                     ))}
                 </div>
               </div>

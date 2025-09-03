@@ -48,6 +48,9 @@
 .idx-ampre-property-card {
     font-family: 'Work Sans', sans-serif;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 300px !important;
+    max-width: 300px !important;
+    min-width: 300px !important;
 }
 
 .idx-ampre-property-card:hover .property-image {
@@ -62,43 +65,47 @@
 /* Property Grid Layout - 4 Cards Per Row like IDX-AMPRE */
 .idx-ampre-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, 300px);
     gap: 19px;
     padding: 20px 0;
     max-width: 1280px;
     margin: 0 auto;
+    justify-content: center;
 }
 
-/* Responsive grid adjustments */
+/* Responsive grid adjustments - Auto-fit with 300px cards */
 @media (max-width: 1400px) {
     .idx-ampre-grid {
         max-width: 1200px;
-        grid-template-columns: repeat(4, 1fr);
         gap: 16px;
     }
 }
 
 @media (max-width: 1200px) {
     .idx-ampre-grid {
-        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
-        max-width: 900px;
+        max-width: 950px;
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 950px) {
     .idx-ampre-grid {
-        grid-template-columns: repeat(2, 1fr);
         gap: 12px;
-        max-width: 600px;
+        max-width: 650px;
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 650px) {
     .idx-ampre-grid {
-        grid-template-columns: repeat(1, 1fr);
         gap: 16px;
-        max-width: 400px;
+        max-width: 320px;
+        padding: 20px 10px;
+    }
+
+    .idx-ampre-property-card {
+        width: 280px !important;
+        max-width: 280px !important;
+        min-width: 280px !important;
     }
 }
 
@@ -542,4 +549,92 @@
 .idx-ampre-search-bar .dropdown-arrow {
     background: linear-gradient(to right, transparent, white 20%);
     padding-left: 8px;
+}
+
+/* Nearby and Similar Listings Card Width Fixes */
+.nearby-listings-container .idx-ampre-property-card,
+.similar-listings-container .idx-ampre-property-card {
+    max-width: 300px !important;
+    width: 300px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Mobile horizontal scroll for listings */
+.mobile-listings-scroll {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.mobile-listings-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-listings-scroll .idx-ampre-property-card {
+    width: 280px !important;
+    max-width: 280px !important;
+    flex-shrink: 0 !important;
+}
+
+/* Desktop grid for listings sections - Optimized for 3 cards at 300px */
+.desktop-listings-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    justify-items: center;
+    max-width: 950px;
+    margin: 0 auto;
+}
+
+.desktop-listings-grid .idx-ampre-property-card {
+    width: 300px !important;
+    max-width: 300px !important;
+}
+
+/* Responsive adjustments for listings sections */
+@media (max-width: 1024px) {
+    .desktop-listings-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .desktop-listings-grid {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+
+/* Ensure cards don't stretch beyond their max width in any context */
+.idx-ampre-property-card {
+    flex-shrink: 0 !important;
+    box-sizing: border-box;
+}
+
+/* Search Page Specific Card Width - Force 300px for consistency */
+.search-page .idx-ampre-property-card,
+.enhanced-property-search .idx-ampre-property-card {
+    width: 300px !important;
+    max-width: 300px !important;
+    min-width: 300px !important;
+}
+
+/* Additional constraint for carousel/slider contexts */
+.carousel-item .idx-ampre-property-card,
+.slider-item .idx-ampre-property-card {
+    width: 300px !important;
+    max-width: 300px !important;
+    min-width: 300px !important;
+}
+
+/* Mobile carousel constraints */
+@media (max-width: 768px) {
+    .carousel-item .idx-ampre-property-card,
+    .slider-item .idx-ampre-property-card {
+        width: 280px !important;
+        max-width: 280px !important;
+        min-width: 280px !important;
+    }
 }

@@ -61,28 +61,28 @@ const PropertyCardV5 = ({
   const brokerageName = getBrokerageName(property);
   const detailsUrl = generatePropertyUrl(property);
 
-  // Size configurations - Optimized for IDX-AMPRE style 4 cards per row
+  // Size configurations - Optimized for IDX-AMPRE style with 300px cards
   const sizeConfig = {
     default: {
-      container: 'w-[360px] h-[420px] idx-ampre-property-card',
+      container: 'w-[300px] h-[440px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
-      content: 'p-4 gap-2.5 h-[220px]',
+      content: 'p-4 gap-2.5 h-[240px]',
       chip: 'px-3 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
     },
     mobile: {
-      container: 'w-[320px] h-[450px] idx-ampre-property-card',
-      image: 'h-60 property-image-container',
-      content: 'p-3 gap-2 h-44',
+      container: 'w-[280px] h-[440px] idx-ampre-property-card',
+      image: 'h-[200px] property-image-container',
+      content: 'p-3 gap-2 h-[240px]',
       chip: 'px-2 py-1 text-xs property-badge',
       title: 'text-lg',
       details: 'text-sm'
     },
     grid: {
-      container: 'w-full h-[420px] idx-ampre-property-card',
+      container: 'w-[300px] h-[440px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
-      content: 'p-4 gap-2.5 h-[220px]',
+      content: 'p-4 gap-2.5 h-[240px]',
       chip: 'px-3 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
@@ -169,10 +169,10 @@ const PropertyCardV5 = ({
         </div>
         
         {/* Card Content - IDX-AMPRE Enhanced */}
-        <div className={`flex flex-col items-start ${config.content} box-border`}>
-          {/* Property Type Title */}
+        <div className={`flex flex-col items-start ${config.content} box-border pb-4`}>
+          {/* Property Type Title - Show Building Name for buildings */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.propertyType || 'Residential'}
+            {property.source === 'building' ? (property.name || property.propertyType || 'Building') : (property.propertyType || 'Residential')}
           </div>
           
           {/* Property Details */}
@@ -196,12 +196,14 @@ const PropertyCardV5 = ({
               </div>
             )}
             
-            {/* MLS Number */}
-            <div className="flex items-center justify-start w-full min-h-8">
-              <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
-                {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
+            {/* MLS Number - Hide for buildings */}
+            {property.source !== 'building' && (
+              <div className="flex items-center justify-start w-full min-h-8">
+                <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
+                  {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </a>

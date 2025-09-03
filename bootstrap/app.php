@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Exclude API routes from CSRF verification
         $middleware->validateCsrfTokens(except: [
             'api/property-search',
+            'api/property-search-viewport',
             'api/save-search',
             'api/saved-searches',
             'api/buildings-search',

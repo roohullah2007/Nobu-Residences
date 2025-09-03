@@ -102,10 +102,12 @@ class PropertySearchController extends Controller
 
             // Get and sanitize search parameters
             $searchParams = $request->input('search_params', []);
-            $sanitizedParams = $this->sanitizeSearchParams($searchParams);
             
-            // Extract viewport bounds
+            // Extract viewport bounds BEFORE sanitization (since sanitizeSearchParams removes it)
             $viewportBounds = $searchParams['viewport_bounds'] ?? null;
+            
+            // Sanitize search parameters
+            $sanitizedParams = $this->sanitizeSearchParams($searchParams);
             
             if (!$viewportBounds || !isset($viewportBounds['north']) || !isset($viewportBounds['south']) || 
                 !isset($viewportBounds['east']) || !isset($viewportBounds['west'])) {
@@ -115,8 +117,8 @@ class PropertySearchController extends Controller
                 ], 400);
             }
 
-            // Set higher page size for map searches
-            $sanitizedParams['page_size'] = min($sanitizedParams['page_size'] ?? 100, 200);
+            // Set page size to 15 for map searches as requested
+            $sanitizedParams['page_size'] = 15; // Load only 15 properties at once
             
             // Configure API client
             $this->configureApiClient($sanitizedParams);
@@ -131,8 +133,14 @@ class PropertySearchController extends Controller
             $apiResult = $this->ampreApi->fetchPropertiesWithCount();
             $properties = $apiResult['properties'];
             $totalCount = $apiResult['count'];
+            
+            Log::info('Viewport API fetch result', [
+                'properties_count' => count($properties),
+                'total_count' => $totalCount
+            ]);
 
             if (empty($properties)) {
+                Log::info('No properties found in viewport area');
                 return response()->json([
                     'success' => true,
                     'data' => [
@@ -144,8 +152,52 @@ class PropertySearchController extends Controller
                 ]);
             }
 
+            // Log first property to see what fields we have
+            if (!empty($properties)) {
+                Log::info('First property data sample', [
+                    'has_latitude' => isset($properties[0]['Latitude']),
+                    'has_longitude' => isset($properties[0]['Longitude']),
+                    'latitude_value' => $properties[0]['Latitude'] ?? 'null',
+                    'longitude_value' => $properties[0]['Longitude'] ?? 'null',
+                    'city' => $properties[0]['City'] ?? 'null'
+                ]);
+            }
+            
+            // Since MLS API doesn't always provide coordinates, let's skip viewport filtering
+            // and return all properties from the city (already filtered by city)
+            // The frontend will handle the actual viewport display
+            $propertiesInViewport = $properties;
+            
+            /* Old filtering code - keeping for reference
+            // Filter properties to only those within viewport bounds
+            $propertiesInViewport = array_filter($properties, function($property) use ($viewportBounds) {
+                $lat = $property['Latitude'] ?? null;
+                $lng = $property['Longitude'] ?? null;
+                
+                if (!$lat || !$lng) {
+                    return false; // Skip properties without coordinates
+                }
+                
+                $lat = floatval($lat);
+                $lng = floatval($lng);
+                
+                return $lat >= $viewportBounds['south'] && 
+                       $lat <= $viewportBounds['north'] && 
+                       $lng >= $viewportBounds['west'] && 
+                       $lng <= $viewportBounds['east'];
+            });
+            */
+            
+            // Re-index array after filtering
+            $propertiesInViewport = array_values($propertiesInViewport);
+            
+            Log::info('Properties after viewport filtering', [
+                'filtered_count' => count($propertiesInViewport),
+                'original_count' => count($properties)
+            ]);
+            
             // Add single image per property for initial display
-            $propertiesWithImages = $this->addPropertyImages($properties);
+            $propertiesWithImages = $this->addPropertyImages($propertiesInViewport);
             
             // Format properties for JSON response
             $formattedProperties = $this->formatProperties($propertiesWithImages);
@@ -176,29 +228,66 @@ class PropertySearchController extends Controller
      */
     private function applyViewportBoundsFilter($bounds)
     {
-        // Add latitude filter
-        $this->ampreApi->addCustomFilter(
-            sprintf("Latitude ge %f and Latitude le %f", 
-                $bounds['south'], 
-                $bounds['north']
-            )
-        );
+        // We can't filter by Latitude/Longitude directly in the API
+        // Instead, we'll fetch properties from the general area and filter after
         
-        // Add longitude filter
-        $this->ampreApi->addCustomFilter(
-            sprintf("Longitude ge %f and Longitude le %f", 
-                $bounds['west'], 
-                $bounds['east']
-            )
-        );
+        // Try to determine the city/area from the viewport center
+        $centerLat = ($bounds['north'] + $bounds['south']) / 2;
+        $centerLng = ($bounds['east'] + $bounds['west']) / 2;
+        
+        // Determine rough area based on coordinates
+        $city = $this->getCityFromCoordinates($centerLat, $centerLng);
+        
+        if ($city) {
+            $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+        }
         
         // Log the viewport being searched
         Log::info('Searching viewport bounds', [
             'north' => $bounds['north'],
             'south' => $bounds['south'],
             'east' => $bounds['east'],
-            'west' => $bounds['west']
+            'west' => $bounds['west'],
+            'center_city' => $city
         ]);
+    }
+    
+    /**
+     * Get approximate city from coordinates
+     */
+    private function getCityFromCoordinates($lat, $lng)
+    {
+        // Log the coordinates we're checking
+        Log::info('Getting city from coordinates', ['lat' => $lat, 'lng' => $lng]);
+        
+        // Greater Toronto Area cities with approximate boundaries
+        $cities = [
+            'Toronto' => ['lat_min' => 43.5, 'lat_max' => 43.9, 'lng_min' => -79.7, 'lng_max' => -79.1],
+            'Mississauga' => ['lat_min' => 43.5, 'lat_max' => 43.7, 'lng_min' => -79.8, 'lng_max' => -79.5],
+            'Brampton' => ['lat_min' => 43.6, 'lat_max' => 43.8, 'lng_min' => -80.0, 'lng_max' => -79.6],
+            'Markham' => ['lat_min' => 43.8, 'lat_max' => 44.0, 'lng_min' => -79.4, 'lng_max' => -79.2],
+            'Vaughan' => ['lat_min' => 43.7, 'lat_max' => 43.9, 'lng_min' => -79.6, 'lng_max' => -79.4],
+            'Richmond Hill' => ['lat_min' => 43.8, 'lat_max' => 44.0, 'lng_min' => -79.5, 'lng_max' => -79.3],
+            'Oakville' => ['lat_min' => 43.4, 'lat_max' => 43.5, 'lng_min' => -79.7, 'lng_max' => -79.6],
+            'Burlington' => ['lat_min' => 43.3, 'lat_max' => 43.4, 'lng_min' => -79.9, 'lng_max' => -79.7],
+            'Hamilton' => ['lat_min' => 43.2, 'lat_max' => 43.3, 'lng_min' => -80.0, 'lng_max' => -79.7],
+            'Pickering' => ['lat_min' => 43.8, 'lat_max' => 44.0, 'lng_min' => -79.2, 'lng_max' => -78.9],
+            'Ajax' => ['lat_min' => 43.8, 'lat_max' => 43.9, 'lng_min' => -79.1, 'lng_max' => -78.9],
+            'Whitby' => ['lat_min' => 43.8, 'lat_max' => 44.0, 'lng_min' => -78.9, 'lng_max' => -78.8],
+            'Oshawa' => ['lat_min' => 43.8, 'lat_max' => 44.0, 'lng_min' => -78.9, 'lng_max' => -78.8]
+        ];
+        
+        foreach ($cities as $city => $bounds) {
+            if ($lat >= $bounds['lat_min'] && $lat <= $bounds['lat_max'] &&
+                $lng >= $bounds['lng_min'] && $lng <= $bounds['lng_max']) {
+                Log::info('Matched city: ' . $city);
+                return $city;
+            }
+        }
+        
+        // Default to Toronto if no specific city matched
+        Log::info('No city matched, defaulting to Toronto');
+        return 'Toronto';
     }
 
     /**
@@ -425,6 +514,9 @@ class PropertySearchController extends Controller
             'BedroomsTotal',
             'BathroomsTotalInteger',
             'UnparsedAddress',
+            'UnitNumber',
+            'StreetNumber',
+            'StreetName',
             'ListPrice',
             'TransactionType',
             'City',
@@ -439,6 +531,7 @@ class PropertySearchController extends Controller
             'Longitude',
             'ListingContractDate',
             'PublicRemarks',
+            'ListOfficeName',
             'OpenHouseDate',
             'OpenHouseEndTime', 
             'OpenHouseNotes',
@@ -1056,6 +1149,9 @@ class PropertySearchController extends Controller
         if (!is_array($params)) {
             return $defaults;
         }
+        
+        // Remove viewport_bounds from params before merging to avoid it being treated as a filter
+        unset($params['viewport_bounds']);
         
         $sanitized = array_merge($defaults, $params);
         

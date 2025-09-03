@@ -1,8 +1,11 @@
 import React from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PrimaryButton, SecondaryButton } from '@/Components';
-import { InputLabel, TextInput, InputError } from '@/Components/Forms';
+import PrimaryButton from '@/Components/PrimaryButton';
+import SecondaryButton from '@/Components/SecondaryButton';
+import InputLabel from '@/Components/InputLabel';
+import TextInput from '@/Components/TextInput';
+import InputError from '@/Components/InputError';
 
 export default function CreateSchool({ auth }) {
   const { data, setData, post, processing, errors, reset } = useForm({

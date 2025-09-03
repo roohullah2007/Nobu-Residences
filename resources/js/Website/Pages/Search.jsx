@@ -185,6 +185,8 @@ export default function EnhancedPropertySearch({
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [buildings, setBuildings] = useState([]);
+  const [viewportProperties, setViewportProperties] = useState([]); // Properties from map viewport
+  const [showViewportProperties, setShowViewportProperties] = useState(false); // Toggle between search results and viewport properties
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -224,6 +226,9 @@ export default function EnhancedPropertySearch({
   // Perform search
   const performSearch = async (params = searchFilters, resetPage = false, tabOverride = null) => {
     setIsLoading(true);
+    // Reset viewport properties when doing a new search
+    setShowViewportProperties(false);
+    setViewportProperties([]);
     
     try {
       // Use different endpoint based on active tab (use override if provided)
@@ -370,6 +375,12 @@ export default function EnhancedPropertySearch({
     window.history.pushState({}, '', url);
     
     setActiveTab(tab);
+    
+    // Reset view type to grid when switching to buildings tab
+    if (tab === 'buildings' && (viewType === 'map' || viewType === 'mixed')) {
+      setViewType('grid');
+    }
+    
     const newFilters = {
       ...searchFilters,
       tab: tab,
@@ -571,6 +582,8 @@ export default function EnhancedPropertySearch({
 
   // Format building data for PropertyCardV5
   const formatBuildingForCard = (building) => {
+    console.log('🏢 Formatting building for card:', building); // Debug log
+    
     return {
       id: building.id,
       listingKey: building.id,
@@ -580,7 +593,7 @@ export default function EnhancedPropertySearch({
       sqft: building.year_built ? `Built ${building.year_built}` : null,
       parking: building.parking_spots || null,
       address: building.address,
-      propertyType: building.building_type || 'Building',
+      propertyType: building.name || building.building_type || 'Building', // Show building name as property type
       transactionType: building.listing_type || 'For Sale',
       city: building.city,
       province: building.province,
@@ -592,7 +605,13 @@ export default function EnhancedPropertySearch({
       developer: building.developer?.name || null,
       totalUnits: building.total_units,
       floors: building.floors,
-      status: building.status
+      status: building.status,
+      // Map coordinates for building markers (ensure proper case)
+      Latitude: building.latitude || building.Latitude,
+      Longitude: building.longitude || building.Longitude,
+      // Building name for map labels - make sure it's available
+      name: building.name,
+      building_name: building.name // Additional fallback
     };
   };
 
@@ -602,6 +621,7 @@ export default function EnhancedPropertySearch({
       <Navbar />
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
         <Head title={`Property Search - ${siteName}`} />
+        <div className="enhanced-property-search">
         
         {/* Header */}
         <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10 flex items-center justify-center'>
@@ -850,6 +870,7 @@ export default function EnhancedPropertySearch({
                   page: 1
                 }, true, activeTab);
               }}
+              onSaveSearch={handleSaveSearch}
             />
           </div>
 
@@ -1177,30 +1198,42 @@ export default function EnhancedPropertySearch({
                 
                 {/* Right: View Controls and Sort */}
                 <div className="flex items-center gap-4">
-                  {/* View Type Controls */}
-                  <div className="flex items-center bg-white border border-black rounded-lg p-1">
-                    <button
-                      onClick={() => setViewType('grid')}
-                      className={`p-2 rounded ${viewType === 'grid' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                      title="Grid View"
-                    >
-                      <GridIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewType('mixed')}
-                      className={`p-2 rounded ${viewType === 'mixed' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                      title="Mixed View"
-                    >
-                      <MixedIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setViewType('map')}
-                      className={`p-2 rounded ${viewType === 'map' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                      title="Map View"
-                    >
-                      <MapIcon className="w-5 h-5" />
-                    </button>
-                  </div>
+                  {/* View Type Controls - Only show map/mixed for listings, not buildings */}
+                  {activeTab === 'listings' ? (
+                    <div className="flex items-center bg-white border border-black rounded-lg p-1">
+                      <button
+                        onClick={() => setViewType('grid')}
+                        className={`p-2 rounded ${viewType === 'grid' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        title="Grid View"
+                      >
+                        <GridIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewType('mixed')}
+                        className={`p-2 rounded ${viewType === 'mixed' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        title="Mixed View"
+                      >
+                        <MixedIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewType('map')}
+                        className={`p-2 rounded ${viewType === 'map' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        title="Map View"
+                      >
+                        <MapIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ) : (
+                    // For buildings tab, only show grid view
+                    <div className="flex items-center bg-white border border-black rounded-lg p-1">
+                      <button
+                        className="p-2 rounded bg-[#293056] text-white"
+                        title="Grid View"
+                      >
+                        <GridIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Sort Control */}
                   <div className="flex items-center gap-4">
@@ -1294,15 +1327,17 @@ export default function EnhancedPropertySearch({
                 className="w-full h-[600px]"
                 onPropertyClick={(property) => {
                   // Don't navigate directly - let the info window handle it
-                  console.log('Property clicked:', property.ListingKey);
+                  console.log('Property clicked:', property.ListingKey || property.id);
                 }}
                 viewType="full"
                 searchFilters={searchFilters}
                 isLoading={isLoading}
-                onViewportChange={(viewportProperties, bounds) => {
-                  console.log(`Loaded ${viewportProperties.length} properties for viewport`, bounds);
-                  // Optionally update the properties state if you want to show them in a list
-                  // setProperties(viewportProperties);
+                activeTab={activeTab}
+                onViewportChange={(newViewportProperties, bounds) => {
+                  console.log(`Loaded ${newViewportProperties.length} properties for viewport`, bounds);
+                  // Replace all properties with new viewport properties
+                  setViewportProperties(newViewportProperties);
+                  setShowViewportProperties(true);
                 }}
               />
             ) : viewType === 'mixed' ? (
@@ -1310,16 +1345,20 @@ export default function EnhancedPropertySearch({
               <div className="flex h-[calc(100vh-300px)] min-h-[700px] bg-white rounded-lg shadow-sm border overflow-hidden" 
                    style={{ fontFamily: "'Work Sans', sans-serif" }}>
                 {/* Left side - Property Cards with enhanced scrolling - IDX-AMPRE style */}
-                <div className="w-1/2 flex flex-col border-r border-gray-200">
+                <div className="flex-1 flex flex-col border-r border-gray-200">
                   {/* Properties section header - IDX-AMPRE style */}
                   <div className="flex-shrink-0 px-6 py-4 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-lg text-gray-900">
-                        {activeTab === 'listings' ? 'Properties for Sale' : 'Buildings'}
+                        {activeTab === 'listings' ? 
+                          (showViewportProperties && viewportProperties.length > 0 ? 'Area Properties' : 'Properties for Sale') : 
+                          'Buildings'}
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-600">
-                          {activeTab === 'listings' ? properties.length : buildings.length} results
+                          {activeTab === 'listings' ? 
+                            (showViewportProperties && viewportProperties.length > 0 ? viewportProperties.length : properties.length) : 
+                            buildings.length} results
                         </span>
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       </div>
@@ -1337,9 +1376,10 @@ export default function EnhancedPropertySearch({
                         </div>
                       </div>
                     ) : activeTab === 'listings' ? (
-                      properties && properties.length > 0 ? (
+                      // Show viewport properties if available, otherwise show search results
+                      (showViewportProperties && viewportProperties.length > 0 ? viewportProperties : properties).length > 0 ? (
                         <div className="idx-ampre-mixed-grid">
-                          {properties.map((property) => {
+                          {(showViewportProperties && viewportProperties.length > 0 ? viewportProperties : properties).map((property) => {
                             const formattedProperty = formatPropertyForCard(property);
                             // Use PropertyCardV5 directly if we already have an image
                             if (formattedProperty.imageUrl) {
@@ -1347,7 +1387,7 @@ export default function EnhancedPropertySearch({
                                 <PropertyCardV5
                                 key={property.ListingKey}
                                 property={formattedProperty}
-                                size="mobile"
+                                size="grid"
                                 onClick={(property) => {
                                 window.location.href = generatePropertyUrl(property);
                                 }}
@@ -1396,7 +1436,7 @@ export default function EnhancedPropertySearch({
                               <PropertyCardV5
                                 key={building.id}
                                 property={formattedBuilding}
-                                size="mobile"
+                                size="grid"
                                 onClick={() => {
                                   window.location.href = `/building/${building.id}`;
                                 }}
@@ -1423,7 +1463,7 @@ export default function EnhancedPropertySearch({
                 </div>
                 
                 {/* Right side - Enhanced Map with viewport loading - IDX-AMPRE style */}
-                <div className="w-1/2 flex flex-col bg-gray-50">
+                <div className="flex-shrink-0 flex flex-col bg-gray-50" style={{ width: '600px' }}>
                   <ViewportAwarePropertyMap 
                     properties={activeTab === 'listings' ? properties : buildings}
                     className="w-full h-full"
@@ -1434,17 +1474,12 @@ export default function EnhancedPropertySearch({
                     viewType="mixed"
                     searchFilters={searchFilters}
                     isLoading={isLoading}
-                    onViewportChange={(viewportProperties, bounds) => {
-                      console.log(`Loaded ${viewportProperties.length} properties for viewport`, bounds);
-                      // In mixed view, we might want to update the left-side list
-                      if (viewportProperties.length > 0) {
-                        setProperties(prevProps => {
-                          // Merge new viewport properties with existing ones, avoiding duplicates
-                          const existingKeys = new Set(prevProps.map(p => p.ListingKey));
-                          const newProps = viewportProperties.filter(p => !existingKeys.has(p.ListingKey));
-                          return [...prevProps, ...newProps];
-                        });
-                      }
+                    activeTab={activeTab}
+                    onViewportChange={(newViewportProperties, bounds) => {
+                      console.log(`Loaded ${newViewportProperties.length} properties for viewport`, bounds);
+                      // Replace all properties with new viewport properties in the left grid
+                      setViewportProperties(newViewportProperties);
+                      setShowViewportProperties(true);
                     }}
                   />
                 </div>
@@ -1455,7 +1490,7 @@ export default function EnhancedPropertySearch({
                 {activeTab === 'listings' ? (
                   // Property Cards - 4 per row IDX-AMPRE style with lazy loading
                   properties && properties.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1280px] mx-auto">
+                    <div className="idx-ampre-grid">
                       {properties.map((property) => {
                         const formattedProperty = formatPropertyForCard(property);
                         // Use PropertyCardV5 directly if we already have an image
@@ -1464,11 +1499,11 @@ export default function EnhancedPropertySearch({
                             <PropertyCardV5
                               key={property.ListingKey}
                               property={formattedProperty}
-                              size="grid"
+                              size="default"
                               onClick={(property) => {
                                 window.location.href = `/property/${property.listingKey}`;
                               }}
-                              className="flex justify-center"
+                              className=""
                             />
                           );
                         }
@@ -1484,7 +1519,7 @@ export default function EnhancedPropertySearch({
                             onClick={(property) => {
                               window.location.href = generatePropertyUrl(property);
                             }}
-                            className="flex justify-center"
+                            className=""
                           />
                         );
                       })
@@ -1498,18 +1533,18 @@ export default function EnhancedPropertySearch({
                 ) : (
                   // Building Cards - using same PropertyCardV5 as properties
                   buildings && buildings.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1280px] mx-auto">
+                    <div className="idx-ampre-grid">
                       {buildings.map((building) => {
                         const formattedBuilding = formatBuildingForCard(building);
                         return (
                           <PropertyCardV5
                             key={building.id}
                             property={formattedBuilding}
-                            size="grid"
+                            size="default"
                             onClick={() => {
                               window.location.href = `/building/${building.id}`;
                             }}
-                            className="flex justify-center"
+                            className=""
                           />
                         );
                       })
@@ -1633,6 +1668,7 @@ export default function EnhancedPropertySearch({
         </div>
 
         {/* Save Search Modal */}
+        </div>
       </MainLayout>
     </>
   );

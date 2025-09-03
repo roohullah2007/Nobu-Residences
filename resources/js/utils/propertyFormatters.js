@@ -110,14 +110,14 @@ export const buildCardFeatures = (property) => {
   // Bedrooms
   const bedrooms = property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0;
   if (bedrooms > 0) {
-    features.push(bedrooms + ' Bed' + (bedrooms > 1 ? 's' : ''));
+    features.push(bedrooms + 'BD');
   }
   
   // Bathrooms
   const bathrooms = property.bathrooms || property.BathroomsTotalInteger || 
                     property.bathroomsTotalInteger || property.BathroomsFull || 0;
   if (bathrooms > 0) {
-    features.push(bathrooms + ' Bath' + (bathrooms > 1 ? 's' : ''));
+    features.push(bathrooms + 'BA');
   }
   
   // Area
