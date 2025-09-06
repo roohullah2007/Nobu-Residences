@@ -61,28 +61,28 @@ const PropertyCardV5 = ({
   const brokerageName = getBrokerageName(property);
   const detailsUrl = generatePropertyUrl(property);
 
-  // Size configurations - Optimized for 3 cards per row with reduced gap
+  // Size configurations - Optimized for 3 cards per row with flexible height
   const sizeConfig = {
     default: {
-      container: 'w-[300px] max-w-[300px] h-[405px] idx-ampre-property-card',
+      container: 'w-[300px] max-w-[300px] min-h-[380px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
-      content: 'p-3 gap-2 h-[205px]',
+      content: 'p-3 gap-2 min-h-[180px]',
       chip: 'px-2.5 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
     },
     mobile: {
-      container: 'w-[280px] max-w-[280px] h-[385px] idx-ampre-property-card',
+      container: 'w-[280px] max-w-[280px] min-h-[360px] idx-ampre-property-card',
       image: 'h-[180px] property-image-container',
-      content: 'p-2.5 gap-2 h-[205px]',
+      content: 'p-2.5 gap-2 min-h-[180px]',
       chip: 'px-2 py-1 text-xs property-badge',
       title: 'text-lg',
       details: 'text-sm'
     },
     grid: {
-      container: 'w-full max-w-[300px] h-[405px] idx-ampre-property-card',
+      container: 'w-full max-w-[300px] min-h-[380px] idx-ampre-property-card',
       image: 'h-[200px] property-image-container',
-      content: 'p-3 gap-2 h-[205px]',
+      content: 'p-3 gap-2 min-h-[180px]',
       chip: 'px-2.5 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
@@ -99,10 +99,10 @@ const PropertyCardV5 = ({
   };
 
   return (
-    <div className={`flex-none ${config.container} bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative flex-shrink-0`}>
+    <div className={`flex flex-col ${config.container} bg-white rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative flex-shrink-0`}>
       <a 
         href={detailsUrl} 
-        className="block h-full text-inherit no-underline"
+        className="flex flex-col h-full text-inherit no-underline"
         onClick={handleClick}
       >
         {/* Card Image - Enhanced with IDX-AMPRE Loading */}
@@ -169,7 +169,7 @@ const PropertyCardV5 = ({
         </div>
         
         {/* Card Content - IDX-AMPRE Enhanced */}
-        <div className={`flex flex-col border-gray-300 border  items-start ${config.content} box-border`}>
+        <div className={`flex flex-col flex-grow border-gray-300 border items-start ${config.content} box-border`}>
           {/* Property Type Title */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
             {property.propertyType || 'Residential'}

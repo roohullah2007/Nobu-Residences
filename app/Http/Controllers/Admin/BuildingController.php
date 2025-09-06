@@ -11,6 +11,29 @@ use Illuminate\Support\Str;
 
 class BuildingController extends Controller
 {
+    /**
+     * Resolve building from slug (either UUID or name-slug-uuid format)
+     */
+    private function resolveBuildingFromSlug($buildingSlug)
+    {
+        // First try to find by UUID directly
+        $building = Building::find($buildingSlug);
+        
+        if (!$building) {
+            // Try to extract UUID from slug format (name-slug-uuid)
+            $uuidPattern = '/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i';
+            if (preg_match($uuidPattern, $buildingSlug, $matches)) {
+                $building = Building::find($matches[1]);
+            }
+        }
+        
+        if (!$building) {
+            abort(404, 'Building not found');
+        }
+        
+        return $building;
+    }
+
     public function index()
     {
         $buildings = Building::with(['developer', 'amenities'])
@@ -98,8 +121,9 @@ class BuildingController extends Controller
             ->with('success', 'Building created successfully.');
     }
 
-    public function show(Building $building)
+    public function show($buildingSlug)
     {
+        $building = $this->resolveBuildingFromSlug($buildingSlug);
         $building->load(['developer', 'amenities', 'properties']);
         
         return Inertia::render('Admin/Buildings/Show', [
@@ -107,8 +131,9 @@ class BuildingController extends Controller
         ]);
     }
 
-    public function edit(Building $building)
+    public function edit($buildingSlug)
     {
+        $building = $this->resolveBuildingFromSlug($buildingSlug);
         $developers = \App\Models\Developer::orderBy('name')->get();
         $amenities = \App\Models\Amenity::orderBy('name')->get();
         $building->load(['developer', 'amenities']);
@@ -160,8 +185,10 @@ class BuildingController extends Controller
         ]);
     }
 
-    public function update(Request $request, Building $building)
+    public function update(Request $request, $buildingSlug)
     {
+        $building = $this->resolveBuildingFromSlug($buildingSlug);
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
@@ -217,8 +244,9 @@ class BuildingController extends Controller
             ->with('success', 'Building updated successfully.');
     }
 
-    public function destroy(Building $building)
+    public function destroy($buildingSlug)
     {
+        $building = $this->resolveBuildingFromSlug($buildingSlug);
         $building->delete();
 
         return redirect()->route('admin.buildings.index')

@@ -21,6 +21,14 @@ Route::get('/', [WebsiteController::class, 'home']);
 Route::get('/rent', [WebsiteController::class, 'rent'])->name('rent');
 Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
+
+// SEO-friendly city-based search routes
+Route::get('/{city}/for-sale', [WebsiteController::class, 'cityForSale'])
+    ->where('city', '[a-z\-]+')
+    ->name('city-for-sale');
+Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
+    ->where('city', '[a-z\-]+')
+    ->name('city-for-rent');
 Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/school', [WebsiteController::class, 'school'])->name('school');
@@ -37,7 +45,9 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
-Route::get('/building/{buildingId}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
+
+// Building routes - both formats supported
+Route::get('/building/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 
 // School routes
 Route::get('/school/{schoolId}', [WebsiteController::class, 'schoolDetail'])
@@ -89,6 +99,7 @@ Route::prefix('api/buildings')->group(function () {
     Route::get('/cities', [\App\Http\Controllers\Api\BuildingController::class, 'cities']);
     Route::get('/find-by-address', [\App\Http\Controllers\Api\BuildingController::class, 'findByAddress']);
     Route::get('/count-mls-listings', [\App\Http\Controllers\Api\BuildingController::class, 'countMLSListings']);
+    Route::post('/upload-image', [\App\Http\Controllers\Api\BuildingController::class, 'uploadImage'])->middleware('auth');
     Route::get('/{id}', [\App\Http\Controllers\Api\BuildingController::class, 'show']);
 });
 
@@ -158,10 +169,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/', [\App\Http\Controllers\Admin\BuildingController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\Admin\BuildingController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
-        Route::get('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
-        Route::get('/{building}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
-        Route::put('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'update'])->name('update');
-        Route::delete('/{building}', [\App\Http\Controllers\Admin\BuildingController::class, 'destroy'])->name('destroy');
+        Route::get('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
+        Route::get('/{buildingSlug}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
+        Route::put('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'update'])->name('update');
+        Route::delete('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'destroy'])->name('destroy');
     });
     
     // Developer Management routes
@@ -332,7 +343,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
 require __DIR__.'/auth.php';
 
-
+// SEO-friendly building URLs - must be at the end to avoid matching admin routes
+Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
+    ->where([
+        'city' => '^(?!admin|api|login|register|dashboard|profile)[a-z0-9\-]+$',
+        'street' => '[a-z0-9\-]+', 
+        'buildingSlug' => '.*'
+    ])
+    ->name('building-detail-seo');
 
 // Enhanced Property Images API Routes - DISABLED to use PropertyImageController instead
 // Route::prefix('api')->group(function () {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
+import { createBuildingUrl } from '@/utils/slug';
 
 export default function MerchandiseLofts({ propertyData }) {
   const [buildingData, setBuildingData] = useState(null);
@@ -53,8 +54,9 @@ export default function MerchandiseLofts({ propertyData }) {
           setBuildingData(buildingResult.data);
         }
 
-        // Fetch MLS counts
-        const mlsResponse = await fetch(`/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}`);
+        // Fetch MLS counts (with cache-busting timestamp)
+        const timestamp = new Date().getTime();
+        const mlsResponse = await fetch(`/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}&_t=${timestamp}`);
         const mlsResult = await mlsResponse.json();
         
         if (mlsResult.success) {
@@ -134,7 +136,7 @@ export default function MerchandiseLofts({ propertyData }) {
               <div>
                 {buildingId ? (
                   <Link 
-                    href={`/building/${buildingId}`}
+                    href={createBuildingUrl(buildingName, buildingId)}
                     className="text-xl md:text-2xl font-bold mb-2 font-space-grotesk hover:underline cursor-pointer transition-all duration-200 block"
                     style={{ color: '#293056' }}
                   >
@@ -149,7 +151,7 @@ export default function MerchandiseLofts({ propertyData }) {
                   {buildingAddress}
                 </p>
                 <p className="text-gray-700 mb-6 text-sm md:text-base">
-                  Browse all listings at {buildingName} — condos for sale and rent at {buildingAddress}.
+                  Browse all condo apartments at {buildingName} — {mlsCounts.for_sale || 0} condo apartments for sale and {mlsCounts.for_rent || 0} for rent at {buildingAddress}.
                 </p>
               </div>
               
@@ -161,29 +163,29 @@ export default function MerchandiseLofts({ propertyData }) {
                       href={`/search?building_id=${buildingId}&transaction_type=rent`}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-orange-400 rounded-full text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
-                      {mlsCounts.for_rent || 0} for rent
+                      {mlsCounts.for_rent || 0} Condos for Rent
                     </Link>
                     <Link 
                       href={`/search?building_id=${buildingId}&transaction_type=sale`}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
-                      {mlsCounts.for_sale || 0} for sale
+                      {mlsCounts.for_sale || 0} Condos for Sale
                     </Link>
                   </>
                 ) : (
                   <>
-                    <button 
-                      className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-orange-400 rounded-full text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200 font-medium text-sm md:text-base"
-                      onClick={() => window.location.href = `/search?address=${encodeURIComponent(buildingAddress)}&transaction_type=rent`}
+                    <Link 
+                      href="/toronto/for-rent"
+                      className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-orange-400 rounded-full text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
-                      {mlsCounts.for_rent || 0} for rent
-                    </button>
-                    <button 
-                      className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium text-sm md:text-base"
-                      onClick={() => window.location.href = `/search?address=${encodeURIComponent(buildingAddress)}&transaction_type=sale`}
+                      {mlsCounts.for_rent || 0} Condos for Rent
+                    </Link>
+                    <Link 
+                      href="/toronto/for-sale"
+                      className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
-                      {mlsCounts.for_sale || 0} for sale
-                    </button>
+                      {mlsCounts.for_sale || 0} Condos for Sale
+                    </Link>
                   </>
                 )}
               </div>

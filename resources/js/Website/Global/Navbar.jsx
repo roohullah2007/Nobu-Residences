@@ -90,7 +90,7 @@ export default function Navbar({ auth = {} }) {
                             Home
                         </Link>
                         <Link 
-                            href="/search?status=For%20Rent" 
+                            href="/toronto/for-rent" 
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{ 
                                 fontSize: '16px', 
@@ -100,7 +100,7 @@ export default function Navbar({ auth = {} }) {
                             Rent
                         </Link>
                         <Link 
-                            href="/search?status=For%20Sale" 
+                            href="/toronto/for-sale" 
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{ 
                                 fontSize: '16px', 
@@ -259,7 +259,7 @@ export default function Navbar({ auth = {} }) {
                                     Home
                                 </Link>
                                 <Link 
-                                    href="/rent" 
+                                    href="/toronto/for-rent" 
                                     className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
                                     onClick={() => setMobileMenuOpen(false)}
@@ -267,7 +267,7 @@ export default function Navbar({ auth = {} }) {
                                     Rent
                                 </Link>
                                 <Link 
-                                    href="/sale" 
+                                    href="/toronto/for-sale" 
                                     className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
                                     onClick={() => setMobileMenuOpen(false)}

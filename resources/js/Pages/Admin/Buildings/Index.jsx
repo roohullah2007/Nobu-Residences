@@ -5,10 +5,22 @@ import PrimaryButton from '@/Components/PrimaryButton';
 
 export default function BuildingsIndex({ auth, buildings }) {
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Create slug for building URL
+    const createBuildingSlug = (name, id) => {
+        if (!name) return id;
+        const slug = name.toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        return `${slug}-${id}`;
+    };
 
-    const handleDelete = (id, name) => {
-        if (confirm(`Are you sure you want to delete "${name}"?`)) {
-            router.delete(route('admin.buildings.destroy', id));
+    const handleDelete = (building) => {
+        if (confirm(`Are you sure you want to delete "${building.name}"?`)) {
+            const slug = createBuildingSlug(building.name, building.id);
+            router.delete(route('admin.buildings.destroy', slug));
         }
     };
 
@@ -157,21 +169,21 @@ export default function BuildingsIndex({ auth, buildings }) {
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div className="flex justify-end space-x-3">
                                                             <Link
-                                                                href={route('admin.buildings.show', building.id)}
+                                                                href={route('admin.buildings.show', createBuildingSlug(building.name, building.id))}
                                                                 className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm font-medium"
                                                             >
                                                                 <span className="mr-1">👁</span>
                                                                 View
                                                             </Link>
                                                             <Link
-                                                                href={route('admin.buildings.edit', building.id)}
+                                                                href={route('admin.buildings.edit', createBuildingSlug(building.name, building.id))}
                                                                 className="inline-flex items-center px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm font-medium"
                                                             >
                                                                 <span className="mr-1">✏</span>
                                                                 Edit
                                                             </Link>
                                                             <button
-                                                                onClick={() => handleDelete(building.id, building.name)}
+                                                                onClick={() => handleDelete(building)}
                                                                 className="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm font-medium"
                                                             >
                                                                 <span className="mr-1">🗑</span>

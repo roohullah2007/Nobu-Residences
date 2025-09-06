@@ -158,7 +158,39 @@ export default function PropertyHeader({
 
   // Get display values based on type
   const getTitle = () => {
-    return type === 'building' ? data?.name : data?.address;
+    if (type === 'building') {
+      return data?.name;
+    }
+    
+    // For properties, format as "UnitNumber - StreetNumber StreetName"
+    if (type === 'property' && data) {
+      const unitNumber = data?.unitNumber || data?.UnitNumber || '';
+      const streetNumber = data?.streetNumber || data?.StreetNumber || '';
+      const streetName = data?.streetName || data?.StreetName || '';
+      
+      // Build the formatted title
+      let title = '';
+      
+      // Add unit number if available
+      if (unitNumber) {
+        title = unitNumber;
+      }
+      
+      // Add street number and name
+      if (streetNumber && streetName) {
+        const streetPart = `${streetNumber} ${streetName}`;
+        if (title) {
+          title = `${title} - ${streetPart}`;
+        } else {
+          title = streetPart;
+        }
+      }
+      
+      // Fallback to original address if no formatted parts available
+      return title || data?.address;
+    }
+    
+    return data?.address;
   };
 
   const getSubtitle = () => {

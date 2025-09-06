@@ -5,13 +5,49 @@
 /**
  * Format address for display on cards
  * Shows: UnitNumber - StreetNumber - StreetName
+ * ENHANCED: Handles multiple building addresses for buildings
  * @param {Object} property - Property object
  * @returns {string} Formatted address
  */
 export const formatCardAddress = (property) => {
-  const unitNumber = property.UnitNumber || property.unitNumber || '';
+  // Handle building addresses that may have multiple addresses (e.g., "55 Mercer and 15 Mercer")
+  if (property.source === 'building') {
+    // Check if address contains multiple addresses
+    const address = property.address || property.Address || '';
+    if (address) {
+      return address; // Return the full building address as-is
+    }
+    
+    // Fallback to building name if no address
+    return property.name || property.building_name || 'Building Address';
+  }
+  
+  // For regular properties, use the original logic
+  const unitNumber = property.UnitNumber || property.unitNumber || property.ApartmentNumber || property.LegalApartmentNumber || '';
   const streetNumber = property.StreetNumber || property.streetNumber || '';
   const streetName = property.StreetName || property.streetName || '';
+  
+  // Try to parse from UnparsedAddress if individual fields are empty
+  if (!unitNumber || !streetNumber || !streetName) {
+    const unparsedAddress = property.address || property.UnparsedAddress || property.unparsedAddress || '';
+    
+    if (unparsedAddress) {
+      // Try to parse address like "68 Corporate Drive 3338, Toronto E09, ON M1H 3H3"
+      // Pattern: Street + Unit at end, followed by comma and location
+      const addressMatch = unparsedAddress.match(/^(.+?)\s+(\d+)\s*,?\s*(.*)$/);
+      if (addressMatch) {
+        const [, streetPart, unit, rest] = addressMatch;
+        
+        // Split street part into number and name
+        const streetMatch = streetPart.match(/^(\d+)\s+(.+)$/);
+        if (streetMatch) {
+          const [, parsedStreetNumber, parsedStreetName] = streetMatch;
+          
+          return `${unit} - ${parsedStreetNumber} ${parsedStreetName}`;
+        }
+      }
+    }
+  }
   
   // Build the address parts - Unit - StreetNumber StreetName (no suffix)
   let parts = [];
@@ -45,10 +81,32 @@ export const formatCardAddress = (property) => {
 
 /**
  * Get full address for map geocoding
+ * ENHANCED: Better handling for building addresses
  * @param {Object} property - Property object
  * @returns {string} Full address for geocoding
  */
 export const getFullAddress = (property) => {
+  // For buildings, use the complete address including multiple addresses
+  if (property.source === 'building') {
+    const buildingAddress = property.address || property.Address || '';
+    if (buildingAddress) {
+      // Add city and province if available for better geocoding
+      const city = property.city || property.City || '';
+      const province = property.province || property.Province || '';
+      
+      let fullAddress = buildingAddress;
+      if (city) {
+        fullAddress += `, ${city}`;
+      }
+      if (province) {
+        fullAddress += `, ${province}`;
+      }
+      
+      return fullAddress;
+    }
+  }
+  
+  // For regular properties
   return property.address || property.UnparsedAddress || 
          property.unparsedAddress || 'Address not available';
 };
@@ -63,6 +121,7 @@ export const formatArea = (property) => {
                property.BuildingAreaTotal || property.buildingAreaTotal ||
                property.LivingArea || property.livingArea ||
                property.AboveGradeFinishedArea || property.sqft || '';
+  
   
   if (area) {
     // If it's a range like "1000-1500", just take it as is
@@ -101,12 +160,43 @@ export const getBrokerageName = (property) => {
 
 /**
  * Build features string for property cards
+ * ENHANCED: Better handling for building features
  * @param {Object} property - Property object
  * @returns {string} Features string
  */
 export const buildCardFeatures = (property) => {
   const features = [];
   
+  // For buildings, show different features
+  if (property.source === 'building') {
+    // Total Units
+    const totalUnits = property.total_units || property.totalUnits || property.TotalUnits;
+    if (totalUnits) {
+      features.push(`${totalUnits} Units`);
+    }
+    
+    // Floors
+    const floors = property.floors || property.Floors;
+    if (floors) {
+      features.push(`${floors} Floors`);
+    }
+    
+    // Year Built
+    const yearBuilt = property.year_built || property.yearBuilt || property.YearBuilt;
+    if (yearBuilt) {
+      features.push(`Built ${yearBuilt}`);
+    }
+    
+    // Parking spots (for buildings)
+    const parkingSpots = property.parking_spots || property.parkingSpots || property.ParkingSpots;
+    if (parkingSpots) {
+      features.push(`${parkingSpots} Parking`);
+    }
+    
+    return features.join(' | ');
+  }
+  
+  // For regular properties, use original logic
   // Bedrooms
   const bedrooms = property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0;
   if (bedrooms > 0) {

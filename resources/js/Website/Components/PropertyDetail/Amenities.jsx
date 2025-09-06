@@ -1,44 +1,65 @@
 import React from 'react';
 
-const Amenities = () => {
-  // Left section amenities (4 columns layout)
-  const leftAmenities = [
-    { name: 'Concierge', iconPath: '/assets/svgs/concierge.svg' },
-    { name: 'Party Room', iconPath: '/assets/svgs/party-horn.svg' },
-    { name: 'Meeting Room', iconPath: '/assets/svgs/meeting-consider-deliberate-about-meet.svg' },
-    { name: 'Security Guard', iconPath: '/assets/svgs/police-security-policeman.svg' }
-  ];
+const Amenities = ({ propertyData }) => {
+  // Default amenity icon mapping
+  const amenityIcons = {
+    'Concierge': '/assets/svgs/concierge.svg',
+    'Party Room': '/assets/svgs/party-horn.svg',
+    'Meeting Room': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
+    'Security Guard': '/assets/svgs/police-security-policeman.svg',
+    'Gym': '/assets/svgs/gym.svg',
+    'Fitness Center': '/assets/svgs/gym.svg',
+    'Visitor Parking': '/assets/svgs/parking.svg',
+    'Parking Garage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
+    'Guest Suites': '/assets/svgs/bed.svg',
+    'Pet Restriction': '/assets/svgs/pets.svg',
+    'BBQ Permitted': '/assets/svgs/bbq-grill.svg',
+    'Outdoor Pool': '/assets/svgs/pool-ladder.svg',
+    'Pool': '/assets/svgs/pool-ladder.svg',
+    'Media Room': '/assets/svgs/media.svg',
+    'Rooftop Deck': '/assets/svgs/deck-chair-under-the-sun.svg',
+    'Security System': '/assets/svgs/security.svg',
+    'Sauna': '/assets/svgs/radiator.svg',
+    'Hot Tub': '/assets/svgs/shower.svg',
+    'Playground': '/assets/svgs/party-horn.svg',
+    'Tennis Court': '/assets/svgs/gym.svg',
+    'Basketball Court': '/assets/svgs/gym.svg',
+    'Library': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
+    'Storage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
+    'Lounge': '/assets/svgs/party-horn.svg'
+  };
 
-  const middleAmenities = [
-    { name: 'Gym', iconPath: '/assets/svgs/gym.svg' },
-    { name: 'Visitor Parking', iconPath: '/assets/svgs/parking.svg' },
-    { name: 'Parking Garage', iconPath: '/assets/svgs/parking-garage-transportation-car-parking.svg' }
-  ];
-
-  const rightAmenities = [
-    { name: 'Guest Suites', iconPath: '/assets/svgs/bed.svg' },
-    { name: 'Pet Restriction', iconPath: '/assets/svgs/pets.svg' },
-    { name: 'BBQ Permitted', iconPath: '/assets/svgs/bbq-grill.svg' }
-  ];
-
-  const farRightAmenities = [
-    { name: 'Outdoor Pool', iconPath: '/assets/svgs/pool-ladder.svg' },
-    { name: 'Media Room', iconPath: '/assets/svgs/media.svg' },
-    { name: 'Rooftop Deck', iconPath: '/assets/svgs/deck-chair-under-the-sun.svg' }
-  ];
-
-  const bottomRowAmenities = [
-    { name: 'Security System', iconPath: '/assets/svgs/security.svg' }
-  ];
-
-  // All amenities combined for responsive grid
-  const allAmenities = [
-    ...leftAmenities,
-    ...middleAmenities, 
-    ...rightAmenities,
-    ...farRightAmenities,
-    ...bottomRowAmenities
-  ];
+  // Check if property has building amenities
+  const buildingAmenities = propertyData?.buildingAmenities || propertyData?.building?.amenities;
+  
+  let allAmenities = [];
+  
+  if (buildingAmenities && Array.isArray(buildingAmenities) && buildingAmenities.length > 0) {
+    // Use actual building amenities from database
+    allAmenities = buildingAmenities.map(amenity => ({
+      name: amenity.name || amenity,
+      iconPath: amenityIcons[amenity.name || amenity] || '/assets/svgs/concierge.svg'
+    }));
+  } else {
+    // Fallback to default amenities for demo
+    const defaultAmenities = [
+      { name: 'Concierge', iconPath: '/assets/svgs/concierge.svg' },
+      { name: 'Party Room', iconPath: '/assets/svgs/party-horn.svg' },
+      { name: 'Meeting Room', iconPath: '/assets/svgs/meeting-consider-deliberate-about-meet.svg' },
+      { name: 'Security Guard', iconPath: '/assets/svgs/police-security-policeman.svg' },
+      { name: 'Gym', iconPath: '/assets/svgs/gym.svg' },
+      { name: 'Visitor Parking', iconPath: '/assets/svgs/parking.svg' },
+      { name: 'Parking Garage', iconPath: '/assets/svgs/parking-garage-transportation-car-parking.svg' },
+      { name: 'Guest Suites', iconPath: '/assets/svgs/bed.svg' },
+      { name: 'Pet Restriction', iconPath: '/assets/svgs/pets.svg' },
+      { name: 'BBQ Permitted', iconPath: '/assets/svgs/bbq-grill.svg' },
+      { name: 'Outdoor Pool', iconPath: '/assets/svgs/pool-ladder.svg' },
+      { name: 'Media Room', iconPath: '/assets/svgs/media.svg' },
+      { name: 'Rooftop Deck', iconPath: '/assets/svgs/deck-chair-under-the-sun.svg' },
+      { name: 'Security System', iconPath: '/assets/svgs/security.svg' }
+    ];
+    allAmenities = defaultAmenities;
+  }
 
   // Included amenities (right sidebar)
   const includedAmenities = [
@@ -57,10 +78,13 @@ const Amenities = () => {
     <img src="/assets/svgs/cross.svg" alt="Cross" className="w-5 h-5" />
   );
 
+  // Get building name from property data
+  const buildingName = propertyData?.buildingName || propertyData?.building?.name || 'this building';
+  
   return (
     <div>
       <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Amenities</h2>
-      <p className="text-gray-600 text-sm mb-4">Explore the amenities available at 109OZ, including shared spaces and building services.</p>
+      <p className="text-gray-600 text-sm mb-4">Explore the amenities available at {buildingName}, including shared spaces and building services.</p>
       {/* Main container - Mobile and Desktop responsive */}
       <div className="flex flex-col lg:flex-row items-start gap-6">
         {/* Left main section - Amenities Grid */}

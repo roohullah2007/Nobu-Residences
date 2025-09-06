@@ -5,6 +5,7 @@ const TourSchedulingComponent = () => {
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [scrollState, setScrollState] = useState('static'); // 'static', 'fixed', 'absolute'
   const [absoluteTop, setAbsoluteTop] = useState(0);
   
@@ -19,6 +20,13 @@ const TourSchedulingComponent = () => {
     email: '',
     phone: '',
     message: ''
+  });
+
+  const [questionFormData, setQuestionFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    question: ''
   });
 
   // Generate dates array
@@ -134,6 +142,15 @@ const TourSchedulingComponent = () => {
     }));
   };
 
+  // Handle question form input changes
+  const handleQuestionInputChange = (e) => {
+    const { name, value } = e.target;
+    setQuestionFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -152,6 +169,19 @@ const TourSchedulingComponent = () => {
     setIsModalOpen(false);
     
     alert('Your tour request has been submitted successfully!');
+  };
+
+  // Handle question form submission
+  const handleQuestionSubmit = (e) => {
+    e.preventDefault();
+    
+    console.log('Question Request:', questionFormData);
+    
+    // Reset form and close modal
+    setQuestionFormData({ name: '', email: '', phone: '', question: '' });
+    setIsQuestionModalOpen(false);
+    
+    alert('Your question has been submitted successfully! We will get back to you soon.');
   };
 
   // Get selected date and time string for modal
@@ -181,6 +211,7 @@ const TourSchedulingComponent = () => {
 
   // Close modal handlers
   const closeModal = () => setIsModalOpen(false);
+  const closeQuestionModal = () => setIsQuestionModalOpen(false);
   
   const handleModalClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -188,17 +219,28 @@ const TourSchedulingComponent = () => {
     }
   };
 
+  const handleQuestionModalClick = (e) => {
+    if (e.target === e.currentTarget) {
+      closeQuestionModal();
+    }
+  };
+
   // ESC key handler
   useEffect(() => {
     const handleEscKey = (e) => {
-      if (e.key === 'Escape' && isModalOpen) {
-        closeModal();
+      if (e.key === 'Escape') {
+        if (isModalOpen) {
+          closeModal();
+        }
+        if (isQuestionModalOpen) {
+          closeQuestionModal();
+        }
       }
     };
 
     document.addEventListener('keydown', handleEscKey);
     return () => document.removeEventListener('keydown', handleEscKey);
-  }, [isModalOpen]);
+  }, [isModalOpen, isQuestionModalOpen]);
 
   const currentDates = [
     dates[currentDateIndex],
@@ -328,7 +370,10 @@ const TourSchedulingComponent = () => {
               <p>OR</p>
             </div>
 
-            <button className="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg font-medium mt-3 cursor-pointer hover:bg-gray-50">
+            <button 
+              onClick={() => setIsQuestionModalOpen(true)}
+              className="w-full bg-white border border-gray-300 text-gray-700 py-2.5 px-4 rounded-lg font-medium mt-3 cursor-pointer hover:bg-gray-50"
+            >
               Ask A Question
             </button>
 
@@ -432,6 +477,92 @@ const TourSchedulingComponent = () => {
                 Confirm Tour Request
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Question Modal */}
+      {isQuestionModalOpen && (
+        <div 
+          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
+          onClick={handleQuestionModalClick}
+        >
+          <div className="bg-white p-6 rounded-lg max-w-lg w-full mx-4 relative z-[999999]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Ask A Question</h3>
+              <button
+                onClick={closeQuestionModal}
+                className="text-gray-500 bg-transparent border-none text-2xl font-bold cursor-pointer absolute top-4 right-6 w-8 h-8 rounded flex items-center justify-center p-0 leading-none transition-colors hover:text-gray-800 hover:bg-gray-100 focus:outline-2 focus:outline-blue-500 focus:outline-offset-2"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mb-4 text-gray-500">
+              Have questions about this property? Our agent will get back to you within 24 hours.
+            </p>
+
+            <form onSubmit={handleQuestionSubmit}>
+              <div className="mb-4">
+                <label htmlFor="questionName" className="block text-gray-700 mb-1 font-medium">Full Name</label>
+                <input
+                  type="text"
+                  id="questionName"
+                  name="name"
+                  value={questionFormData.name}
+                  onChange={handleQuestionInputChange}
+                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="questionEmail" className="block text-gray-700 mb-1 font-medium">Email Address</label>
+                <input
+                  type="email"
+                  id="questionEmail"
+                  name="email"
+                  value={questionFormData.email}
+                  onChange={handleQuestionInputChange}
+                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="questionPhone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
+                <input
+                  type="tel"
+                  id="questionPhone"
+                  name="phone"
+                  value={questionFormData.phone}
+                  onChange={handleQuestionInputChange}
+                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label htmlFor="question" className="block text-gray-700 mb-1 font-medium">Your Question</label>
+                <textarea
+                  id="question"
+                  name="question"
+                  value={questionFormData.question}
+                  onChange={handleQuestionInputChange}
+                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm resize-y min-h-[100px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  placeholder="What would you like to know about this property?"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800"
+              >
+                Send Question
+              </button>
+            </form>
           </div>
         </div>
       )}

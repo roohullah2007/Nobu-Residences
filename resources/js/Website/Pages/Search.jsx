@@ -8,6 +8,7 @@ import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Components/SimplePropertyMap';
 import ViewportAwarePropertyMap from '@/Components/ViewportAwarePropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
+import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
 
@@ -156,9 +157,34 @@ export default function EnhancedPropertySearch({
   filters = {}, 
   searchTab = 'listings', 
 }) {
+  // Debug: Log the filters being passed from WebsiteController
+  console.log('🔍 Search page filters from controller:', filters);
+  
+  // Function to map backend status to user-friendly display
+  const mapStatusToDisplay = (status) => {
+    if (status === 'For Lease') return 'For Rent';
+    return status;
+  };
+  
+  // Function to map display status to backend API format
+  const mapDisplayToStatus = (display) => {
+    if (display === 'For Rent') return 'For Lease';
+    return display;
+  };
+  
   // Get property type from URL params if available
   const urlParams = new URLSearchParams(window.location.search);
   const propertySubType = urlParams.get('property_sub_type');
+  const buildingId = urlParams.get('building_id');
+  const transactionType = urlParams.get('transaction_type');
+  
+  // Map transaction_type to status
+  let statusFromTransaction = '';
+  if (transactionType === 'rent') {
+    statusFromTransaction = 'For Lease';
+  } else if (transactionType === 'sale') {
+    statusFromTransaction = 'For Sale';
+  }
   
   // Convert property_sub_type to property_type array
   let propertyTypeArray = filters.property_type || [];
@@ -167,10 +193,16 @@ export default function EnhancedPropertySearch({
     propertyTypeArray = propertySubType ? [propertySubType] : [];
   }
   
+  // Default to Condo Apartment if building_id is provided (from building count buttons)
+  if (buildingId && propertyTypeArray.length === 0) {
+    propertyTypeArray = ['Condo Apartment'];
+  }
+  
   const [searchFilters, setSearchFilters] = useState({
     query: filters.search || urlParams.get('location') || '',
-    status: filters.forSale || urlParams.get('status') || urlParams.get('property_type') || 'For Sale',
+    status: mapStatusToDisplay(filters.status || filters.forSale || statusFromTransaction || urlParams.get('status') || urlParams.get('property_type') || 'For Sale'),
     property_type: propertyTypeArray.length > 0 ? propertyTypeArray : ['Condo Apartment'], // Default to Condo Apartment if no type specified
+    building_id: buildingId || filters.building_id || '',
     price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
     price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
@@ -250,9 +282,14 @@ export default function EnhancedPropertySearch({
         if (params.price_max && params.price_max < 10000000) searchParams.price_max = params.price_max;
         // Don't send status filter for buildings unless explicitly set to something other than default
       } else {
-        // For properties, send all filters
+        // For properties, send all filters with proper status mapping
+        const mappedParams = { ...params };
+        
+        // Map display status to backend API format
+        mappedParams.status = mapDisplayToStatus(mappedParams.status);
+        
         searchParams = {
-          ...params,
+          ...mappedParams,
           page: resetPage ? 1 : (params.page || 1),
           page_size: 15
         };
@@ -318,16 +355,37 @@ export default function EnhancedPropertySearch({
         setActiveTab(tabFromUrl);
       }
       
-      // Build filters from URL params
+      // Get building and transaction type from URL
+      const buildingIdFromUrl = urlParams.get('building_id');
+      const transactionTypeFromUrl = urlParams.get('transaction_type');
+      
+      // Map transaction_type to status
+      let statusFromTransaction = '';
+      if (transactionTypeFromUrl === 'rent') {
+        statusFromTransaction = 'For Lease';
+      } else if (transactionTypeFromUrl === 'sale') {
+        statusFromTransaction = 'For Sale';
+      }
+      
+      // Default to Condo Apartment if building_id is provided
+      let propertyTypes = ['Condo Apartment'];
+      if (propertySubType) {
+        propertyTypes = [propertySubType];
+      } else if (buildingIdFromUrl) {
+        propertyTypes = ['Condo Apartment'];
+      }
+
+      // Build filters from URL params, but use controller filters as defaults
       const initialFilters = {
-        query: urlParams.get('location') || '',
-        status: statusFromUrl || 'For Sale',
-        property_type: propertySubType ? [propertySubType] : ['Condo Apartment'],
-        price_min: parseInt(urlParams.get('min_price')) || 0,
-        price_max: parseInt(urlParams.get('max_price')) || 10000000,
-        bedrooms: parseInt(urlParams.get('bedrooms')) || 0,
-        bathrooms: parseInt(urlParams.get('bathrooms')) || 0,
-        sort: urlParams.get('sort') || 'newest',
+        query: urlParams.get('location') || filters.location || filters.query || '',
+        status: mapStatusToDisplay(statusFromTransaction || statusFromUrl || filters.status || 'For Sale'),
+        property_type: propertyTypes.length > 0 ? propertyTypes : (filters.property_type || ['Condo Apartment']),
+        building_id: buildingIdFromUrl || filters.building_id || '',
+        price_min: parseInt(urlParams.get('min_price')) || filters.price_min || 0,
+        price_max: parseInt(urlParams.get('max_price')) || filters.price_max || 10000000,
+        bedrooms: parseInt(urlParams.get('bedrooms')) || filters.bedrooms || 0,
+        bathrooms: parseInt(urlParams.get('bathrooms')) || filters.bathrooms || 0,
+        sort: urlParams.get('sort') || filters.sort || 'newest',
         tab: tabFromUrl,
         page: pageFromUrl
       };
@@ -359,12 +417,17 @@ export default function EnhancedPropertySearch({
     url.searchParams.set('page', 1);
     window.history.pushState({}, '', url);
     
-    setSearchFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...searchFilters,
       [field]: value,
       page: 1
-    }));
+    };
+    
+    setSearchFilters(newFilters);
     setCurrentPage(1);
+    
+    // Perform search with new filters
+    performSearch(newFilters, false, activeTab);
   };
 
   const handleTabChange = (tab) => {
@@ -583,6 +646,12 @@ export default function EnhancedPropertySearch({
   // Format building data for PropertyCardV5
   const formatBuildingForCard = (building) => {
     console.log('🏢 Formatting building for card:', building); // Debug log
+    console.log('🏢 Building for URL generation:', {
+      id: building.id,
+      name: building.name,
+      address: building.address,
+      city: building.city
+    });
     
     return {
       id: building.id,
@@ -1438,7 +1507,7 @@ export default function EnhancedPropertySearch({
                                 property={formattedBuilding}
                                 size="grid"
                                 onClick={() => {
-                                  window.location.href = `/building/${building.id}`;
+                                window.location.href = createSEOBuildingUrl(building);
                                 }}
                                 className={`w-full transition-all duration-300 ${
                                   activeProperty === building.id ? 'scale-[1.02] z-10' : ''
@@ -1542,7 +1611,7 @@ export default function EnhancedPropertySearch({
                             property={formattedBuilding}
                             size="default"
                             onClick={() => {
-                              window.location.href = `/building/${building.id}`;
+                              window.location.href = createSEOBuildingUrl(building);
                             }}
                             className=""
                           />

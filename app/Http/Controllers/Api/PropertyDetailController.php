@@ -33,11 +33,11 @@ class PropertyDetailController extends Controller
             // Cache key for this property
             $cacheKey = 'property_detail_' . $listingKey;
             
-            // Try to get from cache first
-            $cachedData = Cache::get($cacheKey);
-            if ($cachedData) {
-                return response()->json($cachedData);
-            }
+            // DEBUGGING: Temporarily disable cache to see fresh data
+            // $cachedData = Cache::get($cacheKey);
+            // if ($cachedData) {
+            //     return response()->json($cachedData);
+            // }
             
             // Fetch property details from AMPRE API
             $property = $this->ampreApi->getPropertyByKey($listingKey);
@@ -46,17 +46,50 @@ class PropertyDetailController extends Controller
                 return response()->json(['error' => 'Property not found'], 404);
             }
             
+            // DEBUGGING: Log the raw property data to see what fields are available
+            Log::info('Raw property data from API:', [
+                'listingKey' => $listingKey,
+                'dateFields' => [
+                    'ListingContractDate' => $property['ListingContractDate'] ?? 'NOT_FOUND',
+                    'OnMarketDate' => $property['OnMarketDate'] ?? 'NOT_FOUND',
+                    'ModificationTimestamp' => $property['ModificationTimestamp'] ?? 'NOT_FOUND',
+                    'ListDate' => $property['ListDate'] ?? 'NOT_FOUND',
+                    'DaysOnMarket' => $property['DaysOnMarket'] ?? 'NOT_FOUND',
+                    'CumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? 'NOT_FOUND',
+                ],
+                'allKeys' => array_keys($property)
+            ]);
+            
             // Fetch property images
             $images = $this->ampreApi->getPropertiesImages([$listingKey]);
             
+            // DEBUGGING: Log the formatted data being sent to frontend
+            $formattedProperty = $this->formatPropertyData($property);
+            Log::info('Formatted property data being sent to frontend:', [
+                'listingKey' => $listingKey,
+                'dateFieldsFormatted' => [
+                    'ListingContractDate' => $formattedProperty['ListingContractDate'] ?? 'NOT_FOUND',
+                    'listingContractDate' => $formattedProperty['listingContractDate'] ?? 'NOT_FOUND',
+                    'OnMarketDate' => $formattedProperty['OnMarketDate'] ?? 'NOT_FOUND',
+                    'onMarketDate' => $formattedProperty['onMarketDate'] ?? 'NOT_FOUND',
+                    'DaysOnMarket' => $formattedProperty['DaysOnMarket'] ?? 'NOT_FOUND',
+                    'daysOnMarket' => $formattedProperty['daysOnMarket'] ?? 'NOT_FOUND',
+                ]
+            ]);
+            
+            // Make sure the date is properly formatted and passed through
+            if ($formattedProperty['ListingContractDate']) {
+                Log::info('Found ListingContractDate in property data: ' . $formattedProperty['ListingContractDate']);
+            }
+            
             // Format the response
             $responseData = [
-                'property' => $this->formatPropertyData($property),
+                'property' => $formattedProperty,
                 'images' => $this->formatImages($images, $listingKey)
             ];
             
-            // Cache for 5 minutes
-            Cache::put($cacheKey, $responseData, 300);
+            // Cache for 5 minutes - DEBUGGING: Disable cache temporarily
+            // Cache::put($cacheKey, $responseData, 300);
             
             return response()->json($responseData);
             
@@ -110,11 +143,23 @@ class PropertyDetailController extends Controller
             'aboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? null,
             'belowGradeFinishedArea' => $property['BelowGradeFinishedArea'] ?? null,
             
-            // Year and dates
+            // Year and dates - FIXED: Include all date fields for Days on Market
             'yearBuilt' => $property['YearBuilt'] ?? null,
-            'listingContractDate' => $property['ListingContractDate'] ?? null,
-            'closeDate' => $property['CloseDate'] ?? null,
-            'daysOnMarket' => $property['DaysOnMarket'] ?? null,
+            'ListingContractDate' => $property['ListingContractDate'] ?? null, // Keep original case
+            'listingContractDate' => $property['ListingContractDate'] ?? null, // Camel case version
+            'OnMarketDate' => $property['OnMarketDate'] ?? null, // Keep original case
+            'onMarketDate' => $property['OnMarketDate'] ?? null, // Camel case version
+            'OriginalOnMarketTimestamp' => $property['OriginalOnMarketTimestamp'] ?? null,
+            'originalOnMarketTimestamp' => $property['OriginalOnMarketTimestamp'] ?? null,
+            'ModificationTimestamp' => $property['ModificationTimestamp'] ?? null, // Keep original case
+            'modificationTimestamp' => $property['ModificationTimestamp'] ?? null, // Camel case version
+            'ListDate' => $property['ListDate'] ?? null, // Keep original case
+            'listDate' => $property['ListDate'] ?? null, // Camel case version
+            'CloseDate' => $property['CloseDate'] ?? null, // Keep original case
+            'closeDate' => $property['CloseDate'] ?? null, // Camel case version
+            'DaysOnMarket' => $property['DaysOnMarket'] ?? null, // Keep original case
+            'daysOnMarket' => $property['DaysOnMarket'] ?? null, // Camel case version
+            'CumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? null,
             'cumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? null,
             
             // Parking

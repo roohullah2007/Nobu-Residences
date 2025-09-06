@@ -68,7 +68,28 @@ return [
             'PostalCode',
             'PropertySubType',
             'ListOfficeName',
-            'StandardStatus'
+            'StandardStatus',
+            'ListingContractDate', // ADDED: For Days on Market calculation
+            'OnMarketDate', // ADDED: Alternative listing date field
+            'OriginalOnMarketTimestamp', // ADDED: Original market timestamp
+            'ModificationTimestamp', // ADDED: Fallback for Days on Market
+            'ListDate', // ADDED: Alternative date field
+            'OriginalListPrice', // ADDED: Original listing price
+            'CloseDate', // ADDED: For sold properties
+            'DaysOnMarket', // ADDED: Existing field if available
+            'CumulativeDaysOnMarket', // ADDED: Total days including off-market periods
+            'MlsStatus', // ADDED: Alternative status field
+            'UnitNumber', // ADDED: For address formatting
+            'StreetNumber', // ADDED: For address formatting
+            'StreetName', // ADDED: For address formatting
+            'PublicRemarks', // ADDED: For property description
+            'AboveGradeFinishedArea', // ADDED: For area calculation
+            'LivingArea', // ADDED: Alternative area field
+            'LivingAreaRange', // ADDED: Area range
+            'BuildingAreaTotal', // ADDED: Building area
+            'ParkingSpaces', // ADDED: Parking information
+            'ParkingTotal', // ADDED: Total parking
+            'BathroomsFull' // ADDED: Full bathrooms count
         ],
         'image_size' => 'Largest',
         'image_limit' => 250,

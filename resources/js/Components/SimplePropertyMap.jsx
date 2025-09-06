@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
 import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
+import { createBuildingUrl } from '@/utils/slug';
 
 const SimplePropertyMap = React.forwardRef(({ 
   properties = [], 
@@ -367,7 +368,7 @@ const SimplePropertyMap = React.forwardRef(({
         
         // If it's a building, navigate to building detail page
         if (property.source === 'building' || activeTab === 'buildings') {
-          window.location.href = `/building/${property.id}`;
+          window.location.href = createBuildingUrl(property.name || property.address, property.id);
           return;
         }
         

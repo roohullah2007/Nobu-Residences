@@ -197,6 +197,50 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display city-based for sale page (SEO-friendly)
+     */
+    public function cityForSale(Request $request, string $city)
+    {
+        // Convert city slug to proper format
+        $cityName = ucwords(str_replace('-', ' ', $city));
+        
+        // Set filters for condo apartments for sale
+        $filters = [
+            'status' => 'For Sale',
+            'property_type' => ['Condo Apartment'],
+            'location' => $cityName
+        ];
+        
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'title' => "Condo Apartments for Sale in {$cityName} - Property Search",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
+     * Display city-based for rent page (SEO-friendly)
+     */
+    public function cityForRent(Request $request, string $city)
+    {
+        // Convert city slug to proper format
+        $cityName = ucwords(str_replace('-', ' ', $city));
+        
+        // Set filters for condo apartments for rent - use 'For Rent' for frontend display
+        $filters = [
+            'status' => 'For Rent',
+            'property_type' => ['Condo Apartment'],
+            'location' => $cityName
+        ];
+        
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'title' => "Condo Apartments for Rent in {$cityName} - Property Search",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
      * Search local properties with enhanced handling
      */
     private function searchLocalProperties(array $filters, int $currentPage, int $perPage): array
@@ -941,6 +985,18 @@ class WebsiteController extends Controller
             }
         }
         
+        // Debug log the property data being passed to React
+        \Log::info('PropertyDetail Data being passed to React for ' . $listingKey, [
+            'ListingContractDate' => $propertyData['ListingContractDate'] ?? 'NOT_FOUND',
+            'listingContractDate' => $propertyData['listingContractDate'] ?? 'NOT_FOUND',
+            'listingDate' => $propertyData['listingDate'] ?? 'NOT_FOUND',
+            'DaysOnMarket' => $propertyData['DaysOnMarket'] ?? 'NOT_FOUND',
+            'daysOnMarket' => $propertyData['daysOnMarket'] ?? 'NOT_FOUND',
+            'unitNumber' => $propertyData['unitNumber'] ?? 'NOT_FOUND',
+            'streetNumber' => $propertyData['streetNumber'] ?? 'NOT_FOUND',
+            'streetName' => $propertyData['streetName'] ?? 'NOT_FOUND',
+        ]);
+
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
             'listingKey' => $listingKey,
@@ -958,6 +1014,14 @@ class WebsiteController extends Controller
             'listingKey' => $property['ListingKey'] ?? '',
             'ListingKey' => $property['ListingKey'] ?? '',
             'address' => $property['UnparsedAddress'] ?? '',
+            'unitNumber' => $property['UnitNumber'] ?? '',
+            'UnitNumber' => $property['UnitNumber'] ?? '',
+            'streetNumber' => $property['StreetNumber'] ?? '',
+            'StreetNumber' => $property['StreetNumber'] ?? '',
+            'streetName' => $property['StreetName'] ?? '',
+            'StreetName' => $property['StreetName'] ?? '',
+            'streetSuffix' => $property['StreetSuffix'] ?? '',
+            'StreetSuffix' => $property['StreetSuffix'] ?? '',
             'city' => $property['City'] ?? '',
             'province' => $property['StateOrProvince'] ?? '',
             'postalCode' => $property['PostalCode'] ?? '',
@@ -987,6 +1051,8 @@ class WebsiteController extends Controller
             'flooring' => $property['Flooring'] ?? [],
             'basement' => $property['Basement'] ?? [],
             'listingDate' => $property['ListingContractDate'] ?? null,
+            'ListingContractDate' => $property['ListingContractDate'] ?? null,
+            'listingContractDate' => $property['ListingContractDate'] ?? null,
             'daysOnMarket' => $property['DaysOnMarket'] ?? null,
             'DaysOnMarket' => $property['DaysOnMarket'] ?? null,
             'status' => $property['StandardStatus'] ?? '',
@@ -1043,13 +1109,48 @@ class WebsiteController extends Controller
     /**
      * Display the building detail page
      */
-    public function buildingDetail($buildingId)
+    public function buildingDetail($cityOrSlug, $street = null, $buildingSlug = null)
     {
-        $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
-            $query->where('status', 'active')
-                  ->orderBy('created_at', 'desc')
-                  ->limit(10);
-        }])->find($buildingId);
+        // Handle both URL formats:
+        // 1. /building/{buildingSlug}
+        // 2. /{city}/{street}/{buildingSlug}
+        
+        if ($buildingSlug === null) {
+            // First format: /building/{buildingSlug}
+            $buildingSlug = $cityOrSlug;
+        }
+        // else: Second format with city/street/buildingSlug
+        
+        $building = null;
+        
+        // Try to find building by ID first (if buildingSlug contains UUID)
+        $buildingId = $this->extractBuildingIdFromSlug($buildingSlug);
+        if ($this->isValidUuid($buildingId)) {
+            $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+                $query->where('status', 'active')
+                      ->orderBy('created_at', 'desc')
+                      ->limit(10);
+            }])->find($buildingId);
+        }
+        
+        // If not found by ID, try to find by name slug
+        if (!$building) {
+            // Convert the slug back to potential building name for search
+            $nameFromSlug = str_replace('-', ' ', $buildingSlug);
+            
+            $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+                $query->where('status', 'active')
+                      ->orderBy('created_at', 'desc')
+                      ->limit(10);
+            }])->where(function($query) use ($nameFromSlug, $buildingSlug) {
+                // Try exact name match first
+                $query->whereRaw('LOWER(name) = ?', [strtolower($nameFromSlug)])
+                      // Then try partial matches
+                      ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($nameFromSlug) . '%'])
+                      // Also try with the slug format
+                      ->orWhereRaw('LOWER(REPLACE(name, " ", "-")) = ?', [strtolower($buildingSlug)]);
+            })->first();
+        }
         
         $buildingData = null;
         
@@ -1079,7 +1180,7 @@ class WebsiteController extends Controller
         
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $building ? $building->name : 'Building Detail',
-            'buildingId' => $buildingId,
+            'buildingId' => $building ? $building->id : ($buildingId ?? $buildingSlug),
             'buildingData' => $buildingData
         ]));
     }
@@ -1122,5 +1223,49 @@ class WebsiteController extends Controller
             'schoolSlug' => $schoolSlug,
             'schoolData' => $schoolData
         ]));
+    }
+
+    /**
+     * Extract building ID from slug
+     * Handles multiple formats:
+     * - Just UUID (old format)
+     * - name-slug-UUID
+     * - name-slug/UUID (new SEO format)
+     */
+    private function extractBuildingIdFromSlug($slug)
+    {
+        // Check if it's already just a UUID (old format for backwards compatibility)
+        $uuidPattern = '/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i';
+        if (preg_match($uuidPattern, $slug)) {
+            return $slug;
+        }
+        
+        // Check if slug contains a forward slash (new SEO format: building-name/UUID)
+        if (strpos($slug, '/') !== false) {
+            $parts = explode('/', $slug);
+            $lastPart = end($parts);
+            // Check if the last part is a UUID
+            if (preg_match($uuidPattern, $lastPart)) {
+                return $lastPart;
+            }
+        }
+        
+        // Extract UUID from the end of the slug (format: building-name-uuid)
+        $uuidFromSlugPattern = '/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i';
+        if (preg_match($uuidFromSlugPattern, $slug, $matches)) {
+            return $matches[1];
+        }
+        
+        // If no UUID found, return the original slug (will likely result in not found)
+        return $slug;
+    }
+    
+    /**
+     * Check if a string is a valid UUID
+     */
+    private function isValidUuid($uuid)
+    {
+        $uuidPattern = '/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i';
+        return preg_match($uuidPattern, $uuid);
     }
 }

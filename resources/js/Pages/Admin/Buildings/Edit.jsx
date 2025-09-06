@@ -51,6 +51,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Initialize selected amenities
     useEffect(() => {
@@ -131,6 +132,54 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             setSelectedAmenities(selectedAmenities.filter(a => a.id !== amenity.id));
         } else {
             setSelectedAmenities([...selectedAmenities, amenity]);
+        }
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image size should be less than 5MB');
+            return;
+        }
+
+        setUploadingImage(true);
+
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('building_id', building.id);
+
+        try {
+            const response = await fetch('/api/buildings/upload-image', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.url) {
+                setData('main_image', result.url);
+                setImagePreview(result.url);
+            } else {
+                alert('Failed to upload image. Please try again.');
+            }
+        } catch (error) {
+            console.error('Image upload error:', error);
+            alert('Failed to upload image. Please try again.');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -472,19 +521,55 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Media & Links</h2>
                             <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="main_image" value="Main Image URL" />
-                                    <TextInput
-                                        id="main_image"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.main_image}
-                                        onChange={(e) => {
-                                            setData('main_image', e.target.value);
-                                            setImagePreview(e.target.value);
-                                        }}
-                                        placeholder="https://example.com/image.jpg"
-                                    />
+                                    <InputLabel htmlFor="main_image" value="Building Image" />
+                                    <div className="mt-1 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
+                                                <input
+                                                    type="file"
+                                                    className="sr-only"
+                                                    accept="image/*"
+                                                    onChange={handleImageUpload}
+                                                    disabled={uploadingImage}
+                                                />
+                                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                                {uploadingImage ? 'Uploading...' : 'Select Image'}
+                                            </label>
+                                            {imagePreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setData('main_image', '');
+                                                        setImagePreview('');
+                                                    }}
+                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
+                                                >
+                                                    Remove Image
+                                                </button>
+                                            )}
+                                        </div>
+                                        {!imagePreview && (
+                                            <p className="text-sm text-gray-500">Select an image from your computer (JPG, PNG, GIF, max 5MB)</p>
+                                        )}
+                                    </div>
                                     <InputError message={errors.main_image} className="mt-2" />
+                                    
+                                    {/* Image Preview */}
+                                    {imagePreview && (
+                                        <div className="mt-3">
+                                            <p className="text-sm text-gray-500 mb-2">Preview:</p>
+                                            <img 
+                                                src={imagePreview} 
+                                                alt="Building preview" 
+                                                className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image';
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="sm:col-span-3">

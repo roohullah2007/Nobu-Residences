@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import { ViewingRequestModal } from '@/Website/Global/Components';
+import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
 import Navbar from '@/Website/Global/Navbar';
 import { 
@@ -31,6 +31,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     isOpen: false,
     property: null
   });
+
+  // Login modal state
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
@@ -280,6 +283,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
           propertyImages={propertyImages}
           propertyData={displayData}
           auth={auth}
+          onLoginClick={() => setLoginModalOpen(true)}
         />
         </div>
  
@@ -303,7 +307,30 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
    
             {/* <!-- Right sidebar --> */}
             <div className="max-w-[309px] md:flex hidden w-full">
-              <TourScheduling />
+              <div className="space-y-4">
+                {/* Login/Signup Card for Non-Authenticated Users */}
+                {!auth?.user && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-[#293056] mb-2 font-space-grotesk">
+                        Get More Details
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Create a free account to save properties and get exclusive access to property details
+                      </p>
+                      <button
+                        onClick={() => setLoginModalOpen(true)}
+                        className="w-full bg-[#293056] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                      >
+                        Sign Up / Log In
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Tour Scheduling */}
+                <TourScheduling />
+              </div>
             </div>
       </div>
       <div className='description'>
@@ -315,6 +342,12 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       
       {/* Mobile Bottom Bar - Fixed at bottom */}
       <MobileBottomBar />
+      
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+      />
     </MainLayout>
   );
 }

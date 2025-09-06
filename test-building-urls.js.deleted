@@ -1,0 +1,27 @@
+import { createSEOBuildingUrl, createSlug } from './resources/js/utils/slug.js';
+
+// Test data mimicking NOBU Residences Toronto
+const testBuilding = {
+  id: '891aa08a-8267-4987-b47a-bff4cb493290',
+  name: 'NOBU Residences Toronto',
+  address: '55 Mercer Street',
+  city: 'Toronto',
+  province: 'Ontario'
+};
+
+console.log('Testing Building URL Generation:');
+console.log('Building:', testBuilding);
+
+// Test the new SEO URL function
+const seoUrl = createSEOBuildingUrl(testBuilding);
+console.log('SEO URL:', seoUrl);
+
+// Test individual slug creation
+console.log('City slug:', createSlug(testBuilding.city));
+console.log('Address slug:', createSlug(testBuilding.address));
+console.log('Name slug:', createSlug(testBuilding.name));
+
+// Expected URL: /toronto/55-mercer-street/nobu-residences-toronto
+console.log('Expected: /toronto/55-mercer-street/nobu-residences-toronto');
+console.log('Actual:  ', seoUrl);
+console.log('Match:', seoUrl === '/toronto/55-mercer-street/nobu-residences-toronto');

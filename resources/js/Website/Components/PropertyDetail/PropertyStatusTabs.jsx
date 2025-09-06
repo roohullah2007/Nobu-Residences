@@ -7,22 +7,130 @@ import Amenities from './Amenities';
 const PropertyStatusTabs = ({ property }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Calculate days on market
+  // Calculate days on market from ListingContractDate to today
   const calculateDaysOnMarket = () => {
+    // Debug: Log the property object to see structure
+    console.log('🔍 Full property object:', property);
+    console.log('🔍 Property keys available:', Object.keys(property || {}));
+    
+    // Look for ListingContractDate in various possible locations
+    let listingDate = null;
+    let dateSource = null;
+    
+    // Check all possible locations for ListingContractDate
     if (property?.ListingContractDate) {
-      const listingDate = new Date(property.ListingContractDate);
-      const today = new Date();
-      const diffTime = Math.abs(today - listingDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays;
+      listingDate = property.ListingContractDate;
+      dateSource = 'ListingContractDate';
+    } else if (property?.listingContractDate) {
+      listingDate = property.listingContractDate;
+      dateSource = 'listingContractDate';
+    } else if (property?.property?.ListingContractDate) {
+      listingDate = property.property.ListingContractDate;
+      dateSource = 'property.ListingContractDate';
+    } else if (property?.property?.listingContractDate) {
+      listingDate = property.property.listingContractDate;
+      dateSource = 'property.listingContractDate';
     }
-    return property?.DaysOnMarket || 0;
+    
+    console.log('📅 Date source:', dateSource, 'Value:', listingDate);
+    
+    // If we have a listing date, calculate days from that date to today
+    if (listingDate) {
+      try {
+        // Parse the date string
+        let parsedDate;
+        
+        // Handle different date formats
+        if (typeof listingDate === 'string') {
+          // If it's just YYYY-MM-DD format
+          if (listingDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Add time component to avoid timezone issues
+            parsedDate = new Date(listingDate + 'T00:00:00');
+          } else {
+            // Try direct parsing for ISO format
+            parsedDate = new Date(listingDate);
+          }
+        } else {
+          parsedDate = new Date(listingDate);
+        }
+        
+        // Check if the date is valid
+        if (!isNaN(parsedDate.getTime())) {
+          // Get today's date
+          const today = new Date();
+          
+          // Set both dates to midnight for accurate day calculation
+          parsedDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+          
+          // Calculate the difference in milliseconds
+          const diffInMs = today.getTime() - parsedDate.getTime();
+          
+          // Convert to days
+          const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+          
+          console.log('📊 Days calculation:', {
+            listingDate: listingDate,
+            parsedDate: parsedDate.toDateString(),
+            today: today.toDateString(),
+            diffInDays: diffInDays,
+            calculation: `${today.toDateString()} - ${parsedDate.toDateString()} = ${diffInDays} days`
+          });
+          
+          // Return the calculated days (minimum 0)
+          return Math.max(0, diffInDays);
+        } else {
+          console.warn('⚠️ Could not parse date:', listingDate);
+        }
+      } catch (error) {
+        console.error('❌ Error parsing date:', error);
+      }
+    }
+    
+    // Try fallback to OriginalEntryTimestamp if no ListingContractDate
+    const originalEntry = property?.OriginalEntryTimestamp || 
+                         property?.originalEntryTimestamp ||
+                         property?.property?.OriginalEntryTimestamp ||
+                         property?.property?.originalEntryTimestamp;
+    
+    if (originalEntry) {
+      console.log('📅 Using OriginalEntryTimestamp as fallback:', originalEntry);
+      try {
+        const entryDate = new Date(originalEntry);
+        if (!isNaN(entryDate.getTime())) {
+          const today = new Date();
+          entryDate.setHours(0, 0, 0, 0);
+          today.setHours(0, 0, 0, 0);
+          const diffInMs = today.getTime() - entryDate.getTime();
+          const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+          console.log('📊 OriginalEntryTimestamp calculation:', diffInDays);
+          return Math.max(0, diffInDays);
+        }
+      } catch (error) {
+        console.error('❌ Error parsing OriginalEntryTimestamp:', error);
+      }
+    }
+    
+    // Check for pre-calculated DaysOnMarket field
+    const existingDays = property?.DaysOnMarket || property?.daysOnMarket;
+    if (existingDays !== undefined && existingDays !== null && existingDays !== '') {
+      console.log('📊 Using existing DaysOnMarket field:', existingDays);
+      return parseInt(existingDays) || 0;
+    }
+    
+    // If no date information found, log warning and return 0
+    console.warn('⚠️ No date information found for days on market calculation');
+    console.log('Available property fields:', Object.keys(property || {}));
+    
+    // Return 0 instead of 1 when no date is found
+    return 0;
   };
 
   // Format close date for sold properties
   const formatCloseDate = () => {
-    if (property?.CloseDate) {
-      const date = new Date(property.CloseDate);
+    const closeDate = property?.CloseDate || property?.closeDate;
+    if (closeDate) {
+      const date = new Date(closeDate);
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     return null;
@@ -31,9 +139,9 @@ const PropertyStatusTabs = ({ property }) => {
   const propertyData = {
     daysOnMarket: calculateDaysOnMarket(),
     closeDate: formatCloseDate(),
-    status: property?.StandardStatus || property?.MlsStatus || 'Active',
-    transactionType: property?.TransactionType || 'For Sale',
-    description: property?.PublicRemarks || property?.description || ''
+    status: property?.StandardStatus || property?.standardStatus || property?.MlsStatus || property?.mlsStatus || 'Active',
+    transactionType: property?.TransactionType || property?.transactionType || 'For Sale',
+    description: property?.PublicRemarks || property?.publicRemarks || property?.description || ''
   };
 
   const tabs = [
@@ -84,7 +192,7 @@ const PropertyStatusTabs = ({ property }) => {
       case 'amenities':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <Amenities propertyData={propertyData} />
+            <Amenities propertyData={property} />
           </div>
         );
       
@@ -101,8 +209,8 @@ const PropertyStatusTabs = ({ property }) => {
         <div className="flex flex-row items-start gap-[22px] h-10">
           {/* Days on Market Badge - show only for active listings */}
           {propertyData.status === 'Active' && (
-            <div className="flex items-center px-2 gap-2 w-[138px] h-10 bg-[#293056] rounded-xl">
-              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis w-[122px]">
+            <div className="flex items-center px-2 gap-2 min-w-[138px] h-10 bg-[#293056] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis">
                 {propertyData.daysOnMarket} Days on Market
               </span>
             </div>

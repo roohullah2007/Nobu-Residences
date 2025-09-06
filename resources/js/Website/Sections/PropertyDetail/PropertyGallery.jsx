@@ -6,7 +6,8 @@ import PropertyEnquiryModal from '@/Website/Components/PropertyEnquiryModal';
 export default function PropertyGallery({ 
   propertyImages, 
   propertyData, 
-  auth 
+  auth,
+  onLoginClick 
 }) {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
@@ -231,18 +232,18 @@ export default function PropertyGallery({
                         Create a free account to see all property images and details
                       </p>
                       <div className="flex flex-col gap-3">
-                        <Link
-                          href="/login"
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
                           className="block w-full py-2.5 px-4 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
                         >
                           Sign In
-                        </Link>
-                        <Link
-                          href="/register"
+                        </button>
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
                           className="block w-full py-2.5 px-4 border border-[#293056] text-[#293056] rounded-lg font-medium hover:bg-gray-50 transition-colors"
                         >
                           Create Account
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -275,12 +276,12 @@ export default function PropertyGallery({
                   {/* Login Overlay for Small Image 1 */}
                   {!isLoggedIn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                      <Link
-                        href="/login"
+                      <button
+                        onClick={() => onLoginClick && onLoginClick()}
                         className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
                       >
                         Sign In
-                      </Link>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -309,12 +310,12 @@ export default function PropertyGallery({
                   {/* Login Overlay for Small Image 2 */}
                   {!isLoggedIn && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                      <Link
-                        href="/register"
+                      <button
+                        onClick={() => onLoginClick && onLoginClick()}
                         className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
                       >
                         Create Account
-                      </Link>
+                      </button>
                     </div>
                   )}
                   
@@ -366,18 +367,18 @@ export default function PropertyGallery({
                         Create a free account to see all property images
                       </p>
                       <div className="flex flex-col gap-2">
-                        <Link
-                          href="/login"
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
                           className="block w-full py-2 px-3 bg-[#293056] text-white rounded-lg font-medium text-sm hover:bg-[#1f2441] transition-colors"
                         >
                           Sign In
-                        </Link>
-                        <Link
-                          href="/register"
+                        </button>
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
                           className="block w-full py-2 px-3 border border-[#293056] text-[#293056] rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
                         >
                           Create Account
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -438,9 +439,46 @@ export default function PropertyGallery({
                         // Show rental/lease period if available
                         return propertyData?.LeaseTerm ? `${propertyData.LeaseTerm} lease` : 'Available now';
                       } else {
-                        // For sale properties - show days on market or status
-                        const daysOnMarket = propertyData?.DaysOnMarket || propertyData?.daysOnMarket;
-                        return daysOnMarket ? `${daysOnMarket} days on market` : 'New listing';
+                        // For sale properties - calculate days on market from ListingContractDate or OriginalEntryTimestamp
+                        let daysOnMarket;
+                        
+                        // Try to get listing date from various possible fields
+                        const listingDateStr = propertyData?.ListingContractDate || 
+                                             propertyData?.listingContractDate ||
+                                             propertyData?.OriginalEntryTimestamp ||
+                                             propertyData?.originalEntryTimestamp;
+                        
+                        if (listingDateStr) {
+                          const listingDate = new Date(listingDateStr);
+                          const today = new Date();
+                          
+                          // Ensure the dates are valid
+                          if (!isNaN(listingDate.getTime()) && !isNaN(today.getTime())) {
+                            // Calculate difference in milliseconds
+                            const diffTime = today.getTime() - listingDate.getTime();
+                            // Convert to days and round down (floor) for accurate day count
+                            daysOnMarket = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            // Ensure we don't show negative days
+                            daysOnMarket = Math.max(0, daysOnMarket);
+                          }
+                        }
+                        
+                        // Fallback to DaysOnMarket field if calculation fails
+                        if (!daysOnMarket && daysOnMarket !== 0) {
+                          daysOnMarket = propertyData?.DaysOnMarket || propertyData?.daysOnMarket;
+                        }
+                        
+                        // Display appropriate text
+                        if (daysOnMarket === 0) {
+                          return 'New listing - Listed today';
+                        } else if (daysOnMarket === 1) {
+                          return '1 day on market';
+                        } else if (daysOnMarket > 0) {
+                          return `${daysOnMarket} days on market`;
+                        } else {
+                          return 'New listing';
+                        }
                       }
                     })()}
                   </div>

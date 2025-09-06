@@ -1,6 +1,5 @@
 import React from 'react';
-import { PropertyCarouselV2, FAQ } from '@/Website/Global/Components';
-import PropertyCarouselBuilding from './PropertyCarouselBuilding';
+import { FAQ } from '@/Website/Global/Components';
 import { 
   PriceHistory,
   TourSection,
@@ -30,49 +29,35 @@ export default function BuildingSections({
       
       {/* <MerchandiseLofts /> */}
       
-      {/* Properties For Sale Section - Using PropertyCarouselBuilding (2 cards) */}
-      <section className="py-4">
-        <div className="mx-auto max-w-[1280px]">
-          <PropertyCarouselBuilding
-            properties={sampleSaleProperties}
-            title="Properties For Sale"
-            viewAllLink="/properties"
-            showBackground={true}
-          />
-        </div>
-      </section>
-             
-      {/* Properties For Rent Section - Using PropertyCarouselBuilding (2 cards) */}
-      <section className="py-4">
-        <div className="mx-auto max-w-[1280px]">
-          <PropertyCarouselBuilding
-            properties={sampleRentProperties}
-            title="Properties For Rent"
-            viewAllLink="/properties"
-            showBackground={true}
-          />
-        </div>
-      </section>
-
-      {/* Dynamic Buildings/Listings Section */}
+      {/* Properties For Sale Section - Fetch condo apartments dynamically */}
       <MoreBuildings 
-        title={buildingData.details?.type?.toLowerCase().includes('building')
-          ? "More Buildings By Agent"
-          : "Nearby Buildings"
-        }
+        title="Properties For Sale"
+        propertyType="Condo Apartment"
+        transactionType="For Sale"
+        buildingData={buildingData}
       />
              
-      {/* Similar Listings Section - Using Global PropertyCarouselV2 */}
-      <section className="py-4">
-        <div className="mx-auto max-w-[1280px]">
-          <PropertyCarouselV2
-            properties={sampleSaleProperties.concat(sampleRentProperties)}
-            title="Similar Buildings"
-            viewAllLink="/properties"
-            showBackground={true}
-          />
-        </div>
-      </section>
+      {/* Properties For Rent Section - Fetch condo apartments dynamically */}
+      <MoreBuildings 
+        title="Properties For Rent"
+        propertyType="Condo Apartment"
+        transactionType="For Rent"
+        buildingData={buildingData}
+      />
+
+      {/* Nearby Buildings Section - Fetch from backend */}
+      <MoreBuildings 
+        title="Nearby Buildings"
+        fetchType="buildings"
+        buildingData={buildingData}
+      />
+             
+      {/* Similar Buildings Section - Fetch from backend */}
+      <MoreBuildings 
+        title="Similar Buildings"
+        fetchType="buildings"
+        buildingData={buildingData}
+      />
              
       {/* Comparable Sales Section */}
       {/* <ComparableSales /> */}

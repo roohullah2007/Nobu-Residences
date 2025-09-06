@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 
 const LoginModal = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState('login');
+  const [activeTab, setActiveTab] = useState('register');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -501,53 +501,6 @@ const LoginModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {/* Additional Features */}
-          {!showForgotPassword && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="space-y-4">
-              {/* Feature 1 */}
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Save Favourites</h4>
-                  <p className="text-xs text-gray-600">Save and track your favourite listings with real-time updates</p>
-                </div>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="m12 1 0 6m0 6 0 6m11-7-6 0m-6 0-6 0"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Get Listing Alerts</h4>
-                  <p className="text-xs text-gray-600">Stay ahead with instant alerts on new listings that match your search</p>
-                </div>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2">
-                    <path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path>
-                    <path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"></path>
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900">Search History</h4>
-                  <p className="text-xs text-gray-600">Explore years of sold and rented listings to see price history</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          )}
         </div>
       </div>
     </div>

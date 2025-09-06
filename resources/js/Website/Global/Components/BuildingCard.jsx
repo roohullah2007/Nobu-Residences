@@ -1,4 +1,5 @@
 import React from 'react';
+import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 
 const BuildingCard = ({ building, size = "default", className = "" }) => {
   if (!building) {
@@ -62,7 +63,7 @@ const BuildingCard = ({ building, size = "default", className = "" }) => {
           {/* Building Name - Clickable */}
           <h3 
             className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 cursor-pointer hover:text-gray-700 transition-colors duration-200"
-            onClick={() => window.location.href = `/building/${id}`}
+            onClick={() => window.location.href = createSEOBuildingUrl(building)}
           >
             {name}
           </h3>
@@ -100,7 +101,7 @@ const BuildingCard = ({ building, size = "default", className = "" }) => {
 
           {/* Price Range */}
           {price_range && (
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="text-xl font-bold text-gray-900">{price_range}</div>
               <div className="text-xs text-gray-500">Price Range</div>
             </div>
@@ -108,7 +109,7 @@ const BuildingCard = ({ building, size = "default", className = "" }) => {
 
           {/* View Building Button */}
           <button
-            onClick={() => window.location.href = `/building/${id}`}
+            onClick={() => window.location.href = createSEOBuildingUrl(building)}
             className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded transition-colors duration-200"
           >
             View Building

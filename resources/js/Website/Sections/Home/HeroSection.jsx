@@ -36,15 +36,15 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
         { 
             text: isLoadingCounts 
                 ? 'Loading...' 
-                : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Property' : 'Properties'} for rent`, 
-            url: '/search?building_id=55-mercer&transaction_type=rent', 
+                : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Condo' : 'Condos'} for rent`, 
+            url: '/search?building_id=891aa08a-8267-4987-b47a-bff4cb493290&transaction_type=rent', 
             style: 'primary' 
         },
         { 
             text: isLoadingCounts 
                 ? 'Loading...' 
-                : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Property' : 'Properties'} for sale`, 
-            url: '/search?building_id=55-mercer&transaction_type=sale', 
+                : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Condo' : 'Condos'} for sale`, 
+            url: '/search?building_id=891aa08a-8267-4987-b47a-bff4cb493290&transaction_type=sale', 
             style: 'secondary' 
         }
     ];

@@ -262,27 +262,8 @@ class BuildingController extends Controller
             ]);
         }
         
-        // First check if building has static unit counts
-        $searchPattern = $streetNumber . ' ' . $streetName;
-        $building = Building::where(function($query) use ($searchPattern, $streetNumber, $streetName) {
-                $query->where('address', 'LIKE', $searchPattern . '%')
-                      ->orWhere('address', 'LIKE', $streetNumber . ' ' . $streetName . '%');
-            })
-            ->where('status', 'active')
-            ->first();
-            
-        // If building has static counts, return those
-        if ($building && $building->units_for_sale !== null && $building->units_for_rent !== null) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'for_sale' => $building->units_for_sale,
-                    'for_rent' => $building->units_for_rent,
-                    'total' => $building->units_for_sale + $building->units_for_rent,
-                    'source' => 'building_static'
-                ]
-            ]);
-        }
+        // Always use MLS API for accurate condo apartment counts
+        // Skip static counts to ensure we get filtered results from MLS
         
         // Otherwise, try to use MLS API
         try {
@@ -299,7 +280,8 @@ class BuildingController extends Controller
             $ampreService->addFilter('TransactionType', 'For Sale', 'eq');
             $ampreService->addFilter('StandardStatus', 'Active', 'eq');
             
-            // Don't filter by property type - show all types
+            // Filter for condo apartments only
+            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
             
             // Set minimal fields for counting
             $ampreService->setTop(1);
@@ -322,7 +304,8 @@ class BuildingController extends Controller
             $ampreService->addFilter('TransactionType', 'For Lease', 'eq');
             $ampreService->addFilter('StandardStatus', 'Active', 'eq');
             
-            // Don't filter by property type - show all types
+            // Filter for condo apartments only
+            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
             
             // Set minimal fields for counting
             $ampreService->setTop(1);
@@ -375,6 +358,54 @@ class BuildingController extends Controller
                     'source' => 'local'
                 ]
             ]);
+        }
+    }
+
+    /**
+     * Upload image for a building
+     */
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+            'building_id' => 'required|exists:buildings,id'
+        ]);
+
+        try {
+            $building = Building::findOrFail($request->building_id);
+
+            // Store the image
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imageName = 'building_' . $building->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                
+                // Store in public/images/buildings directory
+                $path = $image->move(public_path('images/buildings'), $imageName);
+                
+                // Generate URL
+                $imageUrl = asset('images/buildings/' . $imageName);
+                
+                // Update building with new image URL
+                $building->main_image = $imageUrl;
+                $building->save();
+
+                return response()->json([
+                    'success' => true,
+                    'url' => $imageUrl,
+                    'message' => 'Image uploaded successfully'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No image file provided'
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload image: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import { ViewingRequestModal } from '@/Website/Global/Components';
+import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
 import Navbar from '@/Website/Global/Navbar';
 import { 
@@ -11,7 +11,7 @@ import { BuildingTourScheduling } from '@/Website/Components/PropertyDetail';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
 
-export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData: initialBuildingData }) {
+export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   
@@ -20,6 +20,9 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     isOpen: false,
     property: null
   });
+
+  // Login modal state
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
@@ -72,51 +75,46 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     setIsFavorited(!isFavorited);
   };
 
-  // Sample building images (multiple images for gallery)
-  const buildingImages = [
-    "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1484154218962-a197022b5858?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-  ];
 
   // Sample properties for sale data
   const sampleSaleProperties = [
     {
       id: 1,
-      listingKey: "X9234419",
+      listingKey: "C5234419",
       image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 0,
-      propertyType: "Vacant Land",
+      imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
+      price: 650000,
+      propertyType: "Condo Apartment",
       transactionType: "For Sale",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "Deleted Deleted Deleted, Deleted, ON DELETED",
+      bedrooms: 2,
+      bathrooms: 2,
+      address: "Unit 1205, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: false
     },
     {
       id: 2,
-      listingKey: "N1209765",
+      listingKey: "C1209765",
       image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80",
+      imageUrl: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80",
       price: 899000,
-      propertyType: "Detached",
+      propertyType: "Condo Apartment",
       transactionType: "For Sale",
       bedrooms: 3,
       bathrooms: 2,
-      address: "108 Moore's Beach Road, Georgina, ON L0E 1N0",
+      address: "Unit 2104, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: false
     },
     {
       id: 3,
-      listingKey: "X11947982",
+      listingKey: "C11947982",
       image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 1700000,
-      propertyType: "Commercial Retail",
+      imageUrl: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80",
+      price: 1200000,
+      propertyType: "Condo Apartment",
       transactionType: "For Sale",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "284 Dundas Street, London East, ON N6B 1T6",
+      bedrooms: 3,
+      bathrooms: 3,
+      address: "PH01, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: false
     }
   ];
@@ -125,47 +123,57 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
   const sampleRentProperties = [
     {
       id: 1,
-      listingKey: "X11930665",
+      listingKey: "R11930665",
       image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 2000,
-      propertyType: "Co-op Apartment",
+      imageUrl: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
+      price: 2500,
+      propertyType: "Condo Apartment",
       transactionType: "For Rent",
       bedrooms: 2,
       bathrooms: 1,
-      address: "104 Devonshire Avenue, London South, ON N6C 2H8",
+      address: "Unit 805, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: true
     },
     {
       id: 2,
-      listingKey: "X11884737",
+      listingKey: "R11884737",
       image: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 4000,
-      propertyType: "Commercial Retail",
-      transactionType: "For Lease",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "924 Oxford Street E 3, London East, ON N5Y 3J9",
+      imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop&auto=format&q=80",
+      price: 3200,
+      propertyType: "Condo Apartment",
+      transactionType: "For Rent",
+      bedrooms: 2,
+      bathrooms: 2,
+      address: "Unit 1507, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: true
     },
     {
       id: 3,
-      listingKey: "X12009946",
+      listingKey: "R12009946",
       image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
-      price: 3000,
-      propertyType: "Commercial Retail",
+      imageUrl: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80",
+      price: 4500,
+      propertyType: "Condo Apartment",
       transactionType: "For Rent",
-      bedrooms: 0,
-      bathrooms: 0,
-      address: "211 DUNDAS Street, London East, ON N6A 1G4",
+      bedrooms: 3,
+      bathrooms: 2,
+      address: "Unit 2205, 8 Hillcrest Ave, North York, ON M2N 6Y6",
       isRental: true
     }
   ];
 
-  // Use initial building data if provided, otherwise use sample data
-  const buildingData = initialBuildingData || {
+  // Provide fallback building data if none provided
+  const effectiveBuildingData = buildingData || {
+    id: 'sample-1',
     name: "8 Hillcrest Ave, North York",
     subtitle: "Modern downtown living",
     description: "Experience luxury living in the heart of downtown.",
+    address: "8 Hillcrest Ave",
+    city: "North York",
+    province: "ON",
+    building_type: "Residential",
+    main_image: null,
+    images: [],
     details: {
       type: "Residential Building",
       floors: "42",
@@ -197,9 +205,33 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     ]
   };
 
+  // Use actual building images from backend or fallback to samples
+  const buildingImages = [];
+  
+  // Add main image if available
+  if (effectiveBuildingData?.main_image) {
+    buildingImages.push(effectiveBuildingData.main_image);
+  }
+  
+  // Add additional images if available
+  if (effectiveBuildingData?.images && Array.isArray(effectiveBuildingData.images)) {
+    buildingImages.push(...effectiveBuildingData.images);
+  }
+  
+  // If no images from backend, use fallback images
+  if (buildingImages.length === 0) {
+    buildingImages.push(
+      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1484154218962-a197022b5858?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+    );
+  }
+
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
-      <Head title={`${buildingData.name} - Building Details - ${siteName}`} />
+      <Head title={`${effectiveBuildingData.name} - Building Details - ${siteName}`} />
       <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
         <Navbar auth={auth} />
       </div>
@@ -209,7 +241,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
           {/* Building Header with Share and Favorite buttons */}
           <div className="mb-7">
             <PropertyHeader 
-              data={buildingData}
+              data={effectiveBuildingData}
               isFavorited={isFavorited}
               onToggleFavorite={handleToggleFavorite}
               type="building"
@@ -220,7 +252,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
           <div className="mb-7">
             <BuildingGallery 
               buildingImages={buildingImages}
-              buildingData={buildingData}
+              buildingData={effectiveBuildingData}
               isFavorited={isFavorited}
               onToggleFavorite={handleToggleFavorite}
             />
@@ -231,7 +263,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
 
               {/* Building Sections */}
               <BuildingSections 
-                buildingData={buildingData}
+                buildingData={effectiveBuildingData}
                 sampleSaleProperties={sampleSaleProperties}
                 sampleRentProperties={sampleRentProperties}
               />
@@ -247,7 +279,30 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
        
             {/* Right sidebar */}
             <div className={`max-w-[309px] md:flex hidden w-full transition-opacity duration-300 ${sidebarVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              <BuildingTourScheduling />
+              <div className="space-y-4">
+                {/* Login/Signup Card for Non-Authenticated Users */}
+                {!auth?.user && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-[#293056] mb-2 font-space-grotesk">
+                        Get Building Details
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Create a free account to save buildings and get exclusive access to property details
+                      </p>
+                      <button
+                        onClick={() => setLoginModalOpen(true)}
+                        className="w-full bg-[#293056] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                      >
+                        Sign Up / Log In
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Building Tour Scheduling */}
+                <BuildingTourScheduling />
+              </div>
             </div>
           </div>
           <div className='description'>
@@ -259,6 +314,12 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
       
       {/* Mobile Bottom Bar - Fixed at bottom */}
       <MobileBottomBar />
+      
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+      />
     </MainLayout>
   );
 }

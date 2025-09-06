@@ -43,8 +43,8 @@ export default function AdminLayout({ children, title = 'Admin' }) {
             submenu: [
                 {
                     name: 'Buildings',
-                    href: route('admin.real-estate.buildings'),
-                    current: url?.startsWith('/admin/real-estate/buildings') || false
+                    href: route('admin.buildings.index'),
+                    current: url?.startsWith('/admin/buildings') || false
                 },
                 {
                     name: 'Developers',

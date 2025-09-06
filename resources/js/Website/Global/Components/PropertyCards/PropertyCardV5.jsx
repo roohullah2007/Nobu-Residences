@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
+import { createSEOBuildingUrl } from '@/utils/slug';
 import RequestTourModal from '@/Components/RequestTourModal';
 import { 
   formatCardAddress, 
@@ -59,30 +60,47 @@ const PropertyCardV5 = ({
   const displayAddress = formatCardAddress(property);
   const features = buildCardFeatures(property);
   const brokerageName = getBrokerageName(property);
-  const detailsUrl = generatePropertyUrl(property);
+  // Use building URL for buildings, property URL for properties
+  const detailsUrl = property.source === 'building' 
+    ? createSEOBuildingUrl(property) 
+    : generatePropertyUrl(property);
 
-  // Size configurations - Optimized for IDX-AMPRE style with 300px cards
+  // Count the number of content sections to determine if we need minimum height
+  const contentSections = [
+    property.source === 'building' ? (property.name || property.propertyType || 'Building') : (property.propertyType || 'Residential'),
+    displayAddress,
+    features,
+    brokerageName,
+    property.source !== 'building' ? (property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`) : null
+  ].filter(Boolean);
+
+  // Dynamic height calculation based on content
+  // Only apply minimum height if we have minimal content
+  const hasMinimalContent = contentSections.length <= 3;
+  const dynamicMinHeight = hasMinimalContent ? 'min-h-[380px]' : 'min-h-0';
+
+  // Size configurations - Updated with dynamic height
   const sizeConfig = {
     default: {
-      container: 'w-[300px] h-[440px] idx-ampre-property-card',
+      container: `w-[300px] ${dynamicMinHeight} idx-ampre-property-card`,
       image: 'h-[200px] property-image-container',
-      content: 'p-4 gap-2.5 h-[240px]',
+      content: 'p-4 gap-2.5',
       chip: 'px-3 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
     },
     mobile: {
-      container: 'w-[280px] h-[440px] idx-ampre-property-card',
+      container: `w-[280px] ${dynamicMinHeight} idx-ampre-property-card`,
       image: 'h-[200px] property-image-container',
-      content: 'p-3 gap-2 h-[240px]',
+      content: 'p-3 gap-2',
       chip: 'px-2 py-1 text-xs property-badge',
       title: 'text-lg',
       details: 'text-sm'
     },
     grid: {
-      container: 'w-[300px] h-[440px] idx-ampre-property-card',
+      container: `w-[300px] ${dynamicMinHeight} idx-ampre-property-card`,
       image: 'h-[200px] property-image-container',
-      content: 'p-4 gap-2.5 h-[240px]',
+      content: 'p-4 gap-2.5',
       chip: 'px-3 py-1.5 text-sm property-badge',
       title: 'text-lg',
       details: 'text-base'
@@ -99,10 +117,10 @@ const PropertyCardV5 = ({
   };
 
   return (
-    <div className={`flex-none ${config.container} bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative`}>
+    <div className={`flex flex-col ${config.container} bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative`}>
       <a 
         href={detailsUrl} 
-        className="block h-full text-inherit no-underline"
+        className="flex flex-col h-full text-inherit no-underline"
         onClick={handleClick}
       >
         {/* Card Image - Enhanced with IDX-AMPRE Loading */}
@@ -168,36 +186,36 @@ const PropertyCardV5 = ({
           )}
         </div>
         
-        {/* Card Content - IDX-AMPRE Enhanced */}
-        <div className={`flex flex-col items-start ${config.content} box-border pb-4`}>
+        {/* Card Content - Dynamic layout based on content amount */}
+        <div className={`flex flex-col flex-grow items-start ${config.content} box-border`}>
           {/* Property Type Title - Show Building Name for buildings */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
             {property.source === 'building' ? (property.name || property.propertyType || 'Building') : (property.propertyType || 'Residential')}
           </div>
           
-          {/* Property Details */}
-          <div className="flex flex-col items-start gap-2 w-full flex-1">
+          {/* Property Details - Compact layout without excessive spacing */}
+          <div className="flex flex-col items-start gap-2 w-full">
             {/* Address */}
             <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056] line-clamp-2`}>
               {displayAddress}
             </div>
             
-            {/* Features */}
+            {/* Features - Only show if exists */}
             {features && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
                 {features}
               </div>
             )}
             
-            {/* Brokerage Name */}
+            {/* Brokerage Name - Only show if exists */}
             {brokerageName && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
                 {brokerageName}
               </div>
             )}
             
-            {/* MLS Number - Hide for buildings */}
-            {property.source !== 'building' && (
+            {/* MLS Number - Hide for buildings, only show if exists */}
+            {property.source !== 'building' && property.listingKey && (
               <div className="flex items-center justify-start w-full min-h-8">
                 <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
                   {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
