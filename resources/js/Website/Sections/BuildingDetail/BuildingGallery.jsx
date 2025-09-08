@@ -8,16 +8,26 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
   const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   
+  // Debug: Log building data
+  console.log('BuildingGallery received buildingData:', buildingData);
+  
   // Extract building address from buildingData
   const getBuildingAddress = () => {
     const address = buildingData?.address || buildingData?.name || '';
     const match = address.match(/^(\d+)\s+(.+?)(?:,|$)/);
     if (match) {
-      return { streetNumber: match[1], streetName: match[2] };
+      // Remove common street suffixes like "Street", "St", "Avenue", "Ave" etc to match MLS data
+      let streetName = match[2];
+      // Remove trailing street type words for better matching
+      streetName = streetName.replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '').trim();
+      return { streetNumber: match[1], streetName: streetName };
     }
-    // Default to 55 Mercer if no address found
-    return { streetNumber: '55', streetName: 'Mercer' };
+    // Default to 15 Mercer if no address found
+    return { streetNumber: '15', streetName: 'Mercer' };
   };
+  
+  // Get the street address for search links
+  const { streetNumber, streetName } = getBuildingAddress();
   
   // Fetch property counts on component mount
   useEffect(() => {
@@ -116,7 +126,7 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                 {/* Building Name Section */}
                 <div className="flex flex-col gap-4 items-center">
                   <h2 className="font-space-grotesk font-bold text-2xl md:text-3xl leading-tight text-[#293056] text-center">
-                  The Pinnacle
+                    {buildingData?.name || 'Building Name'}
                   </h2>
                   <div className="w-full h-px border-t border-[#D5D7DA]"></div>
                 </div>
@@ -126,34 +136,51 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                   {/* Developer */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Developer</span>
-                    <span className="font-work-sans text-sm text-[#535862]">-</span>
+                    <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px]">
+                      {buildingData?.developer_name || buildingData?.developer?.name || '-'}
+                    </span>
                   </div>
                   
                   {/* Management */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Management</span>
-                    <span className="font-work-sans text-sm text-[#7E2410] underline cursor-pointer hover:text-[#5A1A0B] text-right max-w-[180px]">
-                      Crossbridge Condominium Services
+                    <span className={`font-work-sans text-sm text-right max-w-[180px] ${
+                      buildingData?.management_name && buildingData?.management_name !== '-' 
+                        ? 'text-[#7E2410] underline cursor-pointer hover:text-[#5A1A0B]' 
+                        : 'text-[#535862]'
+                    }`}>
+                      {buildingData?.management_name || '-'}
                     </span>
                   </div>
                   
                   {/* Corp */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Corp</span>
-                    <span className="font-work-sans text-sm text-[#535862]">MTCC-1362</span>
+                    <span className="font-work-sans text-sm text-[#535862]">
+                      {buildingData?.corp_number || '-'}
+                    </span>
                   </div>
                   
                   {/* Date Registered */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Date Registered</span>
-                    <span className="font-work-sans text-sm text-[#535862]">Jan 29, 2001</span>
+                    <span className="font-work-sans text-sm text-[#535862]">
+                      {buildingData?.date_registered 
+                        ? new Date(buildingData.date_registered).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          })
+                        : '-'
+                      }
+                    </span>
                   </div>
                 </div>
                 
                 {/* For Sale and For Rent Buttons */}
                 <div className="flex flex-col gap-3">
                   <a 
-                    href={`/search?building_id=${buildingData?.id || ''}&transaction_type=sale`}
+                    href={`/search?street_number=${streetNumber}&street_name=${encodeURIComponent(streetName)}&transaction_type=sale`}
                     className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
@@ -165,7 +192,7 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                   </a>
                   
                   <a 
-                    href={`/search?building_id=${buildingData?.id || ''}&transaction_type=rent`}
+                    href={`/search?street_number=${streetNumber}&street_name=${encodeURIComponent(streetName)}&transaction_type=rent`}
                     className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
@@ -182,24 +209,26 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                   <div className="flex items-center justify-between gap-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
                       <img 
-                        src="/assets/school/jatin-gill.png"
-                        alt="Julian Kashani"
+                        src={buildingData?.agent_image || "/assets/school/jatin-gill.png"}
+                        alt={buildingData?.agent_name || "Agent"}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="text-left">
                       <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
-                        Julian Kashani
+                        {buildingData?.agent_name || 'Contact Agent'}
                       </h3>
                       <p className="font-work-sans font-medium text-sm text-[#535862]">
-                        Broker
+                        {buildingData?.agent_title || 'Broker'}
                       </p>
                       <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        Property.ca Inc., Brokerage
+                        {buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
                       </p>
-                      <p className="font-work-sans font-bold text-sm text-[#535862]">
-                        647-492-7260
-                      </p>
+                      {buildingData?.agent_phone && (
+                        <p className="font-work-sans font-bold text-sm text-[#535862]">
+                          {buildingData.agent_phone}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -224,7 +253,7 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
           {/* Modal Header */}
           <div className="bg-black bg-opacity-90 px-4 py-3 flex justify-between items-center border-b border-white border-opacity-10 flex-shrink-0">
             <div className="text-white flex flex-col gap-1">
-              <span className="font-semibold text-sm">8 Hillcrest Ave, North York</span>
+              <span className="font-semibold text-sm">{buildingData?.name || buildingData?.address || 'Building'}</span>
               <span className="text-white text-opacity-70 text-xs">
                 ({modalImageIndex + 1} of {buildingImages.length})
               </span>

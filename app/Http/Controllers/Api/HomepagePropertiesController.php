@@ -93,13 +93,19 @@ class HomepagePropertiesController extends Controller
                 'PropertySubType',
                 'PropertyType',
                 'StandardStatus',
+                'LivingAreaRange',
                 'AboveGradeFinishedArea',
                 'ParkingTotal',
-                'PublicRemarks'
+                'PublicRemarks',
+                'ListOfficeName',
+                'UnitNumber',
+                'StreetNumber',
+                'StreetName',
+                'StreetSuffix'
             ]);
 
-            // Set pagination - get all properties from 55 Mercer Street (increase limit)
-            $this->ampreApi->setTop(50); // Increased to show all available listings
+            // Set pagination - limit to 12 properties for carousel
+            $this->ampreApi->setTop(12); // Limited to 12 for carousel display
             $this->ampreApi->setSkip(0);
 
             // Apply filters
@@ -164,12 +170,18 @@ class HomepagePropertiesController extends Controller
                     'PropertySubType',
                     'PropertyType',
                     'StandardStatus',
+                    'LivingAreaRange',
                     'AboveGradeFinishedArea',
                     'ParkingTotal',
-                    'PublicRemarks'
+                    'PublicRemarks',
+                    'ListOfficeName',
+                    'UnitNumber',
+                    'StreetNumber',
+                    'StreetName',
+                    'StreetSuffix'
                 ]);
                 
-                $this->ampreApi->setTop(50); // Show all available properties
+                $this->ampreApi->setTop(12); // Limited to 12 for carousel display
                 $this->ampreApi->setSkip(0);
                 $this->ampreApi->addFilter('TransactionType', $transactionType);
                 $this->ampreApi->addFilter('StandardStatus', 'Active');
@@ -356,11 +368,32 @@ class HomepagePropertiesController extends Controller
                 'address' => $property['UnparsedAddress'] ?? '',
                 'city' => $property['City'] ?? '',
                 'postalCode' => $property['PostalCode'] ?? '',
-                'sqft' => $property['AboveGradeFinishedArea'] ?? 0,
+                'sqft' => $property['LivingAreaRange'] ?? $property['AboveGradeFinishedArea'] ?? 0,
+                'LivingAreaRange' => $property['LivingAreaRange'] ?? '',
+                'livingAreaRange' => $property['LivingAreaRange'] ?? '',
+                'AboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? '',
                 'parking' => $property['ParkingTotal'] ?? 0,
                 'description' => $property['PublicRemarks'] ?? '',
                 'isRental' => $isRental,
-                'source' => 'mls' // Mark as real MLS data
+                'source' => 'mls', // Mark as real MLS data
+                // Add all MLS fields needed for formatters (both cases for compatibility)
+                'UnitNumber' => $property['UnitNumber'] ?? '',
+                'unitNumber' => $property['UnitNumber'] ?? '',
+                'StreetNumber' => $property['StreetNumber'] ?? '',
+                'streetNumber' => $property['StreetNumber'] ?? '',
+                'StreetName' => $property['StreetName'] ?? '',
+                'streetName' => $property['StreetName'] ?? '',
+                'StreetSuffix' => $property['StreetSuffix'] ?? '',
+                'streetSuffix' => $property['StreetSuffix'] ?? '',
+                'AboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? '',
+                'ParkingTotal' => $property['ParkingTotal'] ?? 0,
+                'parkingTotal' => $property['ParkingTotal'] ?? 0,
+                'ListOfficeName' => $property['ListOfficeName'] ?? '',
+                'listOfficeName' => $property['ListOfficeName'] ?? '',
+                'BedroomsTotal' => $property['BedroomsTotal'] ?? 0,
+                'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
+                'BathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0,
+                'bathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0
             ];
         }
 

@@ -202,7 +202,7 @@ const PropertyCardV5 = ({
             
             {/* Features - Only show if exists */}
             {features && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
+              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
                 {features}
               </div>
             )}

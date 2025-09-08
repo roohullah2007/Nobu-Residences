@@ -914,12 +914,17 @@ class WebsiteController extends Controller
         // Try to fetch property data from AMPRE API or local database
         $propertyData = null;
         $propertyImages = [];
+        $buildingAmenities = [];
         
         // Check if it's a local property (numeric ID)
         if (is_numeric($listingKey)) {
-            $property = Property::find($listingKey);
+            $property = Property::with('building.amenities')->find($listingKey);
             if ($property) {
                 $propertyData = $property->getDisplayData();
+                // Get building amenities if property belongs to a building
+                if ($property->building && $property->building->amenities) {
+                    $buildingAmenities = $property->building->amenities->pluck('name')->toArray();
+                }
             }
         }
         
@@ -943,6 +948,58 @@ class WebsiteController extends Controller
                     
                     // Format the property data
                     $propertyData = $this->formatAmprePropertyData($ampreProperty);
+                    
+                    // Try to find building amenities by matching address
+                    if (!empty($propertyData['address'])) {
+                        // Extract building address from property address
+                        $addressParts = explode(',', $propertyData['address']);
+                        if (count($addressParts) > 0) {
+                            $buildingAddress = trim($addressParts[0]);
+                            // Remove unit number if present
+                            $buildingAddress = preg_replace('/^(\d+\s*-\s*)?/', '', $buildingAddress);
+                            
+                            // Try to find building by address
+                            $building = \App\Models\Building::with('amenities')
+                                ->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                                ->first();
+                            
+                            if ($building && $building->amenities) {
+                                $buildingAmenities = $building->amenities->pluck('name')->toArray();
+                                \Log::info('Found building amenities for MLS property: ', ['building' => $building->name, 'amenities' => $buildingAmenities]);
+                            } else {
+                                // Check if it's 55 Mercer Street and provide default amenities
+                                if (stripos($propertyData['address'], '55 Mercer') !== false) {
+                                    // Try to get 55 Mercer building specifically
+                                    $mercerBuilding = \App\Models\Building::with('amenities')
+                                        ->where('address', 'LIKE', '%55 Mercer%')
+                                        ->first();
+                                    
+                                    if ($mercerBuilding && $mercerBuilding->amenities) {
+                                        $buildingAmenities = $mercerBuilding->amenities->pluck('name')->toArray();
+                                    } else {
+                                        // Use default amenities for 55 Mercer
+                                        $buildingAmenities = [
+                                            'Concierge',
+                                            'Party Room',
+                                            'Meeting Room',
+                                            'Security Guard',
+                                            'Gym',
+                                            'Visitor Parking',
+                                            'Parking Garage',
+                                            'Guest Suites',
+                                            'Pet Restriction',
+                                            'BBQ Permitted',
+                                            'Outdoor Pool',
+                                            'Media Room',
+                                            'Rooftop Deck',
+                                            'Security System'
+                                        ];
+                                    }
+                                    \Log::info('Using 55 Mercer amenities for property');
+                                }
+                            }
+                        }
+                    }
                     
                     // Debug log the formatted data
                     \Log::info('Formatted Property Data for ' . $listingKey, [
@@ -997,6 +1054,13 @@ class WebsiteController extends Controller
             'streetName' => $propertyData['streetName'] ?? 'NOT_FOUND',
         ]);
 
+        // Add building amenities to property data if available
+        if (!empty($buildingAmenities)) {
+            if ($propertyData) {
+                $propertyData['buildingAmenities'] = $buildingAmenities;
+            }
+        }
+        
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
             'listingKey' => $listingKey,
@@ -1123,17 +1187,26 @@ class WebsiteController extends Controller
         
         $building = null;
         
-        // Try to find building by ID first (if buildingSlug contains UUID)
-        $buildingId = $this->extractBuildingIdFromSlug($buildingSlug);
-        if ($this->isValidUuid($buildingId)) {
-            $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
-                $query->where('status', 'active')
-                      ->orderBy('created_at', 'desc')
-                      ->limit(10);
-            }])->find($buildingId);
+        // Try to find building by slug first
+        $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+            $query->where('status', 'active')
+                  ->orderBy('created_at', 'desc')
+                  ->limit(10);
+        }])->where('slug', $buildingSlug)->first();
+        
+        // If not found by slug, try to find by ID (for backwards compatibility)
+        if (!$building) {
+            $buildingId = $this->extractBuildingIdFromSlug($buildingSlug);
+            if ($this->isValidUuid($buildingId)) {
+                $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+                    $query->where('status', 'active')
+                          ->orderBy('created_at', 'desc')
+                          ->limit(10);
+                }])->find($buildingId);
+            }
         }
         
-        // If not found by ID, try to find by name slug
+        // If still not found, try to find by name
         if (!$building) {
             // Convert the slug back to potential building name for search
             $nameFromSlug = str_replace('-', ' ', $buildingSlug);
@@ -1152,35 +1225,34 @@ class WebsiteController extends Controller
             })->first();
         }
         
-        $buildingData = null;
+        // If building not found, return 404
+        if (!$building) {
+            abort(404, 'Building not found');
+        }
         
-        if ($building) {
-            // Get all building data including relationships
-            $buildingData = $building->toArray();
-            
-            // Add computed properties
-            $buildingData['available_units_count'] = $building->getAvailableUnitsCountAttribute();
-            
-            // Format properties for display
-            if (isset($buildingData['properties'])) {
-                $buildingData['properties'] = collect($buildingData['properties'])->map(function($property) {
-                    return [
-                        'id' => $property['id'] ?? null,
-                        'title' => $property['title'] ?? '',
-                        'price' => $property['price'] ?? 0,
-                        'bedrooms' => $property['bedrooms'] ?? 0,
-                        'bathrooms' => $property['bathrooms'] ?? 0,
-                        'area' => $property['area'] ?? 0,
-                        'images' => $property['images'] ?? [],
-                        'status' => $property['status'] ?? 'active',
-                    ];
-                })->toArray();
-            }
+        // Get building display data
+        $buildingData = $building->getDisplayData();
+        
+        // Format properties for display
+        if ($building->properties) {
+            $buildingData['properties'] = $building->properties->map(function($property) {
+                return [
+                    'id' => $property->id ?? null,
+                    'title' => $property->title ?? '',
+                    'price' => $property->price ?? 0,
+                    'bedrooms' => $property->bedrooms ?? 0,
+                    'bathrooms' => $property->bathrooms ?? 0,
+                    'area' => $property->area ?? 0,
+                    'images' => $property->images ?? [],
+                    'status' => $property->status ?? 'active',
+                ];
+            })->toArray();
         }
         
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
-            'title' => $building ? $building->name : 'Building Detail',
-            'buildingId' => $building ? $building->id : ($buildingId ?? $buildingSlug),
+            'title' => $building->name,
+            'buildingId' => $building->id,
+            'buildingSlug' => $building->slug,
             'buildingData' => $buildingData
         ]));
     }

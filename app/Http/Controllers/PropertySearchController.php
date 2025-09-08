@@ -525,6 +525,7 @@ class PropertySearchController extends Controller
             'PropertySubType',
             'PropertyType',
             'StandardStatus',
+            'LivingAreaRange',
             'AboveGradeFinishedArea',
             'ParkingTotal',
             'Latitude',
@@ -670,8 +671,20 @@ class PropertySearchController extends Controller
         $this->ampreApi->addFilter('StandardStatus', $standardStatus);
         $this->ampreApi->addFilter('TransactionType', $transactionType);
 
-        // Apply search query
-        if (!empty($params['query']) && trim($params['query']) !== '') {
+        // Check for street_number and street_name parameters first
+        if (!empty($params['street_number']) && !empty($params['street_name'])) {
+            // If both street_number and street_name are provided, search for that specific address
+            $streetNumber = trim($params['street_number']);
+            $streetName = trim($params['street_name']);
+            
+            // Apply filters for street number and street name
+            $this->ampreApi->addFilter('StreetNumber', $streetNumber);
+            $this->ampreApi->addCustomFilter("contains(StreetName, '{$streetName}')");
+            
+            // Also search in Toronto area
+            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+        } elseif (!empty($params['query']) && trim($params['query']) !== '') {
+            // Fall back to query parameter if street_number and street_name are not provided
             $query = trim($params['query']);
             
             // If query is just 'Toronto', apply it as a city contains filter to match subdivisions

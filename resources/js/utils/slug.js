@@ -16,20 +16,23 @@ export const createSlug = (text) => {
 };
 
 /**
- * Create a building URL with slug and ID
- * @param {string} name - Building name
- * @param {string} id - Building ID
+ * Create a building URL with slug
+ * @param {string} nameOrSlug - Building name or slug
+ * @param {string} id - Building ID (deprecated, kept for backwards compatibility)
  * @param {object} options - Optional parameters for SEO URL
  * @returns {string} Building URL
  */
-export const createBuildingUrl = (name, id, options = {}) => {
-  if (!id) return `/building/unknown`;
+export const createBuildingUrl = (nameOrSlug, id, options = {}) => {
+  // If options contains a slug, use it directly
+  if (options.slug) {
+    return `/building/${options.slug}`;
+  }
   
   // If we have building object with full data, create SEO URL
   if (options && typeof options === 'object' && options.address && options.city) {
     const citySlug = createSlug(options.city);
     const streetSlug = createSlug(options.address);
-    const nameSlug = createSlug(name || 'building');
+    const nameSlug = createSlug(nameOrSlug || 'building');
     return `/${citySlug}/${streetSlug}/${nameSlug}`;
   }
   
@@ -37,14 +40,13 @@ export const createBuildingUrl = (name, id, options = {}) => {
   if (options.city && options.street) {
     const citySlug = createSlug(options.city);
     const streetSlug = createSlug(options.street);
-    const nameSlug = createSlug(name || 'building');
+    const nameSlug = createSlug(nameOrSlug || 'building');
     return `/${citySlug}/${streetSlug}/${nameSlug}`;
   }
   
-  // Fallback to simple building URL with name
-  if (!name) return `/building/${id}`;
-  const slug = createSlug(name);
-  return `/building/${slug}-${id}`;
+  // Create slug from name
+  const slug = createSlug(nameOrSlug || 'building');
+  return `/building/${slug}`;
 };
 
 /**
@@ -63,29 +65,28 @@ export const extractBuildingId = (slug) => {
 };
 
 /**
- * Create SEO-friendly building URL in the format /city/street/building-name/id
- * This matches the route pattern: /{city}/{street}/{buildingSlug}
- * @param {object} building - Building object with name, address, city data
+ * Create SEO-friendly building URL
+ * @param {object} building - Building object with name, slug, address, city data
  * @returns {string} SEO-friendly building URL
  */
 export const createSEOBuildingUrl = (building) => {
   if (!building) return '/building/unknown';
   
-  const { name, address, city, id } = building;
+  const { name, slug, address, city, id } = building;
   
-  if (city && address && id) {
-    const citySlug = createSlug(city);
-    const streetSlug = createSlug(address);
-    
-    // Include building name in URL if available, otherwise just use ID
-    if (name) {
-      const nameSlug = createSlug(name);
-      return `/${citySlug}/${streetSlug}/${nameSlug}/${id}`;
-    } else {
-      return `/${citySlug}/${streetSlug}/${id}`;
-    }
+  // If building has a slug, use it
+  if (slug) {
+    return `/building/${slug}`;
   }
   
-  // Fallback to old format if missing data
-  return createBuildingUrl(name, id);
+  // If we have city and address data, create SEO URL
+  if (city && address) {
+    const citySlug = createSlug(city);
+    const streetSlug = createSlug(address);
+    const nameSlug = createSlug(name || 'building');
+    return `/${citySlug}/${streetSlug}/${nameSlug}`;
+  }
+  
+  // Fallback to simple format with name slug
+  return createBuildingUrl(name, id, { slug });
 };

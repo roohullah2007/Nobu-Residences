@@ -22,11 +22,23 @@ class Building extends Model
             if (empty($model->{$model->getKeyName()})) {
                 $model->{$model->getKeyName()} = Str::uuid()->toString();
             }
+            // Generate slug from name
+            if (empty($model->slug) && !empty($model->name)) {
+                $model->slug = Str::slug($model->name);
+            }
+        });
+        
+        static::updating(function ($model) {
+            // Update slug if name changes and slug is not manually set
+            if ($model->isDirty('name') && !$model->isDirty('slug')) {
+                $model->slug = Str::slug($model->name);
+            }
         });
     }
 
     protected $fillable = [
         'name',
+        'slug',
         'address',
         'city',
         'province',
@@ -41,6 +53,7 @@ class Building extends Model
         'main_image',
         'images',
         'developer_id',
+        'developer_name',
         'management_name',
         'corp_number',
         'date_registered',
@@ -68,7 +81,13 @@ class Building extends Model
         'estimated_completion',
         'architect',
         'interior_designer',
-        'landscape_architect'
+        'landscape_architect',
+        'agent_name',
+        'agent_title',
+        'agent_brokerage',
+        'agent_phone',
+        'agent_email',
+        'agent_image'
     ];
 
     protected $casts = [
@@ -147,6 +166,14 @@ class Building extends Model
 
 
     /**
+     * Get the route key for the model
+     */
+    public function getRouteKeyName()
+    {
+        return 'slug';
+    }
+    
+    /**
      * Get building data formatted for display
      */
     public function getDisplayData(): array
@@ -154,16 +181,31 @@ class Building extends Model
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'slug' => $this->slug,
             'description' => $this->description,
             'address' => $this->address,
             'city' => $this->city,
             'province' => $this->province,
             'developer' => $this->developer,
+            'developer_name' => $this->developer_name,
             'management_name' => $this->management_name,
             'corp_number' => $this->corp_number,
             'date_registered' => $this->date_registered,
             'amenities' => $this->amenities,
             'available_units_count' => $this->getAvailableUnitsCountAttribute(),
+            'agent_name' => $this->agent_name,
+            'agent_title' => $this->agent_title,
+            'agent_brokerage' => $this->agent_brokerage,
+            'agent_phone' => $this->agent_phone,
+            'agent_email' => $this->agent_email,
+            'agent_image' => $this->agent_image,
+            'main_image' => $this->main_image,
+            'images' => $this->images,
+            'year_built' => $this->year_built,
+            'floors' => $this->floors,
+            'total_units' => $this->total_units,
+            'units_for_sale' => $this->units_for_sale,
+            'units_for_rent' => $this->units_for_rent,
         ];
     }
 

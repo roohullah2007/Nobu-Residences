@@ -16,8 +16,8 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
     useEffect(() => {
         const fetchPropertyCounts = async () => {
             try {
-                // Default to 55 Mercer Street
-                const response = await fetch('/api/buildings/count-mls-listings?street_number=55&street_name=Mercer');
+                // Default to 15 Mercer Street
+                const response = await fetch('/api/buildings/count-mls-listings?street_number=15&street_name=Mercer');
                 const data = await response.json();
                 if (data.success) {
                     setPropertyCounts(data.data);
@@ -37,14 +37,14 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
             text: isLoadingCounts 
                 ? 'Loading...' 
                 : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Condo' : 'Condos'} for rent`, 
-            url: '/search?building_id=891aa08a-8267-4987-b47a-bff4cb493290&transaction_type=rent', 
+            url: '/search?street_number=15&street_name=Mercer&transaction_type=rent', 
             style: 'primary' 
         },
         { 
             text: isLoadingCounts 
                 ? 'Loading...' 
                 : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Condo' : 'Condos'} for sale`, 
-            url: '/search?building_id=891aa08a-8267-4987-b47a-bff4cb493290&transaction_type=sale', 
+            url: '/search?street_number=15&street_name=Mercer&transaction_type=sale', 
             style: 'secondary' 
         }
     ];
@@ -65,7 +65,7 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
 
             {/* Hero Section */}
             <main className="relative z-10 flex items-end h-[555px]  md:h-[calc(696px-64px)]">
-                <div className="mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-screen-xl">
+                <div className="mx-auto w-full max-w-screen-xl">
                     <div className="max-w-3xl gap-y-6 flex flex-col">
                         {/* Welcome Text */}
                         <div>

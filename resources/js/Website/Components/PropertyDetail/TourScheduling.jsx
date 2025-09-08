@@ -6,7 +6,7 @@ const TourSchedulingComponent = () => {
   const [selectedTime, setSelectedTime] = useState('afternoon');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
-  const [scrollState, setScrollState] = useState('static'); // 'static', 'fixed', 'absolute'
+  const [scrollState, setScrollState] = useState('static'); // 'static', 'fixed'
   const [absoluteTop, setAbsoluteTop] = useState(0);
   
   const rightColumnRef = useRef(null);
@@ -60,7 +60,7 @@ const TourSchedulingComponent = () => {
       if (!contentElement || !rightColumnElement) return;
       
       const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-      const navbarHeight = 130; // Height of navbar + buffer
+      const navbarHeight = 20; // Small buffer from top
       
       // Store initial position and container left position
       if (initialTopRef.current === null) {
@@ -70,44 +70,16 @@ const TourSchedulingComponent = () => {
       }
       
       const initialTop = initialTopRef.current;
-      
-      // Find the description section (Real Estate Links)
-      const descriptionSection = document.querySelector('.description');
-      let stopScrollPosition = 0;
-      
-      if (descriptionSection) {
-        const descRect = descriptionSection.getBoundingClientRect();
-        stopScrollPosition = descRect.top + scrollPosition;
-      } else {
-        // Fallback: find footer as stop point
-        const footer = document.querySelector('footer');
-        if (footer) {
-          const footerRect = footer.getBoundingClientRect();
-          stopScrollPosition = footerRect.top + scrollPosition;
-        }
-      }
-      
-      // Calculate component height and stop position
-      const componentHeight = contentElement.offsetHeight;
-      // Stop position should be where bottom of tour component meets top of description section
-      const stopPosition = stopScrollPosition - componentHeight - navbarHeight - 20; // 20px buffer
-      
       const scrollTriggerPosition = initialTop - navbarHeight;
       
       if (scrollPosition <= scrollTriggerPosition) {
         // Before scroll trigger - static position
         setScrollState('static');
         setAbsoluteTop(0);
-      } else if (scrollPosition > scrollTriggerPosition && scrollPosition < stopPosition) {
-        // Between trigger and stop - fixed position
+      } else {
+        // After trigger - always fixed position at top
         setScrollState('fixed');
         setAbsoluteTop(0);
-      } else {
-        // After stop position - absolute position
-        setScrollState('absolute');
-        // Calculate absolute position relative to parent container
-        const absolutePositionTop = stopPosition - initialTop + navbarHeight;
-        setAbsoluteTop(absolutePositionTop);
       }
     };
 
@@ -257,7 +229,7 @@ const TourSchedulingComponent = () => {
         {/* Placeholder for fixed positioning */}
         <div 
           ref={placeholderRef}
-          className={`w-full flex-shrink-0 ${scrollState === 'fixed' || scrollState === 'absolute' ? 'block' : 'hidden'}`}
+          className={`w-full flex-shrink-0 ${scrollState === 'fixed' ? 'block' : 'hidden'}`}
           style={{ height: contentRef.current?.offsetHeight || 'auto' }}
         />
 
@@ -265,13 +237,11 @@ const TourSchedulingComponent = () => {
         <div 
           ref={contentRef}
           className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] transition-all duration-300 ${
-            scrollState === 'fixed' ? 'fixed z-40' : 
-            scrollState === 'absolute' ? 'absolute z-40' : ''
+            scrollState === 'fixed' ? 'fixed z-40' : ''
           }`}
           style={{
-            top: scrollState === 'fixed' ? '130px' : 
-                 scrollState === 'absolute' ? `${absoluteTop}px` : 'auto',
-            left: scrollState === 'fixed' || scrollState === 'absolute'
+            top: scrollState === 'fixed' ? '20px' : 'auto',
+            left: scrollState === 'fixed'
               ? containerLeftRef.current || 0 
               : 'auto'
           }}

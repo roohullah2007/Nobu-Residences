@@ -53,7 +53,7 @@ const PropertiesForSale = ({ auth, forSaleProperties = null }) => {
       auth={auth}
       title="Properties For Sale"
       type="sale"
-      viewAllLink="/sale"
+      viewAllLink="/search?street_number=15&street_name=Mercer&transaction_type=sale"
     />
   );
 };

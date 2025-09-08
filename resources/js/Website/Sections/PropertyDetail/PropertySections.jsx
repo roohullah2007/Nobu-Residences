@@ -19,8 +19,8 @@ export default function PropertySections({
 
      {/* Property Status and Navigation Tabs */}
       <PropertyStatusTabs property={propertyData} />
-      {/* Price History Section */}
-      <PriceHistory propertyData={propertyData} />
+      {/* Price History Section - Hidden for now */}
+      {/* <PriceHistory propertyData={propertyData} /> */}
       
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />

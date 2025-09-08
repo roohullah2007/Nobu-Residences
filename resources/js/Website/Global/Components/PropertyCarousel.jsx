@@ -27,16 +27,50 @@ const PropertyCarousel = ({
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // Limit properties to max 12 and prepare carousel items
+  const limitedProperties = properties.slice(0, 12);
+  
+  // Create carousel items array with properties + View All card
+  const carouselItems = [...limitedProperties];
+  
+  // Always add View All card as the last item
+  carouselItems.push({ isViewAllCard: true });
+
   const cardsToShow = { desktop: 3, tablet: 2, mobile: 1 };
+  const cardWidth = 360;
+  const cardGap = 20;
   
   // Calculate proper max index for each layout
+  // This ensures we stop when the last card is visible
   const getMaxIndex = (screenType) => {
     const cardsVisible = cardsToShow[screenType];
-    return Math.max(0, properties.length - cardsVisible);
+    // If we have fewer items than cards to show, max index is 0
+    if (carouselItems.length <= cardsVisible) {
+      return 0;
+    }
+    // Otherwise, calculate so the last card is visible
+    return carouselItems.length - cardsVisible;
   };
   
   const maxIndexDesktop = getMaxIndex('desktop');
   const maxIndexTablet = getMaxIndex('tablet');
+
+  // Calculate the translation amount for smooth scrolling
+  const getTranslateX = (index, visibleCards) => {
+    const totalCards = carouselItems.length;
+    const cardTotalWidth = cardWidth + cardGap;
+    
+    // If we're at the last possible position, align the last cards to the right edge
+    if (index >= totalCards - visibleCards) {
+      // Calculate how much to translate to show the last set of cards
+      const containerWidth = visibleCards * cardWidth + (visibleCards - 1) * cardGap;
+      const totalWidth = totalCards * cardWidth + (totalCards - 1) * cardGap;
+      return Math.max(0, totalWidth - containerWidth);
+    }
+    
+    // Normal scrolling
+    return index * cardTotalWidth;
+  };
 
   const handlePrevious = () => {
     setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -105,11 +139,65 @@ const PropertyCarousel = ({
             <div className="overflow-hidden flex-1" style={{ maxWidth: '1120px' }}>
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 380}px)` }}
+                style={{ 
+                  transform: `translateX(-${getTranslateX(currentIndex, cardsToShow.desktop)}px)`,
+                  minWidth: 'max-content'
+                }}
               >
-                {properties.map((property, index) => {
+                {carouselItems.map((item, index) => {
+                  // Check if this is the View All card
+                  if (item.isViewAllCard) {
+                    return (
+                      <div key={`desktop-view-all-${index}`} className="flex flex-col w-[300px] min-h-0 idx-ampre-property-card bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative">
+                        <a
+                          href={viewAllLink}
+                          className="flex flex-col h-full text-inherit no-underline"
+                        >
+                          {/* CTA Card Image Area - Same height as property cards */}
+                          <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-[#912018] rounded-t-xl flex items-center justify-center">
+                            <div className="text-white text-center">
+                              <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <p className="text-xl font-bold">Explore More</p>
+                            </div>
+                          </div>
+                          
+                          {/* CTA Card Content - Matching property card structure */}
+                          <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
+                            {/* Title Section */}
+                            <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
+                              Discover More Properties
+                            </div>
+                            
+                            {/* Content Sections */}
+                            <div className="flex flex-col items-start gap-2 w-full">
+                              <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
+                                Browse All Available Listings
+                              </div>
+                              
+                              {/* CTA Button Section */}
+                              <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
+                                <div className="inline-flex items-center justify-center px-6 py-2 bg-[#912018] hover:bg-[#7a1815] text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                                  View All Properties →
+                                </div>
+                              </div>
+                              
+                              {/* Additional Info */}
+                              <div className="flex items-center justify-center w-full min-h-8">
+                                <div className="font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056] text-center">
+                                  Updated Daily
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </a>
+                      </div>
+                    );
+                  }
+                  
                   const cardProps = {
-                    property,
+                    property: item,
                     size: "default",
                     onClick: onCardClick,
                     showFavourite: false // Disable favourite icon in carousel
@@ -120,7 +208,7 @@ const PropertyCarousel = ({
                     cardProps.auth = auth;
                   }
                   
-                  return <PropertyCard key={`desktop-${property.id}-${index}`} {...cardProps} />;
+                  return <PropertyCard key={`desktop-${item.id}-${index}`} {...cardProps} />;
                 })}
               </div>
             </div>
@@ -166,11 +254,62 @@ const PropertyCarousel = ({
             <div className="overflow-hidden flex-1" style={{ maxWidth: '740px' }}>
               <div 
                 className="flex gap-5 transition-transform duration-300 ease-in-out"
-                style={{ transform: `translateX(-${currentIndex * 380}px)` }}
+                style={{ transform: `translateX(-${getTranslateX(currentIndex, cardsToShow.tablet)}px)` }}
               >
-                {properties.map((property, index) => {
+                {carouselItems.map((item, index) => {
+                  // Check if this is the View All card
+                  if (item.isViewAllCard) {
+                    return (
+                      <div key={`tablet-view-all-${index}`} className="flex flex-col w-[300px] min-h-0 idx-ampre-property-card bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative">
+                        <a
+                          href={viewAllLink}
+                          className="flex flex-col h-full text-inherit no-underline"
+                        >
+                          {/* CTA Card Image Area - Same height as property cards */}
+                          <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-[#912018] rounded-t-xl flex items-center justify-center">
+                            <div className="text-white text-center">
+                              <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <p className="text-xl font-bold">Explore More</p>
+                            </div>
+                          </div>
+                          
+                          {/* CTA Card Content - Matching property card structure */}
+                          <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
+                            {/* Title Section */}
+                            <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
+                              Discover More Properties
+                            </div>
+                            
+                            {/* Content Sections */}
+                            <div className="flex flex-col items-start gap-2 w-full">
+                              <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
+                                Browse All Available Listings
+                              </div>
+                              
+                              {/* CTA Button Section */}
+                              <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
+                                <div className="inline-flex items-center justify-center px-6 py-2 bg-[#912018] hover:bg-[#7a1815] text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                                  View All Properties →
+                                </div>
+                              </div>
+                              
+                              {/* Additional Info */}
+                              <div className="flex items-center justify-center w-full min-h-8">
+                                <div className="font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056] text-center">
+                                  Updated Daily
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </a>
+                      </div>
+                    );
+                  }
+                  
                   const cardProps = {
-                    property,
+                    property: item,
                     size: "default",
                     onClick: onCardClick,
                     showFavourite: false // Disable favourite icon in carousel
@@ -181,7 +320,7 @@ const PropertyCarousel = ({
                     cardProps.auth = auth;
                   }
                   
-                  return <PropertyCard key={`tablet-${property.id}-${index}`} {...cardProps} />;
+                  return <PropertyCard key={`tablet-${item.id}-${index}`} {...cardProps} />;
                 })}
               </div>
             </div>
@@ -207,9 +346,64 @@ const PropertyCarousel = ({
         {/* Mobile Layout (horizontal scroll) */}
         <div className="md:hidden overflow-x-auto scrollbar-hide py-4">
           <div className="flex gap-5">
-            {properties.map((property, index) => {
+            {carouselItems.map((item, index) => {
+              // Check if this is the View All card
+              if (item.isViewAllCard) {
+                return (
+                  <div key={`mobile-view-all-${index}`} className="flex flex-col w-[300px] min-h-0 idx-ampre-property-card bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative flex-none">
+                    <a
+                      href={viewAllLink}
+                      className="flex flex-col h-full text-inherit no-underline"
+                    >
+                      {/* CTA Card Image Area - Same height as property cards */}
+                      <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-gradient-to-br from-orange-500 to-orange-700 rounded-t-xl flex items-center justify-center">
+                        <div className="text-white text-center">
+                          <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <p className="text-xl font-bold">Explore More</p>
+                        </div>
+                      </div>
+                      
+                      {/* CTA Card Content - Matching property card structure */}
+                      <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
+                        {/* Title Section */}
+                        <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
+                          Discover More Properties
+                        </div>
+                        
+                        {/* Content Sections */}
+                        <div className="flex flex-col items-start gap-2 w-full">
+                          <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
+                            Browse All Available Listings
+                          </div>
+                          
+                          {/* CTA Button Section */}
+                          <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
+                            <div className="inline-flex items-center justify-center px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                              View All Properties →
+                            </div>
+                          </div>
+                          
+                          {/* Additional Info */}
+                          <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600">
+                            100+ Active Listings
+                          </div>
+                          
+                          <div className="flex items-center justify-start w-full min-h-8">
+                            <div className="font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
+                              Updated Daily
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  </div>
+                );
+              }
+              
               const cardProps = {
-                property,
+                property: item,
                 size: "mobile",
                 onClick: onCardClick,
                 className: "flex-none",
@@ -221,7 +415,7 @@ const PropertyCarousel = ({
                 cardProps.auth = auth;
               }
               
-              return <PropertyCard key={`mobile-${property.id}-${index}`} {...cardProps} />;
+              return <PropertyCard key={`mobile-${item.id}-${index}`} {...cardProps} />;
             })}
           </div>
         </div>

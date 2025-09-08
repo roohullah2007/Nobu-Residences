@@ -117,22 +117,29 @@ export const getFullAddress = (property) => {
  * @returns {string} Formatted area
  */
 export const formatArea = (property) => {
-  const area = property.LivingAreaRange || property.livingAreaRange || 
-               property.BuildingAreaTotal || property.buildingAreaTotal ||
-               property.LivingArea || property.livingArea ||
-               property.AboveGradeFinishedArea || property.sqft || '';
+  // Check for area fields - prioritize LivingAreaRange (ranges like "900-999")
+  const area = property.LivingAreaRange || property.livingAreaRange ||
+               property.AboveGradeFinishedArea || property.sqft || 0;
   
-  
-  if (area) {
-    // If it's a range like "1000-1500", just take it as is
+  // Check if area exists and is not 0
+  if (area && area !== 0 && area !== '0') {
+    // If it's a range like "900-999", return as-is with sqft
+    if (typeof area === 'string' && area.includes('-')) {
+      return `${area} sqft`;
+    }
     // If it's a number, format it
     if (!isNaN(area)) {
       return `${parseInt(area).toLocaleString()} sqft`;
     }
+    // If it already contains 'sqft', don't add it again
+    if (area.toString().toLowerCase().includes('sqft')) {
+      return area;
+    }
     return `${area} sqft`;
   }
   
-  return null;
+  // Return "Area N/A" when no area data is available
+  return 'Area N/A';
 };
 
 /**
@@ -210,11 +217,9 @@ export const buildCardFeatures = (property) => {
     features.push(bathrooms + 'BA');
   }
   
-  // Area
+  // Area - Always show area (will display "Area N/A" if not available)
   const area = formatArea(property);
-  if (area) {
-    features.push(area);
-  }
+  features.push(area);
   
   // Parking
   const parking = getParkingCount(property);

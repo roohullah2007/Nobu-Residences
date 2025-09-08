@@ -1,22 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
+import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import PropertyCardV6 from '../../Global/Components/PropertyCards/PropertyCardV6';
 import { usePage } from '@inertiajs/react';
-import { createBuildingUrl } from '@/utils/slug';
+import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 
 const MoreBuildings = ({ 
   title = "More Buildings By Agent", 
   propertyData = null,
   propertyType: filterPropertyType = null,
   transactionType: filterTransactionType = null,
-  buildingData = null,
-  fetchType = null // 'buildings' for backend buildings, null for MLS properties
+  fetchType = null,
+  buildingData = null
 }) => {
+  // Slider state and refs
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
-  const [nearbyListings, setNearbyListings] = useState([]);
-  const [similarListings, setSimilarListings] = useState([]);
-  const [condoListings, setCondoListings] = useState([]);
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
   const [buildingsData, setBuildingsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -25,6 +26,31 @@ const MoreBuildings = ({
   // Get property type and subtype from propertyData
   const propertyType = propertyData?.propertyType || null;
   const propertySubType = propertyData?.propertySubType || null;
+
+  // Format building for card display (same as search page)
+  const formatBuildingForCard = (building) => {
+    return {
+      id: building.id,
+      slug: building.slug,
+      listingKey: building.id,
+      price: building.price_range || 'Price on Request',
+      bedrooms: building.total_units ? `${building.total_units} Units` : null,
+      bathrooms: building.floors ? `${building.floors} Floors` : null,
+      sqft: building.year_built ? `Built ${building.year_built}` : null,
+      parking: building.parking_spots || null,
+      address: building.address,
+      propertyType: building.name || building.building_type || 'Building',
+      transactionType: building.listing_type || 'For Sale',
+      city: building.city,
+      province: building.province,
+      imageUrl: building.main_image || null,
+      isBuilding: true,
+      source: 'building',
+      name: building.name,
+      developer: building.developer,
+      available_units_count: building.available_units_count
+    };
+  };
 
   // NO SAMPLE DATA - only show real listings from API
 
@@ -50,653 +76,282 @@ const MoreBuildings = ({
       return;
     }
     
-    if (listingKey) {
-      if (title === "Nearby Listings") {
-        fetchNearbyListings();
-      } else if (title === "Similar Listings") {
-        fetchSimilarListings();
-      } else {
+    // Otherwise fetch based on title
+    const fetchData = async () => {
+      setIsLoading(true);
+      
+      let url = '/api/listings';
+      const params = new URLSearchParams();
+      
+      // Determine what to fetch based on title
+      if (title === "More Buildings by Agent") {
+        if (!listingKey) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // Get agent listings
+        url = `/api/property-detail/${listingKey}/similar`;
+        
+      } else if (title === "More Buildings By Developer") {
+        // Get developer listings
+        const developerId = propertyData?.developerId;
+        if (!developerId) {
+          setIsLoading(false);
+          return;
+        }
+        url = `/api/developer/${developerId}/properties`;
+        
+      } else if (title === "Buildings Nearby") {
+        // Get nearby listings based on location
+        const lat = propertyData?.latitude;
+        const lng = propertyData?.longitude;
+        if (!lat || !lng) {
+          setIsLoading(false);
+          return;
+        }
+        params.append('lat', lat);
+        params.append('lng', lng);
+        params.append('radius', '1'); // 1km radius
+        
+      } else if (title === "Buildings Under Development") {
+        // Get pre-construction listings
+        params.append('status', 'pre-construction');
+        
+      } else if (title === "Available Units") {
+        // Get available units in the building
+        const buildingId = propertyData?.buildingId;
+        if (!buildingId) {
+          setIsLoading(false);
+          return;
+        }
+        url = `/api/building/${buildingId}/units`;
+      }
+      
+      // Add property type filter if specified
+      if (propertyType) {
+        params.append('property_type', propertyType);
+      }
+      if (propertySubType) {
+        params.append('property_sub_type', propertySubType);
+      }
+      
+      // Add limit
+      params.append('limit', '12');
+      
+      try {
+        const queryString = params.toString();
+        const fullUrl = queryString ? `${url}?${queryString}` : url;
+        
+        const response = await fetch(fullUrl);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          setBuildingsData(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+      } finally {
         setIsLoading(false);
       }
-    } else {
-      setIsLoading(false);
-    }
-  }, [listingKey, title, propertyData, filterPropertyType, filterTransactionType, fetchType]);
+    };
+    
+    fetchData();
+  }, [title, listingKey, propertyData, propertyType, propertySubType]);
   
-  const fetchNearbyListings = async () => {
+  // Function to fetch buildings (Nearby or Similar)
+  const fetchBuildings = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/nearby-listings?listingKey=${listingKey}&limit=6`);
+      let url = '/api/buildings';
+      const params = new URLSearchParams();
+      
+      if (title === "Nearby Buildings" && buildingData?.latitude && buildingData?.longitude) {
+        // Fetch nearby buildings based on location
+        params.append('lat', buildingData.latitude);
+        params.append('lng', buildingData.longitude);
+        params.append('radius', '2'); // 2km radius
+        params.append('limit', '8');
+      } else if (title === "Similar Buildings") {
+        // Fetch similar buildings based on criteria
+        if (buildingData?.building_type) {
+          params.append('building_type', buildingData.building_type);
+        }
+        if (buildingData?.city) {
+          params.append('city', buildingData.city);
+        }
+        params.append('limit', '8');
+      }
+      
+      // Exclude current building
+      if (buildingData?.id) {
+        params.append('exclude', buildingData.id);
+      }
+      
+      const queryString = params.toString();
+      const fullUrl = queryString ? `${url}?${queryString}` : url;
+      
+      const response = await fetch(fullUrl);
       const data = await response.json();
       
-      console.log('Nearby listings API response:', data);
-      
-      if (data.properties && data.properties.length > 0) {
-        // Format the data exactly like search page does for PropertyCardV5
-        const formattedListings = data.properties.map((property) => {
-          let imageUrl = property.MediaURL || null;
-          
-          return {
-            // Match PropertyCardV5 expected format
-            listingKey: property.listingKey,
-            propertyType: property.propertySubType || property.propertyType || "Residential",
-            address: property.address || "Address not available",
-            // Include fields needed for formatCardAddress
-            UnitNumber: property.UnitNumber || property.unitNumber || '',
-            unitNumber: property.unitNumber || property.UnitNumber || '',
-            StreetNumber: property.StreetNumber || property.streetNumber || '',
-            streetNumber: property.streetNumber || property.StreetNumber || '',
-            StreetName: property.StreetName || property.streetName || '',
-            streetName: property.streetName || property.StreetName || '',
-            StreetSuffix: property.StreetSuffix || property.streetSuffix || '',
-            streetSuffix: property.streetSuffix || property.StreetSuffix || '',
-            // Include fields for buildCardFeatures
-            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
-            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
-            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
-            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
-            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
-            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
-            LivingAreaRange: property.LivingAreaRange || property.livingAreaRange || '',
-            livingAreaRange: property.livingAreaRange || property.LivingAreaRange || '',
-            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
-            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
-            ParkingSpaces: property.ParkingSpaces || property.parkingSpaces || 0,
-            parkingSpaces: property.parkingSpaces || property.ParkingSpaces || 0,
-            ParkingTotal: property.ParkingTotal || property.parkingTotal || 0,
-            parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
-            ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
-            listOfficeName: property.listOfficeName || property.ListOfficeName || '',
-            price: property.price || 0,
-            isRental: property.transactionType === 'Rent',
-            transactionType: property.transactionType || 'Sale',
-            imageUrl: imageUrl,
-            images: property.images || [],
-            source: 'mls'
-          };
-        });
-        
-        console.log('Formatted nearby listings:', formattedListings);
-        setNearbyListings(formattedListings);
-        
-        // Fetch ALL images directly via API 
-        const listingKeysToFetch = formattedListings
-          .filter(listing => listing.listingKey)
-          .map(listing => listing.listingKey);
-        
-        if (listingKeysToFetch.length > 0) {
-          console.log('Fetching images for listings:', listingKeysToFetch);
-          
-          // Fetch all images in one API call
-          try {
-            const imageResponse = await fetch('/api/property-images', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-              },
-              body: JSON.stringify({ listing_keys: listingKeysToFetch })
-            });
-            
-            const imageResult = await imageResponse.json();
-            console.log('Image API response:', imageResult);
-            
-            // Check both possible response structures
-            const imagesData = imageResult.data?.images || imageResult.images;
-            
-            if (imageResult.success && imagesData) {
-              console.log('Images data found:', imagesData);
-              // Update listings with fetched images
-              setNearbyListings(prev => prev.map(listing => {
-                const imageData = imagesData[listing.listingKey];
-                if (imageData && imageData.image_url) {
-                  // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
-                  let processedImageUrl = imageData.image_url;
-                  if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-                    processedImageUrl = processedImageUrl.replace('https://', 'http://');
-                  }
-                  
-                  // Process all images array too
-                  const processedImages = (imageData.all_images || []).map(url => {
-                    if (url && typeof url === 'string' && url.includes('ampre.ca')) {
-                      return url.replace('https://', 'http://');
-                    }
-                    return url;
-                  });
-                  
-                  console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
-                  return { 
-                    ...listing, 
-                    imageUrl: processedImageUrl, 
-                    images: processedImages 
-                  };
-                }
-                return listing;
-              }));
-            }
-          } catch (imgError) {
-            console.error('Error fetching images:', imgError);
-          }
-        }
-      } else {
-        setNearbyListings([]);
+      if (data.success && data.data) {
+        // Format buildings using the same formatter as search page
+        const formattedBuildings = data.data.map(building => formatBuildingForCard(building));
+        setBuildingsData(formattedBuildings);
       }
     } catch (error) {
-      console.error('Error fetching nearby listings:', error);
-      setNearbyListings([]);
+      console.error('Error fetching buildings:', error);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const fetchSimilarListings = async () => {
-    setIsLoading(true);
-    try {
-      // Build query params with property type filtering
-      const params = new URLSearchParams({
-        listingKey: listingKey,
-        limit: 6
-      });
-      
-      // Add property type filters if available
-      if (propertySubType) {
-        params.append('propertySubType', propertySubType);
-      } else if (propertyType) {
-        params.append('propertyType', propertyType);
-      }
-      
-      console.log('Fetching similar listings with params:', params.toString());
-      
-      const response = await fetch(`/api/similar-listings?${params.toString()}`);
-      const data = await response.json();
-      
-      console.log('Similar listings API response:', data);
-      
-      if (data.properties && data.properties.length > 0) {
-        // Format the data exactly like search page does for PropertyCardV5
-        const formattedListings = data.properties.map((property) => {
-          let imageUrl = property.MediaURL || null;
-          
-          return {
-            // Match PropertyCardV5 expected format
-            listingKey: property.listingKey,
-            propertyType: property.propertySubType || property.propertyType || "Residential",
-            address: property.address || "Address not available",
-            // Include fields needed for formatCardAddress
-            UnitNumber: property.UnitNumber || property.unitNumber || '',
-            unitNumber: property.unitNumber || property.UnitNumber || '',
-            StreetNumber: property.StreetNumber || property.streetNumber || '',
-            streetNumber: property.streetNumber || property.StreetNumber || '',
-            StreetName: property.StreetName || property.streetName || '',
-            streetName: property.streetName || property.StreetName || '',
-            StreetSuffix: property.StreetSuffix || property.streetSuffix || '',
-            streetSuffix: property.streetSuffix || property.StreetSuffix || '',
-            // Include fields for buildCardFeatures
-            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
-            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
-            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
-            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
-            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
-            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
-            LivingAreaRange: property.LivingAreaRange || property.livingAreaRange || '',
-            livingAreaRange: property.livingAreaRange || property.LivingAreaRange || '',
-            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
-            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
-            ParkingSpaces: property.ParkingSpaces || property.parkingSpaces || 0,
-            parkingSpaces: property.parkingSpaces || property.ParkingSpaces || 0,
-            ParkingTotal: property.ParkingTotal || property.parkingTotal || 0,
-            parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
-            ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
-            listOfficeName: property.listOfficeName || property.ListOfficeName || '',
-            price: property.price || 0,
-            isRental: property.transactionType === 'Rent',
-            transactionType: property.transactionType || 'Sale',
-            imageUrl: imageUrl,
-            images: property.images || [],
-            source: 'mls'
-          };
-        });
-        
-        console.log('Formatted similar listings:', formattedListings);
-        setSimilarListings(formattedListings);
-        
-        // Fetch ALL images directly via API 
-        const listingKeysToFetch = formattedListings
-          .filter(listing => listing.listingKey)
-          .map(listing => listing.listingKey);
-        
-        if (listingKeysToFetch.length > 0) {
-          console.log('Fetching images for listings:', listingKeysToFetch);
-          
-          // Fetch all images in one API call
-          try {
-            const imageResponse = await fetch('/api/property-images', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-              },
-              body: JSON.stringify({ listing_keys: listingKeysToFetch })
-            });
-            
-            const imageResult = await imageResponse.json();
-            console.log('Image API response:', imageResult);
-            
-            // Check both possible response structures
-            const imagesData = imageResult.data?.images || imageResult.images;
-            
-            if (imageResult.success && imagesData) {
-              console.log('Images data found:', imagesData);
-              // Update listings with fetched images
-              setSimilarListings(prev => prev.map(listing => {
-                const imageData = imagesData[listing.listingKey];
-                if (imageData && imageData.image_url) {
-                  // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
-                  let processedImageUrl = imageData.image_url;
-                  if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-                    processedImageUrl = processedImageUrl.replace('https://', 'http://');
-                  }
-                  
-                  // Process all images array too
-                  const processedImages = (imageData.all_images || []).map(url => {
-                    if (url && typeof url === 'string' && url.includes('ampre.ca')) {
-                      return url.replace('https://', 'http://');
-                    }
-                    return url;
-                  });
-                  
-                  console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
-                  return { 
-                    ...listing, 
-                    imageUrl: processedImageUrl, 
-                    images: processedImages 
-                  };
-                }
-                return listing;
-              }));
-            }
-          } catch (imgError) {
-            console.error('Error fetching images:', imgError);
-          }
-        }
-      } else {
-        setSimilarListings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching similar listings:', error);
-      setSimilarListings([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch condo apartments for building page
+  
+  // Function to fetch condo apartments for sale/rent
   const fetchCondoApartments = async () => {
     setIsLoading(true);
     try {
-      // Prepare search parameters in the correct format
-      const searchParams = {
+      const transactionType = title === "Properties For Sale" ? "For Sale" : "For Lease";
+      
+      // If we have building data with address, use it for filtering
+      let streetNumber = '';
+      let streetName = '';
+      
+      if (buildingData?.address) {
+        const match = buildingData.address.match(/^(\d+)\s+(.+?)(?:,|$)/);
+        if (match) {
+          streetNumber = match[1];
+          // Remove street suffix for better matching
+          streetName = match[2].replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '').trim();
+        }
+      }
+      
+      const requestBody = {
         search_params: {
-          property_type: ['Condo Apartment', 'Condo Apt', 'Condo'], // Include variations
-          status: filterTransactionType || 'For Sale',
-          page_size: 12,
+          query: streetNumber && streetName ? `${streetNumber} ${streetName}` : '',
+          street_number: streetNumber,
+          street_name: streetName,
+          status: transactionType,
+          property_type: ["Condo Apartment"],
           page: 1,
-          query: buildingData?.city || '', // Use city as query if available
-          price_min: 0,
-          price_max: filterTransactionType === 'For Rent' ? 50000 : 10000000,
-          bedrooms: 0,
-          bathrooms: 0,
-          sort: 'newest'
+          page_size: 12
         }
       };
-
-      console.log('Fetching condo apartments with params:', searchParams);
-
+      
       const response = await fetch('/api/property-search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(searchParams)
+        body: JSON.stringify(requestBody)
       });
-
-      const result = await response.json();
-      console.log('Condo apartments API response:', result);
-
-      // Check for properties in the correct response structure
-      const properties = result.data?.properties || result.properties || [];
       
-      if (properties && properties.length > 0) {
-        // Format the properties for display
-        const formattedListings = properties.map((property) => {
-          // Get the first image URL
-          let imageUrl = null;
-          if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-            const firstImage = property.images[0];
-            imageUrl = firstImage.MediaURL || firstImage.url || firstImage;
-          } else if (property.MediaURL) {
-            imageUrl = property.MediaURL;
-          } else if (property.imageUrl) {
-            imageUrl = property.imageUrl;
-          }
-          
-          return {
-            listingKey: property.ListingKey || property.listingKey,
-            propertyType: property.PropertySubType || property.PropertyType || property.propertyType || "Condo Apartment",
-            address: property.UnparsedAddress || property.address || "Address not available",
-            // Include all necessary fields for PropertyCardV6
-            UnitNumber: property.UnitNumber || '',
-            unitNumber: property.UnitNumber || '',
-            StreetNumber: property.StreetNumber || '',
-            streetNumber: property.StreetNumber || '',
-            StreetName: property.StreetName || '',
-            streetName: property.StreetName || '',
-            StreetSuffix: property.StreetSuffix || '',
-            streetSuffix: property.StreetSuffix || '',
-            City: property.City || '',
-            city: property.City || '',
-            StateOrProvince: property.StateOrProvince || '',
-            province: property.StateOrProvince || '',
-            bedrooms: property.BedroomsTotal || 0,
-            BedroomsTotal: property.BedroomsTotal || 0,
-            bedroomsTotal: property.BedroomsTotal || 0,
-            bathrooms: property.BathroomsTotalInteger || 0,
-            BathroomsTotalInteger: property.BathroomsTotalInteger || 0,
-            bathroomsTotalInteger: property.BathroomsTotalInteger || 0,
-            LivingAreaRange: property.LivingAreaRange || '',
-            livingAreaRange: property.LivingAreaRange || '',
-            BuildingAreaTotal: property.BuildingAreaTotal || '',
-            buildingAreaTotal: property.BuildingAreaTotal || '',
-            ParkingTotal: property.ParkingTotal || 0,
-            parkingTotal: property.ParkingTotal || 0,
-            ListOfficeName: property.ListOfficeName || '',
-            listOfficeName: property.ListOfficeName || '',
-            ListPrice: property.ListPrice || 0,
-            price: property.ListPrice || 0,
-            isRental: filterTransactionType === 'For Rent',
-            transactionType: filterTransactionType || 'Sale',
-            imageUrl: imageUrl,
-            images: property.images || [],
-            source: 'mls'
-          };
-        });
-
-        console.log('Formatted condo listings:', formattedListings);
-        setCondoListings(formattedListings);
-      } else {
-        setCondoListings([]);
+      const data = await response.json();
+      
+      if (data.success && data.data?.properties) {
+        // Format properties for display
+        const formattedProperties = data.data.properties.map(property => ({
+          ...property,
+          listingKey: property.ListingKey,
+          price: property.ListPrice || property.LeasePrice || 0,
+          bedrooms: property.BedroomsTotal || 0,
+          bathrooms: property.BathroomsTotalInteger || 0,
+          sqft: property.BuildingAreaTotal || null,
+          parking: property.ParkingTotal || null,
+          address: property.UnparsedAddress || '',
+          propertyType: property.PropertyType || property.PropertySubType || 'Property',
+          transactionType: property.TransactionType || 'For Sale',
+          city: property.City || '',
+          province: property.StateOrProvince || 'ON',
+          imageUrl: property.images?.[0]?.url || null,
+          images: property.images || [],
+          source: 'property',
+          isBuilding: false
+        }));
+        setBuildingsData(formattedProperties);
       }
     } catch (error) {
       console.error('Error fetching condo apartments:', error);
-      setCondoListings([]);
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // Get the data to display (either passed properties or fetched data)
+  const buildings = propertyData?.properties || buildingsData;
+  
+  // Mobile slider: Touch handling
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
 
-  // Fetch buildings from backend database
-  const fetchBuildings = async () => {
-    setIsLoading(true);
-    try {
-      // Prepare query parameters for buildings
-      const params = new URLSearchParams();
-      
-      // Add city filter if available
-      if (buildingData?.city) {
-        params.append('city', buildingData.city);
-      }
-      
-      // Add limit - don't limit if we don't have many buildings
-      // params.append('limit', '12');
-      
-      // For Similar Buildings, filter by building type
-      if (title === "Similar Buildings" && buildingData?.building_type) {
-        params.append('building_type', buildingData.building_type);
-      }
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
 
-      const url = `/api/buildings?${params.toString()}`;
-      console.log('Fetching buildings from:', url);
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        }
-      });
-
-      const result = await response.json();
-      console.log('Buildings API response:', result);
-
-      // The API returns buildings directly in data array
-      const buildings = result.data || result || [];
-      
-      if (buildings && buildings.length > 0) {
-        // Filter out current building if it's in the results
-        const filteredBuildings = buildings.filter(b => b.id !== buildingData?.id);
-        
-        // Format buildings for display as property cards
-        const formattedBuildings = filteredBuildings.map((building) => {
-          // Process image URL
-          let imageUrl = building.main_image;
-          if (!imageUrl && building.images && Array.isArray(building.images) && building.images.length > 0) {
-            imageUrl = building.images[0];
-          }
-          if (!imageUrl) {
-            imageUrl = 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80';
-          }
-          
-          return {
-            id: building.id,
-            listingKey: `BLDG-${building.id}`,
-            propertyType: building.building_type || 'Residential Building',
-            address: building.address || building.name,
-            name: building.name,
-            city: building.city,
-            province: building.province,
-            imageUrl: imageUrl,
-            price: building.price_range || building.units_for_sale || 0,
-            bedrooms: building.bedrooms || '1-3',
-            bathrooms: building.bathrooms || '1-2',
-            totalUnits: building.total_units,
-            unitsForSale: building.units_for_sale,
-            unitsForRent: building.units_for_rent,
-            yearBuilt: building.year_built,
-            isRental: false,
-            transactionType: 'Building',
-            source: 'building',
-            // Add formatted address for card display
-            UnitNumber: '',
-            StreetNumber: '',
-            StreetName: building.address || building.name,
-            City: building.city,
-            StateOrProvince: building.province
-          };
-        });
-
-        console.log('Formatted buildings:', formattedBuildings);
-        setBuildingsData(formattedBuildings);
-      } else {
-        // If no buildings found, use sample data for demonstration
-        const sampleBuildings = [
-          {
-            id: 'sample-1',
-            listingKey: 'BLDG-SAMPLE-1',
-            propertyType: 'Residential Building',
-            address: '123 King Street West',
-            name: 'King West Condos',
-            city: 'Toronto',
-            province: 'ON',
-            imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop&auto=format&q=80',
-            price: 45,
-            bedrooms: '1-3',
-            bathrooms: '1-2',
-            totalUnits: 250,
-            unitsForSale: 45,
-            unitsForRent: 12,
-            yearBuilt: 2020,
-            isRental: false,
-            transactionType: 'Building',
-            source: 'building',
-            UnitNumber: '',
-            StreetNumber: '123',
-            StreetName: 'King Street West',
-            City: 'Toronto',
-            StateOrProvince: 'ON'
-          },
-          {
-            id: 'sample-2',
-            listingKey: 'BLDG-SAMPLE-2',
-            propertyType: 'Luxury Condo',
-            address: '88 Blue Jays Way',
-            name: 'SkyView Towers',
-            city: 'Toronto',
-            province: 'ON',
-            imageUrl: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&h=300&fit=crop&auto=format&q=80',
-            price: 28,
-            bedrooms: '1-2',
-            bathrooms: '1-2',
-            totalUnits: 180,
-            unitsForSale: 28,
-            unitsForRent: 8,
-            yearBuilt: 2019,
-            isRental: false,
-            transactionType: 'Building',
-            source: 'building',
-            UnitNumber: '',
-            StreetNumber: '88',
-            StreetName: 'Blue Jays Way',
-            City: 'Toronto',
-            StateOrProvince: 'ON'
-          },
-          {
-            id: 'sample-3',
-            listingKey: 'BLDG-SAMPLE-3',
-            propertyType: 'Mixed Use',
-            address: '155 Yorkville Avenue',
-            name: 'Yorkville Plaza',
-            city: 'Toronto',
-            province: 'ON',
-            imageUrl: 'https://images.unsplash.com/photo-1567496898669-ee935f5f647a?w=400&h=300&fit=crop&auto=format&q=80',
-            price: 52,
-            bedrooms: '2-4',
-            bathrooms: '2-3',
-            totalUnits: 320,
-            unitsForSale: 52,
-            unitsForRent: 15,
-            yearBuilt: 2021,
-            isRental: false,
-            transactionType: 'Building',
-            source: 'building',
-            UnitNumber: '',
-            StreetNumber: '155',
-            StreetName: 'Yorkville Avenue',
-            City: 'Toronto',
-            StateOrProvince: 'ON'
-          }
-        ];
-        
-        // Filter to show different buildings for Nearby vs Similar
-        if (title === "Similar Buildings") {
-          setBuildingsData(sampleBuildings.slice(0, 2));
-        } else {
-          setBuildingsData(sampleBuildings);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching buildings:', error);
-      setBuildingsData([]);
-    } finally {
-      setIsLoading(false);
+    if (isLeftSwipe && currentSlide < totalSlides - 1) {
+      nextSlide();
+    }
+    if (isRightSwipe && currentSlide > 0) {
+      prevSlide();
     }
   };
 
-  // Choose data based on title and API availability or direct properties
-  const buildings = (() => {
-    // Check if properties are passed directly in propertyData
-    if (propertyData?.properties && Array.isArray(propertyData.properties)) {
-      return propertyData.properties;
-    }
-    // Use buildings data for Nearby/Similar Buildings
-    if (title === "Nearby Buildings" || title === "Similar Buildings") {
-      return buildingsData;
-    }
-    // Use condo listings for Properties For Sale/Rent
-    if (title === "Properties For Sale" || title === "Properties For Rent") {
-      return condoListings;
-    }
-    // Otherwise use API data based on title
-    if (title === "Nearby Listings") {
-      return nearbyListings;
-    } else if (title === "Similar Listings") {
-      return similarListings;
-    } else {
-      // For "More Buildings By Agent" or any other title, return empty array if no API data
-      return [];
-    }
-  })();
-
-  const itemsPerSlide = 3;
+  // Calculate slides
+  const itemsPerSlide = 4; // 4 items per slide on desktop
   const totalSlides = Math.ceil(buildings.length / itemsPerSlide);
 
   const nextSlide = () => {
-    if (currentSlide < totalSlides - 1) {
-      setCurrentSlide(currentSlide + 1);
-    }
+    setCurrentSlide((prev) => (prev + 1) % totalSlides);
   };
 
   const prevSlide = () => {
-    if (currentSlide > 0) {
-      setCurrentSlide(currentSlide - 1);
-    }
+    setCurrentSlide((prev) => (prev - 1 + totalSlides) % totalSlides);
   };
 
-  const goToSlide = (slideIndex) => {
-    setCurrentSlide(slideIndex);
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
   };
 
   return (
-    <section className={`p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 ${
-      title === "Nearby Listings" ? 'nearby-listings-container' : 
-      title === "Similar Listings" ? 'similar-listings-container' : ''
-    }`}>
-      <div className="max-w-[1280px] mx-auto">
+    <div className="idx-ampre-more-listings">
+      <div className="mx-auto max-w-[1280px] pb-6">
+        {/* Section Header */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
+          <h2 className="text-2xl font-space-grotesk font-bold text-gray-800">{title}</h2>
           
-          {/* Navigation Arrows - Desktop Only */}
+          {/* Navigation Arrows for Desktop */}
+          {buildings.length > itemsPerSlide && (
           <div className="hidden md:flex gap-2">
             <button
               onClick={prevSlide}
+              className="w-10 h-10 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={currentSlide === 0}
-              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                currentSlide === 0
-                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                  : 'border-gray-400 text-gray-600 hover:border-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            
             <button
               onClick={nextSlide}
+              className="w-10 h-10 rounded-full bg-white border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={currentSlide === totalSlides - 1}
-              className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                currentSlide === totalSlides - 1
-                  ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                  : 'border-gray-400 text-gray-600 hover:border-gray-600 hover:text-gray-800 hover:bg-white'
-              }`}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
+          )}
         </div>
-
+        
         {/* Loading State */}
         {isLoading && (
           <div className="flex justify-center items-center py-12">
@@ -716,21 +371,28 @@ const MoreBuildings = ({
         <div className="block md:hidden">
           <div className="mobile-listings-scroll">
             {buildings.map((building) => (
-              <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item">
-                {/* Use PropertyCardV6 for all cards for consistency */}
-                <PropertyCardV6
-                  property={building}
-                  auth={auth}
-                  size="mobile"
-                  onClick={() => {
-                    if (building.source === 'building' && building.id) {
-                      window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                    } else if (building.listingKey) {
+              <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item" style={{ width: '300px' }}>
+                {/* Use PropertyCardV5 for building cards (same as search page) */}
+                {building.isBuilding ? (
+                  <PropertyCardV5
+                    property={building}
+                    size="grid"
+                    onClick={() => {
+                      window.location.href = createSEOBuildingUrl(building);
+                    }}
+                    className="w-full"
+                  />
+                ) : (
+                  <PropertyCardV6
+                    property={building}
+                    auth={auth}
+                    size="mobile"
+                    onClick={() => {
                       window.location.href = `/property/${building.listingKey}`;
-                    }
-                  }}
-                  className="w-[300px] min-w-[300px] h-auto"
-                />
+                    }}
+                    className="w-full"
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -752,20 +414,27 @@ const MoreBuildings = ({
                     .slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide)
                     .map((building) => (
                       <div key={building.listingKey || building.id} className="flex justify-center items-start slider-item">
-                        {/* Use PropertyCardV6 for all cards for consistency */}
-                        <PropertyCardV6
-                          property={building}
-                          auth={auth}
-                          size="default"
-                          onClick={() => {
-                            if (building.source === 'building' && building.id) {
-                              window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                            } else if (building.listingKey) {
+                        {/* Use PropertyCardV5 for building cards (same as search page) */}
+                        {building.isBuilding ? (
+                          <PropertyCardV5
+                            property={building}
+                            size="grid"
+                            onClick={() => {
+                              window.location.href = createSEOBuildingUrl(building);
+                            }}
+                            className="w-full"
+                          />
+                        ) : (
+                          <PropertyCardV6
+                            property={building}
+                            auth={auth}
+                            size="default"
+                            onClick={() => {
                               window.location.href = `/property/${building.listingKey}`;
-                            }
-                          }}
-                          className="w-[300px] min-w-[300px] h-auto"
-                        />
+                            }}
+                            className="w-full"
+                          />
+                        )}
                       </div>
                     ))}
                 </div>
@@ -801,8 +470,64 @@ const MoreBuildings = ({
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
+        
+        .mobile-listings-scroll {
+          display: flex;
+          gap: 1rem;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 1rem;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        
+        .mobile-listings-scroll::-webkit-scrollbar {
+          display: none;
+        }
+        
+        .carousel-item {
+          scroll-snap-align: start;
+        }
+        
+        .desktop-listings-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(280px, 1fr));
+          gap: 1rem;
+          padding: 0;
+        }
+        
+        @media (max-width: 1280px) {
+          .desktop-listings-grid {
+            grid-template-columns: repeat(3, minmax(280px, 1fr));
+          }
+        }
+        
+        @media (max-width: 1024px) {
+          .desktop-listings-grid {
+            grid-template-columns: repeat(2, minmax(280px, 1fr));
+          }
+        }
+        
+        .slider-item {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+        }
+        
+        /* Match search page grid styles */
+        .idx-ampre-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1rem;
+        }
+        
+        .idx-ampre-mixed-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1rem;
+        }
       `}</style>
-    </section>
+    </div>
   );
 };
 

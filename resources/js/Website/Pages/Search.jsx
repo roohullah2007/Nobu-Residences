@@ -198,11 +198,18 @@ export default function EnhancedPropertySearch({
     propertyTypeArray = ['Condo Apartment'];
   }
   
+  // Get street address from URL parameters
+  const streetNumber = urlParams.get('street_number');
+  const streetName = urlParams.get('street_name');
+  const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (filters.search || urlParams.get('location') || '');
+
   const [searchFilters, setSearchFilters] = useState({
-    query: filters.search || urlParams.get('location') || '',
+    query: locationQuery,
     status: mapStatusToDisplay(filters.status || filters.forSale || statusFromTransaction || urlParams.get('status') || urlParams.get('property_type') || 'For Sale'),
     property_type: propertyTypeArray.length > 0 ? propertyTypeArray : ['Condo Apartment'], // Default to Condo Apartment if no type specified
     building_id: buildingId || filters.building_id || '',
+    street_number: streetNumber || '',
+    street_name: streetName || '',
     price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
     price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
@@ -277,6 +284,8 @@ export default function EnhancedPropertySearch({
         
         // Only add filters if they have meaningful values
         if (params.query) searchParams.query = params.query;
+        if (params.street_number) searchParams.street_number = params.street_number;
+        if (params.street_name) searchParams.street_name = params.street_name;
         if (params.floors && params.floors > 0) searchParams.floors = params.floors;
         if (params.price_min && params.price_min > 0) searchParams.price_min = params.price_min;
         if (params.price_max && params.price_max < 10000000) searchParams.price_max = params.price_max;
@@ -287,6 +296,10 @@ export default function EnhancedPropertySearch({
         
         // Map display status to backend API format
         mappedParams.status = mapDisplayToStatus(mappedParams.status);
+        
+        // Include street_number and street_name if present
+        if (params.street_number) mappedParams.street_number = params.street_number;
+        if (params.street_name) mappedParams.street_name = params.street_name;
         
         searchParams = {
           ...mappedParams,
@@ -375,9 +388,16 @@ export default function EnhancedPropertySearch({
         propertyTypes = ['Condo Apartment'];
       }
 
+      // Get street address from URL parameters
+      const streetNumber = urlParams.get('street_number');
+      const streetName = urlParams.get('street_name');
+      const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('location') || filters.location || filters.query || '');
+
       // Build filters from URL params, but use controller filters as defaults
       const initialFilters = {
-        query: urlParams.get('location') || filters.location || filters.query || '',
+        query: locationQuery,
+        street_number: streetNumber || '',
+        street_name: streetName || '',
         status: mapStatusToDisplay(statusFromTransaction || statusFromUrl || filters.status || 'For Sale'),
         property_type: propertyTypes.length > 0 ? propertyTypes : (filters.property_type || ['Condo Apartment']),
         building_id: buildingIdFromUrl || filters.building_id || '',
@@ -603,7 +623,7 @@ export default function EnhancedPropertySearch({
       price: property.ListPrice,
       bedrooms: property.BedroomsTotal,
       bathrooms: property.BathroomsTotalInteger,
-      sqft: property.AboveGradeFinishedArea,
+      sqft: property.LivingAreaRange || property.AboveGradeFinishedArea || 0,
       parking: property.ParkingTotal,
       address: property.UnparsedAddress,
       propertyType: property.PropertySubType,

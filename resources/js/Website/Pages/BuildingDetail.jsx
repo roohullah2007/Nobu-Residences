@@ -15,6 +15,9 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   
+  // Debug: Log the received building data
+  console.log('BuildingDetail received props:', { buildingId, buildingData });
+  
   // Viewing request modal state
   const [viewingModal, setViewingModal] = useState({
     isOpen: false,
