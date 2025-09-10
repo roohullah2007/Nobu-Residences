@@ -180,7 +180,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                 {/* For Sale and For Rent Buttons */}
                 <div className="flex flex-col gap-3">
                   <a 
-                    href={`/search?street_number=${streetNumber}&street_name=${encodeURIComponent(streetName)}&transaction_type=sale`}
+                    href={`/${streetNumber}-${streetName.replace(/\s+/g, '-')}/for-sale`}
                     className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
@@ -192,7 +192,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   </a>
                   
                   <a 
-                    href={`/search?street_number=${streetNumber}&street_name=${encodeURIComponent(streetName)}&transaction_type=rent`}
+                    href={`/${streetNumber}-${streetName.replace(/\s+/g, '-')}/for-rent`}
                     className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">

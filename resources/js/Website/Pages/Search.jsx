@@ -176,7 +176,7 @@ export default function EnhancedPropertySearch({
   const urlParams = new URLSearchParams(window.location.search);
   const propertySubType = urlParams.get('property_sub_type');
   const buildingId = urlParams.get('building_id');
-  const transactionType = urlParams.get('transaction_type');
+  const transactionType = filters.transaction_type || urlParams.get('transaction_type');
   
   // Map transaction_type to status
   let statusFromTransaction = '';
@@ -198,9 +198,9 @@ export default function EnhancedPropertySearch({
     propertyTypeArray = ['Condo Apartment'];
   }
   
-  // Get street address from URL parameters
-  const streetNumber = urlParams.get('street_number');
-  const streetName = urlParams.get('street_name');
+  // Get street address from filters (passed from controller) or URL parameters
+  const streetNumber = filters.street_number || urlParams.get('street_number');
+  const streetName = filters.street_name || urlParams.get('street_name');
   const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (filters.search || urlParams.get('location') || '');
 
   const [searchFilters, setSearchFilters] = useState({
@@ -208,8 +208,8 @@ export default function EnhancedPropertySearch({
     status: mapStatusToDisplay(filters.status || filters.forSale || statusFromTransaction || urlParams.get('status') || urlParams.get('property_type') || 'For Sale'),
     property_type: propertyTypeArray.length > 0 ? propertyTypeArray : ['Condo Apartment'], // Default to Condo Apartment if no type specified
     building_id: buildingId || filters.building_id || '',
-    street_number: streetNumber || '',
-    street_name: streetName || '',
+    street_number: streetNumber || filters.street_number || '',
+    street_name: streetName || filters.street_name || '',
     price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
     price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
@@ -368,9 +368,9 @@ export default function EnhancedPropertySearch({
         setActiveTab(tabFromUrl);
       }
       
-      // Get building and transaction type from URL
+      // Get building and transaction type from URL or filters prop
       const buildingIdFromUrl = urlParams.get('building_id');
-      const transactionTypeFromUrl = urlParams.get('transaction_type');
+      const transactionTypeFromUrl = filters.transaction_type || urlParams.get('transaction_type');
       
       // Map transaction_type to status
       let statusFromTransaction = '';
@@ -388,9 +388,9 @@ export default function EnhancedPropertySearch({
         propertyTypes = ['Condo Apartment'];
       }
 
-      // Get street address from URL parameters
-      const streetNumber = urlParams.get('street_number');
-      const streetName = urlParams.get('street_name');
+      // Get street address from filters prop (passed from controller) or URL parameters
+      const streetNumber = filters.street_number || urlParams.get('street_number');
+      const streetName = filters.street_name || urlParams.get('street_name');
       const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('location') || filters.location || filters.query || '');
 
       // Build filters from URL params, but use controller filters as defaults
@@ -413,6 +413,7 @@ export default function EnhancedPropertySearch({
       setSearchFilters(initialFilters);
       setCurrentPage(pageFromUrl);
       
+      // Always perform search with the initial filters
       performSearch(initialFilters, false, tabFromUrl);
     };
     
@@ -429,7 +430,7 @@ export default function EnhancedPropertySearch({
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []); // Only run on mount, tab changes are handled by handleTabChange
+  }, [filters.street_number, filters.street_name, filters.transaction_type]); // Re-run when filters from controller change
 
   const handleFilterChange = (field, value) => {
     // Reset to page 1 when filters change

@@ -2,9 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { PropertyCarousel } from '@/Website/Global/Components';
 import axios from 'axios';
 
-const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings }) => {
+const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings, mlsSettings }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Get default building address from MLS settings or use fallback
+  const defaultBuildingAddress = mlsSettings?.default_building_address || '15 Mercer Street';
+  const addressParts = defaultBuildingAddress.split(' ');
+  const streetNumber = addressParts[0] || '15';
+  const streetName = addressParts.slice(1).join(' ').replace(/\s+Street$/i, '') || 'Mercer';
+  const buildingSlug = `${streetNumber}-${streetName.replace(/\s+/g, '-')}`;
 
   useEffect(() => {
     // Only fetch if no properties passed as props
@@ -56,7 +63,7 @@ const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings })
       auth={auth}
       title={carouselSettings?.title || "Properties For Sale"}
       type="sale"
-      viewAllLink="/search?street_number=15&street_name=Mercer&transaction_type=sale"
+      viewAllLink={`/${buildingSlug}/for-sale`}
     />
   );
 };

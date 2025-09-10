@@ -197,6 +197,54 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display building-based for sale page (e.g., /15-Mercer/for-sale)
+     */
+    public function buildingForSale(Request $request, string $building)
+    {
+        // Parse building string (e.g., "15-Mercer" -> street_number: 15, street_name: "Mercer")
+        $parts = explode('-', $building, 2);
+        $streetNumber = $parts[0] ?? '';
+        $streetName = isset($parts[1]) ? str_replace('-', ' ', $parts[1]) : '';
+        
+        // Set filters for properties in this building for sale
+        $filters = [
+            'street_number' => $streetNumber,
+            'street_name' => $streetName,
+            'transaction_type' => 'sale'
+        ];
+        
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'title' => "{$streetNumber} {$streetName} - Properties for Sale",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
+     * Display building-based for rent page (e.g., /15-Mercer/for-rent)
+     */
+    public function buildingForRent(Request $request, string $building)
+    {
+        // Parse building string (e.g., "15-Mercer" -> street_number: 15, street_name: "Mercer")
+        $parts = explode('-', $building, 2);
+        $streetNumber = $parts[0] ?? '';
+        $streetName = isset($parts[1]) ? str_replace('-', ' ', $parts[1]) : '';
+        
+        // Set filters for properties in this building for rent
+        $filters = [
+            'street_number' => $streetNumber,
+            'street_name' => $streetName,
+            'transaction_type' => 'rent'
+        ];
+        
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'title' => "{$streetNumber} {$streetName} - Properties for Rent",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
      * Display city-based for sale page (SEO-friendly)
      */
     public function cityForSale(Request $request, string $city)

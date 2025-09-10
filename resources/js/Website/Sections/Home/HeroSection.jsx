@@ -7,17 +7,25 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
     const [isLoadingCounts, setIsLoadingCounts] = useState(true);
     
     const heroContent = pageContent?.hero || {};
+    const mlsSettings = pageContent?.mls_settings || {};
     const welcomeText = heroContent.welcome_text || `WELCOME TO ${siteName.toUpperCase()}`;
     const mainHeading = heroContent.main_heading || 'Your Next Home Is\nJust a Click Away';
     const subheading = heroContent.subheading || 'Whether buying or renting, Nobu makes finding your home easy and reliable.';
     const backgroundImage = heroContent.background_image || '/assets/hero-section.jpg';
     
+    // Get default building address from MLS settings or use fallback
+    const defaultBuildingAddress = mlsSettings.default_building_address || '15 Mercer Street';
+    const addressParts = defaultBuildingAddress.split(' ');
+    const streetNumber = addressParts[0] || '15';
+    const streetName = addressParts.slice(1).join(' ').replace(/\s+Street$/i, '') || 'Mercer';
+    const buildingSlug = `${streetNumber}-${streetName.replace(/\s+/g, '-')}`;
+    
     // Fetch property counts on component mount
     useEffect(() => {
         const fetchPropertyCounts = async () => {
             try {
-                // Default to 15 Mercer Street
-                const response = await fetch('/api/buildings/count-mls-listings?street_number=15&street_name=Mercer');
+                // Use the building address from MLS settings
+                const response = await fetch(`/api/buildings/count-mls-listings?street_number=${streetNumber}&street_name=${streetName}`);
                 const data = await response.json();
                 if (data.success) {
                     setPropertyCounts(data.data);
@@ -30,22 +38,24 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
         };
         
         fetchPropertyCounts();
-    }, []);
+    }, [streetNumber, streetName]);
     
-    const buttons = heroContent.buttons || [
+    // Always use dynamic buttons with building-specific URLs
+    // IMPORTANT: Ignore database URLs and always use building-specific routes
+    const buttons = [
         { 
             text: isLoadingCounts 
                 ? 'Loading...' 
                 : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Condo' : 'Condos'} for rent`, 
-            url: '/search?street_number=15&street_name=Mercer&transaction_type=rent', 
-            style: 'primary' 
+            url: `/${buildingSlug}/for-rent`, // Always use dynamic URL
+            style: 'primary' // First button is always primary
         },
         { 
             text: isLoadingCounts 
                 ? 'Loading...' 
                 : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Condo' : 'Condos'} for sale`, 
-            url: '/search?street_number=15&street_name=Mercer&transaction_type=sale', 
-            style: 'secondary' 
+            url: `/${buildingSlug}/for-sale`, // Always use dynamic URL
+            style: 'secondary' // Second button is always secondary
         }
     ];
     
@@ -97,7 +107,7 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
                                     href={button.url}
                                     className={`inline-flex items-center justify-center transition-colors shadow-lg font-work-sans font-bold text-sm md:text-lg leading-7 -tracking-wider text-center w-[314.5px] h-16 rounded-full px-8 py-2.5 ${
                                         button.style === 'primary'
-                                            ? `bg-[${brandColors.primary}] text-white hover:bg-[${brandColors.primary}]`
+                                            ? 'text-white hover:opacity-90'
                                             : 'bg-white text-gray-900 hover:bg-gray-100'
                                     }`}
                                     style={{

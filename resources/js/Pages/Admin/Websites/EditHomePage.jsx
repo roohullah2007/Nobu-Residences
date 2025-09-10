@@ -92,6 +92,10 @@ export default function EditHomePage({ auth }) {
                     { text: 'Privacy Policy', url: '/privacy' },
                     { text: 'Terms of Service', url: '/terms' }
                 ]
+            },
+            mls_settings: {
+                default_city: 'Toronto',
+                default_building_address: '55 Mercer Street'
             }
         };
 
@@ -104,6 +108,7 @@ export default function EditHomePage({ auth }) {
                 for_rent: { ...defaults.carousel_settings.for_rent, ...existingContent.carousel_settings?.for_rent },
                 for_sale: { ...defaults.carousel_settings.for_sale, ...existingContent.carousel_settings?.for_sale }
             },
+            mls_settings: { ...defaults.mls_settings, ...existingContent.mls_settings },
             faq: { ...defaults.faq, ...existingContent.faq },
             footer: { ...defaults.footer, ...existingContent.footer }
         };
@@ -275,6 +280,16 @@ export default function EditHomePage({ auth }) {
                     ...data.content.carousel_settings[carouselType],
                     [field]: value
                 }
+            }
+        });
+    };
+
+    const updateMlsSettings = (field, value) => {
+        setData('content', {
+            ...data.content,
+            mls_settings: {
+                ...data.content.mls_settings,
+                [field]: value
             }
         });
     };
@@ -639,6 +654,7 @@ export default function EditHomePage({ auth }) {
                                     { id: 'hero', name: 'Hero Section' },
                                     { id: 'about', name: 'About Section' },
                                     { id: 'carousel', name: 'Property Carousels' },
+                                    { id: 'mls', name: 'MLS Settings' },
                                     { id: 'faq', name: 'FAQ Section' },
                                     { id: 'footer', name: 'Footer Section' },
                                     { id: 'icons', name: 'Icon Management' }
@@ -1230,6 +1246,62 @@ export default function EditHomePage({ auth }) {
                                                     max="20"
                                                     className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                 />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* MLS Settings Tab */}
+                            {activeTab === 'mls' && (
+                                <div className="space-y-8">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <p className="text-sm text-blue-700">
+                                            Configure default settings for MLS property listings on your website.
+                                        </p>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">MLS Default Settings</h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Default City</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.mls_settings?.default_city || ''}
+                                                    onChange={(e) => updateMlsSettings('default_city', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Toronto"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Default city for MLS property searches</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Default Building Address</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.mls_settings?.default_building_address || ''}
+                                                    onChange={(e) => updateMlsSettings('default_building_address', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="55 Mercer Street"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Default building address for homepage property listings (e.g., "15 Mercer Street")</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                        <div className="flex">
+                                            <div className="flex-shrink-0">
+                                                <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div className="ml-3">
+                                                <h3 className="text-sm font-medium text-yellow-800">Note</h3>
+                                                <div className="mt-2 text-sm text-yellow-700">
+                                                    <p>These settings will be used as defaults for property searches throughout your website. The building address will be used to find properties in the same building on the homepage.</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

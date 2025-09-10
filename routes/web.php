@@ -22,6 +22,14 @@ Route::get('/rent', [WebsiteController::class, 'rent'])->name('rent');
 Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
 
+// SEO-friendly building-based search routes (e.g., /15-Mercer/for-sale)
+Route::get('/{building}/for-sale', [WebsiteController::class, 'buildingForSale'])
+    ->where('building', '\d+-[A-Za-z\-]+')
+    ->name('building-for-sale');
+Route::get('/{building}/for-rent', [WebsiteController::class, 'buildingForRent'])
+    ->where('building', '\d+-[A-Za-z\-]+')
+    ->name('building-for-rent');
+
 // SEO-friendly city-based search routes
 Route::get('/{city}/for-sale', [WebsiteController::class, 'cityForSale'])
     ->where('city', '[a-z\-]+')

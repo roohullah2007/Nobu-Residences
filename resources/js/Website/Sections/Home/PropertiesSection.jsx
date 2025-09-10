@@ -23,10 +23,18 @@ export default function PropertiesSection({ auth, website, pageContent }) {
                 </div>
                 
                 {/* Properties For Sale Component */}
-                <PropertiesForSale auth={auth} carouselSettings={pageContent?.carousel_settings?.for_sale} />
+                <PropertiesForSale 
+                    auth={auth} 
+                    carouselSettings={pageContent?.carousel_settings?.for_sale}
+                    mlsSettings={pageContent?.mls_settings} 
+                />
                 
                 {/* Properties For Rent Component */}
-                <PropertiesForRent auth={auth} carouselSettings={pageContent?.carousel_settings?.for_rent} />
+                <PropertiesForRent 
+                    auth={auth} 
+                    carouselSettings={pageContent?.carousel_settings?.for_rent}
+                    mlsSettings={pageContent?.mls_settings}
+                />
             </div>
         </section>
     );

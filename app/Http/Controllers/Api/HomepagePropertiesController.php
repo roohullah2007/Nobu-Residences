@@ -20,7 +20,7 @@ class HomepagePropertiesController extends Controller
 
     /**
      * Get properties for homepage carousels
-     * Specifically for 55 Mercer Street condos
+     * Uses the default building address from MLS settings
      */
     public function getHomepageProperties(Request $request)
     {
@@ -35,8 +35,11 @@ class HomepagePropertiesController extends Controller
             $forSaleProperties = [];
             $forRentProperties = [];
 
-            // Get default building address from settings
-            $defaultAddress = Setting::get('default_building_address') ?: '55 Mercer Street';
+            // Get default building address from website's MLS settings
+            $website = \App\Models\Website::find(1);
+            $homePage = $website ? $website->pages()->where('page_type', 'home')->first() : null;
+            $mlsSettings = $homePage ? ($homePage->content['mls_settings'] ?? []) : [];
+            $defaultAddress = $mlsSettings['default_building_address'] ?? '15 Mercer Street';
             
             // Fetch For Sale properties for the default building
             if ($type === 'sale' || $type === 'both') {
