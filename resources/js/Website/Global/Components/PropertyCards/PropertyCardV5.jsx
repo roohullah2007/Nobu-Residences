@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import { createSEOBuildingUrl } from '@/utils/slug';
-import RequestTourModal from '@/Components/RequestTourModal';
 import { 
   formatCardAddress, 
   buildCardFeatures, 
@@ -30,7 +29,6 @@ const PropertyCardV5 = ({
   onClick,
   className = '' 
 }) => {
-  const [showRequestModal, setShowRequestModal] = useState(false);
   
   // Format price function (same as CardV1)
   const formatPrice = (price, isRental = false) => {
@@ -140,47 +138,19 @@ const PropertyCardV5 = ({
           {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
           {property.source !== 'building' && (
             <div className="absolute inset-2 flex flex-col justify-between">
-              {/* Top row - Sale and Price chips - IDX-AMPRE style */}
+              {/* Top row - Sale and Property Type chips - Swapped positions */}
               <div className="flex justify-between items-center gap-2.5 h-8">
                 <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
                   {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
                 </span>
                 <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
-                  {formattedPrice}
+                  {property.propertyType || 'Residential'}
                 </span>
               </div>
               
-              {/* Bottom row - Request button only (Compare hidden for next phase) - IDX-AMPRE style */}
-              <div className="flex justify-end items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                {/* Compare Button - Hidden for next phase */}
-                {/* <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Handle compare functionality
-                    if (window.addToCompare) {
-                      window.addToCompare(property);
-                    } else {
-                      alert(`Added ${property.address} to compare`);
-                    }
-                  }}
-                  className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
-                  aria-label={`Add ${property.address} to compare`}
-                >
-                  Compare
-                </button> */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Open the Request Tour modal
-                    setShowRequestModal(true);
-                  }}
-                  className="property-action-btn flex items-center justify-center px-3 py-1.5 h-8 rounded-full font-bold tracking-tight whitespace-nowrap"
-                  aria-label={`Request viewing for ${property.address}`}
-                >
-                  Request
-                </button>
+              {/* Request button removed - keeping empty div for layout consistency */}
+              <div className="flex justify-end items-center gap-2.5 h-8">
+                {/* Request and Compare buttons removed as requested */}
               </div>
             </div>
           )}
@@ -188,9 +158,9 @@ const PropertyCardV5 = ({
         
         {/* Card Content - Dynamic layout based on content amount */}
         <div className={`flex flex-col flex-grow items-start ${config.content} box-border`}>
-          {/* Property Type Title - Show Building Name for buildings */}
+          {/* Price - Swapped with Property Type */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.source === 'building' ? (property.name || property.propertyType || 'Building') : (property.propertyType || 'Residential')}
+            {formattedPrice}
           </div>
           
           {/* Property Details - Compact layout without excessive spacing */}
@@ -225,13 +195,6 @@ const PropertyCardV5 = ({
           </div>
         </div>
       </a>
-      
-      {/* Request Tour Modal */}
-      <RequestTourModal
-        isOpen={showRequestModal}
-        onClose={() => setShowRequestModal(false)}
-        property={property}
-      />
     </div>
   );
 };

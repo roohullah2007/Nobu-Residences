@@ -29,6 +29,13 @@ class AdminController extends Controller
             ]
         ];
 
+        // Get contact form stats
+        $contactStats = [
+            'total_contacts' => \App\Models\ContactForm::count(),
+            'unread_contacts' => \App\Models\ContactForm::unread()->count(),
+            'recent_contacts' => \App\Models\ContactForm::recent(7)->count(),
+        ];
+
         return Inertia::render('Admin/Dashboard', [
             'title' => 'Dashboard',
             'stats' => [
@@ -36,8 +43,12 @@ class AdminController extends Controller
                 'active_listings' => 0,
                 'pending_listings' => 0,
                 'total_users' => \App\Models\User::count(),
+                'total_contacts' => $contactStats['total_contacts'],
+                'unread_contacts' => $contactStats['unread_contacts'],
+                'recent_contacts' => $contactStats['recent_contacts'],
             ],
-            'websites' => $websites
+            'websites' => $websites,
+            'contactStats' => $contactStats
         ]);
     }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PropertyCarousel } from '@/Website/Global/Components';
 import axios from 'axios';
 
-const PropertiesForRent = ({ auth, forRentProperties = null }) => {
+const PropertiesForRent = ({ auth, forRentProperties = null, carouselSettings }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,8 +42,11 @@ const PropertiesForRent = ({ auth, forRentProperties = null }) => {
     );
   }
 
-  // Only render if we have properties
-  if (propertiesData.length === 0) {
+  // Check if carousel is enabled (default to true if not specified)
+  const isEnabled = carouselSettings?.enabled !== false;
+  
+  // Only render if enabled and we have properties
+  if (!isEnabled || propertiesData.length === 0) {
     return null;
   }
 
@@ -51,7 +54,7 @@ const PropertiesForRent = ({ auth, forRentProperties = null }) => {
     <PropertyCarousel
       properties={propertiesData}
       auth={auth}
-      title="Properties For Rent"
+      title={carouselSettings?.title || "Properties For Rent"}
       type="rent"
       viewAllLink="/search?street_number=15&street_name=Mercer&transaction_type=rent"
     />

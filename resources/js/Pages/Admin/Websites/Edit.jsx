@@ -30,6 +30,10 @@ export default function Edit({ auth }) {
         'contact_info.address': website?.contact_info?.address || '',
         'contact_info.agent.name': website?.contact_info?.agent?.name || '',
         'contact_info.agent.title': website?.contact_info?.agent?.title || '',
+        'contact_info.agent.phone': website?.contact_info?.agent?.phone || '',
+        'contact_info.agent.brokerage': website?.contact_info?.agent?.brokerage || '',
+        'contact_info.agent.image': website?.contact_info?.agent?.image || '',
+        agent_image_file: null,
         // Social media
         'social_media.facebook': website?.social_media?.facebook || '',
         'social_media.instagram': website?.social_media?.instagram || '',
@@ -47,6 +51,8 @@ export default function Edit({ auth }) {
             Object.keys(data).forEach(key => {
                 if (key === 'logo_file' && data[key]) {
                     formData.append('logo_file', data[key]);
+                } else if (key === 'agent_image_file' && data[key]) {
+                    formData.append('agent_image_file', data[key]);
                 } else if (data[key] !== null && data[key] !== undefined) {
                     formData.append(key, data[key]);
                 }
@@ -486,6 +492,97 @@ export default function Edit({ auth }) {
                                     />
                                 </div>
 
+                                {/* Agent Information Section */}
+                                <div className="md:col-span-2 border-t pt-4 mt-4">
+                                    <h4 className="text-md font-semibold text-gray-800 mb-4">Agent Information</h4>
+                                </div>
+
+                                {/* Agent Image Upload */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Agent Profile Image</label>
+                                    <div className="flex items-start space-x-6">
+                                        {/* Current/Preview Image */}
+                                        {(data['contact_info.agent.image'] || data.agent_image_file) && (
+                                            <div className="flex-shrink-0 relative">
+                                                <div className="relative">
+                                                    <img 
+                                                        src={data['contact_info.agent.image']} 
+                                                        alt="Agent Profile" 
+                                                        className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                        }}
+                                                    />
+                                                    {/* Remove button */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setData('contact_info.agent.image', '');
+                                                            setData('agent_image_file', null);
+                                                        }}
+                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
+                                                        title="Remove image"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                                    {data.agent_image_file ? 'New Image' : 'Current Image'}
+                                                </p>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Upload Button */}
+                                        <div className="flex-1">
+                                            <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all ${
+                                                data['contact_info.agent.image'] 
+                                                    ? 'border-green-300 bg-green-50 hover:border-green-400' 
+                                                    : 'border-gray-300 hover:border-gray-400'
+                                            }`}>
+                                                <div className="space-y-1 text-center">
+                                                    {!data['contact_info.agent.image'] ? (
+                                                        <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg className="mx-auto h-12 w-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    )}
+                                                    <div className="flex text-sm text-gray-600">
+                                                        <label htmlFor="agent-image-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                                                            <span>{data['contact_info.agent.image'] ? 'Change photo' : 'Upload agent photo'}</span>
+                                                            <input
+                                                                id="agent-image-upload"
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="sr-only"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files[0];
+                                                                    setData('agent_image_file', file);
+                                                                    if (file) {
+                                                                        const reader = new FileReader();
+                                                                        reader.onload = (e) => {
+                                                                            setData('contact_info.agent.image', e.target.result);
+                                                                        };
+                                                                        reader.readAsDataURL(file);
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </label>
+                                                        <p className="pl-1">or drag and drop</p>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500">
+                                                        PNG, JPG, JPEG up to 2MB
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
                                     <input
@@ -505,6 +602,28 @@ export default function Edit({ auth }) {
                                         onChange={(e) => setData('contact_info.agent.title', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Senior Real Estate Agent"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone</label>
+                                    <input
+                                        type="tel"
+                                        value={data['contact_info.agent.phone']}
+                                        onChange={(e) => setData('contact_info.agent.phone', e.target.value)}
+                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="+1 (555) 123-4567"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Brokerage</label>
+                                    <input
+                                        type="text"
+                                        value={data['contact_info.agent.brokerage']}
+                                        onChange={(e) => setData('contact_info.agent.brokerage', e.target.value)}
+                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="Keller Williams Realty"
                                     />
                                 </div>
                             </div>

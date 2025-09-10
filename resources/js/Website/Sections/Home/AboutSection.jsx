@@ -186,7 +186,7 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                             {activeTab === 'Overview' && (
                                 <div className="prose prose-gray max-w-none">
                                     <p className="text-gray-700 font-work-sans font-normal text-lg leading-[27px] -tracking-wider">
-                                        {aboutTabs?.overview?.content || 
+                                        {aboutContent?.content || aboutTabs?.overview?.content || 
                                         `Found in Toronto's King West area and built in 2024, Nobu Residences was 
                                         built by Madison Group. This Toronto condo sits near the intersection of 
                                         Spadina Ave and Wellington St W. Nobu Residences is a High-Rise condo 

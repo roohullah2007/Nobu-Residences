@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
 
 // Building Gallery Component with single image and modal
-const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFavorite }) => {
+const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, onToggleFavorite }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
@@ -209,24 +209,24 @@ const BuildingGallery = ({ buildingImages, buildingData, isFavorited, onToggleFa
                   <div className="flex items-center justify-between gap-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
                       <img 
-                        src={buildingData?.agent_image || "/assets/school/jatin-gill.png"}
-                        alt={buildingData?.agent_name || "Agent"}
+                        src={website?.contact_info?.agent?.image || buildingData?.agent_image || "/assets/school/jatin-gill.png"}
+                        alt={website?.contact_info?.agent?.name || buildingData?.agent_name || "Agent"}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="text-left">
                       <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
-                        {buildingData?.agent_name || 'Contact Agent'}
+                        {website?.contact_info?.agent?.name || buildingData?.agent_name || 'Contact Agent'}
                       </h3>
                       <p className="font-work-sans font-medium text-sm text-[#535862]">
-                        {buildingData?.agent_title || 'Broker'}
+                        {website?.contact_info?.agent?.title || buildingData?.agent_title || 'Broker'}
                       </p>
                       <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        {buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
+                        {website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
                       </p>
-                      {buildingData?.agent_phone && (
+                      {(website?.contact_info?.agent?.phone || buildingData?.agent_phone) && (
                         <p className="font-work-sans font-bold text-sm text-[#535862]">
-                          {buildingData.agent_phone}
+                          {website?.contact_info?.agent?.phone || buildingData.agent_phone}
                         </p>
                       )}
                     </div>

@@ -62,6 +62,9 @@ Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::clas
 // Property Enquiry route
 Route::post('/property-enquiry', [PropertyEnquiryController::class, 'store'])->name('property.enquiry');
 
+// Contact Form route
+Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'store'])->name('contact.store');
+
 // Property Image API routes (using same mechanism as WordPress plugin)
 Route::post('/api/property-images', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImages']);
 Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageController::class, 'getPropertyImage']);
@@ -338,6 +341,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         // API endpoints for icon management
         Route::get('/api/get', [WebsiteManagementController::class, 'getIcons'])->name('api.get');
         Route::post('/api/store', [WebsiteManagementController::class, 'storeIconAjax'])->name('api.store');
+    });
+    
+    // Contact Form Management routes
+    Route::prefix('contacts')->name('contacts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ContactController::class, 'index'])->name('index');
+        Route::get('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'show'])->name('show');
+        Route::patch('/{contact}/mark-read', [\App\Http\Controllers\Admin\ContactController::class, 'markAsRead'])->name('mark-read');
+        Route::delete('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'destroy'])->name('destroy');
+        Route::post('/bulk-actions', [\App\Http\Controllers\Admin\ContactController::class, 'bulkActions'])->name('bulk-actions');
     });
 });
 

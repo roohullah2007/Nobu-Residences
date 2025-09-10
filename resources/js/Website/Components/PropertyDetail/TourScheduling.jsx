@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const TourSchedulingComponent = () => {
+const TourSchedulingComponent = ({ website }) => {
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
@@ -351,14 +351,14 @@ const TourSchedulingComponent = () => {
             <div className="mt-6 pt-6 border-t border-gray-200 w-full">
               <div className="flex items-center mb-4 justify-around">
                 <img 
-                  src="/assets/jatin-gill.png" 
-                  alt="Agent" 
-                  className="w-14 h-14 rounded-full mr-4"
+                  src={website?.contact_info?.agent?.image || "/assets/jatin-gill.png"} 
+                  alt={website?.contact_info?.agent?.name || "Agent"} 
+                  className="w-14 h-14 rounded-full mr-4 object-cover"
                 />
                 <div>
-                  <h3 className="font-bold mb-1" style={{ color: '#293056' }}>Jatin Gill</h3>
-                  <p className="text-gray-500 text-sm mb-1">Nobu Residences</p>
-                  <p className="text-gray-700 text-sm">647-490-1532</p>
+                  <h3 className="font-bold mb-1" style={{ color: '#293056' }}>{website?.contact_info?.agent?.name || 'Jatin Gill'}</h3>
+                  <p className="text-gray-500 text-sm mb-1">{website?.contact_info?.agent?.brokerage || 'Nobu Residences'}</p>
+                  <p className="text-gray-700 text-sm">{website?.contact_info?.agent?.phone || '647-490-1532'}</p>
                 </div>
               </div>
             </div>

@@ -69,6 +69,10 @@ class WebsiteManagementController extends Controller
             'meta_keywords' => 'nullable|string|max:255',
             'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
+            'contact_info.agent.phone' => 'nullable|string|max:255',
+            'contact_info.agent.brokerage' => 'nullable|string|max:255',
+            'contact_info.agent.image' => 'nullable|string',
+            'agent_image_file' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'social_media' => 'nullable|array',
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
@@ -126,12 +130,45 @@ class WebsiteManagementController extends Controller
             'meta_keywords' => 'nullable|string|max:255',
             'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
+            'contact_info.agent.phone' => 'nullable|string|max:255',
+            'contact_info.agent.brokerage' => 'nullable|string|max:255',
+            'contact_info.agent.image' => 'nullable|string',
+            'agent_image_file' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'social_media' => 'nullable|array',
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
             'timezone' => 'nullable|string|max:255',
         ]);
 
+        // Handle agent image upload
+        if ($request->hasFile('agent_image_file')) {
+            $agentImageFile = $request->file('agent_image_file');
+            
+            // Ensure storage directory exists
+            if (!Storage::disk('public')->exists('agents')) {
+                Storage::disk('public')->makeDirectory('agents');
+            }
+            
+            // Delete old image if exists
+            $currentContactInfo = $website->contact_info ?? [];
+            if (isset($currentContactInfo['agent']['image']) && 
+                strpos($currentContactInfo['agent']['image'], '/storage/') === 0) {
+                $oldPath = str_replace('/storage/', '', $currentContactInfo['agent']['image']);
+                Storage::disk('public')->delete($oldPath);
+            }
+            
+            $agentImagePath = $agentImageFile->store('agents', 'public');
+            
+            // Update contact info with new agent image
+            if (!isset($validated['contact_info'])) {
+                $validated['contact_info'] = $currentContactInfo;
+            }
+            if (!isset($validated['contact_info']['agent'])) {
+                $validated['contact_info']['agent'] = [];
+            }
+            $validated['contact_info']['agent']['image'] = '/storage/' . $agentImagePath;
+        }
+        
         // If this is set as default, remove default from other websites
         if ($validated['is_default'] ?? false) {
             Website::where('id', '!=', $website->id)
@@ -543,6 +580,12 @@ class WebsiteManagementController extends Controller
             'is_active' => true,
         ]);
 
+        // For Inertia requests, return a redirect
+        if ($request->header('X-Inertia')) {
+            return redirect()->back()->with('success', 'Icon created successfully!');
+        }
+        
+        // For regular AJAX requests, return JSON
         return response()->json([
             'success' => true,
             'message' => 'Icon created successfully!',

@@ -11,7 +11,7 @@ import { BuildingTourScheduling } from '@/Website/Components/PropertyDetail';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
 
-export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData }) {
+export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   
@@ -256,6 +256,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
             <BuildingGallery 
               buildingImages={buildingImages}
               buildingData={effectiveBuildingData}
+              website={website}
               isFavorited={isFavorited}
               onToggleFavorite={handleToggleFavorite}
             />
@@ -304,7 +305,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                 )}
                 
                 {/* Building Tour Scheduling */}
-                <BuildingTourScheduling />
+                <BuildingTourScheduling website={website} />
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const BuildingTourScheduling = () => {
+const BuildingTourScheduling = ({ website }) => {
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');

@@ -9,6 +9,9 @@ export default function EditHomePage({ auth }) {
     const [showEditIconModal, setShowEditIconModal] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('key_facts');
     const [selectedIcon, setSelectedIcon] = useState(null);
+    const [showInlineIconModal, setShowInlineIconModal] = useState(false);
+    const [inlineIconCategory, setInlineIconCategory] = useState('');
+    const [inlineIconIndex, setInlineIconIndex] = useState(null);
 
     // Helper function to merge existing content with defaults
     const getDefaultContent = () => {
@@ -202,6 +205,67 @@ export default function EditHomePage({ auth }) {
         });
     };
 
+    const updateAboutTabItem = (tabName, index, field, value) => {
+        const tabs = data.content.about?.tabs || {};
+        const items = tabs[tabName]?.items || [];
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], [field]: value };
+        
+        setData('content', {
+            ...data.content,
+            about: {
+                ...data.content.about,
+                tabs: {
+                    ...tabs,
+                    [tabName]: {
+                        ...tabs[tabName],
+                        items: newItems
+                    }
+                }
+            }
+        });
+    };
+
+    const addAboutTabItem = (tabName, defaultItem) => {
+        const tabs = data.content.about?.tabs || {};
+        const items = tabs[tabName]?.items || [];
+        const newItems = [...items, defaultItem];
+        
+        setData('content', {
+            ...data.content,
+            about: {
+                ...data.content.about,
+                tabs: {
+                    ...tabs,
+                    [tabName]: {
+                        ...tabs[tabName],
+                        items: newItems
+                    }
+                }
+            }
+        });
+    };
+
+    const removeAboutTabItem = (tabName, index) => {
+        const tabs = data.content.about?.tabs || {};
+        const items = tabs[tabName]?.items || [];
+        const newItems = items.filter((_, i) => i !== index);
+        
+        setData('content', {
+            ...data.content,
+            about: {
+                ...data.content.about,
+                tabs: {
+                    ...tabs,
+                    [tabName]: {
+                        ...tabs[tabName],
+                        items: newItems
+                    }
+                }
+            }
+        });
+    };
+
     const updateCarouselSetting = (carouselType, field, value) => {
         setData('content', {
             ...data.content,
@@ -305,9 +369,59 @@ export default function EditHomePage({ auth }) {
             onSuccess: () => {
                 setShowIconModal(false);
                 resetIcon();
-                window.location.reload();
-            }
+            },
+            onError: (errors) => {
+                // Handle validation errors without showing SVG content
+                console.error('Icon upload failed:', errors);
+            },
+            preserveScroll: true,
+            preserveState: false
         });
+    };
+
+    const handleInlineIconSubmit = (e) => {
+        e.preventDefault();
+        const currentTab = activeTab; // Preserve current tab
+        
+        // Update the icon data with the correct category before submission
+        setIconData('category', inlineIconCategory);
+        
+        // Submit the form
+        postIcon(route('admin.icons.api.store'), {
+            forceFormData: true, // Force multipart/form-data for file upload
+            onSuccess: (page) => {
+                setShowInlineIconModal(false);
+                resetIcon();
+                // Restore the active tab
+                setActiveTab(currentTab);
+                // Update the selected icon for the current item  
+                if (inlineIconIndex !== null && inlineIconCategory) {
+                    const tabName = inlineIconCategory === 'key_facts' ? 'key_facts' : 
+                                   inlineIconCategory === 'amenities' ? 'amenities' : 'highlights';
+                    // Use the name from the icon data
+                    updateAboutTabItem(tabName, inlineIconIndex, 'icon', iconData.name);
+                }
+            },
+            onError: (errors) => {
+                // Handle validation errors without showing SVG content
+                console.error('Icon upload failed:', errors);
+                // Restore the active tab even on error
+                setActiveTab(currentTab);
+            },
+            preserveScroll: true,
+            preserveState: true  // Keep the state to preserve tab
+        });
+    };
+
+    const openInlineIconModal = (category, index) => {
+        setInlineIconCategory(category);
+        setInlineIconIndex(index);
+        setIconData({
+            name: '',
+            category: category,
+            icon_file: null,
+        });
+        setShowInlineIconModal(true);
     };
 
     const handleEditIconSubmit = (e) => {
@@ -361,6 +475,50 @@ export default function EditHomePage({ auth }) {
                 alert('Error deleting icon');
             }
         }
+    };
+
+    const renderIconPreview = (iconName, category) => {
+        if (!iconName || !availableIcons?.[category]) {
+            return (
+                <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">None</span>
+                </div>
+            );
+        }
+        
+        const icon = availableIcons[category].find(i => i.name === iconName);
+        if (!icon) {
+            return (
+                <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">?</span>
+                </div>
+            );
+        }
+        
+        if (icon.svg_content) {
+            return (
+                <div 
+                    className="w-10 h-10 p-1"
+                    dangerouslySetInnerHTML={{ __html: icon.svg_content }}
+                />
+            );
+        }
+        
+        if (icon.icon_url) {
+            return (
+                <img 
+                    src={icon.icon_url} 
+                    alt={icon.name}
+                    className="w-10 h-10 object-contain"
+                />
+            );
+        }
+        
+        return (
+            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center">
+                <span className="text-gray-400 text-xs">?</span>
+            </div>
+        );
     };
 
     const renderIconGrid = (category) => {
@@ -640,6 +798,807 @@ export default function EditHomePage({ auth }) {
                                 </div>
                             )}
 
+                            {/* About Section Tab */}
+                            {activeTab === 'about' && (
+                                <div className="space-y-8">
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">About Section Content</h3>
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Section Title</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.about?.title || ''}
+                                                    onChange={(e) => updateAboutField('title', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Learn everything about Nobu Residence"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Overview Tab Content</label>
+                                                <textarea
+                                                    value={data.content.about?.content || ''}
+                                                    onChange={(e) => updateAboutField('content', e.target.value)}
+                                                    rows={5}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Found in Toronto's King West area and built in 2024..."
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Image Alt Text</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.about?.image_alt || ''}
+                                                    onChange={(e) => updateAboutField('image_alt', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Nobu Residence Building"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Key Facts Tab Content */}
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Facts Tab</h3>
+                                        <div className="space-y-4">
+                                            {(data.content.about?.tabs?.key_facts?.items || []).map((item, index) => (
+                                                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <h4 className="text-sm font-semibold text-gray-800">Key Fact #{index + 1}</h4>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeAboutTabItem('key_facts', index)}
+                                                            className="text-red-500 hover:text-red-700 p-1"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                                                            <input
+                                                                type="text"
+                                                                value={item.text || ''}
+                                                                onChange={(e) => updateAboutTabItem('key_facts', index, 'text', e.target.value)}
+                                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                placeholder="e.g., 45 floors/ 657 units"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
+                                                            <div className="flex gap-2 items-center">
+                                                                {/* Icon Preview */}
+                                                                <div className="flex-shrink-0">
+                                                                    {renderIconPreview(item.icon, 'key_facts')}
+                                                                </div>
+                                                                <select
+                                                                    value={item.icon || ''}
+                                                                    onChange={(e) => updateAboutTabItem('key_facts', index, 'icon', e.target.value)}
+                                                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                >
+                                                                    <option value="">Select icon...</option>
+                                                                    {(availableIcons?.key_facts || []).map(icon => (
+                                                                        <option key={icon.id} value={icon.name}>{icon.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openInlineIconModal('key_facts', index)}
+                                                                    className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 text-sm"
+                                                                    title="Upload new icon"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => addAboutTabItem('key_facts', { text: '', icon: '' })}
+                                                className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                                Add Key Fact
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Amenities Tab Content */}
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Amenities Tab</h3>
+                                        <div className="space-y-4">
+                                            {(data.content.about?.tabs?.amenities?.items || []).map((item, index) => (
+                                                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <h4 className="text-sm font-semibold text-gray-800">Amenity #{index + 1}</h4>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeAboutTabItem('amenities', index)}
+                                                            className="text-red-500 hover:text-red-700 p-1"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                                                            <input
+                                                                type="text"
+                                                                value={item.text || ''}
+                                                                onChange={(e) => updateAboutTabItem('amenities', index, 'text', e.target.value)}
+                                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                placeholder="e.g., Concierge"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
+                                                            <div className="flex gap-2 items-center">
+                                                                {/* Icon Preview */}
+                                                                <div className="flex-shrink-0">
+                                                                    {renderIconPreview(item.icon, 'amenities')}
+                                                                </div>
+                                                                <select
+                                                                    value={item.icon || ''}
+                                                                    onChange={(e) => updateAboutTabItem('amenities', index, 'icon', e.target.value)}
+                                                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                >
+                                                                    <option value="">Select icon...</option>
+                                                                    {(availableIcons?.amenities || []).map(icon => (
+                                                                        <option key={icon.id} value={icon.name}>{icon.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openInlineIconModal('amenities', index)}
+                                                                    className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 text-sm"
+                                                                    title="Upload new icon"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => addAboutTabItem('amenities', { text: '', icon: '' })}
+                                                className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                                Add Amenity
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Highlights Tab Content */}
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Highlights Tab</h3>
+                                        <div className="space-y-4">
+                                            {(data.content.about?.tabs?.highlights?.items || []).map((item, index) => (
+                                                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        <h4 className="text-sm font-semibold text-gray-800">Highlight #{index + 1}</h4>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeAboutTabItem('highlights', index)}
+                                                            className="text-red-500 hover:text-red-700 p-1"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                                                            <textarea
+                                                                value={item.text || ''}
+                                                                onChange={(e) => updateAboutTabItem('highlights', index, 'text', e.target.value)}
+                                                                rows={2}
+                                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                placeholder="e.g., Located at 15 Mercer St in Toronto's Entertainment District..."
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-600 mb-1">Icon</label>
+                                                            <div className="flex gap-2 items-center">
+                                                                {/* Icon Preview */}
+                                                                <div className="flex-shrink-0">
+                                                                    {renderIconPreview(item.icon, 'highlights')}
+                                                                </div>
+                                                                <select
+                                                                    value={item.icon || ''}
+                                                                    onChange={(e) => updateAboutTabItem('highlights', index, 'icon', e.target.value)}
+                                                                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                                >
+                                                                    <option value="">Select icon...</option>
+                                                                    {(availableIcons?.highlights || []).map(icon => (
+                                                                        <option key={icon.id} value={icon.name}>{icon.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openInlineIconModal('highlights', index)}
+                                                                    className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 text-sm"
+                                                                    title="Upload new icon"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() => addAboutTabItem('highlights', { text: '', icon: '' })}
+                                                className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                </svg>
+                                                Add Highlight
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">About Section Image</label>
+                                            <div className="space-y-3">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => setData('about_image', e.target.files[0])}
+                                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                />
+                                                {data.content.about?.image && (
+                                                    <div className="flex items-center space-x-3">
+                                                        <img 
+                                                            src={data.content.about.image} 
+                                                            alt="Current image" 
+                                                            className="w-20 h-20 object-cover rounded-lg border"
+                                                        />
+                                                        <div className="text-sm text-gray-600">
+                                                            <p className="font-medium">Current Image:</p>
+                                                            <p className="break-all">{data.content.about.image}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <p className="text-sm text-gray-500">
+                                                    Upload a new image for the about section. Recommended size: 800x600px
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Property Carousels Tab */}
+                            {activeTab === 'carousel' && (
+                                <div className="space-y-8">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <p className="text-sm text-blue-700">
+                                            Configure property carousels that display listings from your MLS feed.
+                                        </p>
+                                    </div>
+
+                                    {/* For Rent Carousel Settings */}
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">For Rent Carousel</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="for_rent_enabled"
+                                                    checked={data.content.carousel_settings?.for_rent?.enabled || false}
+                                                    onChange={(e) => updateCarouselSetting('for_rent', 'enabled', e.target.checked)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="for_rent_enabled" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Enable For Rent Carousel
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Carousel Title</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_rent?.title || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_rent', 'title', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Properties for Rent"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Address Filter</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_rent?.address_filter || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_rent', 'address_filter', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Toronto, ON"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Filter properties by address or location</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Property Type</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_rent?.property_subtype || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_rent', 'property_subtype', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Condo"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">e.g., Condo, House, Townhouse</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Properties</label>
+                                                <input
+                                                    type="number"
+                                                    value={data.content.carousel_settings?.for_rent?.limit || 6}
+                                                    onChange={(e) => updateCarouselSetting('for_rent', 'limit', parseInt(e.target.value))}
+                                                    min="1"
+                                                    max="20"
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* For Sale Carousel Settings */}
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">For Sale Carousel</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="for_sale_enabled"
+                                                    checked={data.content.carousel_settings?.for_sale?.enabled || false}
+                                                    onChange={(e) => updateCarouselSetting('for_sale', 'enabled', e.target.checked)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="for_sale_enabled" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Enable For Sale Carousel
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Carousel Title</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_sale?.title || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_sale', 'title', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Properties for Sale"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Address Filter</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_sale?.address_filter || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_sale', 'address_filter', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Toronto, ON"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Filter properties by address or location</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Property Type</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.carousel_settings?.for_sale?.property_subtype || ''}
+                                                    onChange={(e) => updateCarouselSetting('for_sale', 'property_subtype', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Condo"
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">e.g., Condo, House, Townhouse</p>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Properties</label>
+                                                <input
+                                                    type="number"
+                                                    value={data.content.carousel_settings?.for_sale?.limit || 6}
+                                                    onChange={(e) => updateCarouselSetting('for_sale', 'limit', parseInt(e.target.value))}
+                                                    min="1"
+                                                    max="20"
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* FAQ Section Tab */}
+                            {activeTab === 'faq' && (
+                                <div className="space-y-8">
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">FAQ Settings</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="faq_enabled"
+                                                    checked={data.content.faq?.enabled || false}
+                                                    onChange={(e) => updateFaqField('enabled', e.target.checked)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="faq_enabled" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Enable FAQ Section
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Section Title</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.faq?.title || ''}
+                                                    onChange={(e) => updateFaqField('title', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Frequently Asked Questions"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">FAQ Items</h3>
+                                        {data.content.faq?.items?.map((item, index) => (
+                                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <h4 className="text-sm font-semibold text-gray-800">FAQ #{index + 1}</h4>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFaqItem(index)}
+                                                        className="text-red-500 hover:text-red-700 p-1"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Question</label>
+                                                        <input
+                                                            type="text"
+                                                            value={item.question}
+                                                            onChange={(e) => updateFaqItem(index, 'question', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                            placeholder="Enter question..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Answer</label>
+                                                        <textarea
+                                                            value={item.answer}
+                                                            onChange={(e) => updateFaqItem(index, 'answer', e.target.value)}
+                                                            rows={3}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                            placeholder="Enter answer..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={addFaqItem}
+                                            className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors duration-200"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Add FAQ Item
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Footer Section Tab */}
+                            {activeTab === 'footer' && (
+                                <div className="space-y-8">
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Footer Settings</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="footer_enabled"
+                                                    checked={data.content.footer?.enabled || false}
+                                                    onChange={(e) => updateFooterField('enabled', e.target.checked)}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="footer_enabled" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Enable Footer Section
+                                                </label>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Footer Heading</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.footer?.heading || ''}
+                                                    onChange={(e) => updateFooterField('heading', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Your new home is waiting"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Footer Subheading</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.footer?.subheading || ''}
+                                                    onChange={(e) => updateFooterField('subheading', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Apply online in minutes..."
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Footer Description</label>
+                                                <textarea
+                                                    value={data.content.footer?.description || ''}
+                                                    onChange={(e) => updateFooterField('description', e.target.value)}
+                                                    rows={3}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="Experience luxury living..."
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold text-gray-700 mb-2">Copyright Text</label>
+                                                <input
+                                                    type="text"
+                                                    value={data.content.footer?.copyright_text || ''}
+                                                    onChange={(e) => updateFooterField('copyright_text', e.target.value)}
+                                                    className="block w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="© 2024 Nobu Residences. All rights reserved."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Footer Logo</label>
+                                            <div className="space-y-3">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => setData('footer_logo', e.target.files[0])}
+                                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                />
+                                                {data.content.footer?.logo_url && (
+                                                    <div className="flex items-center space-x-3">
+                                                        <img 
+                                                            src={data.content.footer.logo_url} 
+                                                            alt="Footer logo" 
+                                                            className="h-12 object-contain"
+                                                        />
+                                                        <div className="text-sm text-gray-600">
+                                                            <p className="font-medium">Current Logo</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Footer Background Image</label>
+                                            <div className="space-y-3">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => setData('footer_background_image', e.target.files[0])}
+                                                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                />
+                                                {data.content.footer?.background_image && (
+                                                    <div className="flex items-center space-x-3">
+                                                        <img 
+                                                            src={data.content.footer.background_image} 
+                                                            alt="Footer background" 
+                                                            className="w-20 h-20 object-cover rounded-lg border"
+                                                        />
+                                                        <div className="text-sm text-gray-600">
+                                                            <p className="font-medium">Current Background</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Links</h3>
+                                        {data.content.footer?.quick_links?.map((link, index) => (
+                                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <h4 className="text-sm font-semibold text-gray-800">Link #{index + 1}</h4>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFooterQuickLink(index)}
+                                                        className="text-red-500 hover:text-red-700 p-1"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Link Text</label>
+                                                        <input
+                                                            type="text"
+                                                            value={link.text}
+                                                            onChange={(e) => updateFooterQuickLink(index, 'text', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                            placeholder="Link text"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Link URL</label>
+                                                        <input
+                                                            type="text"
+                                                            value={link.url}
+                                                            onChange={(e) => updateFooterQuickLink(index, 'url', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                            placeholder="/page-url"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={addFooterQuickLink}
+                                            className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Add Quick Link
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Links</h3>
+                                        {data.content.footer?.additional_links?.map((link, index) => (
+                                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <h4 className="text-sm font-semibold text-gray-800">Link #{index + 1}</h4>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeFooterAdditionalLink(index)}
+                                                        className="text-red-500 hover:text-red-700 p-1"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Link Text</label>
+                                                        <input
+                                                            type="text"
+                                                            value={link.text}
+                                                            onChange={(e) => updateFooterAdditionalLink(index, 'text', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                            placeholder="Link text"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Link URL</label>
+                                                        <input
+                                                            type="text"
+                                                            value={link.url}
+                                                            onChange={(e) => updateFooterAdditionalLink(index, 'url', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                                            placeholder="/page-url"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button
+                                            type="button"
+                                            onClick={addFooterAdditionalLink}
+                                            className="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-100"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                            Add Additional Link
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="use_global_contact"
+                                                    checked={data.content.footer?.contact_info?.use_global_contact || false}
+                                                    onChange={(e) => setData('content', {
+                                                        ...data.content,
+                                                        footer: {
+                                                            ...data.content.footer,
+                                                            contact_info: {
+                                                                ...data.content.footer?.contact_info,
+                                                                use_global_contact: e.target.checked
+                                                            }
+                                                        }
+                                                    })}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="use_global_contact" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Use global contact information
+                                                </label>
+                                            </div>
+                                            <p className="text-xs text-gray-500">When enabled, uses contact information from website settings</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Social Media</h3>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="use_global_social"
+                                                    checked={data.content.footer?.social_media?.use_global_social || false}
+                                                    onChange={(e) => setData('content', {
+                                                        ...data.content,
+                                                        footer: {
+                                                            ...data.content.footer,
+                                                            social_media: {
+                                                                ...data.content.footer?.social_media,
+                                                                use_global_social: e.target.checked
+                                                            }
+                                                        }
+                                                    })}
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="use_global_social" className="ml-2 text-sm font-medium text-gray-700">
+                                                    Use global social media links
+                                                </label>
+                                            </div>
+                                            <p className="text-xs text-gray-500">When enabled, uses social media links from website settings</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Icons Tab */}
                             {activeTab === 'icons' && (
                                 <div className="space-y-8">
@@ -701,6 +1660,72 @@ export default function EditHomePage({ auth }) {
                     </div>
                 </div>
             </div>
+
+            {/* Inline Icon Upload Modal for About Section */}
+            {showInlineIconModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div className="mt-3">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                Upload New {categoryOptions.find(c => c.value === inlineIconCategory)?.label} Icon
+                            </h3>
+                            <form onSubmit={handleInlineIconSubmit} encType="multipart/form-data">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Icon Name</label>
+                                        <input
+                                            type="text"
+                                            value={iconData.name}
+                                            onChange={(e) => setIconData('name', e.target.value)}
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            placeholder="e.g., building, calendar, location"
+                                            required
+                                        />
+                                        {iconErrors.name && <p className="text-red-500 text-xs mt-1">{iconErrors.name}</p>}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Icon File</label>
+                                        <input
+                                            type="file"
+                                            accept=".svg,.png,.jpg,.jpeg"
+                                            onChange={(e) => setIconData('icon_file', e.target.files[0])}
+                                            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+                                            required
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Supported formats: SVG (preferred), PNG, JPG (max 2MB)
+                                        </p>
+                                        {iconErrors.icon_file && <p className="text-red-500 text-xs mt-1">{iconErrors.icon_file}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end space-x-2 mt-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowInlineIconModal(false);
+                                            setInlineIconCategory('');
+                                            setInlineIconIndex(null);
+                                            resetIcon();
+                                        }}
+                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={iconProcessing}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                        {iconProcessing ? 'Uploading...' : 'Upload Icon'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Add Icon Modal */}
             {showIconModal && (

@@ -13,7 +13,7 @@ import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
-export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages }) {
+export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website }) {
   const [propertyData, setPropertyData] = useState(initialPropertyData);
   // Process initial images - they come as an array of URLs from the server
   const [propertyImages, setPropertyImages] = useState(() => {
@@ -294,6 +294,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         <PropertySections 
           propertyData={displayData}
           auth={auth}
+          website={website}
         />
         
         {/* Global Viewing Request Modal */}
@@ -329,7 +330,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                 )}
                 
                 {/* Tour Scheduling */}
-                <TourScheduling />
+                <TourScheduling website={website} />
               </div>
             </div>
       </div>
