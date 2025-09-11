@@ -6,14 +6,11 @@ const TourSchedulingComponent = ({ website }) => {
   const [selectedTime, setSelectedTime] = useState('afternoon');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
-  const [scrollState, setScrollState] = useState('static'); // 'static', 'fixed'
-  const [absoluteTop, setAbsoluteTop] = useState(0);
+  const [isFixed, setIsFixed] = useState(false);
   
   const rightColumnRef = useRef(null);
   const contentRef = useRef(null);
   const placeholderRef = useRef(null);
-  const initialTopRef = useRef(null);
-  const containerLeftRef = useRef(null);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -55,55 +52,45 @@ const TourSchedulingComponent = ({ website }) => {
       if (window.innerWidth < 768) return; // Skip on mobile
       
       const contentElement = contentRef.current;
-      const rightColumnElement = rightColumnRef.current;
+      const placeholderElement = placeholderRef.current;
       
-      if (!contentElement || !rightColumnElement) return;
+      if (!contentElement || !placeholderElement) return;
       
-      const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-      const navbarHeight = 20; // Small buffer from top
+      const rect = rightColumnRef.current?.getBoundingClientRect();
+      const scrollPosition = window.pageYOffset;
+      const initialTop = rect ? rect.top + scrollPosition : 0;
       
-      // Store initial position and container left position
-      if (initialTopRef.current === null) {
-        const rect = rightColumnElement.getBoundingClientRect();
-        initialTopRef.current = rect.top + scrollPosition;
-        containerLeftRef.current = rect.left;
+      // Find the RealEstateLinksSection element
+      const descriptionElement = document.querySelector('.description');
+      let realEstateSectionTop = 0;
+      
+      if (descriptionElement) {
+        realEstateSectionTop = descriptionElement.getBoundingClientRect().top + scrollPosition;
       }
       
-      const initialTop = initialTopRef.current;
-      const scrollTriggerPosition = initialTop - navbarHeight;
+      // Calculate stop position (when tour component would overlap with RealEstateLinksSection)
+      const componentHeight = contentElement.offsetHeight;
+      const stopPosition = realEstateSectionTop - componentHeight - 20; // 20px buffer
       
-      if (scrollPosition <= scrollTriggerPosition) {
-        // Before scroll trigger - static position
-        setScrollState('static');
-        setAbsoluteTop(0);
+      if (scrollPosition > initialTop && scrollPosition < stopPosition) {
+        if (!isFixed) {
+          setIsFixed(true);
+        }
       } else {
-        // After trigger - always fixed position at top
-        setScrollState('fixed');
-        setAbsoluteTop(0);
+        if (isFixed) {
+          setIsFixed(false);
+        }
       }
     };
-
-    // Initial call to set position
-    handleScroll();
 
     window.addEventListener('scroll', handleScroll);
-    
-    // Handle resize separately to reset initial position
-    const handleResize = () => {
-      initialTopRef.current = null;
-      containerLeftRef.current = null;
-      handleScroll();
-    };
-    
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('resize', handleScroll);
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-      initialTopRef.current = null;
-      containerLeftRef.current = null;
+      window.removeEventListener('resize', handleScroll);
     };
-  }, []);
+  }, [isFixed]);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -229,20 +216,21 @@ const TourSchedulingComponent = ({ website }) => {
         {/* Placeholder for fixed positioning */}
         <div 
           ref={placeholderRef}
-          className={`w-full flex-shrink-0 ${scrollState === 'fixed' ? 'block' : 'hidden'}`}
+          className={`w-full flex-shrink-0 ${isFixed && window.innerWidth >= 768 ? 'block' : 'hidden'}`}
           style={{ height: contentRef.current?.offsetHeight || 'auto' }}
         />
 
         {/* Content */}
         <div 
           ref={contentRef}
-          className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] transition-all duration-300 ${
-            scrollState === 'fixed' ? 'fixed z-40' : ''
+          className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] ${
+            isFixed && window.innerWidth >= 768 
+              ? 'fixed top-5 z-50' 
+              : ''
           }`}
           style={{
-            top: scrollState === 'fixed' ? '20px' : 'auto',
-            left: scrollState === 'fixed'
-              ? containerLeftRef.current || 0 
+            left: isFixed && window.innerWidth >= 768 
+              ? rightColumnRef.current?.getBoundingClientRect().left || 0 
               : 'auto'
           }}
         >
@@ -368,11 +356,15 @@ const TourSchedulingComponent = ({ website }) => {
 
       {/* Tour Request Modal */}
       {isModalOpen && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
-          onClick={handleModalClick}
-        >
-          <div className="bg-white p-6 rounded-lg max-w-lg w-full mx-4 relative z-[999999]">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+          {/* Overlay - Full screen without any gaps */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={handleModalClick}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white p-6 rounded-lg max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Request a Tour</h3>
               <button
@@ -453,11 +445,15 @@ const TourSchedulingComponent = ({ website }) => {
 
       {/* Question Modal */}
       {isQuestionModalOpen && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
-          onClick={handleQuestionModalClick}
-        >
-          <div className="bg-white p-6 rounded-lg max-w-lg w-full mx-4 relative z-[999999]">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center">
+          {/* Overlay - Full screen without any gaps */}
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50"
+            onClick={handleQuestionModalClick}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white p-6 rounded-lg max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Ask A Question</h3>
               <button

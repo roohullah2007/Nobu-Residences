@@ -158,9 +158,9 @@ const PropertyCardV5 = ({
         
         {/* Card Content - Dynamic layout based on content amount */}
         <div className={`flex flex-col flex-grow items-start ${config.content} box-border`}>
-          {/* Price - Swapped with Property Type */}
+          {/* Building Name or Price - Conditional display */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {formattedPrice}
+            {property.source === 'building' ? (property.name || 'Building') : formattedPrice}
           </div>
           
           {/* Property Details - Compact layout without excessive spacing */}
@@ -170,10 +170,12 @@ const PropertyCardV5 = ({
               {displayAddress}
             </div>
             
-            {/* Features - Only show if exists */}
-            {features && (
+            {/* Features or Building Stats - Only show if exists */}
+            {(features || (property.source === 'building' && (property.total_units || property.total_floors))) && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
-                {features}
+                {property.source === 'building' 
+                  ? `${property.total_units || 0} Units | ${property.total_floors || 0} Floors`
+                  : features}
               </div>
             )}
             

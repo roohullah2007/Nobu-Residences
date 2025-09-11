@@ -346,11 +346,9 @@ const BuildingTourScheduling = ({ website }) => {
 
       {/* Building Tour Request Modal */}
       {isModalOpen && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
-          onClick={handleModalClick}
-        >
-          <div className="bg-white p-6 rounded-lg max-w-lg w-full mx-4 relative z-[999999]">
+        <div className="fixed inset-0 z-[999999] bg-black bg-opacity-50 flex items-center justify-center p-4" onClick={handleModalClick}>
+          {/* Modal Content */}
+          <div className="relative bg-white p-6 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Request a Building Tour</h3>
               <button
@@ -431,11 +429,9 @@ const BuildingTourScheduling = ({ website }) => {
 
       {/* Question Modal */}
       {isQuestionModalOpen && (
-        <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-[999999]"
-          onClick={handleQuestionModalClick}
-        >
-          <div className="bg-white p-6 rounded-lg max-w-lg w-full mx-4 relative z-[999999]">
+        <div className="fixed inset-0 z-[999999] bg-black bg-opacity-50 flex items-center justify-center p-4" onClick={handleQuestionModalClick}>
+          {/* Modal Content */}
+          <div className="relative bg-white p-6 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Ask About Building</h3>
               <button

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
+import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 
 // Building Gallery Component with single image and modal
-const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, onToggleFavorite }) => {
+const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, onToggleFavorite, auth }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
+  const [showContactModal, setShowContactModal] = useState(false);
   
   // Debug: Log building data
   console.log('BuildingGallery received buildingData:', buildingData);
@@ -234,7 +236,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                 </div>
               {/* Contact Agent Button */}
               <div className="rounded-full h-12 flex items-center justify-center w-full" style={{ backgroundColor: 'rgb(126 36 16)' }}>
-                <button className="w-full h-full flex items-center justify-center">
+                <button 
+                  onClick={() => setShowContactModal(true)}
+                  className="w-full h-full flex items-center justify-center"
+                >
                   <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
                     Contact Agent
                   </span>
@@ -338,6 +343,24 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
           )}
         </div>
       )}
+      
+      {/* Contact Agent Modal */}
+      <ContactAgentModal 
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        agentData={{
+          id: buildingData?.agent_id,
+          name: website?.contact_info?.agent?.name || buildingData?.agent_name,
+          title: website?.contact_info?.agent?.title || buildingData?.agent_title,
+          brokerage: website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage
+        }}
+        propertyData={{
+          ListingKey: buildingData?.id,
+          address: buildingData?.address || buildingData?.name,
+          BuildingName: buildingData?.name
+        }}
+        auth={auth}
+      />
     </>
   );
 };

@@ -70,8 +70,8 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
   if (!isOpen || !property) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-[999999] flex items-center justify-center p-4" onClick={handleClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h3 className="text-xl font-bold text-gray-900">Request a Viewing</h3>
@@ -106,9 +106,9 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
           </div>
 
           {/* Viewing Request Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit}>
             {/* Viewing Type */}
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Viewing Type
               </label>
@@ -139,7 +139,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
             </div>
 
             {/* Personal Information */}
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-4 mb-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name *
@@ -190,7 +190,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
             </div>
 
             {/* Preferred Date & Time */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="preferredDate" className="block text-sm font-medium text-gray-700 mb-1">
                   Preferred Date
@@ -235,7 +235,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
             </div>
 
             {/* Additional Message */}
-            <div>
+            <div className="mb-4">
               <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
                 Additional Notes (Optional)
               </label>

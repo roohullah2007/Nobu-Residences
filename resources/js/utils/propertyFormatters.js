@@ -174,30 +174,24 @@ export const getBrokerageName = (property) => {
 export const buildCardFeatures = (property) => {
   const features = [];
   
-  // For buildings, show different features
+  // For buildings, show different features (excluding units and floors)
   if (property.source === 'building') {
-    // Total Units
-    const totalUnits = property.total_units || property.totalUnits || property.TotalUnits;
-    if (totalUnits) {
-      features.push(`${totalUnits} Units`);
+    // Units Available for Sale
+    const unitsForSale = property.units_for_sale || property.unitsForSale || property.UnitsForSale;
+    if (unitsForSale && unitsForSale > 0) {
+      features.push(`${unitsForSale} for sale`);
     }
     
-    // Floors
-    const floors = property.floors || property.Floors;
-    if (floors) {
-      features.push(`${floors} Floors`);
+    // Units Available for Rent
+    const unitsForRent = property.units_for_rent || property.unitsForRent || property.UnitsForRent;
+    if (unitsForRent && unitsForRent > 0) {
+      features.push(`${unitsForRent} for rent`);
     }
     
     // Year Built
     const yearBuilt = property.year_built || property.yearBuilt || property.YearBuilt;
     if (yearBuilt) {
       features.push(`Built ${yearBuilt}`);
-    }
-    
-    // Parking spots (for buildings)
-    const parkingSpots = property.parking_spots || property.parkingSpots || property.ParkingSpots;
-    if (parkingSpots) {
-      features.push(`${parkingSpots} Parking`);
     }
     
     return features.join(' | ');

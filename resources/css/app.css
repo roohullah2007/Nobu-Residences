@@ -9,6 +9,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Force remove space-y-4 from modal forms */
+.space-y-4 > :not([hidden]) ~ :not([hidden]),
+form.space-y-4 > :not([hidden]) ~ :not([hidden]),
+form > .space-y-4 > :not([hidden]) ~ :not([hidden]),
+.space-y-4 > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    --tw-space-y-reverse: 0 !important;
+}
+
+/* Override any space-y classes in modals */
+.fixed.inset-0 form > * {
+    margin-top: 0 !important;
+}
+
+.fixed.inset-0 form > *:not(:first-child) {
+    margin-top: 1rem !important;
+}
+
+/* Specific override for modal forms */
+.fixed.inset-0 .space-y-4 > *,
+.fixed.inset-0 form .space-y-4 > * {
+    margin-top: 0 !important;
+    margin-bottom: 1rem !important;
+}
+
 /* IDX-AMPRE Grid Styles for consistency across all pages */
 .idx-ampre-grid {
   display: grid;

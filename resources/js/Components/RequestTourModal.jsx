@@ -113,9 +113,9 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
 
           {/* Modal Body - Scrollable if needed */}
           <form id="tour-request-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4">
-            <div className="space-y-4">
+            <div>
               {/* Tour Type */}
-              <div>
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tour Type
                 </label>
@@ -146,7 +146,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Name */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name *
                 </label>
@@ -163,7 +163,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Email */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                   Email *
                 </label>
@@ -180,7 +180,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Phone */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number *
                 </label>
@@ -197,7 +197,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Preferred Date */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="preferredDate" className="block text-sm font-medium text-gray-700 mb-1">
                   Preferred Date
                 </label>
@@ -213,7 +213,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Preferred Time */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="preferredTime" className="block text-sm font-medium text-gray-700 mb-1">
                   Preferred Time
                 </label>
@@ -232,7 +232,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
 
               {/* Message */}
-              <div>
+              <div className="mb-4">
                 <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
                   Additional Message
                 </label>

@@ -259,6 +259,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
               website={website}
               isFavorited={isFavorited}
               onToggleFavorite={handleToggleFavorite}
+              auth={auth}
             />
           </div>
    

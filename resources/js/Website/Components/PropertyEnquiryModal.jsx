@@ -100,8 +100,15 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Overlay - Full screen without any gaps */}
+            <div 
+                className="absolute inset-0 bg-black bg-opacity-50"
+                onClick={onClose}
+            />
+            
+            {/* Modal Content */}
+            <div className="relative bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
                 {/* Header */}
                 <div className="border-b border-gray-200 p-6 sticky top-0 bg-white z-10">
                     <div className="flex justify-between items-start">
@@ -141,15 +148,15 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                     </div>
                 ) : (
                     /* Form */
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <form onSubmit={handleSubmit} className="p-6">
                         {errors.general && (
-                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
                                 {errors.general}
                             </div>
                         )}
 
                         {/* Name */}
-                        <div>
+                        <div className="mb-4">
                             <label className="block font-work-sans font-medium text-gray-700 mb-2">
                                 Full Name *
                             </label>
@@ -169,7 +176,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Email */}
-                        <div>
+                        <div className="mb-4">
                             <label className="block font-work-sans font-medium text-gray-700 mb-2">
                                 Email Address *
                             </label>
@@ -189,7 +196,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Phone */}
-                        <div>
+                        <div className="mb-4">
                             <label className="block font-work-sans font-medium text-gray-700 mb-2">
                                 Phone Number
                             </label>
@@ -204,7 +211,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Message */}
-                        <div>
+                        <div className="mb-4">
                             <label className="block font-work-sans font-medium text-gray-700 mb-2">
                                 Message *
                             </label>
@@ -224,7 +231,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Property Details Summary */}
-                        <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
                             <h4 className="font-work-sans font-semibold text-sm text-gray-700 mb-2">
                                 Property Details
                             </h4>

@@ -119,23 +119,38 @@ const PropertyCardV5 = ({
             data-listing-key={property.listingKey}
           />
           
-          {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
-          {property.source !== 'building' && (
-            <div className="absolute inset-2 flex flex-col justify-between">
-              {/* Top row - Sale and Price chips - IDX-AMPRE style */}
-              <div className="flex justify-between items-center gap-2.5 h-8">
-                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
-                  {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
-                </span>
-                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
-                  {formattedPrice}
-                </span>
-              </div>
+          {/* IDX-AMPRE Style Filter Chips and Action Buttons */}
+          <div className="absolute inset-2 flex flex-col justify-between">
+            {/* Top row - Sale and Price chips - IDX-AMPRE style */}
+            <div className="flex justify-between items-center gap-2.5 h-8">
+              {property.source === 'building' ? (
+                <>
+                  <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
+                    Building
+                  </span>
+                  {(property.unitsForSale > 0 || property.unitsForRent > 0) && (
+                    <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
+                      {property.unitsForSale > 0 ? `${property.unitsForSale} for sale` : `${property.unitsForRent} for rent`}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
+                    {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
+                  </span>
+                  <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
+                    {formattedPrice}
+                  </span>
+                </>
+              )}
+            </div>
               
-              {/* Bottom row - Request button only (Compare hidden for next phase) - IDX-AMPRE style */}
-              <div className="flex justify-end items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                {/* Compare Button - Hidden for next phase */}
-                {/* <button
+              {/* Bottom row - Request button only (Compare hidden for next phase) - IDX-AMPRE style - Hide for Buildings */}
+              {property.source !== 'building' && (
+                <div className="flex justify-end items-center gap-2.5 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {/* Compare Button - Hidden for next phase */}
+                  {/* <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -163,16 +178,17 @@ const PropertyCardV5 = ({
                 >
                   Request
                 </button>
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          }
         </div>
         
         {/* Card Content - IDX-AMPRE Enhanced */}
         <div className={`flex flex-col flex-grow border-gray-300 border items-start ${config.content} box-border`}>
           {/* Property Type Title */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.propertyType || 'Residential'}
+            {property.source === 'building' ? (property.name || property.propertyType || 'Residential Building') : (property.propertyType || 'Residential')}
           </div>
           
           {/* Property Details */}
@@ -196,10 +212,13 @@ const PropertyCardV5 = ({
               </div>
             )}
             
-            {/* MLS Number */}
+            {/* MLS Number or Building Info */}
             <div className="flex items-center justify-start w-full min-h-8">
               <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
-                {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
+                {property.source === 'building' ? 
+                  (property.city && property.province ? `${property.city}, ${property.province}` : '') : 
+                  (property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`)
+                }
               </div>
             </div>
           </div>
