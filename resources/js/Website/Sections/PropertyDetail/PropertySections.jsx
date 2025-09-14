@@ -15,7 +15,7 @@ export default function PropertySections({
   auth 
 }) {
   return (
-    <div className="min-h-screen space-y-4 font-work-sans overflow-x-hidden">
+    <div className="min-h-screen flex flex-col gap-4 font-work-sans overflow-x-hidden">
 
      {/* Property Status and Navigation Tabs */}
       <PropertyStatusTabs property={propertyData} />

@@ -165,9 +165,17 @@ export default function Navbar({ auth = {}, website = {} }) {
                             <Dropdown>
                                 <Dropdown.Trigger>
                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-work-sans hover:bg-gray-100">
-                                        <div className="w-8 h-8 bg-[#293056] text-white rounded-full flex items-center justify-center font-bold text-sm">
-                                            {auth.user.name?.charAt(0).toUpperCase() || 'U'}
-                                        </div>
+                                        {auth.user.avatar ? (
+                                            <img
+                                                src={auth.user.avatar}
+                                                alt={auth.user.name}
+                                                className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-8 h-8 bg-[#293056] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                            </div>
+                                        )}
                                         <span className="text-gray-900" style={{ fontSize: '16px', fontWeight: '500' }}>
                                             {auth.user.name || 'User'}
                                         </span>
@@ -316,6 +324,28 @@ export default function Navbar({ auth = {}, website = {} }) {
                             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
                                 {auth?.user ? (
                                     <div className="space-y-3">
+                                        {/* User Profile Section */}
+                                        <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
+                                            {auth.user.avatar ? (
+                                                <img
+                                                    src={auth.user.avatar}
+                                                    alt={auth.user.name}
+                                                    className="w-10 h-10 rounded-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-10 h-10 bg-[#293056] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                    {auth.user.name?.charAt(0).toUpperCase() || 'U'}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="font-work-sans font-semibold text-gray-900">
+                                                    {auth.user.name || 'User'}
+                                                </div>
+                                                <div className="font-work-sans text-sm text-gray-500">
+                                                    {auth.user.email}
+                                                </div>
+                                            </div>
+                                        </div>
                                         <Link
                                             href="/user/dashboard"
                                             className="block w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors font-work-sans text-center"

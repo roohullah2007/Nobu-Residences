@@ -34,6 +34,13 @@ class ProfileController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        // Log the incoming request data for debugging
+        \Log::info('Profile update request:', [
+            'all_data' => $request->all(),
+            'has_file' => $request->hasFile('photo'),
+            'method' => $request->method()
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
@@ -74,7 +81,13 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return Redirect::route('profile.edit')->with('status', 'Profile updated successfully!');
+        // Log the saved data
+        \Log::info('Profile updated successfully:', [
+            'user_id' => $user->id,
+            'updated_data' => $user->only(['name', 'email', 'phone', 'bio', 'avatar'])
+        ]);
+
+        return back()->with('status', 'Profile updated successfully!');
     }
 
     /**
@@ -91,7 +104,7 @@ class ProfileController extends Controller
             'password' => bcrypt($validated['password']),
         ]);
 
-        return Redirect::route('profile.edit')->with('status', 'Password updated successfully!');
+        return back()->with('status', 'Password updated successfully!');
     }
 
     /**

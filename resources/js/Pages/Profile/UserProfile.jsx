@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { Head, useForm, router, Link } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -55,11 +56,32 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website }) 
     const submitProfile = (e) => {
         e.preventDefault();
 
-        profileForm.post(route('profile.update'), {
+        // Create FormData for file upload
+        const formData = new FormData();
+        formData.append('name', profileForm.data.name);
+        formData.append('email', profileForm.data.email);
+        formData.append('phone', profileForm.data.phone || '');
+        formData.append('bio', profileForm.data.bio || '');
+
+        if (profileForm.data.photo) {
+            formData.append('photo', profileForm.data.photo);
+        }
+
+        // Use router.post with FormData
+        router.post(route('profile.update'), formData, {
             preserveScroll: true,
+            forceFormData: true,
             onSuccess: () => {
-                profileForm.reset('photo');
+                // Reset only the photo field
                 setPhotoPreview(null);
+                if (photoInput.current) {
+                    photoInput.current.value = '';
+                }
+                profileForm.setData('photo', null);
+            },
+            onError: (errors) => {
+                console.error('Profile update errors:', errors);
+                profileForm.setErrors(errors);
             },
         });
     };

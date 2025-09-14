@@ -85,10 +85,10 @@ const PropertyRooms = ({ property }) => {
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium text-gray-700">Unit:</span>
           <div className="relative inline-block align-middle">
-            <input 
-              type="checkbox" 
-              id="unit-toggle-mobile" 
-              className="sr-only" 
+            <input
+              type="checkbox"
+              id="unit-toggle-mobile"
+              className="sr-only"
               checked={!isMetric}
               onChange={handleToggleUnit}
             />
@@ -100,7 +100,7 @@ const PropertyRooms = ({ property }) => {
                     isMetric ? 'left-1' : 'left-[52px]'
                   }`}
                 ></div>
-                
+
                 {/* Text labels inside the toggle */}
                 <div className="flex w-full relative z-10">
                   <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
@@ -128,10 +128,10 @@ const PropertyRooms = ({ property }) => {
           <div className="col-span-2 flex items-center">
             {/* Toggle Switch - Desktop */}
             <div className="relative inline-block align-middle mr-2">
-              <input 
-                type="checkbox" 
-                id="unit-toggle-desktop" 
-                className="sr-only" 
+              <input
+                type="checkbox"
+                id="unit-toggle-desktop"
+                className="sr-only"
                 checked={!isMetric}
                 onChange={handleToggleUnit}
               />
@@ -143,7 +143,7 @@ const PropertyRooms = ({ property }) => {
                       isMetric ? 'left-1' : 'left-[52px]'
                     }`}
                   ></div>
-                  
+
                   {/* Text labels inside the toggle */}
                   <div className="flex w-full relative z-10">
                     <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
@@ -206,7 +206,7 @@ const PropertyRooms = ({ property }) => {
       </div>
 
       <div className="mt-4">
-        <button 
+        <button
           onClick={handleToggleRooms}
           className="text-blue-600 text-sm hover:underline focus:outline-none"
         >
