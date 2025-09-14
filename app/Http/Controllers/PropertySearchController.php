@@ -22,6 +22,70 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * Debug endpoint to check what leased statuses exist
+     */
+    public function debugLeasedStatuses(Request $request)
+    {
+        try {
+            $this->cleanOutputBuffer();
+            
+            // Reset filters first
+            $this->ampreApi->resetFilters();
+            
+            // Configure API client for basic query
+            $this->ampreApi->setSelect(['ListingKey', 'StandardStatus', 'MlsStatus', 'TransactionType', 'City', 'PostalCode', 'ListPrice']);
+            $this->ampreApi->setTop(200);
+            
+            // Try different queries to find leased properties
+            $queries = [
+                'for_lease_transaction' => "TransactionType eq 'For Lease'",
+                'for_rent_transaction' => "TransactionType eq 'For Rent'",
+                'lease_in_mlsstatus' => "contains(MlsStatus, 'Lease')",
+                'lease_in_standardstatus' => "contains(StandardStatus, 'Lease')",
+                'closed_with_lease' => "StandardStatus eq 'Closed' and TransactionType eq 'For Lease'",
+                'off_market' => "StandardStatus eq 'Off Market'"
+            ];
+            
+            $results = [];
+            foreach ($queries as $key => $filter) {
+                $this->ampreApi->resetFilters();
+                $this->ampreApi->addCustomFilter($filter);
+                
+                try {
+                    $properties = $this->ampreApi->fetchProperties();
+                    $results[$key] = [
+                        'filter' => $filter,
+                        'count' => count($properties),
+                        'sample' => array_slice($properties, 0, 2)
+                    ];
+                } catch (\Exception $e) {
+                    $results[$key] = [
+                        'filter' => $filter,
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'test_results' => $results,
+                'note' => 'Testing different filters to find lease data'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Debug leased statuses error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Handle AJAX property search requests
      */
     public function search(Request $request)
@@ -44,6 +108,27 @@ class PropertySearchController extends Controller
             $apiResult = $this->ampreApi->fetchPropertiesWithCount();
             $properties = $apiResult['properties'];
             $totalCount = $apiResult['count'];
+            
+            // Debug log for Sold/Leased searches
+            if (!empty($sanitizedParams['property_status'])) {
+                Log::info("Property status search results", [
+                    'requested_status' => $sanitizedParams['property_status'],
+                    'total_found' => $totalCount,
+                    'properties_returned' => count($properties)
+                ]);
+                
+                if (!empty($properties)) {
+                    $firstProperty = $properties[0];
+                    Log::info("First property sample", [
+                        'ListingKey' => $firstProperty['ListingKey'] ?? 'N/A',
+                        'StandardStatus' => $firstProperty['StandardStatus'] ?? 'N/A',
+                        'MlsStatus' => $firstProperty['MlsStatus'] ?? 'N/A',
+                        'TransactionType' => $firstProperty['TransactionType'] ?? 'N/A'
+                    ]);
+                } else {
+                    Log::warning("No properties found for status: " . $sanitizedParams['property_status']);
+                }
+            }
 
             if (empty($properties)) {
                 return response()->json([
@@ -525,6 +610,7 @@ class PropertySearchController extends Controller
             'PropertySubType',
             'PropertyType',
             'StandardStatus',
+            'MlsStatus',  // Added to capture MLS-specific status
             'LivingAreaRange',
             'AboveGradeFinishedArea',
             'ParkingTotal',
@@ -600,12 +686,13 @@ class PropertySearchController extends Controller
         $hasBedrooms = isset($params['bedrooms']) && $params['bedrooms'] > 0;
         $hasBathrooms = isset($params['bathrooms']) && $params['bathrooms'] > 0;
         $hasNonDefaultStatus = isset($params['status']) && $params['status'] !== 'For Sale';
+        $hasPropertyStatus = !empty($params['property_status']); // New check for Sold/Leased
         $hasPage = isset($params['page']) && $params['page'] > 1;
         
         // If ANY search parameter is explicitly set, treat it as user search
         // This includes empty property_type array which means "All Types"
         $hasUserCriteria = $hasQuery || $hasPropertyType || $hasMinPrice || $hasMaxPrice || 
-                          $hasBedrooms || $hasBathrooms || $hasNonDefaultStatus || $hasPage;
+                          $hasBedrooms || $hasBathrooms || $hasNonDefaultStatus || $hasPropertyStatus || $hasPage;
         
         return $hasUserCriteria;
     }
@@ -638,7 +725,28 @@ class PropertySearchController extends Controller
         $transactionType = 'For Sale'; // Default
         $standardStatus = 'Active'; // Default
         
-        if (!empty($params['status'])) {
+        // Check if property_status is set (Sold/Leased) - it takes precedence
+        $skipStandardStatus = false; // Flag to skip StandardStatus filter for sold/leased
+        if (!empty($params['property_status'])) {
+            // Allow all users to see Sold/Leased properties
+            switch ($params['property_status']) {
+                case 'Sold':
+                case 'sold':
+                    // For sold properties, we only filter by status, not transaction type
+                    $transactionType = null;  // Don't filter by transaction type
+                    $standardStatus = 'Sold'; // Filter by Sold status only
+                    break;
+                case 'Leased':
+                case 'leased':
+                    // For leased properties, we only filter by status, not transaction type
+                    $transactionType = null;  // Don't filter by transaction type
+                    $standardStatus = 'Leased'; // Filter by Leased status only
+                    break;
+            }
+        }
+        
+        if (empty($params['property_status']) && !empty($params['status'])) {
+            // Only check status if property_status is not set
             switch ($params['status']) {
                 case 'For Sale':
                 case 'for-sale':
@@ -654,22 +762,63 @@ class PropertySearchController extends Controller
                     break;
                 case 'Sold':
                 case 'sold':
-                    $transactionType = 'Sold';
-                    $standardStatus = 'Closed';
+                    // Allow all users to see Sold properties
+                    $transactionType = null;  // Don't filter by transaction type
+                    $standardStatus = 'Sold'; // StandardStatus is 'Sold'
                     break;
                 case 'Leased':
                 case 'Rented':
                 case 'leased':
                 case 'rented':
-                    $transactionType = 'Leased';
+                    // Allow all users to see Leased properties
+                    $transactionType = null;  // Don't filter by transaction type
                     $standardStatus = 'Leased';
                     break;
             }
         }
 
         // Apply filters
-        $this->ampreApi->addFilter('StandardStatus', $standardStatus);
-        $this->ampreApi->addFilter('TransactionType', $transactionType);
+        // Check if we should use MlsStatus for Sold/Leased properties
+        if ($standardStatus === 'Sold') {
+            // For Sold properties, check both MlsStatus and StandardStatus
+            $filterQuery = "(MlsStatus eq 'Sold' or StandardStatus eq 'Sold' or StandardStatus eq 'Closed')";
+            $this->ampreApi->addCustomFilter($filterQuery);
+            
+            Log::info("Applying Sold filter", [
+                'filter' => $filterQuery,
+                'property_status_param' => $params['property_status'] ?? null
+            ]);
+        } elseif ($standardStatus === 'Leased') {
+            // For Leased properties - based on actual MLS data structure
+            // Properties are leased when:
+            // 1. MlsStatus contains "Leased" (including "Leased", "Leased Conditional")
+            // 2. StandardStatus is "Closed" with TransactionType "For Lease"
+            $filterQuery = "(contains(MlsStatus, 'Lease') or " .
+                          "(StandardStatus eq 'Closed' and TransactionType eq 'For Lease'))";
+            $this->ampreApi->addCustomFilter($filterQuery);
+            
+            // Get the full URL to see what's being sent
+            $requestUrl = $this->ampreApi->getRequestUrl('Property');
+            
+            Log::info("Applying Leased filter - Updated", [
+                'filter' => $filterQuery,
+                'full_request_url' => $requestUrl,
+                'property_status_param' => $params['property_status'] ?? null,
+                'status_param' => $params['status'] ?? null,
+                'all_params' => $params
+            ]);
+        } else {
+            // For Active listings, use both StandardStatus and TransactionType
+            $this->ampreApi->addFilter('StandardStatus', $standardStatus);
+            if ($transactionType !== null) {
+                $this->ampreApi->addFilter('TransactionType', $transactionType);
+            }
+            
+            Log::info("Applying Active listing filters", [
+                'standardStatus' => $standardStatus,
+                'transactionType' => $transactionType
+            ]);
+        }
 
         // Check for street_number and street_name parameters first
         if (!empty($params['street_number']) && !empty($params['street_name'])) {
@@ -713,26 +862,33 @@ class PropertySearchController extends Controller
         }
         // Don't apply any property type filter when 'All Types' is selected (empty array)
 
-        // Apply price filters
+        // Apply price filters - adjusted for Leased properties
+        $isLeasedSearch = ($standardStatus === 'Leased' || $transactionType === 'For Lease');
+        
         if ($params['price_min'] > 0 || $params['price_max'] > 0) {
             $minPrice = $params['price_min'] > 0 ? max($params['price_min'], 2) : null;
             $maxPrice = $params['price_max'] > 0 ? $params['price_max'] : null;
             
             if ($minPrice === null) {
-                if (in_array($transactionType, ['For Lease', 'Leased'])) {
-                    $minPrice = 100; // For rental properties
+                if ($isLeasedSearch) {
+                    $minPrice = 1; // For rental/leased properties - minimum $1
                 } else {
                     $minPrice = 50000; // For sale properties
                 }
             }
             
+            // For leased properties, adjust max price if it's too high (likely set for sale properties)
+            if ($isLeasedSearch && $maxPrice > 50000) {
+                $maxPrice = 10000; // Cap at $10,000/month for rentals
+            }
+            
             $this->ampreApi->setPriceRange($minPrice, $maxPrice);
         } else {
             // Apply default based on transaction type
-            if (in_array($transactionType, ['For Lease', 'Leased'])) {
-                $this->ampreApi->setPriceRange(100, null);
+            if ($isLeasedSearch) {
+                $this->ampreApi->setPriceRange(1, 10000); // $1 to $10,000/month for rentals
             } else {
-                $this->ampreApi->setPriceRange(50000, null);
+                $this->ampreApi->setPriceRange(50000, null); // $50,000+ for sales
             }
         }
 
@@ -1026,6 +1182,7 @@ class PropertySearchController extends Controller
                 'PropertySubType' => $property['PropertySubType'] ?? '',
                 'PropertyType' => $property['PropertyType'] ?? '',
                 'StandardStatus' => $property['StandardStatus'] ?? 'Active',
+                'MlsStatus' => $property['MlsStatus'] ?? '',
                 'TransactionType' => $property['TransactionType'] ?? '',
                 'City' => $property['City'] ?? '',
                 'StateOrProvince' => $property['StateOrProvince'] ?? '',
@@ -1052,7 +1209,11 @@ class PropertySearchController extends Controller
                 'OpenHouseDate' => $property['OpenHouseDate'] ?? '',
                 'MediaURL' => $property['MediaURL'] ?? null,
                 'Images' => $property['Images'] ?? [],
-                'formatted_status' => $this->formatStatusDisplay($property['TransactionType'] ?? '', $property['StandardStatus'] ?? 'Active'),
+                'formatted_status' => $this->formatStatusDisplay(
+                    $property['TransactionType'] ?? '', 
+                    $property['StandardStatus'] ?? 'Active',
+                    $property['MlsStatus'] ?? ''
+                ),
                 'has_open_house' => $this->hasOpenHouse($property)
             ];
         }
@@ -1084,8 +1245,55 @@ class PropertySearchController extends Controller
     /**
      * Format status for display
      */
-    private function formatStatusDisplay($transactionType, $standardStatus = '')
+    private function formatStatusDisplay($transactionType, $standardStatus = '', $mlsStatus = '')
     {
+        // First check MlsStatus if available (some MLS systems use this for Sold/Leased)
+        if (!empty($mlsStatus)) {
+            $mlsStatusLower = strtolower($mlsStatus);
+            switch ($mlsStatusLower) {
+                case 'sold':
+                    return 'Sold';
+                case 'leased':
+                case 'rented':
+                case 'lease':
+                    return 'Leased';
+            }
+        }
+        
+        // Then check StandardStatus
+        if (!empty($standardStatus)) {
+            $standardStatusLower = strtolower($standardStatus);
+            switch ($standardStatus) {
+                case 'Sold':
+                    return 'Sold';
+                case 'Leased':
+                case 'Rented':
+                case 'Lease':
+                    return 'Leased';
+                case 'Pending':
+                    return 'Pending';
+                case 'Closed':
+                    // Closed can mean Sold or Leased depending on TransactionType
+                    if ($transactionType === 'For Lease' || $transactionType === 'For Rent') {
+                        return 'Leased';
+                    }
+                    return 'Sold';
+                case 'Off Market':
+                    // Off Market with For Lease transaction type means Leased
+                    if ($transactionType === 'For Lease' || $transactionType === 'For Rent') {
+                        return 'Leased';
+                    }
+                    return 'Off Market';
+                case 'Active':
+                    // For active listings, determine based on transaction type
+                    if ($transactionType === 'For Lease' || $transactionType === 'For Rent') {
+                        return 'For Rent';
+                    }
+                    return 'For Sale';
+            }
+        }
+        
+        // Fall back to transaction type
         if (!empty($transactionType)) {
             switch ($transactionType) {
                 case 'For Sale':
@@ -1102,16 +1310,8 @@ class PropertySearchController extends Controller
             }
         }
         
-        switch ($standardStatus) {
-            case 'Active':
-                return 'For Sale';
-            case 'Pending':
-                return 'Pending';
-            case 'Closed':
-                return 'Sold';
-            default:
-                return ucfirst(strtolower($standardStatus));
-        }
+        // Default
+        return ucfirst(strtolower($standardStatus));
     }
 
     /**
@@ -1151,6 +1351,7 @@ class PropertySearchController extends Controller
             'page_size' => 15,
             'query' => '',
             'status' => 'For Sale',
+            'property_status' => '', // New parameter for Sold/Leased
             'property_type' => [],
             'price_min' => 0,
             'price_max' => 10000000, // Default max price of 10 million
@@ -1178,6 +1379,7 @@ class PropertySearchController extends Controller
 
         // Sanitize string values
         $sanitized['status'] = htmlspecialchars($sanitized['status']);
+        $sanitized['property_status'] = htmlspecialchars($sanitized['property_status'] ?? '');
         $sanitized['query'] = htmlspecialchars($sanitized['query']);
         $sanitized['sort'] = htmlspecialchars($sanitized['sort']);
         

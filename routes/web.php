@@ -32,10 +32,10 @@ Route::get('/{building}/for-rent', [WebsiteController::class, 'buildingForRent']
 
 // SEO-friendly city-based search routes
 Route::get('/{city}/for-sale', [WebsiteController::class, 'cityForSale'])
-    ->where('city', '[a-z\-]+')
+    ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-sale');
 Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
-    ->where('city', '[a-z\-]+')
+    ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-rent');
 Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
@@ -45,7 +45,7 @@ Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // New SEO-friendly property route structure: /city/street-address/mls-id
 Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
     ->where([
-        'city' => '[a-z\-]+',
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
         'listingKey' => '[A-Z0-9]+'
     ])
@@ -366,7 +366,7 @@ require __DIR__.'/auth.php';
 // SEO-friendly building URLs - must be at the end to avoid matching admin routes
 Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
     ->where([
-        'city' => '^(?!admin|api|login|register|dashboard|profile)[a-z0-9\-]+$',
+        'city' => '[a-z][a-z0-9\-]*',  // Must start with lowercase letter
         'street' => '[a-z0-9\-]+', 
         'buildingSlug' => '.*'
     ])

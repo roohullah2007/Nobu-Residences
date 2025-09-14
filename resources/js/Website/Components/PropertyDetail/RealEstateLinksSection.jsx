@@ -9,7 +9,7 @@ export default function RealEstateLinksSection() {
 
   return (
     <section className=" bg-white">
-      <div className="mx-auto px-4 md:px-0">
+      <div className="mx-auto md:px-0">
         <div className="bg-white rounded-lg shadow-sm">
           {/* Explore North Riverdale Section */}
           <div className="mb-12">

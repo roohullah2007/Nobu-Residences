@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
+import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 const LoginModal = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState('register');
@@ -486,6 +487,26 @@ const LoginModal = ({ isOpen, onClose }) => {
               )}
             </button>
           </form>
+          )}
+          
+          {/* OR Divider and Google Login - Only show when not in forgot password mode */}
+          {!showForgotPassword && (
+            <>
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                </div>
+              </div>
+
+              {/* Google Login Button */}
+              <GoogleLoginButton 
+                text={activeTab === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
+                className="w-full"
+              />
+            </>
           )}
 
           {/* Forgot Password Link (Login only) */}

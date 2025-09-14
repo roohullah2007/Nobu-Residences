@@ -1,7 +1,21 @@
 import { useState } from 'react';
+import axios from 'axios';
 
 export default function AboutSection({ website, pageContent, availableIcons }) {
     const [activeTab, setActiveTab] = useState('Overview');
+    
+    // Contact form state
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        categories: []
+    });
+    
+    const [formErrors, setFormErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [submitError, setSubmitError] = useState('');
     
     const tabs = ['Overview', 'Key Facts', 'Amenities', 'Highlights', 'Contact'];
     
@@ -115,6 +129,117 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
             { text: 'Premium amenities including concierge services, fitness facilities, and exclusive resident lounges.', icon: 'amenities' },
             { text: 'Steps away from major transit, shopping, dining, and cultural attractions in downtown Toronto.', icon: 'transit' }
         ];
+    };
+
+    // Form handling functions
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        // Clear error for this field
+        if (formErrors[name]) {
+            setFormErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
+    };
+    
+    const handleCategoryToggle = (category) => {
+        setFormData(prev => {
+            const currentCategories = [...prev.categories];
+            const index = currentCategories.indexOf(category);
+            
+            if (index > -1) {
+                // Remove category if already selected
+                currentCategories.splice(index, 1);
+            } else {
+                // Add category if not selected (max 2)
+                if (currentCategories.length < 2) {
+                    currentCategories.push(category);
+                }
+            }
+            
+            return {
+                ...prev,
+                categories: currentCategories
+            };
+        });
+    };
+    
+    const validateForm = () => {
+        const errors = {};
+        
+        if (!formData.name.trim()) {
+            errors.name = 'Name is required';
+        }
+        
+        if (!formData.email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            errors.email = 'Email is invalid';
+        }
+        
+        if (!formData.phone.trim()) {
+            errors.phone = 'Phone number is required';
+        } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.phone)) {
+            errors.phone = 'Phone number is invalid';
+        }
+        
+        if (formData.categories.length === 0) {
+            errors.categories = 'Please select at least one category';
+        }
+        
+        return errors;
+    };
+    
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        // Validate form
+        const errors = validateForm();
+        if (Object.keys(errors).length > 0) {
+            setFormErrors(errors);
+            return;
+        }
+        
+        setIsSubmitting(true);
+        setSubmitError('');
+        setSubmitSuccess(false);
+        
+        try {
+            const response = await axios.post('/contact', {
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                message: `User Type: ${formData.categories.join(', ')}`,
+                source: 'About Section Contact Form'
+            });
+            
+            if (response.data.success) {
+                setSubmitSuccess(true);
+                // Reset form
+                setFormData({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    categories: []
+                });
+                setFormErrors({});
+                
+                // Hide success message after 5 seconds
+                setTimeout(() => {
+                    setSubmitSuccess(false);
+                }, 5000);
+            }
+        } catch (error) {
+            console.error('Form submission error:', error);
+            setSubmitError(error.response?.data?.message || 'An error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Default SVG fallbacks for backward compatibility
@@ -337,7 +462,7 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                         </div>
                                         
                                         {/* Contact Form Card - Keeping the existing form */}
-                                        <div className="flex flex-col justify-between items-start p-4 gap-4 w-full max-w-[400px] md:w-[268px] md:max-w-[268px] h-auto md:h-[356px] bg-white shadow-[0px_0px_16.3px_rgba(0,0,0,0.1)] rounded-xl flex-none">
+                                        <form onSubmit={handleSubmit} className="flex flex-col justify-between items-start p-4 gap-4 w-full max-w-[400px] md:w-[268px] md:max-w-[268px] h-auto md:h-[356px] bg-white shadow-[0px_0px_16.3px_rgba(0,0,0,0.1)] rounded-xl flex-none">
                                             {/* Form Header */}
                                             <div className="flex flex-col items-center gap-1 w-full md:w-[226px] h-auto md:h-[170px] flex-none mx-auto">
                                                 <div className="flex flex-row items-center gap-4 w-full md:w-[226px] h-auto md:h-[26px] flex-none">
@@ -351,48 +476,72 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                 {/* Form Fields */}
                                                 <div className="flex flex-col justify-center items-start gap-1.5 md:gap-2 w-full md:w-[226px] h-auto md:h-[140px] flex-none">
                                                     {/* Name Input */}
-                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto md:h-[40px] border-b border-[#D5D7DA] flex-none">
-                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto md:h-[40px] flex-none">
-                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto md:h-[40px] filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
+                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto border-b border-[#D5D7DA] flex-none">
+                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto flex-none">
+                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
                                                                 <div className="flex flex-row items-center gap-2 w-full md:w-[226px] h-auto md:h-[21px] flex-none flex-grow">
                                                                     <input 
                                                                         type="text" 
+                                                                        name="name"
+                                                                        value={formData.name}
+                                                                        onChange={handleInputChange}
                                                                         placeholder="Your Name"
-                                                                        className="w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] text-[#717680] flex-none flex-grow border-none outline-none bg-transparent"
+                                                                        className={`w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] flex-none flex-grow border-none outline-none bg-transparent ${
+                                                                            formErrors.name ? 'placeholder-red-500' : 'text-[#717680]'
+                                                                        }`}
                                                                     />
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {formErrors.name && (
+                                                            <span className="text-red-500 text-xs mt-1">{formErrors.name}</span>
+                                                        )}
                                                     </div>
                                                     
                                                     {/* Email Input */}
-                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto md:h-[40px] border-b border-[#D5D7DA] flex-none">
-                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto md:h-[40px] flex-none">
-                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto md:h-[40px] filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
+                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto border-b border-[#D5D7DA] flex-none">
+                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto flex-none">
+                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
                                                                 <div className="flex flex-row items-center gap-2 w-full md:w-[226px] h-auto md:h-[21px] flex-none flex-grow">
                                                                     <input 
                                                                         type="email" 
+                                                                        name="email"
+                                                                        value={formData.email}
+                                                                        onChange={handleInputChange}
                                                                         placeholder="Email"
-                                                                        className="w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] text-[#717680] flex-none flex-grow border-none outline-none bg-transparent"
+                                                                        className={`w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] flex-none flex-grow border-none outline-none bg-transparent ${
+                                                                            formErrors.email ? 'placeholder-red-500' : 'text-[#717680]'
+                                                                        }`}
                                                                     />
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {formErrors.email && (
+                                                            <span className="text-red-500 text-xs mt-1">{formErrors.email}</span>
+                                                        )}
                                                     </div>
                                                     
                                                     {/* Phone Input */}
-                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto md:h-[40px] border-b border-[#D5D7DA] flex-none">
-                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto md:h-[40px] flex-none">
-                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto md:h-[40px] filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
+                                                    <div className="flex flex-col items-start gap-0.5 w-full md:w-[226px] h-auto border-b border-[#D5D7DA] flex-none">
+                                                        <div className="flex flex-col items-start w-full md:w-[226px] h-auto flex-none">
+                                                            <div className="flex flex-row items-center py-2 md:py-[10px] px-0 pb-3 md:pb-4 gap-2 w-full md:w-[226px] h-auto filter drop-shadow-[0px_1px_2px_rgba(16,24,40,0.05)] rounded flex-none">
                                                                 <div className="flex flex-row items-center gap-2 w-full md:w-[226px] h-auto md:h-[21px] flex-none flex-grow">
                                                                     <input 
                                                                         type="tel" 
+                                                                        name="phone"
+                                                                        value={formData.phone}
+                                                                        onChange={handleInputChange}
                                                                         placeholder="Phone Number"
-                                                                        className="w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] text-[#717680] flex-none flex-grow border-none outline-none bg-transparent"
+                                                                        className={`w-full md:w-[226px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] tracking-[-0.04em] flex-none flex-grow border-none outline-none bg-transparent ${
+                                                                            formErrors.phone ? 'placeholder-red-500' : 'text-[#717680]'
+                                                                        }`}
                                                                     />
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        {formErrors.phone && (
+                                                            <span className="text-red-500 text-xs mt-1">{formErrors.phone}</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -423,54 +572,62 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                     
                                                     {/* Category Pills */}
                                                     <div className="flex flex-row justify-between items-center gap-1.5 md:gap-2 w-full md:w-[226px] h-auto md:h-7 flex-none">
-                                                        {/* Buyer - Selected */}
-                                                        <div className="flex flex-row justify-center items-center gap-1 md:gap-2 w-auto md:w-[51px] h-auto md:h-[23px] bg-[#9C2A10] rounded-[100px] flex-none mx-auto">
-                                                            <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2.5 w-auto md:w-16 h-auto md:h-[33px] flex-none">
-                                                                <span className="w-auto md:w-8 h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.04em] text-white flex-none">
-                                                                    Buyer
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Seller */}
-                                                        <div className="flex flex-row justify-center items-center gap-1 md:gap-2 w-auto md:w-[54px] h-auto md:h-[23px] bg-[#FDFDFD] border border-[#1C1463] rounded-[100px] flex-none mx-auto">
-                                                            <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2 w-auto md:w-16 h-auto md:h-8 flex-none">
-                                                                <span className="w-auto md:w-8 h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.03em] text-[#1C1463] flex-none">
-                                                                    Seller
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Renter */}
-                                                        <div className="flex flex-row justify-center items-center gap-1 md:gap-2 w-auto md:w-[54px] h-auto md:h-[23px] bg-[#FDFDFD] border border-[#1C1463] rounded-[100px] flex-none mx-auto">
-                                                            <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2 w-auto md:w-[69px] h-auto md:h-8 flex-none">
-                                                                <span className="w-auto md:w-[37px] h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.03em] text-[#1C1463] flex-none">
-                                                                    Renter
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Other */}
-                                                        <div className="flex flex-row justify-center items-center gap-1 md:gap-2 w-auto md:w-[50px] h-auto md:h-[23px] bg-[#FDFDFD] border border-[#1C1463] rounded-[100px] flex-none mx-auto">
-                                                            <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2 w-auto md:w-16 h-auto md:h-8 flex-none">
-                                                                <span className="w-auto md:w-8 h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.03em] text-[#1C1463] flex-none">
-                                                                    Other
-                                                                </span>
-                                                            </div>
-                                                        </div>
+                                                        {['Buyer', 'Seller', 'Renter', 'Other'].map((category) => (
+                                                            <button
+                                                                key={category}
+                                                                type="button"
+                                                                onClick={() => handleCategoryToggle(category)}
+                                                                className={`flex flex-row justify-center items-center gap-1 md:gap-2 h-auto md:h-[23px] rounded-[100px] flex-none mx-auto cursor-pointer transition-all ${
+                                                                    formData.categories.includes(category)
+                                                                        ? 'bg-[#9C2A10]'
+                                                                        : 'bg-[#FDFDFD] border border-[#1C1463]'
+                                                                }`}
+                                                            >
+                                                                <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2 h-auto md:h-8 flex-none">
+                                                                    <span className={`h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.03em] flex-none ${
+                                                                        formData.categories.includes(category)
+                                                                            ? 'text-white'
+                                                                            : 'text-[#1C1463]'
+                                                                    }`}>
+                                                                        {category}
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        ))}
                                                     </div>
+                                                    {formErrors.categories && (
+                                                        <span className="text-red-500 text-xs mt-1">{formErrors.categories}</span>
+                                                    )}
                                                 </div>
                                                 
                                                 {/* Submit Button */}
-                                                <button className="flex flex-col justify-center items-center gap-2 w-full md:w-[226px] h-auto md:h-10 bg-black rounded-[100px] flex-none mx-auto">
+                                                <button 
+                                                    type="submit"
+                                                    disabled={isSubmitting}
+                                                    className={`flex flex-col justify-center items-center gap-2 w-full md:w-[226px] h-auto md:h-10 rounded-[100px] flex-none mx-auto transition-all ${
+                                                        isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 cursor-pointer'
+                                                    }`}
+                                                >
                                                     <div className="flex flex-row justify-center items-center py-2 md:py-2.5 px-4 md:px-6 gap-2 w-full md:w-[226px] h-auto md:h-12 flex-none">
-                                                        <span className="w-auto md:w-12 h-auto md:h-6 font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] text-white flex-none">
-                                                            Submit
+                                                        <span className="w-auto h-auto md:h-6 font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] text-white flex-none">
+                                                            {isSubmitting ? 'Sending...' : 'Submit'}
                                                         </span>
                                                     </div>
                                                 </button>
+                                                
+                                                {/* Success/Error Messages */}
+                                                {submitSuccess && (
+                                                    <div className="w-full mt-2 p-2 bg-green-100 border border-green-400 text-green-700 rounded text-xs text-center">
+                                                        Thank you! We'll be in touch soon.
+                                                    </div>
+                                                )}
+                                                {submitError && (
+                                                    <div className="w-full mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-xs text-center">
+                                                        {submitError}
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
+                                        </form>
                                     </div>
                                 </div>
                             )}

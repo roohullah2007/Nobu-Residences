@@ -8,6 +8,7 @@ import PropertiesForRent from '@/Website/Components/Property/PropertiesForRent';
 
 export default function SchoolDetail({ 
   auth, 
+  website,
   siteName, 
   siteUrl, 
   year, 
@@ -78,7 +79,7 @@ export default function SchoolDetail({
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
         <Head title={`Loading School... - ${siteName}`} />
         <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-          <Navbar auth={auth} />
+          <Navbar auth={auth} website={website} />
         </div>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -95,7 +96,7 @@ export default function SchoolDetail({
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
         <Head title={`School Not Found - ${siteName}`} />
         <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-          <Navbar auth={auth} />
+          <Navbar auth={auth} website={website} />
         </div>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -117,7 +118,7 @@ export default function SchoolDetail({
       <Head title={`${schoolData.name} - School Details - ${siteName}`} />
       
       <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-        <Navbar auth={auth} />
+        <Navbar auth={auth} website={website} />
       </div>
 
       <div className="overflow-x-hidden px-4 md:px-0">

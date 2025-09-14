@@ -43,7 +43,9 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
                 <HeroSection auth={auth} siteName={siteName} website={website} pageContent={pageContent} />
                 <AboutSection website={website} pageContent={pageContent} availableIcons={availableIcons} />
                 <PropertiesSection auth={auth} website={website} pageContent={pageContent} />
+                <div className=' px-4 md:px-0'>
                 <FAQSection website={website} pageContent={pageContent} />
+                </div>
             </div>
 
             {/* Global Viewing Request Modal */}

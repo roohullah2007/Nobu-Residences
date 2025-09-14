@@ -141,10 +141,45 @@ const PropertyCardV5 = ({
               {/* Top row - Sale and Property Type chips - Swapped positions */}
               <div className="flex justify-between items-center gap-2.5 h-8">
                 <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
-                  {property.transactionType || (property.isRental ? 'Rent' : 'Sale')}
+                  {/* Priority: MlsStatus for Sold/Leased, then formatted_status, then TransactionType */}
+                  {(() => {
+                    // Check MlsStatus first (most reliable for Sold/Leased)
+                    const mlsStatusLower = property.MlsStatus ? property.MlsStatus.toLowerCase() : '';
+                    if (mlsStatusLower === 'sold') {
+                      return 'Sold';
+                    }
+                    if (mlsStatusLower === 'leased' || mlsStatusLower === 'rented' || mlsStatusLower === 'lease') {
+                      return 'Leased';
+                    }
+                    
+                    // Check StandardStatus
+                    const standardStatusLower = property.StandardStatus ? property.StandardStatus.toLowerCase() : '';
+                    if (property.StandardStatus === 'Closed') {
+                      // Closed with For Lease transaction = Leased, otherwise Sold
+                      if (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent') {
+                        return 'Leased';
+                      }
+                      return 'Sold';
+                    }
+                    if (standardStatusLower === 'leased' || standardStatusLower === 'rented' || standardStatusLower === 'lease') {
+                      return 'Leased';
+                    }
+                    if (property.StandardStatus === 'Off Market' && 
+                        (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent')) {
+                      return 'Leased';
+                    }
+                    
+                    // Use formatted_status from backend if available
+                    if (property.formatted_status) {
+                      return property.formatted_status;
+                    }
+                    
+                    // Fallback to TransactionType for active listings
+                    return property.TransactionType || (property.isRental ? 'For Rent' : 'For Sale');
+                  })()}
                 </span>
                 <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm ml-auto bg-white text-[#293056] border border-gray-200`}>
-                  {property.propertyType || 'Residential'}
+                  {property.PropertySubType || property.propertyType || 'Residential'}
                 </span>
               </div>
               

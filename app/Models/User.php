@@ -27,6 +27,10 @@ class User extends Authenticatable
         'photo',
         'bio',
         'is_active',
+        'google_id',
+        'avatar',
+        'provider',
+        'provider_id',
     ];
 
     /**

@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SchoolController;
 use App\Http\Controllers\FavouritesController;
+use App\Http\Controllers\PropertySearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,6 +20,9 @@ use App\Http\Controllers\FavouritesController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Debug route for checking leased property statuses
+Route::get('/debug/leased-statuses', [PropertySearchController::class, 'debugLeasedStatuses']);
 
 // Favourites API Routes
 Route::prefix('favourites')->group(function () {

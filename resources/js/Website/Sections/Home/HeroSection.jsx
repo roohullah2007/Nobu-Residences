@@ -71,11 +71,11 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
             
             {/* Header */}
-            <Navbar auth={auth} />
+            <Navbar auth={auth} website={website} />
 
             {/* Hero Section */}
             <main className="relative z-10 flex items-end h-[555px]  md:h-[calc(696px-64px)]">
-                <div className="mx-auto w-full max-w-screen-xl">
+                <div className="mx-auto px-4 md:px-0 w-full max-w-screen-xl">
                     <div className="max-w-3xl gap-y-6 flex flex-col">
                         {/* Welcome Text */}
                         <div>
@@ -86,12 +86,8 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
                         
                         {/* Main Heading */}
                         <h1 className="text-white text-[45px] font-space-grotesk font-bold md:text-[65px] leading-[55px] md:leading-[72px] -tracking-wider">
-                            {mainHeading.split('\n').map((line, index) => (
-                                <span key={index}>
-                                    {line}
-                                    {index < mainHeading.split('\n').length - 1 && <br />}
-                                </span>
-                            ))}
+                            <span>Your Next Home Is<br /></span>
+                            <span>Just a Click Away</span>
                         </h1>
                         
                         {/* Subheading */}

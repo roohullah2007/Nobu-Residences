@@ -151,6 +151,7 @@ const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters }) => {
 
 export default function EnhancedPropertySearch({ 
   auth, 
+  website,
   siteName, 
   siteUrl, 
   year, 
@@ -297,6 +298,11 @@ export default function EnhancedPropertySearch({
         // Map display status to backend API format
         mappedParams.status = mapDisplayToStatus(mappedParams.status);
         
+        // Include property_status if it's set (for Sold/Leased)
+        if (params.property_status) {
+          mappedParams.property_status = params.property_status;
+        }
+        
         // Include street_number and street_name if present
         if (params.street_number) mappedParams.street_number = params.street_number;
         if (params.street_name) mappedParams.street_name = params.street_name;
@@ -309,6 +315,13 @@ export default function EnhancedPropertySearch({
       }
 
       const endpoint = currentTab === 'buildings' ? '/api/buildings-search' : '/api/property-search';
+      
+      // Debug: Log search parameters being sent
+      console.log('🔍 Search Parameters:', {
+        ...searchParams,
+        property_status: searchParams.property_status,
+        status: searchParams.status
+      });
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -324,9 +337,25 @@ export default function EnhancedPropertySearch({
       if (result.success) {
         const currentTab = tabOverride || activeTab;
         if (currentTab === 'listings') {
-          // Log first property to debug
+          // Enhanced debugging for Sold/Leased properties
           if (result.data.properties && result.data.properties.length > 0) {
-            console.log('📦 First property from API:', result.data.properties[0]);
+            console.log('📦 Properties loaded:', result.data.properties.length);
+            console.log('🏷️ First property details:', {
+              ListingKey: result.data.properties[0].ListingKey,
+              StandardStatus: result.data.properties[0].StandardStatus,
+              MlsStatus: result.data.properties[0].MlsStatus,
+              TransactionType: result.data.properties[0].TransactionType,
+              formatted_status: result.data.properties[0].formatted_status
+            });
+            
+            // Check if we're getting the right properties
+            if (searchParams.property_status === 'Sold' || searchParams.property_status === 'Leased') {
+              const statusCount = result.data.properties.filter(p => 
+                p.StandardStatus === searchParams.property_status || 
+                p.MlsStatus === searchParams.property_status
+              ).length;
+              console.log(`✅ ${searchParams.property_status} properties: ${statusCount}/${result.data.properties.length}`);
+            }
           }
           setProperties(result.data.properties || []);
           setBuildings([]);
@@ -621,6 +650,7 @@ export default function EnhancedPropertySearch({
     return {
       id: property.ListingKey,
       listingKey: property.ListingKey,
+      ListingKey: property.ListingKey,  // Include both cases
       price: property.ListPrice,
       bedrooms: property.BedroomsTotal,
       bathrooms: property.BathroomsTotalInteger,
@@ -628,7 +658,12 @@ export default function EnhancedPropertySearch({
       parking: property.ParkingTotal,
       address: property.UnparsedAddress,
       propertyType: property.PropertySubType,
+      PropertySubType: property.PropertySubType,  // Include both cases
       transactionType: property.TransactionType,
+      TransactionType: property.TransactionType,  // Include both cases
+      StandardStatus: property.StandardStatus,     // IMPORTANT: Include StandardStatus
+      MlsStatus: property.MlsStatus,              // IMPORTANT: Include MlsStatus
+      formatted_status: property.formatted_status, // IMPORTANT: Include formatted_status
       city: property.City,
       province: property.StateOrProvince,
       source: 'mls',
@@ -708,7 +743,7 @@ export default function EnhancedPropertySearch({
 
   return (
     <>
-      <Navbar />
+      <Navbar auth={auth} website={website} />
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
         <Head title={`Property Search - ${siteName}`} />
         <div className="enhanced-property-search">
@@ -923,6 +958,7 @@ export default function EnhancedPropertySearch({
           {/* Search Bar Component - Replaces both Mobile and Desktop Search Filters */}
           <div className="mb-6">
             <IDXAmpreSearchBar
+              isAuthenticated={!!auth?.user}
               initialValues={{
                 location: searchFilters.query || '',
                 propertyType: searchFilters.status || 'For Sale',
@@ -932,11 +968,13 @@ export default function EnhancedPropertySearch({
                 minPrice: searchFilters.price_min || 0,
                 maxPrice: searchFilters.price_max || 10000000,
               }}
+              isAuthenticated={!!auth?.user}
               onSearch={(searchData) => {
                 setSearchFilters(prev => ({
                   ...prev,
                   query: searchData.location,
-                  status: searchData.propertyType,
+                  status: searchData.propertyStatus || searchData.propertyType, // Use property_status if set, otherwise property_type
+                  property_status: searchData.propertyStatus || '', // New field for Sold/Leased
                   property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
                   bedrooms: parseInt(searchData.bedrooms) || 0,
                   bathrooms: parseInt(searchData.bathrooms) || 0,
@@ -949,7 +987,8 @@ export default function EnhancedPropertySearch({
                 performSearch({
                   ...searchFilters,
                   query: searchData.location,
-                  status: searchData.propertyType,
+                  status: searchData.propertyStatus || searchData.propertyType, // Use property_status if set, otherwise property_type
+                  property_status: searchData.propertyStatus || '', // New field for Sold/Leased
                   property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
                   bedrooms: parseInt(searchData.bedrooms) || 0,
                   bathrooms: parseInt(searchData.bathrooms) || 0,

@@ -52,6 +52,8 @@ class WebsiteController extends Controller
                 'name' => $website->name,
                 'slug' => $website->slug,
                 'logo_url' => $website->logo_url,
+                'logo_width' => $website->logo_width,
+                'logo_height' => $website->logo_height,
                 'brand_colors' => $website->getBrandColors(),
                 'fonts' => $website->fonts,
                 'meta_title' => $website->meta_title,
@@ -152,6 +154,9 @@ class WebsiteController extends Controller
             ->groupBy('category');
 
         return Inertia::render('Welcome', array_merge($settings, [
+            'auth' => [
+                'user' => request()->user(),
+            ],
             'pageContent' => $pageContent,
             'availableIcons' => $icons
         ]));
@@ -190,6 +195,9 @@ class WebsiteController extends Controller
         $searchTab = $filters['tab'] ?? 'listings';
         
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
             'title' => 'Property Search - Powered by Ampre API',
             'filters' => $filters,
             'searchTab' => $searchTab
@@ -214,6 +222,9 @@ class WebsiteController extends Controller
         ];
         
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
             'title' => "{$streetNumber} {$streetName} - Properties for Sale",
             'filters' => $filters,
             'searchTab' => 'listings'
@@ -238,6 +249,9 @@ class WebsiteController extends Controller
         ];
         
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
             'title' => "{$streetNumber} {$streetName} - Properties for Rent",
             'filters' => $filters,
             'searchTab' => 'listings'
@@ -260,6 +274,9 @@ class WebsiteController extends Controller
         ];
         
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
             'title' => "Condo Apartments for Sale in {$cityName} - Property Search",
             'filters' => $filters,
             'searchTab' => 'listings'
@@ -282,6 +299,9 @@ class WebsiteController extends Controller
         ];
         
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
             'title' => "Condo Apartments for Rent in {$cityName} - Property Search",
             'filters' => $filters,
             'searchTab' => 'listings'

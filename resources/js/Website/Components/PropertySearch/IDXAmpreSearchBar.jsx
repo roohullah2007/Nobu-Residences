@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
+import LoginModal from '@/Website/Global/Components/LoginModal';
 
 // Icon components
 const Search = ({ className }) => (
@@ -29,10 +30,11 @@ const Home = ({ className }) => (
     </svg>
 );
 
-const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
+const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthenticated = false }) => {
     const [searchData, setSearchData] = useState({
         location: initialValues.location || '',
         propertyType: initialValues.propertyType || 'For Sale',
+        propertyStatus: initialValues.propertyStatus || '',
         propertySubType: initialValues.propertySubType || 'Condo Apartment',
         bedrooms: initialValues.bedrooms || '0',
         bathrooms: initialValues.bathrooms || '0',
@@ -44,6 +46,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
     const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [showPriceSlider, setShowPriceSlider] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false); // State for login modal
     const locationInputRef = useRef(null);
     const autocompleteRef = useRef(null);
     const dropdownRef = useRef(null);
@@ -279,7 +282,16 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
                 params.append('location', searchData.location);
                 params.append('search_type', searchType);
             }
-            if (searchData.propertyType) params.append('property_type', searchData.propertyType);
+            
+            // When Sold or Leased is selected, it takes precedence
+            if (searchData.propertyStatus) {
+                params.append('property_status', searchData.propertyStatus);
+                // Don't include property_type when searching for Sold/Leased
+            } else if (searchData.propertyType) {
+                // Only include property_type when no status is selected
+                params.append('property_type', searchData.propertyType);
+            }
+            
             if (searchData.propertySubType && searchData.propertySubType !== 'All') params.append('property_sub_type', searchData.propertySubType);
             if (searchData.bedrooms && searchData.bedrooms !== '0') params.append('bedrooms', searchData.bedrooms);
             if (searchData.bathrooms && searchData.bathrooms !== '0') params.append('bathrooms', searchData.bathrooms);
@@ -327,7 +339,8 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
     };
 
     return (
-        <div className="bg-gradient-to-r from-white to-gray-50 shadow-xl rounded-2xl p-6 border border-gray-300">
+        <>
+            <div className="bg-gradient-to-r from-white to-gray-50 shadow-xl rounded-2xl p-6 border border-gray-300">
             <div className="flex flex-col space-y-6">
                 {/* Main Search Row */}
                 <div className="flex flex-col lg:flex-row gap-4">
@@ -398,17 +411,47 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
                         />
                     </div>
 
-                    {/* Property Type */}
+                    {/* Transaction Type */}
                     <div className="relative">
                         <select
-                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyType !== 'For Sale' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyStatus ? 'from-gray-100 to-gray-200 cursor-not-allowed opacity-60' : searchData.propertyType !== 'For Sale' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl ${searchData.propertyStatus ? '' : 'hover:border-gray-400'} transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                             value={searchData.propertyType}
                             onChange={(e) => setSearchData({ ...searchData, propertyType: e.target.value })}
+                            disabled={!!searchData.propertyStatus}
+                            title={searchData.propertyStatus ? 'Transaction type is disabled when status filter is active' : ''}
                         >
                             <option value="For Sale">For Sale</option>
                             <option value="For Rent">For Rent</option>
-                            <option value="Sold">Sold</option>
-                            <option value="Leased">Leased</option>
+                        </select>
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
+                            <ChevronDown className={`w-5 h-5 ${searchData.propertyStatus ? 'text-gray-400' : 'text-[#912018]'}`} />
+                        </div>
+                    </div>
+
+                    {/* Property Status (Sold/Leased) - Available for all users */}
+                    <div className="relative">
+                        <select
+                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyStatus ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl hover:border-gray-400 transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                            value={searchData.propertyStatus}
+                            onChange={(e) => {
+                                const newStatus = e.target.value;
+                                
+                                // Allow all users to see Sold/Leased properties (removed authentication check)
+                                setSearchData({ 
+                                    ...searchData, 
+                                    propertyStatus: newStatus,
+                                    // Reset property type to default when selecting a status
+                                    propertyType: newStatus ? 'For Sale' : searchData.propertyType
+                                });
+                            }}
+                        >
+                            <option value="">Active Listings</option>
+                            {isAuthenticated && (
+                                <>
+                                    <option value="Sold">Sold</option>
+                                    <option value="Leased">Leased</option>
+                                </>
+                            )}
                         </select>
                         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
                             <ChevronDown className="w-5 h-5 text-[#912018]" />
@@ -654,7 +697,14 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch }) => {
                     </button>
                 </div>
             </div>
-        </div>
+            </div>
+            
+            {/* Login Modal */}
+            <LoginModal 
+                isOpen={showLoginModal} 
+                onClose={() => setShowLoginModal(false)} 
+            />
+        </>
     );
 };
 

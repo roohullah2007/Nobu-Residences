@@ -17,6 +17,8 @@ class Website extends Model
         'is_default',
         'is_active',
         'logo_url',
+        'logo_width',
+        'logo_height',
         'brand_colors',
         'fonts',
         'meta_title',

@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -196,6 +197,19 @@ export default function Register() {
                             >
                                 {processing ? 'Creating Account...' : 'Create Account'}
                             </button>
+
+                            {/* OR Divider */}
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-300"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-white text-gray-500 font-work-sans">Or continue with</span>
+                                </div>
+                            </div>
+
+                            {/* Google Login Button */}
+                            <GoogleLoginButton text="Sign up with Google" />
 
                             {/* Login Link */}
                             <div className="text-center pt-4 border-t border-gray-100">

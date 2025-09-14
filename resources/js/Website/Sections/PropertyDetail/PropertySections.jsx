@@ -81,7 +81,7 @@ export default function PropertySections({
       />
       
       {/* Comparable Sales Section - Only visible to logged-in users */}
-      {auth?.user && <ComparableSales />}
+      {/* {auth?.user && <ComparableSales />} */}
       
       {/* Properties For Sale Section - Using Global PropertyCarousel
       <section className="py-4 bg-gray-50">

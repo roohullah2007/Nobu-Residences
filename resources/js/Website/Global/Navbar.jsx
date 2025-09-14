@@ -4,7 +4,7 @@ import { LoginModal } from '@/Website/Global/Components';
 import Dropdown from '@/Components/Dropdown';
 import { Heart } from '@/Website/Components/Icons';
 
-export default function Navbar({ auth = {} }) {
+export default function Navbar({ auth = {}, website = {} }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -40,11 +40,22 @@ export default function Navbar({ auth = {} }) {
                 {/* Mobile Navbar */}
                 <div className="flex md:hidden justify-between items-center px-4 py-2 bg-white rounded-xl">
                     {/* Logo */}
-                    <div className="flex items-center">
-                        <div className="font-space-grotesk font-bold text-black">
-                            X HOUSES
-                        </div>
-                    </div>
+                    <Link href="/" className="flex items-center cursor-pointer">
+                        {website?.logo_url ? (
+                            <img 
+                                src={website.logo_url} 
+                                alt={website?.name || 'Site Logo'} 
+                                style={{
+                                    width: website?.logo_width ? `${website.logo_width}px` : '146px',
+                                    height: website?.logo_height ? `${website.logo_height}px` : '36px'
+                                }}
+                            />
+                        ) : (
+                            <div className="font-space-grotesk font-bold text-black">
+                                {website?.name || 'X HOUSES'}
+                            </div>
+                        )}
+                    </Link>
                     
                     {/* Mobile menu button */}
                     <div className="md:hidden">
@@ -71,11 +82,22 @@ export default function Navbar({ auth = {} }) {
                 {/* Desktop Navbar */}
                 <div className="hidden md:flex h-16 bg-white rounded-xl items-center justify-between px-6">
                     {/* Logo and Brand */}
-                    <div className="flex items-center">
-                        <div className="font-space-grotesk font-bold text-black text-[32px] leading-[36px] tracking-[-0.011em]">
-                            X HOUSES
-                        </div>
-                    </div>
+                    <Link href="/" className="flex items-center cursor-pointer">
+                        {website?.logo_url ? (
+                            <img 
+                                src={website.logo_url} 
+                                alt={website?.name || 'Site Logo'} 
+                                style={{
+                                    width: website?.logo_width ? `${website.logo_width}px` : '146px',
+                                    height: website?.logo_height ? `${website.logo_height}px` : '36px'
+                                }}
+                            />
+                        ) : (
+                            <div className="font-space-grotesk font-bold text-black text-[32px] leading-[36px] tracking-[-0.011em]">
+                                {website?.name || 'X HOUSES'}
+                            </div>
+                        )}
+                    </Link>
                     
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex items-center" style={{ gap: '32px' }}>
