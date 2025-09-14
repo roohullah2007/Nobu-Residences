@@ -968,7 +968,6 @@ export default function EnhancedPropertySearch({
                 minPrice: searchFilters.price_min || 0,
                 maxPrice: searchFilters.price_max || 10000000,
               }}
-              isAuthenticated={!!auth?.user}
               onSearch={(searchData) => {
                 setSearchFilters(prev => ({
                   ...prev,

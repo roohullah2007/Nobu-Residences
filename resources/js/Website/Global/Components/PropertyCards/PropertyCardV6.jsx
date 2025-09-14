@@ -181,7 +181,6 @@ const PropertyCardV5 = ({
                 </div>
               )}
             </div>
-          }
         </div>
         
         {/* Card Content - IDX-AMPRE Enhanced */}
