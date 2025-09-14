@@ -1,10 +1,14 @@
-import { Head, Link, usePage, useForm } from '@inertiajs/react';
+import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import React from 'react';
 
 export default function Edit({ auth }) {
     const { website, title } = usePage().props;
 
-    const { data, setData, put, processing, errors } = useForm({
+    const [logoPreview, setLogoPreview] = React.useState(website?.logo || website?.logo_url || '');
+    const [agentImagePreview, setAgentImagePreview] = React.useState(website?.contact_info?.agent?.image || '');
+
+    const { data, setData, post, processing, errors, reset } = useForm({
         name: website?.name || '',
         slug: website?.slug || '',
         domain: website?.domain || '',
@@ -43,29 +47,30 @@ export default function Edit({ auth }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (website?.id) {
-            // Use post method with _method spoofing for file uploads
-            const formData = new FormData();
-            
-            // Add all form data
-            Object.keys(data).forEach(key => {
-                if (key === 'logo_file' && data[key]) {
-                    formData.append('logo_file', data[key]);
-                } else if (key === 'agent_image_file' && data[key]) {
-                    formData.append('agent_image_file', data[key]);
-                } else if (data[key] !== null && data[key] !== undefined) {
-                    formData.append(key, data[key]);
-                }
-            });
-            
-            // Add method spoofing for PUT request
-            formData.append('_method', 'PUT');
-            
-            // Use post with form data for file upload
-            put(route('admin.websites.update', website.id), {
-                forceFormData: true
-            });
-        }
+
+        console.log('Submitting form with data:', data);
+        console.log('Logo file:', data.logo_file);
+
+        // Transform data for submission
+        const transformedData = {
+            ...data,
+            _method: 'PUT' // Add method spoofing for Laravel
+        };
+
+        // Use router.post for file uploads with PUT method
+        router.post(route('admin.websites.update', website.id), transformedData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                console.log('Update successful');
+                // Reset file inputs after successful upload
+                setData('logo_file', null);
+                setData('agent_image_file', null);
+            },
+            onError: (errors) => {
+                console.error('Form errors:', errors);
+            }
+        });
     };
 
     // If website is not loaded yet, show loading
@@ -246,15 +251,15 @@ export default function Edit({ auth }) {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {/* Current/Preview Logo */}
                                         <div>
-                                            {(data.logo_url || data.logo_file) && (
+                                            {(logoPreview || data.logo_url) && (
                                                 <div className="mb-4">
                                                     <p className="text-sm text-gray-600 mb-2">
                                                         {data.logo_file ? 'New Logo Preview:' : 'Current Logo:'}
                                                     </p>
                                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
-                                                        <img 
-                                                            src={data.logo_url} 
-                                                            alt={data.logo_file ? 'New Logo Preview' : 'Current Logo'} 
+                                                        <img
+                                                            src={logoPreview || data.logo_url}
+                                                            alt={data.logo_file ? 'New Logo Preview' : 'Current Logo'}
                                                             className="h-16 w-auto mx-auto"
                                                             onError={(e) => {
                                                                 e.target.style.display = 'none';
@@ -286,11 +291,13 @@ export default function Edit({ auth }) {
                                                                     className="sr-only"
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
-                                                                        setData('logo_file', file);
+                                                                        console.log('Logo file selected:', file);
                                                                         if (file) {
+                                                                            setData('logo_file', file);
+                                                                            console.log('Logo file set in data');
                                                                             const reader = new FileReader();
                                                                             reader.onload = (e) => {
-                                                                                setData('logo_url', e.target.result);
+                                                                                setLogoPreview(e.target.result);
                                                                             };
                                                                             reader.readAsDataURL(file);
                                                                         }
@@ -307,34 +314,6 @@ export default function Edit({ auth }) {
                                                 {errors.logo_file && <p className="text-red-500 text-xs mt-1">{errors.logo_file}</p>}
                                             </div>
 
-                                            <div className="relative">
-                                                <div className="absolute inset-0 flex items-center">
-                                                    <div className="w-full border-t border-gray-300" />
-                                                </div>
-                                                <div className="relative flex justify-center text-sm">
-                                                    <span className="px-2 bg-white text-gray-500">or</span>
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Logo URL
-                                                </label>
-                                                <input
-                                                    type="url"
-                                                    value={data.logo_file ? '' : data.logo_url}
-                                                    onChange={(e) => {
-                                                        setData('logo_url', e.target.value);
-                                                        setData('logo_file', null);
-                                                    }}
-                                                    disabled={!!data.logo_file}
-                                                    className={`block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
-                                                        data.logo_file ? 'bg-gray-100 text-gray-500' : ''
-                                                    }`}
-                                                    placeholder="https://example.com/logo.png"
-                                                />
-                                                {errors.logo_url && <p className="text-red-500 text-xs mt-1">{errors.logo_url}</p>}
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -426,17 +405,6 @@ export default function Edit({ auth }) {
                                     <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Favicon URL</label>
-                                    <input
-                                        type="url"
-                                        value={data.favicon_url}
-                                        onChange={(e) => setData('favicon_url', e.target.value)}
-                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="https://example.com/favicon.ico"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">16x16 or 32x32 pixel icon file</p>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -502,12 +470,12 @@ export default function Edit({ auth }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Agent Profile Image</label>
                                     <div className="flex items-start space-x-6">
                                         {/* Current/Preview Image */}
-                                        {(data['contact_info.agent.image'] || data.agent_image_file) && (
+                                        {agentImagePreview && (
                                             <div className="flex-shrink-0 relative">
                                                 <div className="relative">
-                                                    <img 
-                                                        src={data['contact_info.agent.image']} 
-                                                        alt="Agent Profile" 
+                                                    <img
+                                                        src={agentImagePreview}
+                                                        alt="Agent Profile"
                                                         className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
                                                         onError={(e) => {
                                                             e.target.style.display = 'none';
@@ -519,6 +487,7 @@ export default function Edit({ auth }) {
                                                         onClick={() => {
                                                             setData('contact_info.agent.image', '');
                                                             setData('agent_image_file', null);
+                                                            setAgentImagePreview('');
                                                         }}
                                                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
                                                         title="Remove image"
@@ -537,12 +506,12 @@ export default function Edit({ auth }) {
                                         {/* Upload Button */}
                                         <div className="flex-1">
                                             <div className={`flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all ${
-                                                data['contact_info.agent.image'] 
-                                                    ? 'border-green-300 bg-green-50 hover:border-green-400' 
+                                                agentImagePreview
+                                                    ? 'border-green-300 bg-green-50 hover:border-green-400'
                                                     : 'border-gray-300 hover:border-gray-400'
                                             }`}>
                                                 <div className="space-y-1 text-center">
-                                                    {!data['contact_info.agent.image'] ? (
+                                                    {!agentImagePreview ? (
                                                         <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                                         </svg>
@@ -553,7 +522,7 @@ export default function Edit({ auth }) {
                                                     )}
                                                     <div className="flex text-sm text-gray-600">
                                                         <label htmlFor="agent-image-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                                            <span>{data['contact_info.agent.image'] ? 'Change photo' : 'Upload agent photo'}</span>
+                                                            <span>{agentImagePreview ? 'Change photo' : 'Upload agent photo'}</span>
                                                             <input
                                                                 id="agent-image-upload"
                                                                 type="file"
@@ -561,10 +530,11 @@ export default function Edit({ auth }) {
                                                                 className="sr-only"
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
-                                                                    setData('agent_image_file', file);
                                                                     if (file) {
+                                                                        setData('agent_image_file', file);
                                                                         const reader = new FileReader();
                                                                         reader.onload = (e) => {
+                                                                            setAgentImagePreview(e.target.result);
                                                                             setData('contact_info.agent.image', e.target.result);
                                                                         };
                                                                         reader.readAsDataURL(file);

@@ -16,6 +16,7 @@ class Website extends Model
         'domain',
         'is_default',
         'is_active',
+        'logo',
         'logo_url',
         'logo_width',
         'logo_height',

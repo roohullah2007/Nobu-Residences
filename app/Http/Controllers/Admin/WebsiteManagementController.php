@@ -114,14 +114,86 @@ class WebsiteManagementController extends Controller
     /**
      * Update website
      */
-    public function update(Request $request, Website $website): RedirectResponse
+    public function update(Request $request, Website $website)
     {
+        // Log all incoming requests
+        \Log::info('Update method called at ' . date('Y-m-d H:i:s'), [
+            'website_id' => $website->id,
+            'has_logo_file' => $request->hasFile('logo_file'),
+            'all_files' => array_keys($request->allFiles()),
+            'request_method' => $request->method(),
+            'is_multipart' => strpos($request->header('Content-Type'), 'multipart/form-data') !== false,
+        ]);
+
+        // Test if file is being received
+        if ($request->hasFile('logo_file')) {
+            \Log::info('Logo file received!', [
+                'name' => $request->file('logo_file')->getClientOriginalName(),
+                'size' => $request->file('logo_file')->getSize()
+            ]);
+        } else {
+            \Log::warning('No logo file in request', [
+                'all_files' => array_keys($request->allFiles()),
+                'has_logo_file' => $request->hasFile('logo_file'),
+                'request_keys' => array_keys($request->all())
+            ]);
+        }
+        // Parse JSON strings for nested objects if they come from FormData
+        $data = $request->all();
+
+        // Convert string booleans to actual booleans
+        foreach (['is_default', 'is_active'] as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = filter_var($data[$field], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        // Parse nested JSON objects if they are strings
+        foreach (['brand_colors', 'contact_info', 'social_media', 'fonts', 'business_hours'] as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $data[$field] = json_decode($data[$field], true);
+            }
+        }
+
+        // Handle nested keys from FormData (e.g., 'brand_colors.primary')
+        $nestedData = [];
+        foreach ($data as $key => $value) {
+            if (strpos($key, '.') !== false) {
+                $keys = explode('.', $key);
+                $current = &$nestedData;
+                foreach ($keys as $index => $k) {
+                    if ($index === count($keys) - 1) {
+                        $current[$k] = $value;
+                    } else {
+                        if (!isset($current[$k])) {
+                            $current[$k] = [];
+                        }
+                        $current = &$current[$k];
+                    }
+                }
+                unset($data[$key]);
+            }
+        }
+
+        // Merge nested data back
+        foreach ($nestedData as $key => $value) {
+            if (!isset($data[$key])) {
+                $data[$key] = [];
+            }
+            $data[$key] = array_merge(is_array($data[$key]) ? $data[$key] : [], $value);
+        }
+
+        // Merge the parsed data back into the request
+        $request->merge($data);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => ['required', 'string', 'max:255', Rule::unique('websites')->ignore($website->id)],
             'domain' => 'nullable|string|max:255',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
+            'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',
             'brand_colors' => 'nullable|array',
             'fonts' => 'nullable|array',
@@ -140,6 +212,36 @@ class WebsiteManagementController extends Controller
             'timezone' => 'nullable|string|max:255',
         ]);
 
+        // Handle logo file upload
+        if ($request->hasFile('logo_file')) {
+            $logoFile = $request->file('logo_file');
+
+            // Ensure storage directory exists
+            if (!Storage::disk('public')->exists('logos')) {
+                Storage::disk('public')->makeDirectory('logos');
+            }
+
+            // Delete old logo if it exists and is in storage
+            $oldLogoPath = $website->logo ?? $website->logo_url;
+            if ($oldLogoPath && strpos($oldLogoPath, '/storage/') === 0) {
+                $oldPath = str_replace('/storage/', '', $oldLogoPath);
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            // Generate unique filename
+            $logoFileName = uniqid() . '_' . time() . '.' . $logoFile->getClientOriginalExtension();
+
+            // Store the file
+            $logoPath = $logoFile->storeAs('logos', $logoFileName, 'public');
+
+            // Update both logo and logo_url with the storage path
+            $validated['logo'] = Storage::url($logoPath);
+            $validated['logo_url'] = Storage::url($logoPath);
+
+            // Remove logo_file from validated array as it's not a database field
+            unset($validated['logo_file']);
+        }
+
         // Handle agent image upload
         if ($request->hasFile('agent_image_file')) {
             $agentImageFile = $request->file('agent_image_file');
@@ -157,8 +259,12 @@ class WebsiteManagementController extends Controller
                 Storage::disk('public')->delete($oldPath);
             }
             
-            $agentImagePath = $agentImageFile->store('agents', 'public');
-            
+            // Generate unique filename for agent image
+            $agentImageFileName = uniqid() . '_' . time() . '.' . $agentImageFile->getClientOriginalExtension();
+
+            // Store the file with specific filename
+            $agentImagePath = $agentImageFile->storeAs('agents', $agentImageFileName, 'public');
+
             // Update contact info with new agent image
             if (!isset($validated['contact_info'])) {
                 $validated['contact_info'] = $currentContactInfo;
@@ -166,9 +272,12 @@ class WebsiteManagementController extends Controller
             if (!isset($validated['contact_info']['agent'])) {
                 $validated['contact_info']['agent'] = [];
             }
-            $validated['contact_info']['agent']['image'] = '/storage/' . $agentImagePath;
+            $validated['contact_info']['agent']['image'] = Storage::url($agentImagePath);
+
+            // Remove agent_image_file from validated array as it's not a database field
+            unset($validated['agent_image_file']);
         }
-        
+
         // If this is set as default, remove default from other websites
         if ($validated['is_default'] ?? false) {
             Website::where('id', '!=', $website->id)
@@ -176,9 +285,14 @@ class WebsiteManagementController extends Controller
                 ->update(['is_default' => false]);
         }
 
+        // Update the website
         $website->update($validated);
 
-        return redirect()->route('admin.websites.show', $website)
+        // Reload the website to get fresh data with all relationships
+        $website->refresh();
+
+        // Return Inertia redirect to edit page to stay on same page
+        return redirect()->route('admin.websites.edit', $website->id)
             ->with('success', 'Website updated successfully!');
     }
 
@@ -458,60 +572,10 @@ class WebsiteManagementController extends Controller
      */
     public function updateWebsite(Request $request, $websiteId): RedirectResponse
     {
-        // For now, we'll just simulate updating and redirect back
-        // In a real application, you would validate and save to database
-        
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255',
-            'domain' => 'nullable|string|max:255',
-            'is_default' => 'boolean',
-            'is_active' => 'boolean',
-            'logo_file' => 'nullable|file|mimes:png,jpg,jpeg,svg|max:2048',
-            'logo_url' => 'nullable|string|max:255',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'meta_keywords' => 'nullable|string|max:255',
-            'favicon_url' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'timezone' => 'nullable|string|max:255',
-            // Brand colors
-            'brand_colors.primary' => 'nullable|string|max:7',
-            'brand_colors.secondary' => 'nullable|string|max:7',
-            'brand_colors.accent' => 'nullable|string|max:7',
-            'brand_colors.text' => 'nullable|string|max:7',
-            'brand_colors.background' => 'nullable|string|max:7',
-            // Contact info
-            'contact_info.phone' => 'nullable|string|max:255',
-            'contact_info.email' => 'nullable|email|max:255',
-            'contact_info.address' => 'nullable|string',
-            'contact_info.agent.name' => 'nullable|string|max:255',
-            'contact_info.agent.title' => 'nullable|string|max:255',
-            // Social media
-            'social_media.facebook' => 'nullable|url|max:255',
-            'social_media.instagram' => 'nullable|url|max:255',
-            'social_media.twitter' => 'nullable|url|max:255',
-            'social_media.linkedin' => 'nullable|url|max:255',
-        ]);
+        $website = Website::findOrFail($websiteId);
 
-        // Handle logo file upload
-        if ($request->hasFile('logo_file')) {
-            $logoFile = $request->file('logo_file');
-            
-            // Ensure storage directory exists
-            if (!Storage::disk('public')->exists('logos')) {
-                Storage::disk('public')->makeDirectory('logos');
-            }
-            
-            $logoPath = $logoFile->store('logos', 'public');
-            $validated['logo_url'] = '/storage/' . $logoPath;
-        }
-
-        // In a real application, you would update the website in the database
-        // Website::find($websiteId)->update($validated);
-        
-        return redirect()->route('admin.websites.show', $websiteId)
-            ->with('success', 'Website updated successfully!');
+        // Use the logic from the update method
+        return $this->update($request, $website);
     }
 
     /**

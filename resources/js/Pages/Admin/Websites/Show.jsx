@@ -71,6 +71,18 @@ export default function Show({ auth }) {
                     <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
                         <h3 className="text-base font-semibold text-gray-900 mb-4">Website Information</h3>
                         <dl className="space-y-4">
+                            {(website.logo || website.logo_url) && (
+                                <div>
+                                    <dt className="text-sm font-medium text-gray-500">Logo</dt>
+                                    <dd className="mt-1">
+                                        <img
+                                            src={website.logo || website.logo_url}
+                                            alt={`${website.name} logo`}
+                                            className="h-16 object-contain"
+                                        />
+                                    </dd>
+                                </div>
+                            )}
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Domain</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
