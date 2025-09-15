@@ -193,17 +193,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Amenity Management routes
     Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
     
-    // School Management routes
-    Route::prefix('schools')->name('schools.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Admin\SchoolController::class, 'index'])->name('index');
-        Route::get('/create', [\App\Http\Controllers\Admin\SchoolController::class, 'create'])->name('create');
-        Route::post('/', [\App\Http\Controllers\Admin\SchoolController::class, 'store'])->name('store');
-        Route::get('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'show'])->name('show');
-        Route::get('/{school}/edit', [\App\Http\Controllers\Admin\SchoolController::class, 'edit'])->name('edit');
-        Route::put('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'update'])->name('update');
-        Route::delete('/{school}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('destroy');
-    });
+    // Schools removed - using API data instead
     
+    // Contact Form Management routes
+    Route::prefix('contacts')->name('contacts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\ContactController::class, 'index'])->name('index');
+        Route::get('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'show'])->name('show');
+        Route::patch('/{contact}/read', [\App\Http\Controllers\Admin\ContactController::class, 'markAsRead'])->name('markAsRead');
+        Route::delete('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'destroy'])->name('destroy');
+        Route::post('/bulk-actions', [\App\Http\Controllers\Admin\ContactController::class, 'bulkActions'])->name('bulkActions');
+    });
+
     // Website Management routes
     Route::prefix('websites')->name('websites.')->group(function () {
         Route::get('/', [AdminController::class, 'websites'])->name('index');
@@ -388,4 +388,59 @@ Route::prefix('api/ampre/test')->group(function () {
     Route::get('/or-filters', [AmpreTestController::class, 'testOrFilters']);
     Route::get('/property/{listingKey}', [AmpreTestController::class, 'testPropertyByKey']);
     Route::get('/request-url', [AmpreTestController::class, 'getRequestUrl']);
+});
+
+
+// Test what's sent to edit page
+Route::get('/test-edit-inertia/{building}', function ($buildingId) {
+    $building = \App\Models\Building::find($buildingId);
+    $buildingAmenities = $building->amenities()->get();
+
+    $data = [
+        'building' => [
+            'id' => $building->id,
+            'name' => $building->name,
+            'amenity_ids' => $buildingAmenities->pluck('id')->toArray(),
+        ],
+        'amenities' => \App\Models\Amenity::orderBy('name')->get()->map(function ($amenity) {
+            return [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'icon' => $amenity->icon
+            ];
+        })
+    ];
+
+    return response()->json($data);
+});
+
+// Test edit data for debugging amenities
+Route::get('/test-edit-data/{building}', function ($buildingId) {
+    $building = \App\Models\Building::find($buildingId);
+    if (!$building) {
+        return response()->json(['error' => 'Building not found']);
+    }
+
+    // Direct query to test
+    $directAmenities = $building->amenities()->get();
+
+    // Then try loading
+    $building->load(['developer', 'amenities']);
+
+    $data = [
+        'building_name' => $building->name,
+        'direct_amenities_count' => $directAmenities->count(),
+        'direct_amenity_names' => $directAmenities->pluck('name')->toArray(),
+        'amenities_loaded' => $building->relationLoaded('amenities'),
+        'loaded_amenities_is_null' => is_null($building->amenities),
+        'loaded_amenities_count' => $building->amenities ? $building->amenities->count() : 0,
+        'amenity_ids' => $building->amenities ? $building->amenities->pluck('id')->toArray() : [],
+        'building_data_like_controller' => [
+            'id' => $building->id,
+            'name' => $building->name,
+            'amenity_ids' => $building->amenities ? $building->amenities->pluck('id')->toArray() : [],
+        ]
+    ];
+
+    return response()->json($data);
 });

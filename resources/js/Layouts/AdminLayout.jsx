@@ -52,9 +52,9 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     current: url?.startsWith('/admin/real-estate/developers') || false
                 },
                 {
-                    name: 'Schools',
-                    href: route('admin.real-estate.schools'),
-                    current: url?.startsWith('/admin/real-estate/schools') || false
+                    name: 'Amenities',
+                    href: route('admin.amenities.index'),
+                    current: url?.startsWith('/admin/amenities') || false
                 }
             ]
         },

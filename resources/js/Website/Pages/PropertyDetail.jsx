@@ -13,8 +13,9 @@ import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
-export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website }) {
+export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData }) {
   const [propertyData, setPropertyData] = useState(initialPropertyData);
+  const [buildingData, setBuildingData] = useState(initialBuildingData);
   // Process initial images - they come as an array of URLs from the server
   const [propertyImages, setPropertyImages] = useState(() => {
     if (initialImages && Array.isArray(initialImages) && initialImages.length > 0) {
@@ -37,6 +38,24 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
+    // Debug building data for amenities
+    console.log('=== PropertyDetail Debug - Building Data ===');
+    console.log('Initial buildingData from backend:', initialBuildingData);
+    console.log('Current buildingData state:', buildingData);
+    console.log('Property data:', initialPropertyData);
+    
+    if (initialBuildingData) {
+      console.log('Building Details:', {
+        id: initialBuildingData.id,
+        name: initialBuildingData.name,
+        hasAmenities: !!(initialBuildingData.amenities && initialBuildingData.amenities.length > 0),
+        amenitiesCount: initialBuildingData.amenities ? initialBuildingData.amenities.length : 0,
+        amenitiesData: initialBuildingData.amenities
+      });
+    } else {
+      console.log('No building data received from backend for this property');
+    }
+    
     window.openViewingModal = (property) => {
       setViewingModal({
         isOpen: true,
@@ -48,7 +67,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     return () => {
       delete window.openViewingModal;
     };
-  }, []);
+  }, [initialBuildingData, buildingData, initialPropertyData]);
 
   const handleCloseViewingModal = () => {
     setViewingModal({
@@ -80,11 +99,20 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       
       if (response.ok) {
         const data = await response.json();
-        
+
         // Format property data for display
         const formattedData = formatPropertyDataForDisplay(data.property);
         setPropertyData(formattedData);
-        
+
+        // Set building data if available
+        if (data.buildingData) {
+          setBuildingData(data.buildingData);
+          console.log('PropertyDetail - API: Setting building data:', data.buildingData);
+          console.log('PropertyDetail - API: Building has amenities:', !!(data.buildingData.amenities && data.buildingData.amenities.length > 0));
+        } else {
+          console.log('PropertyDetail - API: No building data in response');
+        }
+
         // Set images - handle both formats
         if (data.images && data.images.length > 0) {
           // Map API images to URL strings
@@ -291,10 +319,11 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         <div className="md:w-[950px]">
 
         {/* Property Sections */}
-        <PropertySections 
+        <PropertySections
           propertyData={displayData}
           auth={auth}
           website={website}
+          buildingData={buildingData}
         />
         
         {/* Global Viewing Request Modal */}

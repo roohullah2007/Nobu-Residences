@@ -12,84 +12,70 @@ export default function AmenitiesIndex({ auth, amenities }) {
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAmenity, setEditingAmenity] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('all');
+    const [iconPreview, setIconPreview] = useState(null);
+    const [formErrors, setFormErrors] = useState({});
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
-        icon: '',
-        category: 'Building Features',
-        description: ''
+        icon_file: null
     });
 
-    const categories = [
-        'Building Features',
-        'Health & Wellness',
-        'Entertainment',
-        'Business',
-        'Outdoor',
-        'Parking'
-    ];
-
-    const defaultIcons = {
-        'Concierge': '🎩',
-        'Security': '🔒',
-        'Elevator': '🛗',
-        'Party Room': '🎉',
-        'Guest Suite': '🛏️',
-        'Rooftop Terrace': '🏙️',
-        'Gym': '💪',
-        'Yoga Studio': '🧘',
-        'Spa': '💆',
-        'Sauna': '🧖',
-        'Steam Room': '♨️',
-        'Pool': '🏊',
-        'Indoor Pool': '🏊',
-        'Outdoor Pool': '🏖️',
-        'Theatre': '🎬',
-        'Games Room': '🎮',
-        'Library': '📚',
-        'BBQ Area': '🍖',
-        'Lounge': '🛋️',
-        'Business Centre': '💼',
-        'Meeting Room': '👥',
-        'Co-working Space': '💻',
-        'Garden': '🌳',
-        'Playground': '🎠',
-        'Dog Park': '🐕',
-        'Tennis Court': '🎾',
-        'Basketball Court': '🏀',
-        'Visitor Parking': '🅿️',
-        'EV Charging': '🔌',
-        'Bike Storage': '🚲',
-        'Car Wash': '🚗',
-        'Wine Cellar': '🍷',
-        'Billiards': '🎱',
-        'Golf Simulator': '⛳',
-        'Bowling': '🎳',
-        'Kids Room': '🧸',
-        'Pet Wash': '🐾',
-        'Storage': '📦',
-        'Mail Room': '📬',
-        'Recycling': '♻️'
+    const handleIconChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setData('icon_file', file);
+            // Create preview
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setIconPreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleCreate = (e) => {
         e.preventDefault();
-        post(route('admin.amenities.store'), {
+
+        const formData = new FormData();
+        formData.append('name', data.name);
+        if (data.icon_file) {
+            formData.append('icon_file', data.icon_file);
+        }
+
+        router.post(route('admin.amenities.store'), formData, {
+            forceFormData: true,
             onSuccess: () => {
                 reset();
                 setShowCreateModal(false);
+                setIconPreview(null);
+            },
+            onError: (errors) => {
+                console.error('Error creating amenity:', errors);
+                setFormErrors(errors);
             }
         });
     };
 
     const handleEdit = (e) => {
         e.preventDefault();
-        put(route('admin.amenities.update', editingAmenity.id), {
+
+        const formData = new FormData();
+        formData.append('name', data.name);
+        formData.append('_method', 'PUT');
+        if (data.icon_file) {
+            formData.append('icon_file', data.icon_file);
+        }
+
+        router.post(route('admin.amenities.update', editingAmenity.id), formData, {
+            forceFormData: true,
             onSuccess: () => {
                 reset();
                 setShowEditModal(false);
                 setEditingAmenity(null);
+                setIconPreview(null);
+            },
+            onError: (errors) => {
+                console.error('Error updating amenity:', errors);
             }
         });
     };
@@ -104,28 +90,22 @@ export default function AmenitiesIndex({ auth, amenities }) {
         setEditingAmenity(amenity);
         setData({
             name: amenity.name,
-            icon: amenity.icon || '',
-            category: amenity.category || 'Building Features',
-            description: amenity.description || ''
+            icon_file: null
         });
+        setIconPreview(amenity.icon);
         setShowEditModal(true);
     };
 
     const openCreateModal = () => {
         reset();
+        setIconPreview(null);
+        setFormErrors({});
         setShowCreateModal(true);
     };
 
     const filteredAmenities = (amenities.data || amenities).filter(amenity => {
-        const matchesSearch = amenity.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || amenity.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        return amenity.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
-
-    const suggestIcon = () => {
-        const icon = defaultIcons[data.name] || '✨';
-        setData('icon', icon);
-    };
 
     return (
         <AdminLayout title="Amenities Management">
@@ -146,36 +126,19 @@ export default function AmenitiesIndex({ auth, amenities }) {
             </div>
 
             <div className="mt-8">
-                {/* Filters */}
+                {/* Search */}
                 <div className="bg-white shadow rounded-lg p-6 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Search Amenities
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="Search by name..."
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Filter by Category
-                            </label>
-                            <select
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                            >
-                                <option value="all">All Categories</option>
-                                {categories.map(category => (
-                                    <option key={category} value={category}>{category}</option>
-                                ))}
-                            </select>
-                        </div>
+                    <div className="max-w-md">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Search Amenities
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Search by name..."
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                 </div>
 
@@ -187,29 +150,25 @@ export default function AmenitiesIndex({ auth, amenities }) {
                                 {filteredAmenities.map((amenity) => (
                                     <div
                                         key={amenity.id}
-                                        className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                                     >
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl">
-                                                    {amenity.icon || defaultIcons[amenity.name] || '✨'}
-                                                </span>
-                                                <div>
-                                                    <h3 className="font-medium text-gray-900">
-                                                        {amenity.name}
-                                                    </h3>
-                                                    <p className="text-sm text-gray-500">
-                                                        {amenity.category || 'Building Features'}
-                                                    </p>
-                                                    {amenity.description && (
-                                                        <p className="text-xs text-gray-400 mt-1">
-                                                            {amenity.description}
-                                                        </p>
-                                                    )}
+                                        <div className="flex items-center gap-3 mb-3">
+                                            {amenity.icon ? (
+                                                <img
+                                                    src={amenity.icon}
+                                                    alt={amenity.name}
+                                                    className="w-8 h-8 object-contain"
+                                                />
+                                            ) : (
+                                                <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
+                                                    <span className="text-gray-400 text-xs">🏢</span>
                                                 </div>
-                                            </div>
+                                            )}
+                                            <h3 className="font-medium text-gray-900">
+                                                {amenity.name}
+                                            </h3>
                                         </div>
-                                        <div className="mt-4 flex gap-2">
+                                        <div className="flex gap-2">
                                             <button
                                                 onClick={() => openEditModal(amenity)}
                                                 className="flex-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
@@ -245,73 +204,47 @@ export default function AmenitiesIndex({ auth, amenities }) {
                             <div className="space-y-4">
                                 <div>
                                     <InputLabel htmlFor="name" value="Amenity Name *" />
-                                    <div className="flex gap-2">
-                                        <TextInput
-                                            id="name"
-                                            type="text"
-                                            className="mt-1 block w-full"
-                                            value={data.name}
-                                            onChange={(e) => setData('name', e.target.value)}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={suggestIcon}
-                                            className="mt-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                                            title="Suggest icon based on name"
-                                        >
-                                            🎯
-                                        </button>
-                                    </div>
-                                    <InputError message={errors.name} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="icon" value="Icon (Emoji)" />
-                                    <div className="flex gap-2 items-center">
-                                        <TextInput
-                                            id="icon"
-                                            type="text"
-                                            className="mt-1 block w-full"
-                                            value={data.icon}
-                                            onChange={(e) => setData('icon', e.target.value)}
-                                            placeholder="Enter an emoji or leave empty"
-                                        />
-                                        <span className="text-2xl">{data.icon || '✨'}</span>
-                                    </div>
-                                    <InputError message={errors.icon} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="category" value="Category" />
-                                    <select
-                                        id="category"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.category}
-                                        onChange={(e) => setData('category', e.target.value)}
-                                    >
-                                        {categories.map(category => (
-                                            <option key={category} value={category}>{category}</option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.category} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="description" value="Description" />
-                                    <textarea
-                                        id="description"
-                                        rows={2}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.description}
-                                        onChange={(e) => setData('description', e.target.value)}
+                                    <TextInput
+                                        id="name"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.name}
+                                        onChange={(e) => setData('name', e.target.value)}
+                                        required
                                     />
-                                    <InputError message={errors.description} className="mt-2" />
+                                    <InputError message={errors.name || formErrors.name} className="mt-2" />
+                                </div>
+
+                                <div>
+                                    <InputLabel htmlFor="icon_file" value="Icon Image (SVG, PNG, JPG)" />
+                                    <input
+                                        id="icon_file"
+                                        type="file"
+                                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+                                        accept="image/svg+xml,image/png,image/jpeg,image/jpg,image/webp,.svg"
+                                        onChange={handleIconChange}
+                                    />
+                                    <InputError message={errors.icon_file || formErrors.icon_file} className="mt-2" />
+
+                                    {iconPreview && (
+                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                            <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                                            <img
+                                                src={iconPreview}
+                                                alt="Icon preview"
+                                                className="w-12 h-12 object-contain"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="mt-6 flex gap-3 justify-end">
-                                <SecondaryButton type="button" onClick={() => setShowCreateModal(false)}>
+                                <SecondaryButton type="button" onClick={() => {
+                                    setShowCreateModal(false);
+                                    setIconPreview(null);
+                                    reset();
+                                }}>
                                     Cancel
                                 </SecondaryButton>
                                 <PrimaryButton type="submit" disabled={processing}>
@@ -332,68 +265,38 @@ export default function AmenitiesIndex({ auth, amenities }) {
                             <div className="space-y-4">
                                 <div>
                                     <InputLabel htmlFor="edit-name" value="Amenity Name *" />
-                                    <div className="flex gap-2">
-                                        <TextInput
-                                            id="edit-name"
-                                            type="text"
-                                            className="mt-1 block w-full"
-                                            value={data.name}
-                                            onChange={(e) => setData('name', e.target.value)}
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={suggestIcon}
-                                            className="mt-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                                            title="Suggest icon based on name"
-                                        >
-                                            🎯
-                                        </button>
-                                    </div>
-                                    <InputError message={errors.name} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="edit-icon" value="Icon (Emoji)" />
-                                    <div className="flex gap-2 items-center">
-                                        <TextInput
-                                            id="edit-icon"
-                                            type="text"
-                                            className="mt-1 block w-full"
-                                            value={data.icon}
-                                            onChange={(e) => setData('icon', e.target.value)}
-                                            placeholder="Enter an emoji or leave empty"
-                                        />
-                                        <span className="text-2xl">{data.icon || '✨'}</span>
-                                    </div>
-                                    <InputError message={errors.icon} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="edit-category" value="Category" />
-                                    <select
-                                        id="edit-category"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.category}
-                                        onChange={(e) => setData('category', e.target.value)}
-                                    >
-                                        {categories.map(category => (
-                                            <option key={category} value={category}>{category}</option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.category} className="mt-2" />
-                                </div>
-
-                                <div>
-                                    <InputLabel htmlFor="edit-description" value="Description" />
-                                    <textarea
-                                        id="edit-description"
-                                        rows={2}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.description}
-                                        onChange={(e) => setData('description', e.target.value)}
+                                    <TextInput
+                                        id="edit-name"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.name}
+                                        onChange={(e) => setData('name', e.target.value)}
+                                        required
                                     />
-                                    <InputError message={errors.description} className="mt-2" />
+                                    <InputError message={errors.name || formErrors.name} className="mt-2" />
+                                </div>
+
+                                <div>
+                                    <InputLabel htmlFor="edit-icon_file" value="Icon Image (SVG, PNG, JPG)" />
+                                    <input
+                                        id="edit-icon_file"
+                                        type="file"
+                                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+                                        accept="image/svg+xml,image/png,image/jpeg,image/jpg,image/webp,.svg"
+                                        onChange={handleIconChange}
+                                    />
+                                    <InputError message={errors.icon_file || formErrors.icon_file} className="mt-2" />
+
+                                    {iconPreview && (
+                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                            <p className="text-sm text-gray-600 mb-2">Current/Preview:</p>
+                                            <img
+                                                src={iconPreview}
+                                                alt="Icon preview"
+                                                className="w-12 h-12 object-contain"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -401,6 +304,7 @@ export default function AmenitiesIndex({ auth, amenities }) {
                                 <SecondaryButton type="button" onClick={() => {
                                     setShowEditModal(false);
                                     setEditingAmenity(null);
+                                    setIconPreview(null);
                                     reset();
                                 }}>
                                     Cancel

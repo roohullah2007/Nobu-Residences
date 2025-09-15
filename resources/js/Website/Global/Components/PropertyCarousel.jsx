@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import PropertyCardV5 from './PropertyCards/PropertyCardV5';
-import PropertyCardV6 from './PropertyCards/PropertyCardV6';
+import PropertyCard from '@/Website/Components/Property/PropertyCard';
 
 /**
  * PropertyCarousel - Reusable carousel component for property cards
@@ -97,8 +96,8 @@ const PropertyCarousel = ({
     </svg>
   );
 
-  // Use PropertyCardV6 when auth is provided, otherwise fallback to V5
-  const PropertyCard = auth ? PropertyCardV6 : PropertyCardV5;
+  // Get building slug for property URLs
+  const buildingSlug = viewAllLink?.split('/')[1] || '15-mercer';
 
   // Don't render if no properties
   if (!properties.length) {
@@ -196,19 +195,13 @@ const PropertyCarousel = ({
                     );
                   }
                   
-                  const cardProps = {
-                    property: item,
-                    size: "default",
-                    onClick: onCardClick,
-                    showFavourite: false // Disable favourite icon in carousel
-                  };
-                  
-                  // Only pass auth if using PropertyCardV6
-                  if (auth) {
-                    cardProps.auth = auth;
-                  }
-                  
-                  return <PropertyCard key={`desktop-${item.id}-${index}`} {...cardProps} />;
+                  return (
+                    <PropertyCard
+                      key={`desktop-${item.id}-${index}`}
+                      property={item}
+                      buildingSlug={buildingSlug}
+                    />
+                  );
                 })}
               </div>
             </div>
@@ -308,19 +301,13 @@ const PropertyCarousel = ({
                     );
                   }
                   
-                  const cardProps = {
-                    property: item,
-                    size: "default",
-                    onClick: onCardClick,
-                    showFavourite: false // Disable favourite icon in carousel
-                  };
-                  
-                  // Only pass auth if using PropertyCardV6
-                  if (auth) {
-                    cardProps.auth = auth;
-                  }
-                  
-                  return <PropertyCard key={`tablet-${item.id}-${index}`} {...cardProps} />;
+                  return (
+                    <PropertyCard
+                      key={`tablet-${item.id}-${index}`}
+                      property={item}
+                      buildingSlug={buildingSlug}
+                    />
+                  );
                 })}
               </div>
             </div>
@@ -402,20 +389,14 @@ const PropertyCarousel = ({
                 );
               }
               
-              const cardProps = {
-                property: item,
-                size: "mobile",
-                onClick: onCardClick,
-                className: "flex-none",
-                showFavourite: false // Disable favourite icon in carousel
-              };
-              
-              // Only pass auth if using PropertyCardV6
-              if (auth) {
-                cardProps.auth = auth;
-              }
-              
-              return <PropertyCard key={`mobile-${item.id}-${index}`} {...cardProps} />;
+              return (
+                <div key={`mobile-${item.id}-${index}`} className="flex-none">
+                  <PropertyCard
+                    property={item}
+                    buildingSlug={buildingSlug}
+                  />
+                </div>
+              );
             })}
           </div>
         </div>

@@ -32,7 +32,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [] 
         maintenance_fee_range: '',
         price_range: '',
         website_url: '',
-        brochure_url: '',
         floor_plans: [],
         virtual_tour_url: '',
         features: [],
@@ -123,12 +122,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [] 
             ...data,
             amenity_ids: selectedAmenities.map(a => a.id)
         };
-        post(route('admin.buildings.store'), {
-            data: formData,
-            onSuccess: () => {
-                // Success handled by Inertia
-            }
-        });
+        post(route('admin.buildings.store'), formData);
     };
 
     const toggleAmenity = (amenity) => {
@@ -440,7 +434,15 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [] 
                                                 key={amenity.id}
                                                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                                             >
-                                                <span>{amenity.icon || amenityIcons[amenity.name] || '✨'}</span>
+                                                {amenity.icon ? (
+                                                    <img
+                                                        src={amenity.icon}
+                                                        alt={amenity.name}
+                                                        className="w-4 h-4 object-contain"
+                                                    />
+                                                ) : (
+                                                    <span>{amenityIcons[amenity.name] || '✨'}</span>
+                                                )}
                                                 {amenity.name}
                                                 <button
                                                     type="button"
@@ -494,9 +496,17 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [] 
                                                                 : 'bg-white hover:bg-gray-100 border border-gray-200'
                                                         }`}
                                                     >
-                                                        <span className="text-lg">
-                                                            {amenity.icon || amenityIcons[amenity.name] || '✨'}
-                                                        </span>
+                                                        {amenity.icon ? (
+                                                            <img
+                                                                src={amenity.icon}
+                                                                alt={amenity.name}
+                                                                className="w-5 h-5 object-contain"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-lg">
+                                                                {amenityIcons[amenity.name] || '✨'}
+                                                            </span>
+                                                        )}
                                                         <span className="text-left">{amenity.name}</span>
                                                     </button>
                                                 );
@@ -571,18 +581,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [] 
                                     <InputError message={errors.website_url} className="mt-2" />
                                 </div>
 
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="brochure_url" value="Brochure URL" />
-                                    <TextInput
-                                        id="brochure_url"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.brochure_url}
-                                        onChange={(e) => setData('brochure_url', e.target.value)}
-                                        placeholder="https://example.com/brochure.pdf"
-                                    />
-                                    <InputError message={errors.brochure_url} className="mt-2" />
-                                </div>
 
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="virtual_tour_url" value="Virtual Tour URL" />

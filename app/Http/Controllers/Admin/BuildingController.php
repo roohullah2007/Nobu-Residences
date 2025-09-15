@@ -65,7 +65,13 @@ class BuildingController extends Controller
     public function create()
     {
         $developers = \App\Models\Developer::orderBy('name')->get();
-        $amenities = \App\Models\Amenity::orderBy('name')->get();
+        $amenities = \App\Models\Amenity::orderBy('name')->get()->map(function ($amenity) {
+            return [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'icon' => $amenity->icon
+            ];
+        });
         
         return Inertia::render('Admin/Buildings/Create', [
             'developers' => $developers,
@@ -99,9 +105,8 @@ class BuildingController extends Controller
             'locker_spots' => 'nullable|integer',
             'maintenance_fee_range' => 'nullable|string',
             'price_range' => 'nullable|string',
-            'website_url' => 'nullable|url',
-            'brochure_url' => 'nullable|url',
-            'virtual_tour_url' => 'nullable|url',
+            'website_url' => 'nullable|string',
+            'virtual_tour_url' => 'nullable|string',
             'amenity_ids' => 'nullable|array',
             'amenity_ids.*' => 'exists:amenities,id',
         ]);
@@ -110,11 +115,24 @@ class BuildingController extends Controller
         $amenityIds = $validated['amenity_ids'] ?? [];
         unset($validated['amenity_ids']);
 
+        // Log the amenity IDs for debugging
+        \Log::info('Creating building with amenities', [
+            'amenity_ids' => $amenityIds,
+            'amenity_count' => count($amenityIds)
+        ]);
+
         $building = Building::create($validated);
-        
+
         // Attach amenities if provided
         if (!empty($amenityIds)) {
             $building->amenities()->attach($amenityIds);
+
+            \Log::info('Attached amenities to new building', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'amenity_ids' => $amenityIds,
+                'amenity_count' => count($amenityIds)
+            ]);
         }
 
         return redirect()->route('admin.buildings.index')
@@ -124,8 +142,11 @@ class BuildingController extends Controller
     public function show($buildingSlug)
     {
         $building = $this->resolveBuildingFromSlug($buildingSlug);
-        $building->load(['developer', 'amenities', 'properties']);
-        
+        $building->load(['developer', 'properties']);
+
+        // Use direct query for amenities due to eager loading issue with UUIDs
+        $building->setRelation('amenities', $building->amenities()->get());
+
         return Inertia::render('Admin/Buildings/Show', [
             'building' => $building
         ]);
@@ -135,9 +156,30 @@ class BuildingController extends Controller
     {
         $building = $this->resolveBuildingFromSlug($buildingSlug);
         $developers = \App\Models\Developer::orderBy('name')->get();
-        $amenities = \App\Models\Amenity::orderBy('name')->get();
-        $building->load(['developer', 'amenities']);
+        $amenities = \App\Models\Amenity::orderBy('name')->get()->map(function ($amenity) {
+            return [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'icon' => $amenity->icon
+            ];
+        });
+
+        // Load the building relationships
+        $building->load(['developer']);
         
+        // Get building amenities with explicit query to ensure we get the data
+        $buildingAmenities = $building->amenities()->get();
+
+        // Log for debugging
+        \Log::info('Edit page amenities debug', [
+            'building_id' => $building->id,
+            'building_name' => $building->name,
+            'amenities_count' => $buildingAmenities->count(),
+            'amenity_ids' => $buildingAmenities->pluck('id')->toArray(),
+            'amenity_names' => $buildingAmenities->pluck('name')->toArray(),
+            'total_available_amenities' => $amenities->count()
+        ]);
+
         return Inertia::render('Admin/Buildings/Edit', [
             'building' => [
                 'id' => $building->id,
@@ -167,7 +209,6 @@ class BuildingController extends Controller
                 'maintenance_fee_range' => $building->maintenance_fee_range,
                 'price_range' => $building->price_range,
                 'website_url' => $building->website_url,
-                'brochure_url' => $building->brochure_url,
                 'floor_plans' => $building->floor_plans,
                 'virtual_tour_url' => $building->virtual_tour_url,
                 'features' => $building->features,
@@ -178,7 +219,7 @@ class BuildingController extends Controller
                 'architect' => $building->architect,
                 'interior_designer' => $building->interior_designer,
                 'landscape_architect' => $building->landscape_architect,
-                'amenity_ids' => $building->amenities ? $building->amenities->pluck('id')->toArray() : [],
+                'amenity_ids' => $buildingAmenities->pluck('id')->toArray(),
             ],
             'developers' => $developers,
             'amenities' => $amenities
@@ -216,9 +257,8 @@ class BuildingController extends Controller
             'locker_spots' => 'nullable|integer',
             'maintenance_fee_range' => 'nullable|string',
             'price_range' => 'nullable|string',
-            'website_url' => 'nullable|url',
-            'brochure_url' => 'nullable|url',
-            'virtual_tour_url' => 'nullable|url',
+            'website_url' => 'nullable|string',
+            'virtual_tour_url' => 'nullable|string',
             'features' => 'nullable|array',
             'nearby_transit' => 'nullable|array',
             'neighborhood_info' => 'nullable|string',
@@ -235,10 +275,40 @@ class BuildingController extends Controller
         $amenityIds = $validated['amenity_ids'] ?? [];
         unset($validated['amenity_ids']);
 
+        // Log the amenity IDs for debugging
+        \Log::info('Updating building amenities', [
+            'building_id' => $building->id,
+            'building_name' => $building->name,
+            'amenity_ids' => $amenityIds,
+            'amenity_count' => count($amenityIds),
+            'request_data_keys' => array_keys($request->all())
+        ]);
+
+        // Update building basic info (excluding amenities)
         $building->update($validated);
-        
-        // Sync amenities
-        $building->amenities()->sync($amenityIds);
+
+        // Sync amenities - this will add/remove relationships as needed
+        if (!empty($amenityIds)) {
+            $result = $building->amenities()->sync($amenityIds);
+            
+            \Log::info('Successfully synced amenities', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'amenity_ids' => $amenityIds,
+                'sync_result' => $result,
+                'attached' => $result['attached'] ?? [],
+                'detached' => $result['detached'] ?? [],
+                'updated' => $result['updated'] ?? []
+            ]);
+        } else {
+            // Remove all amenities if none selected
+            $result = $building->amenities()->detach();
+            \Log::info('Detached all amenities', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'detach_result' => $result
+            ]);
+        }
 
         return redirect()->route('admin.buildings.index')
             ->with('success', 'Building updated successfully.');

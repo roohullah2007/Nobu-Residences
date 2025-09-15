@@ -8,6 +8,13 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 
 export default function BuildingsEdit({ auth, building, developers = [], amenities = [] }) {
+    // Debug logging
+    console.log('=== BuildingsEdit Component Loaded ===');
+    console.log('Building prop:', building);
+    console.log('Building amenity_ids:', building.amenity_ids);
+    console.log('Available amenities:', amenities);
+    console.log('Amenities count:', amenities.length);
+
     const { data, setData, put, processing, errors } = useForm({
         name: building.name || '',
         address: building.address || '',
@@ -34,7 +41,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         maintenance_fee_range: building.maintenance_fee_range || '',
         price_range: building.price_range || '',
         website_url: building.website_url || '',
-        brochure_url: building.brochure_url || '',
         floor_plans: building.floor_plans || [],
         virtual_tour_url: building.virtual_tour_url || '',
         features: building.features || [],
@@ -47,19 +53,40 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         landscape_architect: building.landscape_architect || ''
     });
 
-    const [selectedAmenities, setSelectedAmenities] = useState([]);
+    // Initialize selected amenities immediately from props
+    const initSelectedAmenities = () => {
+        console.log('=== Initializing Selected Amenities ===');
+        console.log('Building object:', building);
+        console.log('Checking conditions:');
+        console.log('- building.amenity_ids exists?', !!building.amenity_ids);
+        console.log('- building.amenity_ids type:', typeof building.amenity_ids);
+        console.log('- building.amenity_ids value:', building.amenity_ids);
+        console.log('- building.amenity_ids length?', building.amenity_ids ? building.amenity_ids.length : 0);
+        console.log('- amenities length?', amenities.length);
+        console.log('- amenities sample:', amenities.slice(0, 2));
+
+        // Ensure amenity_ids is an array
+        const amenityIds = Array.isArray(building.amenity_ids) ? building.amenity_ids : [];
+        
+        if (amenityIds.length > 0 && amenities.length > 0) {
+            const selected = amenities.filter(a => {
+                const isIncluded = amenityIds.includes(a.id);
+                console.log(`Checking amenity ${a.name} (${a.id}): ${isIncluded}`);
+                return isIncluded;
+            });
+            console.log('Selected amenities found:', selected);
+            return selected;
+        }
+        console.log('No amenities selected (conditions not met)');
+        return [];
+    };
+
+    const [selectedAmenities, setSelectedAmenities] = useState(initSelectedAmenities());
+    console.log('State initialized with selectedAmenities:', selectedAmenities);
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
-
-    // Initialize selected amenities
-    useEffect(() => {
-        if (building.amenity_ids && amenities.length > 0) {
-            const selected = amenities.filter(a => building.amenity_ids.includes(a.id));
-            setSelectedAmenities(selected);
-        }
-    }, [building.amenity_ids, amenities]);
 
     const buildingTypes = [
         { value: 'condominium', label: 'Condominium' },
@@ -119,20 +146,46 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        console.log('=== Form Submission ===');
+        console.log('Current selectedAmenities:', selectedAmenities);
+        console.log('Current data.amenity_ids:', data.amenity_ids);
+        
+        const amenityIds = selectedAmenities.map(a => a.id);
+        console.log('Mapped amenity IDs:', amenityIds);
+        
         const formData = {
             ...data,
-            amenity_ids: selectedAmenities.map(a => a.id)
+            amenity_ids: amenityIds
         };
+        
+        console.log('Final form data being sent:', formData);
+        console.log('Amenities in form data:', formData.amenity_ids);
+        
         put(route('admin.buildings.update', building.id), formData);
     };
 
     const toggleAmenity = (amenity) => {
         const exists = selectedAmenities.find(a => a.id === amenity.id);
+        let newSelectedAmenities;
+        
         if (exists) {
-            setSelectedAmenities(selectedAmenities.filter(a => a.id !== amenity.id));
+            newSelectedAmenities = selectedAmenities.filter(a => a.id !== amenity.id);
         } else {
-            setSelectedAmenities([...selectedAmenities, amenity]);
+            newSelectedAmenities = [...selectedAmenities, amenity];
         }
+        
+        setSelectedAmenities(newSelectedAmenities);
+        
+        // Also update the form data to keep it in sync
+        setData('amenity_ids', newSelectedAmenities.map(a => a.id));
+        
+        console.log('Amenity toggled:', {
+            amenity: amenity.name,
+            action: exists ? 'removed' : 'added',
+            newSelectedCount: newSelectedAmenities.length,
+            newSelectedIds: newSelectedAmenities.map(a => a.id)
+        });
     };
 
     const handleImageUpload = async (e) => {
@@ -449,7 +502,15 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                 key={amenity.id}
                                                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
                                             >
-                                                <span>{amenity.icon || amenityIcons[amenity.name] || '✨'}</span>
+                                                {amenity.icon ? (
+                                                    <img
+                                                        src={amenity.icon}
+                                                        alt={amenity.name}
+                                                        className="w-4 h-4 object-contain"
+                                                    />
+                                                ) : (
+                                                    <span>{amenityIcons[amenity.name] || '✨'}</span>
+                                                )}
                                                 {amenity.name}
                                                 <button
                                                     type="button"
@@ -502,9 +563,17 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                             : 'bg-white hover:bg-gray-100 border border-gray-200'
                                                     }`}
                                                 >
-                                                    <span className="text-lg">
-                                                        {amenity.icon || amenityIcons[amenity.name] || '✨'}
-                                                    </span>
+                                                    {amenity.icon ? (
+                                                        <img
+                                                            src={amenity.icon}
+                                                            alt={amenity.name}
+                                                            className="w-5 h-5 object-contain"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-lg">
+                                                            {amenityIcons[amenity.name] || '✨'}
+                                                        </span>
+                                                    )}
                                                     <span className="text-left">{amenity.name}</span>
                                                 </button>
                                             );
@@ -585,18 +654,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <InputError message={errors.website_url} className="mt-2" />
                                 </div>
 
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="brochure_url" value="Brochure URL" />
-                                    <TextInput
-                                        id="brochure_url"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.brochure_url}
-                                        onChange={(e) => setData('brochure_url', e.target.value)}
-                                        placeholder="https://example.com/brochure.pdf"
-                                    />
-                                    <InputError message={errors.brochure_url} className="mt-2" />
-                                </div>
 
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="virtual_tour_url" value="Virtual Tour URL" />

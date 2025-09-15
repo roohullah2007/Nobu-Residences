@@ -31,24 +31,40 @@ class HomepagePropertiesController extends Controller
             }
 
             $type = $request->get('type', 'both'); // 'sale', 'rent', or 'both'
+            $address = $request->get('address'); // Optional address parameter
+            $city = $request->get('city', 'Toronto'); // Optional city parameter
 
             $forSaleProperties = [];
             $forRentProperties = [];
 
-            // Get default building address from website's MLS settings
-            $website = \App\Models\Website::find(1);
-            $homePage = $website ? $website->pages()->where('page_type', 'home')->first() : null;
-            $mlsSettings = $homePage ? ($homePage->content['mls_settings'] ?? []) : [];
-            $defaultAddress = $mlsSettings['default_building_address'] ?? '15 Mercer Street';
-            
-            // Fetch For Sale properties for the default building
-            if ($type === 'sale' || $type === 'both') {
-                $forSaleProperties = $this->fetchProperties('For Sale', $defaultAddress);
+            // If no address provided, use default building address from MLS settings
+            if (!$address) {
+                $website = \App\Models\Website::find(1);
+                $homePage = $website ? $website->pages()->where('page_type', 'home')->first() : null;
+                $mlsSettings = $homePage ? ($homePage->content['mls_settings'] ?? []) : [];
+                $address = $mlsSettings['default_building_address'] ?? '15 Mercer Street';
             }
 
-            // Fetch For Rent properties for the default building
+            // Fetch For Sale properties
+            if ($type === 'sale' || $type === 'both') {
+                // If address was provided (school page), search near that location
+                if ($request->has('address')) {
+                    $forSaleProperties = $this->fetchPropertiesNearLocation('For Sale', $address, $city);
+                } else {
+                    // For homepage, use exact building search (15 Mercer or default)
+                    $forSaleProperties = $this->fetchProperties('For Sale', $address);
+                }
+            }
+
+            // Fetch For Rent properties
             if ($type === 'rent' || $type === 'both') {
-                $forRentProperties = $this->fetchProperties('For Lease', $defaultAddress);
+                // If address was provided (school page), search near that location
+                if ($request->has('address')) {
+                    $forRentProperties = $this->fetchPropertiesNearLocation('For Lease', $address, $city);
+                } else {
+                    // For homepage, use exact building search (15 Mercer or default)
+                    $forRentProperties = $this->fetchProperties('For Lease', $address);
+                }
             }
 
             return response()->json([
@@ -61,7 +77,7 @@ class HomepagePropertiesController extends Controller
 
         } catch (Exception $e) {
             Log::error('Homepage properties fetch error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch properties: ' . $e->getMessage(),
@@ -74,7 +90,149 @@ class HomepagePropertiesController extends Controller
     }
 
     /**
-     * Fetch properties for specific type and address
+     * Fetch properties near a specific location (for schools and other location-based searches)
+     */
+    private function fetchPropertiesNearLocation(string $transactionType, string $address, string $city = 'Toronto')
+    {
+        try {
+            // Reset filters
+            $this->ampreApi->resetFilters();
+
+            // Set select fields for display
+            $this->ampreApi->setSelect([
+                'ListingKey',
+                'BedroomsTotal',
+                'BathroomsTotalInteger',
+                'UnparsedAddress',
+                'ListPrice',
+                'TransactionType',
+                'City',
+                'StateOrProvince',
+                'PostalCode',
+                'PropertySubType',
+                'PropertyType',
+                'StandardStatus',
+                'LivingAreaRange',
+                'AboveGradeFinishedArea',
+                'ParkingTotal',
+                'PublicRemarks',
+                'ListOfficeName',
+                'UnitNumber',
+                'StreetNumber',
+                'StreetName',
+                'StreetSuffix'
+            ]);
+
+            // Set pagination - limit to 12 properties for carousel
+            $this->ampreApi->setTop(12);
+            $this->ampreApi->setSkip(0);
+
+            // Apply filters
+            $this->ampreApi->addFilter('TransactionType', $transactionType);
+            $this->ampreApi->addFilter('StandardStatus', 'Active');
+
+            // Parse address to search for nearby properties
+            $addressParts = explode(',', $address);
+            $streetAddress = trim($addressParts[0] ?? $address);
+
+            // Extract street name for area search
+            $streetParts = explode(' ', $streetAddress);
+            $streetName = implode(' ', array_slice($streetParts, 1));
+
+            // Search for properties in the same area/neighborhood
+            if (!empty($streetName)) {
+                // Search for properties on the same street or nearby streets
+                $this->ampreApi->addCustomFilter("contains(UnparsedAddress, '{$streetName}')");
+            }
+
+            // Filter by city
+            $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+
+            // Sort by newest listings first
+            $this->ampreApi->setOrderBy('ListingContractDate desc');
+
+            // Add reasonable price filter
+            if ($transactionType === 'For Sale') {
+                $this->ampreApi->setPriceRange(200000, null);
+            } else {
+                $this->ampreApi->setPriceRange(1000, null);
+            }
+
+            // Fetch properties
+            $apiResult = $this->ampreApi->fetchPropertiesWithCount();
+            $properties = $apiResult['properties'] ?? [];
+
+            // Log for debugging
+            Log::info("Properties near {$address}, {$city} - {$transactionType}", [
+                'street_name' => $streetName,
+                'count' => count($properties),
+                'total' => $apiResult['count'] ?? 0
+            ]);
+
+            // If no properties found, try broader search in the city
+            if (empty($properties)) {
+                Log::info("No properties found near {$address}, trying broader {$city} search");
+
+                $this->ampreApi->resetFilters();
+                $this->ampreApi->setSelect([
+                    'ListingKey',
+                    'BedroomsTotal',
+                    'BathroomsTotalInteger',
+                    'UnparsedAddress',
+                    'ListPrice',
+                    'TransactionType',
+                    'City',
+                    'StateOrProvince',
+                    'PostalCode',
+                    'PropertySubType',
+                    'PropertyType',
+                    'StandardStatus',
+                    'LivingAreaRange',
+                    'AboveGradeFinishedArea',
+                    'ParkingTotal',
+                    'PublicRemarks',
+                    'ListOfficeName',
+                    'UnitNumber',
+                    'StreetNumber',
+                    'StreetName',
+                    'StreetSuffix'
+                ]);
+
+                $this->ampreApi->setTop(12);
+                $this->ampreApi->setSkip(0);
+                $this->ampreApi->addFilter('TransactionType', $transactionType);
+                $this->ampreApi->addFilter('StandardStatus', 'Active');
+                $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+
+                // Add reasonable price filter for broader search
+                if ($transactionType === 'For Sale') {
+                    $this->ampreApi->setPriceRange(300000, 3000000);
+                } else {
+                    $this->ampreApi->setPriceRange(1500, 6000);
+                }
+
+                $this->ampreApi->setOrderBy('ListPrice desc');
+
+                $apiResult = $this->ampreApi->fetchPropertiesWithCount();
+                $properties = $apiResult['properties'] ?? [];
+            }
+
+            // Add images to properties
+            if (!empty($properties)) {
+                $properties = $this->addPropertyImages($properties);
+            }
+
+            // Format properties for frontend
+            return $this->formatPropertiesForCarousel($properties, $transactionType);
+
+        } catch (Exception $e) {
+            Log::error("Error fetching {$transactionType} properties near {$address}: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Fetch properties for specific type and address (for homepage with default building)
      */
     private function fetchProperties(string $transactionType, string $address)
     {

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Amenity;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
+use App\Rules\SvgOrImage;
 
 class AmenityController extends Controller
 {
@@ -36,10 +38,19 @@ class AmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:amenities,name',
-            'icon' => 'nullable|string|max:100'
+            'icon_file' => ['nullable', new SvgOrImage(), 'max:2048']
         ]);
 
-        Amenity::create($validated);
+        $data = ['name' => $validated['name']];
+
+        if ($request->hasFile('icon_file')) {
+            $iconFile = $request->file('icon_file');
+            $iconFileName = strtolower(str_replace(' ', '-', $validated['name'])) . '.' . $iconFile->getClientOriginalExtension();
+            $iconPath = $iconFile->storeAs('amenity-icons', $iconFileName, 'public');
+            $data['icon'] = Storage::url($iconPath);
+        }
+
+        Amenity::create($data);
 
         return redirect()->route('admin.amenities.index')
             ->with('success', 'Amenity created successfully.');
@@ -74,10 +85,24 @@ class AmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:amenities,name,' . $amenity->id,
-            'icon' => 'nullable|string|max:100'
+            'icon_file' => ['nullable', new SvgOrImage(), 'max:2048']
         ]);
 
-        $amenity->update($validated);
+        $data = ['name' => $validated['name']];
+
+        if ($request->hasFile('icon_file')) {
+            // Delete old icon if exists
+            if ($amenity->icon && Storage::disk('public')->exists(str_replace('/storage/', '', $amenity->icon))) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $amenity->icon));
+            }
+
+            $iconFile = $request->file('icon_file');
+            $iconFileName = strtolower(str_replace(' ', '-', $validated['name'])) . '.' . $iconFile->getClientOriginalExtension();
+            $iconPath = $iconFile->storeAs('amenity-icons', $iconFileName, 'public');
+            $data['icon'] = Storage::url($iconPath);
+        }
+
+        $amenity->update($data);
 
         return redirect()->route('admin.amenities.index')
             ->with('success', 'Amenity updated successfully.');

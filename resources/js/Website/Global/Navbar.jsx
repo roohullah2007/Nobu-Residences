@@ -42,13 +42,14 @@ export default function Navbar({ auth = {}, website = {} }) {
                     {/* Logo */}
                     <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
-                            <img 
-                                src={website.logo_url} 
-                                alt={website?.name || 'Site Logo'} 
+                            <img
+                                src={website.logo || website.logo_url}
+                                alt={website?.name || 'Site Logo'}
                                 style={{
                                     width: website?.logo_width ? `${website.logo_width}px` : '146px',
                                     height: website?.logo_height ? `${website.logo_height}px` : '36px'
                                 }}
+                                className="object-contain"
                             />
                         ) : (
                             <div className="font-space-grotesk font-bold text-black">
@@ -84,13 +85,14 @@ export default function Navbar({ auth = {}, website = {} }) {
                     {/* Logo and Brand */}
                     <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
-                            <img 
-                                src={website.logo_url} 
-                                alt={website?.name || 'Site Logo'} 
+                            <img
+                                src={website.logo || website.logo_url}
+                                alt={website?.name || 'Site Logo'}
                                 style={{
                                     width: website?.logo_width ? `${website.logo_width}px` : '146px',
                                     height: website?.logo_height ? `${website.logo_height}px` : '36px'
                                 }}
+                                className="object-contain"
                             />
                         ) : (
                             <div className="font-space-grotesk font-bold text-black text-[32px] leading-[36px] tracking-[-0.011em]">

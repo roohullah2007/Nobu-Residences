@@ -24,10 +24,10 @@ export default function Navbar({ auth = {}, website = {} }) {
                     {/* Logo */}
                     <Link href="/" className="flex items-center">
                         {website?.logo_url ? (
-                            <img 
-                                src={website.logo_url} 
-                                alt={website?.name || 'Site Logo'} 
-                                className="h-8 w-auto"
+                            <img
+                                src={website.logo || website.logo_url}
+                                alt={website?.name || 'Site Logo'}
+                                className="h-8 w-auto object-contain"
                             />
                         ) : (
                             <div className="font-space-grotesk font-bold text-black">
@@ -55,10 +55,10 @@ export default function Navbar({ auth = {}, website = {} }) {
                     {/* Logo and Brand */}
                     <Link href="/" className="flex items-center">
                         {website?.logo_url ? (
-                            <img 
-                                src={website.logo_url} 
-                                alt={website?.name || 'Site Logo'} 
-                                className="h-10 w-auto"
+                            <img
+                                src={website.logo || website.logo_url}
+                                alt={website?.name || 'Site Logo'}
+                                className="h-10 w-auto object-contain"
                             />
                         ) : (
                             <div className="font-space-grotesk font-bold text-black text-[32px] leading-[36px] tracking-[-0.011em]">

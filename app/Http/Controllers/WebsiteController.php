@@ -982,16 +982,47 @@ class WebsiteController extends Controller
         // Try to fetch property data from AMPRE API or local database
         $propertyData = null;
         $propertyImages = [];
-        $buildingAmenities = [];
-        
+        $buildingData = null;
+
         // Check if it's a local property (numeric ID)
         if (is_numeric($listingKey)) {
-            $property = Property::with('building.amenities')->find($listingKey);
+            $property = Property::with(['building.amenities' => function($query) {
+                $query->orderBy('name');
+            }])->find($listingKey);
             if ($property) {
                 $propertyData = $property->getDisplayData();
-                // Get building amenities if property belongs to a building
-                if ($property->building && $property->building->amenities) {
-                    $buildingAmenities = $property->building->amenities->pluck('name')->toArray();
+                // Get building data and amenities if property belongs to a building
+                if ($property->building) {
+                    // Force load the amenities relationship
+                    $property->building->load('amenities');
+                    
+                    $amenities = $property->building->amenities->map(function($amenity) {
+                        return [
+                            'id' => $amenity->id,
+                            'name' => $amenity->name,
+                            'icon' => $amenity->icon
+                        ];
+                    })->toArray();
+                    
+                    $buildingData = [
+                        'id' => $property->building->id,
+                        'name' => $property->building->name,
+                        'slug' => $property->building->slug,
+                        'address' => $property->building->address,
+                        'main_image' => $property->building->main_image,
+                        'units_for_sale' => $property->building->units_for_sale,
+                        'units_for_rent' => $property->building->units_for_rent,
+                        'amenities' => $amenities
+                    ];
+                    
+                    \Log::info('Local property building amenities loaded:', [
+                        'building_id' => $property->building->id,
+                        'building_name' => $property->building->name,
+                        'amenities_count' => count($amenities),
+                        'amenities' => $amenities,
+                        'relationship_count' => $property->building->amenities->count(),
+                        'source' => 'relationship_table'
+                    ]);
                 }
             }
         }
@@ -1017,7 +1048,77 @@ class WebsiteController extends Controller
                     // Format the property data
                     $propertyData = $this->formatAmprePropertyData($ampreProperty);
                     
-                    // Try to find building amenities by matching address
+                    // Try to match building by address for MLS properties
+                    if (!empty($propertyData['address'])) {
+                        // Extract building address from full property address
+                        // Example: "15 Mercer Street 610, Toronto C01, ON M5V 1H2" -> "15 Mercer Street"
+                        $fullAddress = $propertyData['address'];
+                        
+                        // Extract street number and street name
+                        if (preg_match('/^(\d+)\s+([^,\d]+?)(?:\s+\d+)?(?:,|$)/', $fullAddress, $matches)) {
+                            $streetNumber = $matches[1]; // "15"
+                            $streetName = trim($matches[2]); // "Mercer Street"
+                            $buildingAddress = $streetNumber . ' ' . $streetName; // "15 Mercer Street"
+                            
+                            \Log::info('MLS property building matching', [
+                                'listing_key' => $listingKey,
+                                'full_address' => $fullAddress,
+                                'extracted_address' => $buildingAddress,
+                                'street_number' => $streetNumber,
+                                'street_name' => $streetName
+                            ]);
+                            
+                            // Find building by address
+                            $building = \App\Models\Building::with(['amenities' => function($query) {
+                                $query->orderBy('name');
+                            }])->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                                ->first();
+                            
+                            if ($building) {
+                                // Force load the amenities relationship
+                                $building->load('amenities');
+                                
+                                $amenities = $building->amenities->map(function($amenity) {
+                                    return [
+                                        'id' => $amenity->id,
+                                        'name' => $amenity->name,
+                                        'icon' => $amenity->icon
+                                    ];
+                                })->toArray();
+                                
+                                $buildingData = [
+                                    'id' => $building->id,
+                                    'name' => $building->name,
+                                    'slug' => $building->slug,
+                                    'address' => $building->address,
+                                    'main_image' => $building->main_image,
+                                    'units_for_sale' => $building->units_for_sale,
+                                    'units_for_rent' => $building->units_for_rent,
+                                    'amenities' => $amenities
+                                ];
+                                
+                                \Log::info('MLS property matched to building', [
+                                    'listing_key' => $listingKey,
+                                    'building_name' => $building->name,
+                                    'building_address' => $building->address,
+                                    'amenities_count' => count($amenities),
+                                    'amenities' => $amenities
+                                ]);
+                            } else {
+                                \Log::info('No building found for MLS property', [
+                                    'listing_key' => $listingKey,
+                                    'searched_address' => $buildingAddress
+                                ]);
+                            }
+                        } else {
+                            \Log::warning('Failed to parse address for MLS property', [
+                                'listing_key' => $listingKey,
+                                'full_address' => $fullAddress
+                            ]);
+                        }
+                    }
+                    
+                    // Try to find building by matching address
                     if (!empty($propertyData['address'])) {
                         // Extract building address from property address
                         $addressParts = explode(',', $propertyData['address']);
@@ -1025,46 +1126,42 @@ class WebsiteController extends Controller
                             $buildingAddress = trim($addressParts[0]);
                             // Remove unit number if present
                             $buildingAddress = preg_replace('/^(\d+\s*-\s*)?/', '', $buildingAddress);
-                            
+
                             // Try to find building by address
-                            $building = \App\Models\Building::with('amenities')
-                                ->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                            $building = \App\Models\Building::with(['amenities' => function($query) {
+                                $query->orderBy('name');
+                            }])->where('address', 'LIKE', '%' . $buildingAddress . '%')
                                 ->first();
-                            
-                            if ($building && $building->amenities) {
-                                $buildingAmenities = $building->amenities->pluck('name')->toArray();
-                                \Log::info('Found building amenities for MLS property: ', ['building' => $building->name, 'amenities' => $buildingAmenities]);
-                            } else {
-                                // Check if it's 55 Mercer Street and provide default amenities
-                                if (stripos($propertyData['address'], '55 Mercer') !== false) {
-                                    // Try to get 55 Mercer building specifically
-                                    $mercerBuilding = \App\Models\Building::with('amenities')
-                                        ->where('address', 'LIKE', '%55 Mercer%')
-                                        ->first();
-                                    
-                                    if ($mercerBuilding && $mercerBuilding->amenities) {
-                                        $buildingAmenities = $mercerBuilding->amenities->pluck('name')->toArray();
-                                    } else {
-                                        // Use default amenities for 55 Mercer
-                                        $buildingAmenities = [
-                                            'Concierge',
-                                            'Party Room',
-                                            'Meeting Room',
-                                            'Security Guard',
-                                            'Gym',
-                                            'Visitor Parking',
-                                            'Parking Garage',
-                                            'Guest Suites',
-                                            'Pet Restriction',
-                                            'BBQ Permitted',
-                                            'Outdoor Pool',
-                                            'Media Room',
-                                            'Rooftop Deck',
-                                            'Security System'
-                                        ];
-                                    }
-                                    \Log::info('Using 55 Mercer amenities for property');
-                                }
+
+                            if ($building) {
+                                // Force load the amenities relationship
+                                $building->load('amenities');
+                                
+                                $amenities = $building->amenities->map(function($amenity) {
+                                    return [
+                                        'id' => $amenity->id,
+                                        'name' => $amenity->name,
+                                        'icon' => $amenity->icon
+                                    ];
+                                })->toArray();
+                                
+                                $buildingData = [
+                                    'id' => $building->id,
+                                    'name' => $building->name,
+                                    'slug' => $building->slug,
+                                    'address' => $building->address,
+                                    'main_image' => $building->main_image,
+                                    'units_for_sale' => $building->units_for_sale,
+                                    'units_for_rent' => $building->units_for_rent,
+                                    'amenities' => $amenities
+                                ];
+                                \Log::info('Found building for MLS property:', [
+                                    'building' => $building->name, 
+                                    'amenities_count' => count($amenities),
+                                    'amenities' => $amenities,
+                                    'relationship_count' => $building->amenities->count(),
+                                    'source' => 'relationship_table'
+                                ]);
                             }
                         }
                     }
@@ -1122,18 +1219,28 @@ class WebsiteController extends Controller
             'streetName' => $propertyData['streetName'] ?? 'NOT_FOUND',
         ]);
 
-        // Add building amenities to property data if available
-        if (!empty($buildingAmenities)) {
-            if ($propertyData) {
-                $propertyData['buildingAmenities'] = $buildingAmenities;
-            }
+        // Add building data to property data if available
+        if ($buildingData && $propertyData) {
+            $propertyData['buildingData'] = $buildingData;
         }
         
+        // Log final building data being passed to view
+        if ($buildingData) {
+            \Log::info('Final building data passed to PropertyDetail view:', [
+                'building_name' => $buildingData['name'] ?? 'unknown',
+                'has_amenities' => isset($buildingData['amenities']) && count($buildingData['amenities']) > 0,
+                'amenities_count' => count($buildingData['amenities'] ?? [])
+            ]);
+        } else {
+            \Log::info('No building data found for property:', ['listingKey' => $listingKey]);
+        }
+
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
             'listingKey' => $listingKey,
             'propertyData' => $propertyData,
-            'propertyImages' => $propertyImages
+            'propertyImages' => $propertyImages,
+            'buildingData' => $buildingData
         ]));
     }
     

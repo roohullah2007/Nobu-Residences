@@ -15,6 +15,9 @@
         <script>
             window.googleMapsApiKey = "{{ $googleMapsApiKey ?? '' }}";
         </script>
+        @if($googleMapsApiKey ?? false)
+        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=places"></script>
+        @endif
         @routes
         @viteReactRefresh
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])

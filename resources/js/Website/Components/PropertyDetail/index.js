@@ -30,3 +30,4 @@ export { default as Neighbourhoods } from './Neighbourhoods';
 export { default as TourScheduling } from './TourScheduling';
 export { default as BuildingTourScheduling } from './BuildingTourScheduling';
 export { default as MerchandiseLofts } from './MerchandiseLofts';
+export { default as BuildingAmenities } from './BuildingAmenities';

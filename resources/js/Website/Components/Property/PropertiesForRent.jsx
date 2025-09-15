@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { PropertyCarousel } from '@/Website/Global/Components';
 import axios from 'axios';
 
-const PropertiesForRent = ({ auth, forRentProperties = null, carouselSettings, mlsSettings }) => {
+const PropertiesForRent = ({ auth, forRentProperties = null, carouselSettings, mlsSettings, schoolAddress = null }) => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -18,12 +18,24 @@ const PropertiesForRent = ({ auth, forRentProperties = null, carouselSettings, m
     if (!forRentProperties) {
       fetchProperties();
     }
-  }, [forRentProperties]);
+  }, [forRentProperties, schoolAddress]);
 
   const fetchProperties = async () => {
     try {
+      // Build params based on whether we have a school address
+      const params = { type: 'rent' };
+
+      // If schoolAddress is provided, use it for school pages
+      // Otherwise, let the backend use default building address (15 Mercer)
+      if (schoolAddress) {
+        const [streetAddress, ...cityParts] = schoolAddress.split(',');
+        params.address = streetAddress.trim();
+        params.city = cityParts.join(',').trim() || 'Toronto';
+      }
+      // Don't pass address params for homepage - let backend use default
+
       const response = await axios.get('/api/homepage-properties', {
-        params: { type: 'rent' }
+        params
       });
       
       if (response.data.success && response.data.data.forRent) {

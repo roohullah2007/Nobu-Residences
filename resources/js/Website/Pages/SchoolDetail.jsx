@@ -309,11 +309,17 @@ export default function SchoolDetail({
               </p>
             </div>
             
-            {/* Properties For Sale Component */}
-            <PropertiesForSale />
-            
-            {/* Properties For Rent Component */}
-            <PropertiesForRent />
+            {/* Properties For Sale Component - Pass school address */}
+            <PropertiesForSale
+              schoolAddress={`${schoolData.address}, ${schoolData.city}`}
+              auth={auth}
+            />
+
+            {/* Properties For Rent Component - Pass school address */}
+            <PropertiesForRent
+              schoolAddress={`${schoolData.address}, ${schoolData.city}`}
+              auth={auth}
+            />
           </div>
         </section>
 

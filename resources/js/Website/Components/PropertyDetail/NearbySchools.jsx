@@ -7,64 +7,113 @@ const NearbySchools = ({ propertyData = null }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Function to get property address for geocoding
+  const getPropertyAddress = () => {
+    // Check various possible address fields
+    const addressFields = [
+      'UnparsedAddress',
+      'unparsedAddress',
+      'address',
+      'Address',
+      'full_address',
+      'FullAddress'
+    ];
+
+    for (const field of addressFields) {
+      if (propertyData?.[field]) {
+        return propertyData[field];
+      }
+    }
+
+    // Try to construct address from components
+    if (propertyData?.StreetNumber && propertyData?.StreetName) {
+      const streetAddress = `${propertyData.StreetNumber} ${propertyData.StreetName} ${propertyData.StreetSuffix || ''}`.trim();
+      const city = propertyData.City || 'Toronto';
+      const province = propertyData.StateOrProvince || propertyData.Province || 'ON';
+      const postalCode = propertyData.PostalCode || '';
+      return `${streetAddress}, ${city}, ${province} ${postalCode}`.trim();
+    }
+
+    return null;
+  };
+
   // Fetch nearby schools from API
   useEffect(() => {
     const fetchNearbySchools = async () => {
-      // Check all possible coordinate field names
-      const possibleLatFields = ['latitude', 'Latitude', 'lat', 'Lat', 'LAT'];
-      const possibleLngFields = ['longitude', 'Longitude', 'lng', 'Lng', 'LNG', 'long', 'Long'];
-      
-      let latitude = null;
-      let longitude = null;
-      
-      // Try to find latitude
-      for (const field of possibleLatFields) {
-        if (propertyData?.[field]) {
-          latitude = propertyData[field];
-          break;
-        }
+      if (!propertyData) {
+        setIsLoading(false);
+        return;
       }
-      
-      // Try to find longitude
-      for (const field of possibleLngFields) {
-        if (propertyData?.[field]) {
-          longitude = propertyData[field];
-          break;
-        }
-      }
-      
-      if (!latitude || !longitude) {
-        // Use default Toronto coordinates as fallback for demo
-        // In production, you might want to geocode the property address
-        latitude = 43.6532;
-        longitude = -79.3832;
-        console.info('📍 Using default Toronto coordinates for demo (property lacks coordinates)');
-      }
-      
-      // Fetch ALL schools within 2km radius (walkable distance)
-      const radius = 2;
-      const apiUrl = `/api/schools/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}&limit=100`; // High limit to get all schools
-      
+
+      setIsLoading(true);
+      setError(null);
+
       try {
-        setIsLoading(true);
+        // First, try to get coordinates from property data
+        const possibleLatFields = ['latitude', 'Latitude', 'lat', 'Lat', 'LAT'];
+        const possibleLngFields = ['longitude', 'Longitude', 'lng', 'Lng', 'LNG', 'long', 'Long'];
+
+        let latitude = null;
+        let longitude = null;
+
+        // Try to find latitude
+        for (const field of possibleLatFields) {
+          if (propertyData?.[field]) {
+            latitude = parseFloat(propertyData[field]);
+            break;
+          }
+        }
+
+        // Try to find longitude
+        for (const field of possibleLngFields) {
+          if (propertyData?.[field]) {
+            longitude = parseFloat(propertyData[field]);
+            break;
+          }
+        }
+
+        // Build the API URL with coordinates or address
+        const radius = 2; // 2km radius
+        let apiUrl = `/api/schools/nearby?radius=${radius}&limit=100`;
+
+        if (latitude && longitude) {
+          // Use coordinates if available
+          apiUrl += `&latitude=${latitude}&longitude=${longitude}`;
+          console.info('📍 Using property coordinates for schools search:', { latitude, longitude });
+        } else {
+          // Otherwise, send the address for backend geocoding
+          const address = getPropertyAddress();
+          if (address) {
+            apiUrl += `&address=${encodeURIComponent(address)}`;
+            console.info('📍 Using property address for schools search:', address);
+          } else {
+            console.warn('No coordinates or address available for property');
+            setError('Unable to determine property location');
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Fetch schools from backend API
         const response = await fetch(apiUrl);
         const result = await response.json();
-        
+
         if (result.success && result.data) {
           console.info(`✅ Found ${result.data.length} schools within ${radius}km`);
           setSchools(result.data);
         } else {
-          console.warn('No schools data returned from API');
-          setError(result.message || 'Failed to load nearby schools');
+          console.warn('No schools data returned from API:', result.message);
+          setError(result.message || 'No schools found nearby');
+          setSchools([]);
         }
       } catch (err) {
         console.error('Error fetching nearby schools:', err);
-        setError('Error loading nearby schools');
+        setError('Error loading nearby schools. Please try again later.');
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchNearbySchools();
   }, [propertyData]);
 

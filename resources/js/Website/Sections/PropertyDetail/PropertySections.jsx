@@ -7,24 +7,48 @@ import {
   MoreBuildings,
   ComparableSales,
   MerchandiseLofts,
+  BuildingAmenities,
 } from '@/Website/Components/PropertyDetail';
 import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 
-export default function PropertySections({ 
+export default function PropertySections({
   propertyData,
-  auth 
+  auth,
+  buildingData
 }) {
+  // Log building data for debugging
+  React.useEffect(() => {
+    console.log('PropertySections: Received buildingData:', buildingData);
+    if (buildingData) {
+      console.log('PropertySections: Building amenities:', {
+        buildingName: buildingData.name,
+        hasAmenities: !!(buildingData.amenities && buildingData.amenities.length > 0),
+        amenitiesCount: buildingData.amenities ? buildingData.amenities.length : 0,
+        amenities: buildingData.amenities
+      });
+    } else {
+      console.log('PropertySections: No building data available for property');
+    }
+  }, [buildingData]);
+
   return (
     <div className="min-h-screen flex flex-col gap-4 font-work-sans overflow-x-hidden">
 
      {/* Property Status and Navigation Tabs */}
-      <PropertyStatusTabs property={propertyData} />
+      <PropertyStatusTabs property={propertyData} buildingData={buildingData} />
       {/* Price History Section - Hidden for now */}
       {/* <PriceHistory propertyData={propertyData} /> */}
       
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />
-      
+
+      {/* Building Amenities Section - Show only if building exists with amenities */}
+      {buildingData && buildingData.amenities && buildingData.amenities.length > 0 && (
+        <section className="py-4">
+          <BuildingAmenities buildingData={buildingData} />
+        </section>
+      )}
+
       {/* Condo Apartments Section - Show if property is in a building with condos */}
       {propertyData.details?.type?.toLowerCase().includes('condo') && (
         <section className="py-4">

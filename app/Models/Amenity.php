@@ -11,11 +11,12 @@ class Amenity extends Model
 
     protected $fillable = [
         'name',
-        'icon'
+        'icon',
+        'category'
     ];
 
     public function buildings()
     {
-        return $this->belongsToMany(Building::class)->withTimestamps();
+        return $this->belongsToMany(Building::class, 'amenity_building', 'amenity_id', 'building_id')->withTimestamps();
     }
 }

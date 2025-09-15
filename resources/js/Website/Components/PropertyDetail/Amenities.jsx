@@ -29,37 +29,40 @@ const Amenities = ({ propertyData }) => {
     'Lounge': '/assets/svgs/party-horn.svg'
   };
 
-  // Check if property has building amenities
-  const buildingAmenities = propertyData?.buildingAmenities || propertyData?.building?.amenities;
-  
+  // Get building data from propertyData
+  const buildingData = propertyData?.buildingData;
+  const buildingAmenities = buildingData?.amenities || [];
+
+  console.log('Amenities Component - Building Data:', buildingData);
+  console.log('Amenities Component - Building Amenities:', buildingAmenities);
+
+  // Only show amenities from the database - NO HARDCODED DATA
   let allAmenities = [];
-  
+
   if (buildingAmenities && Array.isArray(buildingAmenities) && buildingAmenities.length > 0) {
     // Use actual building amenities from database
-    allAmenities = buildingAmenities.map(amenity => ({
-      name: amenity.name || amenity,
-      iconPath: amenityIcons[amenity.name || amenity] || '/assets/svgs/concierge.svg'
-    }));
-  } else {
-    // Fallback to default amenities for demo
-    const defaultAmenities = [
-      { name: 'Concierge', iconPath: '/assets/svgs/concierge.svg' },
-      { name: 'Party Room', iconPath: '/assets/svgs/party-horn.svg' },
-      { name: 'Meeting Room', iconPath: '/assets/svgs/meeting-consider-deliberate-about-meet.svg' },
-      { name: 'Security Guard', iconPath: '/assets/svgs/police-security-policeman.svg' },
-      { name: 'Gym', iconPath: '/assets/svgs/gym.svg' },
-      { name: 'Visitor Parking', iconPath: '/assets/svgs/parking.svg' },
-      { name: 'Parking Garage', iconPath: '/assets/svgs/parking-garage-transportation-car-parking.svg' },
-      { name: 'Guest Suites', iconPath: '/assets/svgs/bed.svg' },
-      { name: 'Pet Restriction', iconPath: '/assets/svgs/pets.svg' },
-      { name: 'BBQ Permitted', iconPath: '/assets/svgs/bbq-grill.svg' },
-      { name: 'Outdoor Pool', iconPath: '/assets/svgs/pool-ladder.svg' },
-      { name: 'Media Room', iconPath: '/assets/svgs/media.svg' },
-      { name: 'Rooftop Deck', iconPath: '/assets/svgs/deck-chair-under-the-sun.svg' },
-      { name: 'Security System', iconPath: '/assets/svgs/security.svg' }
-    ];
-    allAmenities = defaultAmenities;
+    allAmenities = buildingAmenities.map(amenity => {
+      // Use icon from database or map to local icon
+      let iconPath = amenity.icon;
+
+      // If icon is from storage, use it directly
+      if (iconPath && (iconPath.startsWith('/storage') || iconPath.startsWith('http'))) {
+        // Use as is
+      } else if (amenityIcons[amenity.name]) {
+        // Fallback to mapped icon
+        iconPath = amenityIcons[amenity.name];
+      } else {
+        // Default icon
+        iconPath = '/assets/svgs/amenity-default.svg';
+      }
+
+      return {
+        name: amenity.name,
+        iconPath: iconPath
+      };
+    });
   }
+  // NO FALLBACK TO HARDCODED DATA - if no amenities from backend, show nothing
 
   // Included amenities (right sidebar)
   const includedAmenities = [
@@ -79,8 +82,18 @@ const Amenities = ({ propertyData }) => {
   );
 
   // Get building name from property data
-  const buildingName = propertyData?.buildingName || propertyData?.building?.name || 'this building';
-  
+  const buildingName = buildingData?.name || propertyData?.buildingName || propertyData?.building?.name || 'this building';
+
+  // Don't render if no amenities available
+  if (!allAmenities || allAmenities.length === 0) {
+    return (
+      <div>
+        <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Amenities</h2>
+        <p className="text-gray-600 text-sm">No amenities information available for this property.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Amenities</h2>
@@ -93,11 +106,14 @@ const Amenities = ({ propertyData }) => {
           <div className="border border-gray-200 rounded-lg p-4 h-full">
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-4 lg:gap-x-8 lg:gap-y-4">
             {allAmenities.map((amenity, index) => (
-              <div key={index} className="flex flex-row items-center gap-2">
-                <img 
-                  src={amenity.iconPath} 
+              <div key={amenity.id || index} className="flex flex-row items-center gap-2">
+                <img
+                  src={amenity.iconPath}
                   alt={amenity.name}
                   className="w-5 h-5 flex-shrink-0"
+                  onError={(e) => {
+                    e.target.src = '/assets/svgs/amenity-default.svg';
+                  }}
                 />
                 <span className="font-red-hat font-semibold text-sm leading-6 text-[#545454] truncate">
                   {amenity.name}

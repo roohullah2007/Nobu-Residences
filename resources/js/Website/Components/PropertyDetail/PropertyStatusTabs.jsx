@@ -4,7 +4,7 @@ import MortgageCalculator from './MortgageCalculator';
 import NearbySchools from './NearbySchools';
 import Amenities from './Amenities';
 
-const PropertyStatusTabs = ({ property }) => {
+const PropertyStatusTabs = ({ property, buildingData }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Calculate days on market from ListingContractDate to today
@@ -144,13 +144,18 @@ const PropertyStatusTabs = ({ property }) => {
     description: property?.PublicRemarks || property?.publicRemarks || property?.description || ''
   };
 
+  // Build tabs dynamically - only include amenities if building exists
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'rooms', label: 'Property rooms' },
     { id: 'mortgage', label: 'Mortgage calculator' },
-    { id: 'schools', label: 'Nearby schools' },
-    { id: 'amenities', label: 'Amenities' }
+    { id: 'schools', label: 'Nearby schools' }
   ];
+
+  // Only add amenities tab if building exists with amenities
+  if (buildingData && buildingData.amenities && buildingData.amenities.length > 0) {
+    tabs.push({ id: 'amenities', label: 'Amenities' });
+  }
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);

@@ -82,10 +82,49 @@ class PropertyDetailController extends Controller
                 Log::info('Found ListingContractDate in property data: ' . $formattedProperty['ListingContractDate']);
             }
             
+            // Try to find building data by matching address
+            $buildingData = null;
+            if (!empty($formattedProperty['address'])) {
+                // Extract building address from property address
+                $addressParts = explode(',', $formattedProperty['address']);
+                if (count($addressParts) > 0) {
+                    $buildingAddress = trim($addressParts[0]);
+                    // Remove unit number if present
+                    $buildingAddress = preg_replace('/^(\d+\s*-\s*)?/', '', $buildingAddress);
+
+                    // Try to find building by address
+                    $building = \App\Models\Building::with('amenities')
+                        ->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                        ->first();
+
+                    if ($building) {
+                        $buildingData = [
+                            'id' => $building->id,
+                            'name' => $building->name,
+                            'slug' => $building->slug,
+                            'address' => $building->address,
+                            'main_image' => $building->main_image,
+                            'units_for_sale' => $building->units_for_sale,
+                            'units_for_rent' => $building->units_for_rent,
+                            'amenities' => $building->amenities()->get()->map(function($amenity) {
+                                return [
+                                    'id' => $amenity->id,
+                                    'name' => $amenity->name,
+                                    'icon' => $amenity->icon,
+                                    'category' => $amenity->category
+                                ];
+                            })->toArray()
+                        ];
+                        Log::info('Found building for API property: ', ['building' => $building->name, 'amenities_count' => count($buildingData['amenities'])]);
+                    }
+                }
+            }
+
             // Format the response
             $responseData = [
                 'property' => $formattedProperty,
-                'images' => $this->formatImages($images, $listingKey)
+                'images' => $this->formatImages($images, $listingKey),
+                'buildingData' => $buildingData
             ];
             
             // Cache for 5 minutes - DEBUGGING: Disable cache temporarily

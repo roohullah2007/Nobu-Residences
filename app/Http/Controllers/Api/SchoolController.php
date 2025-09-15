@@ -19,23 +19,76 @@ class SchoolController extends Controller
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
+        $address = $request->input('address'); // New: Accept address for geocoding
         $radius = $request->input('radius', 2); // Default 2km radius
         $limit = $request->input('limit', 100); // Default to 100 to get all schools
-        
+
         // Debug logging
         \Log::info('getNearbySchools called with:', [
             'latitude' => $latitude,
             'longitude' => $longitude,
+            'address' => $address,
             'radius' => $radius,
             'limit' => $limit
         ]);
-        
+
+        // If no coordinates provided but address is, try to geocode
+        if ((!$latitude || !$longitude) && $address) {
+            // Clean up the address for better geocoding
+            // Remove unit numbers and extra details that might confuse geocoding
+            $cleanAddress = $address;
+
+            // Remove unit/apartment numbers (e.g., "15 Mercer Street 610" -> "15 Mercer Street")
+            $cleanAddress = preg_replace('/\s+\d{3,}(?=,)/', '', $cleanAddress);
+
+            // Remove Toronto district codes like "C01"
+            $cleanAddress = preg_replace('/,?\s*[A-Z]\d{2}(?=,|\s)/', '', $cleanAddress);
+
+            // Try geocoding with cleaned address
+            $geocoded = $this->geocodeAddress($cleanAddress);
+
+            // If still fails, try a simpler version
+            if (!$geocoded && strpos($address, ',') !== false) {
+                // Extract just street and city
+                $parts = explode(',', $address);
+                if (count($parts) >= 2) {
+                    $simpleAddress = trim($parts[0]) . ', Toronto, ON, Canada';
+                    \Log::info('Trying simpler address:', ['address' => $simpleAddress]);
+                    $geocoded = $this->geocodeAddress($simpleAddress);
+                }
+            }
+
+            if ($geocoded) {
+                $latitude = $geocoded['lat'];
+                $longitude = $geocoded['lng'];
+                \Log::info('Geocoded address to:', [
+                    'original' => $address,
+                    'cleaned' => $cleanAddress,
+                    'lat' => $latitude,
+                    'lng' => $longitude
+                ]);
+            } else {
+                \Log::warning('Failed to geocode address:', [
+                    'original' => $address,
+                    'cleaned' => $cleanAddress
+                ]);
+            }
+        }
+
+        // Final fallback to Toronto downtown coordinates if everything fails
         if (!$latitude || !$longitude) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Latitude and longitude are required',
-                'data' => []
-            ]);
+            // Check if the address contains "Toronto" to use default Toronto coordinates
+            if ($address && stripos($address, 'Toronto') !== false) {
+                $latitude = 43.6532;
+                $longitude = -79.3832;
+                \Log::info('Using default Toronto coordinates as fallback');
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unable to determine location. Please provide latitude/longitude or a valid address.',
+                    'data' => []
+                ]);
+            }
         }
         
         try {
@@ -375,6 +428,9 @@ class SchoolController extends Controller
             
             // Use OpenStreetMap Nominatim API (free, no API key required)
             $response = Http::timeout(10)
+                ->withHeaders([
+                    'User-Agent' => 'Laravel Real Estate App'
+                ])
                 ->get('https://nominatim.openstreetmap.org/search', [
                     'q' => $address,
                     'format' => 'json',

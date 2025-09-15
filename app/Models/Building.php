@@ -88,6 +88,7 @@ class Building extends Model
         'agent_phone',
         'agent_email',
         'agent_image'
+        // Removed 'amenities' - now using relationship table
     ];
 
     protected $casts = [
@@ -96,6 +97,7 @@ class Building extends Model
         'floor_plans' => 'array',
         'features' => 'array',
         'nearby_transit' => 'array',
+        // Removed 'amenities' => 'array' - now using relationship table
         'is_featured' => 'boolean',
         'total_units' => 'integer',
         'units_for_sale' => 'integer',
@@ -126,7 +128,7 @@ class Building extends Model
      */
     public function amenities()
     {
-        return $this->belongsToMany(Amenity::class)->withTimestamps();
+        return $this->belongsToMany(Amenity::class, 'amenity_building', 'building_id', 'amenity_id')->withTimestamps();
     }
 
     /**
@@ -178,6 +180,20 @@ class Building extends Model
      */
     public function getDisplayData(): array
     {
+        // Ensure amenities relationship is loaded
+        if (!$this->relationLoaded('amenities')) {
+            $this->load('amenities');
+        }
+        
+        // Get amenities from relationship only (no JSON fallback)
+        $amenities = $this->amenities->map(function($amenity) {
+            return [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'icon' => $amenity->icon
+            ];
+        })->toArray();
+        
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -191,7 +207,8 @@ class Building extends Model
             'management_name' => $this->management_name,
             'corp_number' => $this->corp_number,
             'date_registered' => $this->date_registered,
-            'amenities' => $this->amenities,
+            // Always use relationship amenities
+            'amenities' => $amenities,
             'available_units_count' => $this->getAvailableUnitsCountAttribute(),
             'agent_name' => $this->agent_name,
             'agent_title' => $this->agent_title,

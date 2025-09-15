@@ -214,8 +214,8 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                 name: formData.name,
                 email: formData.email,
                 phone: formData.phone,
-                message: `User Type: ${formData.categories.join(', ')}`,
-                source: 'About Section Contact Form'
+                inquiry_categories: formData.categories.map(cat => cat.toLowerCase()),
+                message: 'Contact form submission from About section'
             });
             
             if (response.data.success) {
@@ -462,7 +462,7 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                         </div>
                                         
                                         {/* Contact Form Card - Keeping the existing form */}
-                                        <form onSubmit={handleSubmit} className="flex flex-col justify-between items-start p-4 gap-4 w-full max-w-[400px] md:w-[268px] md:max-w-[268px] h-auto md:h-[356px] bg-white shadow-[0px_0px_16.3px_rgba(0,0,0,0.1)] rounded-xl flex-none">
+                                        <form onSubmit={handleSubmit} className="flex flex-col items-start p-4 gap-4 w-full max-w-[400px] md:w-[268px] md:max-w-[268px] h-auto md:min-h-[356px] bg-white shadow-[0px_0px_16.3px_rgba(0,0,0,0.1)] rounded-xl flex-none">
                                             {/* Form Header */}
                                             <div className="flex flex-col items-center gap-1 w-full md:w-[226px] h-auto md:h-[170px] flex-none mx-auto">
                                                 <div className="flex flex-row items-center gap-4 w-full md:w-[226px] h-auto md:h-[26px] flex-none">
@@ -547,9 +547,9 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                             </div>
                                             
                                             {/* Form Footer */}
-                                            <div className="flex flex-col items-start gap-3 md:gap-0 w-full md:w-[226px] h-auto md:h-[150px] flex-none mx-auto">
+                                            <div className="flex flex-col items-start gap-3 w-full md:w-[226px] h-auto flex-none mx-auto">
                                                 {/* Checkbox & Categories */}
-                                                <div className="flex flex-col items-start gap-3 md:gap-0 w-full md:w-[226px] h-auto md:h-[100px] flex-none">
+                                                <div className="flex flex-col items-start gap-3 w-full md:w-[226px] h-auto flex-none">
                                                     <div className="flex flex-row items-center gap-3 w-full md:w-[226px] h-auto md:h-[21px] flex-none">
                                                         <div className="flex flex-row justify-center items-center gap-1 w-5 h-[18px] mix-blend-normal rounded-[250px] flex-none">
                                                             <div className="w-5 h-5 flex-none">
@@ -571,27 +571,25 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                     </div>
                                                     
                                                     {/* Category Pills */}
-                                                    <div className="flex flex-row justify-between items-center gap-1.5 md:gap-2 w-full md:w-[226px] h-auto md:h-7 flex-none">
+                                                    <div className="flex flex-row justify-between items-center gap-1 w-full md:w-[226px] h-auto flex-none mt-2">
                                                         {['Buyer', 'Seller', 'Renter', 'Other'].map((category) => (
                                                             <button
                                                                 key={category}
                                                                 type="button"
                                                                 onClick={() => handleCategoryToggle(category)}
-                                                                className={`flex flex-row justify-center items-center gap-1 md:gap-2 h-auto md:h-[23px] rounded-[100px] flex-none mx-auto cursor-pointer transition-all ${
+                                                                className={`flex justify-center items-center h-7 rounded-full cursor-pointer transition-all flex-1 min-w-0 ${
                                                                     formData.categories.includes(category)
                                                                         ? 'bg-[#9C2A10]'
                                                                         : 'bg-[#FDFDFD] border border-[#1C1463]'
                                                                 }`}
                                                             >
-                                                                <div className="flex flex-row justify-center items-center py-1 md:py-1.5 px-2 md:px-4 gap-1 md:gap-2 h-auto md:h-8 flex-none">
-                                                                    <span className={`h-auto md:h-[21px] font-work-sans font-normal text-xs leading-[21px] flex items-center text-center tracking-[-0.03em] flex-none ${
-                                                                        formData.categories.includes(category)
-                                                                            ? 'text-white'
-                                                                            : 'text-[#1C1463]'
-                                                                    }`}>
-                                                                        {category}
-                                                                    </span>
-                                                                </div>
+                                                                <span className={`px-2 py-0.5 font-work-sans font-normal text-[10px] leading-tight ${
+                                                                    formData.categories.includes(category)
+                                                                        ? 'text-white'
+                                                                        : 'text-[#1C1463]'
+                                                                }`}>
+                                                                    {category}
+                                                                </span>
                                                             </button>
                                                         ))}
                                                     </div>
@@ -601,18 +599,16 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                 </div>
                                                 
                                                 {/* Submit Button */}
-                                                <button 
+                                                <button
                                                     type="submit"
                                                     disabled={isSubmitting}
-                                                    className={`flex flex-col justify-center items-center gap-2 w-full md:w-[226px] h-auto md:h-10 rounded-[100px] flex-none mx-auto transition-all ${
+                                                    className={`flex justify-center items-center w-full md:w-[226px] h-10 mt-2 mb-4 rounded-[100px] transition-all ${
                                                         isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 cursor-pointer'
                                                     }`}
                                                 >
-                                                    <div className="flex flex-row justify-center items-center py-2 md:py-2.5 px-4 md:px-6 gap-2 w-full md:w-[226px] h-auto md:h-12 flex-none">
-                                                        <span className="w-auto h-auto md:h-6 font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] text-white flex-none">
-                                                            {isSubmitting ? 'Sending...' : 'Submit'}
-                                                        </span>
-                                                    </div>
+                                                    <span className="font-work-sans font-bold text-sm leading-6 text-white py-2">
+                                                        {isSubmitting ? 'Sending...' : 'Submit'}
+                                                    </span>
                                                 </button>
                                                 
                                                 {/* Success/Error Messages */}

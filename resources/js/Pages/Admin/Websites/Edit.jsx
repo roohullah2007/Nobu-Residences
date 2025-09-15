@@ -260,7 +260,7 @@ export default function Edit({ auth }) {
                                                         <img
                                                             src={logoPreview || data.logo_url}
                                                             alt={data.logo_file ? 'New Logo Preview' : 'Current Logo'}
-                                                            className="h-16 w-auto mx-auto"
+                                                            className="h-16 w-auto mx-auto object-contain"
                                                             onError={(e) => {
                                                                 e.target.style.display = 'none';
                                                             }}

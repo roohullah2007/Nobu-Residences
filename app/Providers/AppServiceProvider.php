@@ -34,11 +34,12 @@ class AppServiceProvider extends ServiceProvider
         
         // Share Google Maps API key with all views
         View::composer('*', function ($view) {
-            // Try to get from database first, then fallback to config
-            $googleMapsApiKey = Setting::get('google_maps_api_key') 
-                ?: config('ampre.google_maps_api_key') 
-                ?: config('maps.google-maps.api_key');
-            
+            // Try to get from database first, then fallback to config, then env
+            $googleMapsApiKey = Setting::get('google_maps_api_key')
+                ?: config('ampre.google_maps_api_key')
+                ?: config('maps.google-maps.api_key')
+                ?: env('GOOGLE_MAPS_API_KEY', '');
+
             $view->with('googleMapsApiKey', $googleMapsApiKey);
         });
     }
