@@ -96,8 +96,6 @@ const PropertyCarousel = ({
     </svg>
   );
 
-  // Get building slug for property URLs
-  const buildingSlug = viewAllLink?.split('/')[1] || '15-mercer';
 
   // Don't render if no properties
   if (!properties.length) {
@@ -199,7 +197,6 @@ const PropertyCarousel = ({
                     <PropertyCard
                       key={`desktop-${item.id}-${index}`}
                       property={item}
-                      buildingSlug={buildingSlug}
                     />
                   );
                 })}
@@ -305,7 +302,6 @@ const PropertyCarousel = ({
                     <PropertyCard
                       key={`tablet-${item.id}-${index}`}
                       property={item}
-                      buildingSlug={buildingSlug}
                     />
                   );
                 })}
@@ -393,7 +389,6 @@ const PropertyCarousel = ({
                 <div key={`mobile-${item.id}-${index}`} className="flex-none">
                   <PropertyCard
                     property={item}
-                    buildingSlug={buildingSlug}
                   />
                 </div>
               );

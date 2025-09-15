@@ -7,7 +7,6 @@ import {
   MoreBuildings,
   ComparableSales,
   MerchandiseLofts,
-  BuildingAmenities,
 } from '@/Website/Components/PropertyDetail';
 import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 
@@ -42,12 +41,7 @@ export default function PropertySections({
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />
 
-      {/* Building Amenities Section - Show only if building exists with amenities */}
-      {buildingData && buildingData.amenities && buildingData.amenities.length > 0 && (
-        <section className="py-4">
-          <BuildingAmenities buildingData={buildingData} />
-        </section>
-      )}
+      {/* Building Amenities are shown in the tabs section only */}
 
       {/* Condo Apartments Section - Show if property is in a building with condos */}
       {propertyData.details?.type?.toLowerCase().includes('condo') && (

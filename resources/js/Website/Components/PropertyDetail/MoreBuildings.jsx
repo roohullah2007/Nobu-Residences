@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
-import PropertyCardV6 from '../../Global/Components/PropertyCards/PropertyCardV6';
+import PropertyCard from '@/Website/Components/Property/PropertyCard';
 import { usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
 
@@ -717,19 +716,9 @@ const MoreBuildings = ({
           <div className="mobile-listings-scroll">
             {buildings.map((building) => (
               <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item">
-                {/* Use PropertyCardV6 for all cards for consistency */}
-                <PropertyCardV6
+                {/* Use unified PropertyCard for consistency */}
+                <PropertyCard
                   property={building}
-                  auth={auth}
-                  size="mobile"
-                  onClick={() => {
-                    if (building.source === 'building' && building.id) {
-                      window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                    } else if (building.listingKey) {
-                      window.location.href = `/property/${building.listingKey}`;
-                    }
-                  }}
-                  className="w-[300px] min-w-[300px] h-auto"
                 />
               </div>
             ))}
@@ -752,19 +741,9 @@ const MoreBuildings = ({
                     .slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide)
                     .map((building) => (
                       <div key={building.listingKey || building.id} className="flex justify-center items-start slider-item">
-                        {/* Use PropertyCardV6 for all cards for consistency */}
-                        <PropertyCardV6
+                        {/* Use unified PropertyCard for consistency */}
+                        <PropertyCard
                           property={building}
-                          auth={auth}
-                          size="default"
-                          onClick={() => {
-                            if (building.source === 'building' && building.id) {
-                              window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                            } else if (building.listingKey) {
-                              window.location.href = `/property/${building.listingKey}`;
-                            }
-                          }}
-                          className="w-[300px] min-w-[300px] h-auto"
                         />
                       </div>
                     ))}

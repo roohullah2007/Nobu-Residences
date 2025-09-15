@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import { formatPrice, formatAddress, getPropertyFeatures } from '@/Website/Utils/property-utils';
 
-const PropertyCard = ({ property, buildingSlug = '15-mercer' }) => {
+const PropertyCard = ({ property }) => {
   // Format property data
   const price = formatPrice(property.ListPrice || property.price || 0, property.isRental);
   const bedrooms = property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0;
@@ -23,8 +23,9 @@ const PropertyCard = ({ property, buildingSlug = '15-mercer' }) => {
   // Get property image
   const imageUrl = property.MediaURL || property.imageUrl || property.image || '/images/placeholder-property.jpg';
 
-  // Build property URL
-  const propertyUrl = `/${buildingSlug}/${streetNumber}-${streetName.toLowerCase().replace(/\s+/g, '-')}-${unitNumber || 'unit'}/${listingKey}`;
+  // Build property URL - use the simple redirect route that only needs listing key
+  // The backend will handle the redirect to the proper SEO-friendly URL
+  const propertyUrl = `/property/${listingKey}`;
 
   // Format transaction type for badge
   const statusBadgeText = transactionType === 'For Lease' ? 'For Rent' : transactionType;
