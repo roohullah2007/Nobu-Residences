@@ -7,7 +7,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 
-export default function BuildingsEdit({ auth, building, developers = [], amenities = [] }) {
+export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [] }) {
     // Debug logging
     console.log('=== BuildingsEdit Component Loaded ===');
     console.log('Building prop:', building);
@@ -50,7 +50,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         estimated_completion: building.estimated_completion || '',
         architect: building.architect || '',
         interior_designer: building.interior_designer || '',
-        landscape_architect: building.landscape_architect || ''
+        landscape_architect: building.landscape_architect || '',
+        maintenance_fee_amenity_ids: building.maintenance_fee_amenity_ids || []
     });
 
     // Initialize selected amenities immediately from props
@@ -83,10 +84,23 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const [selectedAmenities, setSelectedAmenities] = useState(initSelectedAmenities());
     console.log('State initialized with selectedAmenities:', selectedAmenities);
+
+    // Initialize selected maintenance fee amenities
+    const initMaintenanceFeeAmenities = () => {
+        if (maintenanceFeeAmenities && building.maintenance_fee_amenity_ids) {
+            return maintenanceFeeAmenities.filter(a =>
+                building.maintenance_fee_amenity_ids.includes(a.id)
+            );
+        }
+        return [];
+    };
+
+    const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState(initMaintenanceFeeAmenities());
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
 
     const buildingTypes = [
         { value: 'condominium', label: 'Condominium' },
@@ -156,7 +170,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         
         const formData = {
             ...data,
-            amenity_ids: amenityIds
+            amenity_ids: amenityIds,
+            maintenance_fee_amenity_ids: selectedMaintenanceFeeAmenities.map(a => a.id)
         };
         
         console.log('Final form data being sent:', formData);
@@ -186,6 +201,15 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             newSelectedCount: newSelectedAmenities.length,
             newSelectedIds: newSelectedAmenities.map(a => a.id)
         });
+    };
+
+    const toggleMaintenanceFeeAmenity = (amenity) => {
+        const exists = selectedMaintenanceFeeAmenities.find(a => a.id === amenity.id);
+        if (exists) {
+            setSelectedMaintenanceFeeAmenities(selectedMaintenanceFeeAmenities.filter(a => a.id !== amenity.id));
+        } else {
+            setSelectedMaintenanceFeeAmenities([...selectedMaintenanceFeeAmenities, amenity]);
+        }
     };
 
     const handleImageUpload = async (e) => {
@@ -581,6 +605,87 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     </div>
                                 </div>
                             )}
+
+                            {/* Maintenance Fee Amenities Section */}
+                            <div className="mt-8 border-t pt-6">
+                                <h3 className="text-base font-semibold leading-6 text-gray-900 mb-4">
+                                    Amenities Included in Maintenance Fees
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Select amenities that are covered by the maintenance fees
+                                </p>
+
+                                {/* Selected Maintenance Fee Amenities Display */}
+                                <div className="mb-4">
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedMaintenanceFeeAmenities.length > 0 ? (
+                                            selectedMaintenanceFeeAmenities.map(amenity => {
+                                                return (
+                                                    <span
+                                                        key={amenity.id}
+                                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
+                                                    >
+                                                        <img
+                                                            src={amenity.icon || '/assets/svgs/amenity-default.svg'}
+                                                            alt={amenity.name}
+                                                            className="w-4 h-4 object-contain"
+                                                        />
+                                                        {amenity.name}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleMaintenanceFeeAmenity(amenity)}
+                                                            className="ml-1 text-green-600 hover:text-green-800"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-gray-500 text-sm">No maintenance fee amenities selected</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Toggle Button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMaintenanceAmenitySelector(!showMaintenanceAmenitySelector)}
+                                    className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                >
+                                    {showMaintenanceAmenitySelector ? 'Hide' : 'Select'} Maintenance Amenities
+                                </button>
+
+                                {/* Maintenance Amenity Selector */}
+                                {showMaintenanceAmenitySelector && (
+                                    <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                            {maintenanceFeeAmenities.map(amenity => {
+                                                const isIncluded = selectedMaintenanceFeeAmenities.some(a => a.id === amenity.id);
+                                                return (
+                                                    <button
+                                                        key={amenity.id}
+                                                        type="button"
+                                                        onClick={() => toggleMaintenanceFeeAmenity(amenity)}
+                                                        className={`flex items-center gap-2 p-2 rounded-lg text-sm transition-colors ${
+                                                            isIncluded
+                                                                ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                                                                : 'bg-white hover:bg-gray-100 border border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <img
+                                                            src={amenity.icon || '/assets/svgs/amenity-default.svg'}
+                                                            alt={amenity.name}
+                                                            className="w-5 h-5 object-contain"
+                                                        />
+                                                        <span className="text-left">{amenity.name}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 

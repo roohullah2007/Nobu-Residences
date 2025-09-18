@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import Navbar from '@/Website/Global/Navbar';
 import PropertyCardV6 from '@/Website/Global/Components/PropertyCards/PropertyCardV6';
 import { Heart, Trash2 } from '@/Website/Components/Icons';
 
@@ -142,11 +141,8 @@ export default function UserFavourites({ auth, siteName, siteUrl, year }) {
   }
 
   return (
-    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth}>
       <Head title={`My Favourites - ${siteName}`} />
-      <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-        <Navbar auth={auth} />
-      </div>
       
       <div className="max-w-[1280px] mx-auto px-4 py-8">
         {/* Header */}

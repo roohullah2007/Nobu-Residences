@@ -72,10 +72,24 @@ class BuildingController extends Controller
                 'icon' => $amenity->icon
             ];
         });
-        
+
+        // Get all active maintenance fee amenities
+        $maintenanceFeeAmenities = \App\Models\MaintenanceFeeAmenity::active()
+            ->ordered()
+            ->get()
+            ->map(function ($amenity) {
+                return [
+                    'id' => $amenity->id,
+                    'name' => $amenity->name,
+                    'icon' => $amenity->icon,
+                    'category' => $amenity->category
+                ];
+            });
+
         return Inertia::render('Admin/Buildings/Create', [
             'developers' => $developers,
-            'amenities' => $amenities
+            'amenities' => $amenities,
+            'maintenanceFeeAmenities' => $maintenanceFeeAmenities
         ]);
     }
 
@@ -109,16 +123,25 @@ class BuildingController extends Controller
             'virtual_tour_url' => 'nullable|string',
             'amenity_ids' => 'nullable|array',
             'amenity_ids.*' => 'exists:amenities,id',
+            'maintenance_fee_amenity_ids' => 'nullable|array',
+            'maintenance_fee_amenity_ids.*' => 'exists:maintenance_fee_amenities,id',
         ]);
 
         // Extract amenity IDs for the relationship
         $amenityIds = $validated['amenity_ids'] ?? [];
         unset($validated['amenity_ids']);
 
+        // Extract maintenance fee amenity IDs for the relationship
+        $maintenanceFeeAmenityIds = $validated['maintenance_fee_amenity_ids'] ?? [];
+        unset($validated['maintenance_fee_amenity_ids']);
+
         // Log the amenity IDs for debugging
         \Log::info('Creating building with amenities', [
+            'request_all' => $request->all(),
             'amenity_ids' => $amenityIds,
-            'amenity_count' => count($amenityIds)
+            'amenity_count' => count($amenityIds),
+            'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
+            'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds)
         ]);
 
         $building = Building::create($validated);
@@ -132,6 +155,18 @@ class BuildingController extends Controller
                 'building_name' => $building->name,
                 'amenity_ids' => $amenityIds,
                 'amenity_count' => count($amenityIds)
+            ]);
+        }
+
+        // Attach maintenance fee amenities if provided
+        if (!empty($maintenanceFeeAmenityIds)) {
+            $building->maintenanceFeeAmenities()->attach($maintenanceFeeAmenityIds);
+
+            \Log::info('Attached maintenance fee amenities to new building', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
+                'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds)
             ]);
         }
 
@@ -164,9 +199,22 @@ class BuildingController extends Controller
             ];
         });
 
+        // Get all active maintenance fee amenities
+        $maintenanceFeeAmenities = \App\Models\MaintenanceFeeAmenity::active()
+            ->ordered()
+            ->get()
+            ->map(function ($amenity) {
+                return [
+                    'id' => $amenity->id,
+                    'name' => $amenity->name,
+                    'icon' => $amenity->icon,
+                    'category' => $amenity->category
+                ];
+            });
+
         // Load the building relationships
-        $building->load(['developer']);
-        
+        $building->load(['developer', 'maintenanceFeeAmenities']);
+
         // Get building amenities with explicit query to ensure we get the data
         $buildingAmenities = $building->amenities()->get();
 
@@ -220,9 +268,11 @@ class BuildingController extends Controller
                 'interior_designer' => $building->interior_designer,
                 'landscape_architect' => $building->landscape_architect,
                 'amenity_ids' => $buildingAmenities->pluck('id')->toArray(),
+                'maintenance_fee_amenity_ids' => $building->maintenanceFeeAmenities->pluck('id')->toArray(),
             ],
             'developers' => $developers,
-            'amenities' => $amenities
+            'amenities' => $amenities,
+            'maintenanceFeeAmenities' => $maintenanceFeeAmenities
         ]);
     }
 
@@ -269,11 +319,17 @@ class BuildingController extends Controller
             'landscape_architect' => 'nullable|string',
             'amenity_ids' => 'nullable|array',
             'amenity_ids.*' => 'exists:amenities,id',
+            'maintenance_fee_amenity_ids' => 'nullable|array',
+            'maintenance_fee_amenity_ids.*' => 'exists:maintenance_fee_amenities,id',
         ]);
 
         // Extract amenity IDs for the relationship
         $amenityIds = $validated['amenity_ids'] ?? [];
         unset($validated['amenity_ids']);
+
+        // Extract maintenance fee amenity IDs for the relationship
+        $maintenanceFeeAmenityIds = $validated['maintenance_fee_amenity_ids'] ?? [];
+        unset($validated['maintenance_fee_amenity_ids']);
 
         // Log the amenity IDs for debugging
         \Log::info('Updating building amenities', [
@@ -281,6 +337,8 @@ class BuildingController extends Controller
             'building_name' => $building->name,
             'amenity_ids' => $amenityIds,
             'amenity_count' => count($amenityIds),
+            'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
+            'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds),
             'request_data_keys' => array_keys($request->all())
         ]);
 
@@ -290,7 +348,7 @@ class BuildingController extends Controller
         // Sync amenities - this will add/remove relationships as needed
         if (!empty($amenityIds)) {
             $result = $building->amenities()->sync($amenityIds);
-            
+
             \Log::info('Successfully synced amenities', [
                 'building_id' => $building->id,
                 'building_name' => $building->name,
@@ -304,6 +362,37 @@ class BuildingController extends Controller
             // Remove all amenities if none selected
             $result = $building->amenities()->detach();
             \Log::info('Detached all amenities', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'detach_result' => $result
+            ]);
+        }
+
+        // Sync maintenance fee amenities - this will add/remove relationships as needed
+        \Log::info('About to sync maintenance fee amenities', [
+            'building_id' => $building->id,
+            'building_name' => $building->name,
+            'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
+            'count' => count($maintenanceFeeAmenityIds),
+            'is_empty' => empty($maintenanceFeeAmenityIds)
+        ]);
+
+        if (!empty($maintenanceFeeAmenityIds)) {
+            $result = $building->maintenanceFeeAmenities()->sync($maintenanceFeeAmenityIds);
+
+            \Log::info('Successfully synced maintenance fee amenities', [
+                'building_id' => $building->id,
+                'building_name' => $building->name,
+                'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
+                'sync_result' => $result,
+                'attached' => $result['attached'] ?? [],
+                'detached' => $result['detached'] ?? [],
+                'updated' => $result['updated'] ?? []
+            ]);
+        } else {
+            // Remove all maintenance fee amenities if none selected
+            $result = $building->maintenanceFeeAmenities()->detach();
+            \Log::info('Detached all maintenance fee amenities', [
                 'building_id' => $building->id,
                 'building_name' => $building->name,
                 'detach_result' => $result

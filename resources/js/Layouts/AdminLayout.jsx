@@ -55,6 +55,11 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     name: 'Amenities',
                     href: route('admin.amenities.index'),
                     current: url?.startsWith('/admin/amenities') || false
+                },
+                {
+                    name: 'Maintenance Fee Amenities',
+                    href: route('admin.maintenance-fee-amenities.index'),
+                    current: url?.startsWith('/admin/maintenance-fee-amenities') || false
                 }
             ]
         },

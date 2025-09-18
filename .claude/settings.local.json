@@ -27,7 +27,14 @@
       "Bash(python:*)",
       "Bash(composer:*)",
       "Bash(if [ -f \"F:\\noburesidence\\NOBU\\laravel-react-starter\\app\\Http\\Controllers\\Admin\\SchoolController.php\" ])",
-      "Bash(else echo \"SchoolController.php not found\")"
+      "Bash(else echo \"SchoolController.php not found\")",
+      "Bash(if [ -f \"F:\\noburesidence\\NOBU\\laravel-react-starter\\public\\images\\placeholder-property.jpg\" ])",
+      "Bash(then echo \"File exists\")",
+      "Bash(else echo \"File not found\")",
+      "Bash(if [ -d \"F:/noburesidence/laravel-react-old\" ])",
+      "Bash(else echo \"Directory not found\")",
+      "Read(//f/noburesidence/**)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],

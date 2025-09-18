@@ -6,40 +6,7 @@ import SavedSearchesTab from '@/Components/SavedSearchesTab';
 
 export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   const [activeTab, setActiveTab] = useState('saved');
-  const [favoritesCount, setFavoritesCount] = useState(0);
-  const [savedSearchesCount, setSavedSearchesCount] = useState(0);
-
-  useEffect(() => {
-    // Fetch favorites count
-    fetch('/api/favourites/properties', {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success && data.favourites) {
-        setFavoritesCount(data.favourites.length);
-      }
-    })
-    .catch(error => console.error('Error fetching favorites count:', error));
-
-    // Fetch saved searches count
-    fetch('/api/saved-searches', {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.data && Array.isArray(data.data)) {
-        setSavedSearchesCount(data.data.length);
-      }
-    })
-    .catch(error => console.error('Error fetching saved searches count:', error));
-  }, []);
+  
 
   // Sample alerts
   const alerts = [
@@ -54,7 +21,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
       id: 2,
       title: "Price drop alert",
       description: "408 - 155 Dalhousie Street reduced price by $39,000",
-      time: "1 day ago",
+      time: "1 day ago", 
       type: "price_drop"
     },
     {
@@ -85,8 +52,8 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   };
 
   const tabs = [
-    { id: 'saved', label: 'Saved Properties', count: favoritesCount },
-    { id: 'searches', label: 'Recent Searches', count: savedSearchesCount },
+    { id: 'saved', label: 'Saved Properties', count: null },
+    { id: 'searches', label: 'Recent Searches', count: null },
     { id: 'alerts', label: 'Alerts', count: alerts.length },
     { id: 'profile', label: 'Profile', count: null }
   ];
@@ -130,7 +97,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
                 } transition-colors`}
               >
                 {tab.label}
-                {tab.count !== null && tab.count > 0 && (
+                {tab.count !== null && (
                   <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
                     {tab.count}
                   </span>
@@ -143,10 +110,10 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
         {/* Tab Content */}
         <div className="min-h-[400px]">
           {/* Saved Properties Tab */}
-          {activeTab === 'saved' && <UserFavouritesTab onCountUpdate={setFavoritesCount} />}
+          {activeTab === 'saved' && <UserFavouritesTab />}
 
           {/* Recent Searches Tab */}
-          {activeTab === 'searches' && <SavedSearchesTab onCountUpdate={setSavedSearchesCount} />}
+          {activeTab === 'searches' && <SavedSearchesTab />}
 
           {/* Alerts Tab */}
           {activeTab === 'alerts' && (

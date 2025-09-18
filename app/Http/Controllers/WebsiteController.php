@@ -984,6 +984,10 @@ class WebsiteController extends Controller
         $propertyImages = [];
         $buildingData = null;
 
+        // Cache key for this property
+        $cacheKey = 'property_detail_' . $listingKey;
+        $cacheTime = 300; // 5 minutes
+
         // Check if it's a local property (numeric ID)
         if (is_numeric($listingKey)) {
             $property = Property::with(['building.amenities' => function($query) {
@@ -1012,7 +1016,14 @@ class WebsiteController extends Controller
                         'main_image' => $property->building->main_image,
                         'units_for_sale' => $property->building->units_for_sale,
                         'units_for_rent' => $property->building->units_for_rent,
-                        'amenities' => $amenities
+                        'amenities' => $amenities,
+                        'maintenance_fee_amenities' => $property->building->maintenanceFeeAmenities->map(function($amenity) {
+                            return [
+                                'name' => $amenity->name,
+                                'icon' => $amenity->icon,
+                                'category' => $amenity->category
+                            ];
+                        })->toArray()
                     ];
                     
                     \Log::info('Local property building amenities loaded:', [
@@ -1094,7 +1105,14 @@ class WebsiteController extends Controller
                                     'main_image' => $building->main_image,
                                     'units_for_sale' => $building->units_for_sale,
                                     'units_for_rent' => $building->units_for_rent,
-                                    'amenities' => $amenities
+                                    'amenities' => $amenities,
+                                    'maintenance_fee_amenities' => $building->maintenanceFeeAmenities->map(function($amenity) {
+                                        return [
+                                            'name' => $amenity->name,
+                                            'icon' => $amenity->icon,
+                                            'category' => $amenity->category
+                                        ];
+                                    })->toArray()
                                 ];
                                 
                                 \Log::info('MLS property matched to building', [
@@ -1153,7 +1171,14 @@ class WebsiteController extends Controller
                                     'main_image' => $building->main_image,
                                     'units_for_sale' => $building->units_for_sale,
                                     'units_for_rent' => $building->units_for_rent,
-                                    'amenities' => $amenities
+                                    'amenities' => $amenities,
+                                    'maintenance_fee_amenities' => $building->maintenanceFeeAmenities->map(function($amenity) {
+                                        return [
+                                            'name' => $amenity->name,
+                                            'icon' => $amenity->icon,
+                                            'category' => $amenity->category
+                                        ];
+                                    })->toArray()
                                 ];
                                 \Log::info('Found building for MLS property:', [
                                     'building' => $building->name, 

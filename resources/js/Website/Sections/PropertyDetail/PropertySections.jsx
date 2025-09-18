@@ -84,16 +84,16 @@ export default function PropertySections({
       )}
       
       {/* Dynamic Buildings/Listings Section */}
-      <MoreBuildings 
-        title={propertyData.details?.type?.toLowerCase().includes('condo') 
-          ? "More Buildings By Agent" 
+      <MoreBuildings
+        title={propertyData.details?.type?.toLowerCase().includes('condo')
+          ? "More Buildings By Agent"
           : "Nearby Listings"
         }
-        propertyData={propertyData} 
+        propertyData={propertyData}
       />
-      
+
       {/* Similar Listings Section - Using same MoreBuildings component for consistency */}
-      <MoreBuildings 
+      <MoreBuildings
         title="Similar Listings"
         propertyData={propertyData}
       />

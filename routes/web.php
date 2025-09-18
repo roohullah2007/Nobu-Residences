@@ -81,12 +81,16 @@ Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageContr
 Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
 Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
-Route::post('/api/save-search', [\App\Http\Controllers\PropertySearchController::class, 'saveSearch']); // Removed auth middleware - handled in controller
-Route::get('/api/saved-searches', [\App\Http\Controllers\PropertySearchController::class, 'getSavedSearches'])->middleware('auth');
+Route::post('/api/save-search', [\App\Http\Controllers\SavedSearchController::class, 'store'])->middleware('auth');
+Route::get('/api/saved-searches', [\App\Http\Controllers\SavedSearchController::class, 'index'])->middleware('auth');
+Route::put('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'update'])->middleware('auth');
+Route::delete('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'destroy'])->middleware('auth');
+Route::get('/saved-searches/{id}/run', [\App\Http\Controllers\SavedSearchController::class, 'run'])->middleware('auth');
 Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingController::class, 'searchBuildings']);
 
-// Property Detail API route
+// Property Detail API routes
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);
+Route::post('/api/optimized/property-detail', [\App\Http\Controllers\Api\OptimizedPropertyDetailController::class, 'getAllPropertyData']);
 
 // Property Favourites API routes
 Route::middleware('auth')->prefix('api/favourites')->group(function () {
@@ -133,7 +137,11 @@ Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings
 Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListings']);
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    return Inertia::render('Dashboard', [
+        'auth' => [
+            'user' => auth()->user()
+        ]
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // User Dashboard Route - For regular website users
@@ -192,7 +200,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     
     // Amenity Management routes
     Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
-    
+
+    // Maintenance Fee Amenity Management routes
+    Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);
+    Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);
+
     // Schools removed - using API data instead
     
     // Contact Form Management routes

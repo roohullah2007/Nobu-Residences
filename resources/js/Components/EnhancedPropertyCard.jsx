@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import { formatPrice, formatAddress, getPropertyFeatures } from '@/Website/Utils/property-utils';
+import imageOptimizationService from '@/services/ImageOptimizationService';
 
-const PropertyCard = ({ property }) => {
-  // Image loading states
-  const [imageLoading, setImageLoading] = useState(true);
+const EnhancedPropertyCard = ({ property, onImageLoad, onImageError }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const imgRef = useRef(null);
+  const mountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Format property data
   const price = formatPrice(property.ListPrice || property.price || 0, property.isRental);
@@ -18,28 +28,23 @@ const PropertyCard = ({ property }) => {
   const transactionType = property.TransactionType || property.transactionType || 'For Sale';
   const listOfficeName = property.ListOfficeName || property.listOfficeName || '';
 
-  // Format address for display - street address only (no city/province)
+  // Format address for display
   let displayAddress = '';
 
-  // For buildings, use the address directly
   if (property.source === 'building') {
     displayAddress = property.address || property.name || 'Building Address';
   } else {
-    // For properties, format as "Unit - StreetNumber StreetName" (no city/province)
     const unitNumber = property.UnitNumber || property.unitNumber || '';
     const streetNumber = property.StreetNumber || property.streetNumber || '';
     const streetName = property.StreetName || property.streetName || '';
     const streetSuffix = property.StreetSuffix || property.streetSuffix || '';
 
-    // Build the simplified address exactly like the example: "1901 - 15 Mercer"
-    if (unitNumber && streetNumber && streetName) {
+    if (unitNumber && (streetNumber || streetName)) {
       displayAddress = `${unitNumber} - ${streetNumber} ${streetName}`.trim();
-    } else if (streetNumber && streetName) {
+    } else if (streetNumber || streetName) {
       displayAddress = `${streetNumber} ${streetName}`.trim();
     } else {
-      // Fallback to unparsed address if components are missing
       const fallbackAddress = property.address || property.UnparsedAddress || property.unparsedAddress || '';
-      // Try to extract just the street portion (before the first comma)
       if (fallbackAddress) {
         const parts = fallbackAddress.split(',');
         displayAddress = parts[0].trim();
@@ -49,16 +54,66 @@ const PropertyCard = ({ property }) => {
     }
   }
 
-  // Get property image and convert HTTPS to HTTP for AMPRE images
-  let imageUrl = property.MediaURL || property.imageUrl || property.image || '/images/no-image-placeholder.jpg';
-  
-  // Fix AMPRE SSL issues by converting HTTPS to HTTP
-  if (imageUrl && imageUrl.includes('ampre.ca') && imageUrl.startsWith('https://')) {
-    imageUrl = imageUrl.replace('https://', 'http://');
-  }
+  // Get property image with fallbacks
+  const getImageUrl = () => {
+    return property.MediaURL || property.imageUrl || property.image || null;
+  };
 
-  // Build property URL - use the simple redirect route that only needs listing key
-  // The backend will handle the redirect to the proper SEO-friendly URL
+  // Default and placeholder images
+  const placeholderImage = '/images/no-image-placeholder.jpg';
+  const fallbackImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMjUgNzVIMTc1VjEyNUgxMjVWNzVaIiBmaWxsPSIjRDFENURCIi8+CjxwYXRoIGQ9Ik0xMzcuNSA5NEMxMzcuNSA5Ny4wMzc2IDEzNC43ODggMTAwIDEzMS4yNSAxMDBDMTI3LjcxMiAxMDAgMTI1IDk3LjAzNzYgMTI1IDk0QzEyNSA5MC45NjI0IDEyNy43MTIgODggMTMxLjI1IDg4QzEzNC43ODggODggMTM3LjUgOTAuOTYyNCAxMzcuNSA5NFoiIGZpbGw9IiNEMUQ1REIiLz4KPHA+Tm8gSW1hZ2U8L3A+Cjwvc3ZnPgo=';
+
+  // Load image with timeout and error handling
+  useEffect(() => {
+    const imageUrl = getImageUrl();
+    
+    if (!imageUrl) {
+      setImageError(true);
+      setImageLoaded(true);
+      return;
+    }
+
+    // Check if image is already cached
+    if (imageOptimizationService.isImageCached(imageUrl)) {
+      setCurrentImageUrl(imageUrl);
+      setImageLoaded(true);
+      setImageError(false);
+      if (onImageLoad) onImageLoad(listingKey);
+      return;
+    }
+
+    // Check if image previously failed
+    if (imageOptimizationService.hasImageFailed(imageUrl)) {
+      setImageError(true);
+      setImageLoaded(true);
+      if (onImageError) onImageError(listingKey);
+      return;
+    }
+
+    // Reset states
+    setImageLoaded(false);
+    setImageError(false);
+    setCurrentImageUrl(null);
+
+    // Preload image with timeout
+    imageOptimizationService.preloadImage(imageUrl, 6000)
+      .then(() => {
+        if (!mountedRef.current) return;
+        setCurrentImageUrl(imageUrl);
+        setImageLoaded(true);
+        setImageError(false);
+        if (onImageLoad) onImageLoad(listingKey);
+      })
+      .catch((error) => {
+        if (!mountedRef.current) return;
+        console.warn(`Failed to load image for property ${listingKey}:`, error.message);
+        setImageError(true);
+        setImageLoaded(true);
+        if (onImageError) onImageError(listingKey);
+      });
+  }, [property.imageUrl, property.MediaURL, property.image, listingKey, onImageLoad, onImageError]);
+
+  // Build property URL
   const propertyUrl = `/property/${listingKey}`;
 
   // Format transaction type for badge
@@ -72,61 +127,47 @@ const PropertyCard = ({ property }) => {
       <Link href={propertyUrl} className="flex flex-col h-full text-inherit no-underline">
         {/* Image Container */}
         <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-gray-100 rounded-t-xl">
-          <div className="relative overflow-hidden w-full h-full property-image lazy-property-image transition-transform duration-300 group-hover:scale-105">
-            {/* Loading State - Enhanced IDX-AMPRE style */}
-            {imageLoading && !imageError && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-100">
-                <div className="flex flex-col items-center gap-2">
-                  {/* Skeleton loading animation */}
-                  <div className="w-full h-full absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse"></div>
-                  {/* Loading spinner */}
-                  <div className="relative z-10 w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="relative z-10 text-xs text-gray-600 font-medium">Loading image...</span>
-                </div>
-              </div>
-            )}
+          {/* Loading State */}
+          {!imageLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#293056]"></div>
+            </div>
+          )}
 
-            {/* Error State */}
-            {imageError && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-50">
-                <div className="flex flex-col items-center gap-2 text-gray-500">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Image */}
+          <div className={`relative overflow-hidden w-full h-full property-image lazy-property-image transition-all duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'} group-hover:scale-105`}>
+            {currentImageUrl && !imageError ? (
+              <img
+                ref={imgRef}
+                src={currentImageUrl}
+                alt={`${propertyType} in ${displayAddress}`}
+                className="w-full h-full object-cover transition-all duration-300"
+                style={{ filter: 'blur(0px)' }}
+                onLoad={() => {
+                  if (!imageLoaded) {
+                    setImageLoaded(true);
+                    setImageError(false);
+                    if (onImageLoad) onImageLoad(listingKey);
+                  }
+                }}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoaded(true);
+                  if (onImageError) onImageError(listingKey);
+                }}
+              />
+            ) : (
+              // Fallback/Error image
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-xs font-medium">Image unavailable</span>
+                  <p className="text-sm text-gray-500 mt-1">No Image</p>
                 </div>
               </div>
             )}
-
-            <img
-              src={imageUrl}
-              alt={`${propertyType} in ${displayAddress}`}
-              className={`w-full h-full object-cover transition-all duration-500 ease-out ${
-                imageLoading ? 'opacity-50 scale-105 blur-sm' : 'opacity-100 scale-100 blur-0'
-              }`}
-              onLoad={() => {
-                setImageLoading(false);
-                setImageError(false);
-              }}
-              onError={(e) => {
-                // Try HTTP version if HTTPS fails for AMPRE images
-                if (e.target.src.includes('ampre.ca') && e.target.src.startsWith('https://')) {
-                  e.target.src = e.target.src.replace('https://', 'http://');
-                } else if (!imageError) {
-                  // Set error state and try fallback
-                  setImageError(true);
-                  setImageLoading(false);
-                  e.target.src = '/images/no-image-placeholder.jpg';
-                }
-              }}
-            />
-
-            {/* Success indicator */}
-            {!imageLoading && !imageError && (
-              <div className="absolute top-2 right-2 w-2 h-2 bg-green-500 rounded-full opacity-75 animate-pulse"></div>
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 animate-fade-in"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </div>
 
           {/* Badges */}
@@ -158,7 +199,7 @@ const PropertyCard = ({ property }) => {
 
             {/* Features */}
             <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
-              {bedrooms}BD | {bathrooms}BA{sqftDisplay ? ` | ${sqftDisplay}` : ''}
+              {bedrooms}BD | {bathrooms}BA{sqftDisplay ? ` | ${sqftDisplay}` : ''}{parking ? ` | ${parking} Parking` : ''}
             </div>
 
             {/* Brokerage */}
@@ -183,4 +224,4 @@ const PropertyCard = ({ property }) => {
   );
 };
 
-export default PropertyCard;
+export default EnhancedPropertyCard;

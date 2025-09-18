@@ -48,6 +48,13 @@ export default function MerchandiseLofts({ propertyData }) {
       try {
         // Fetch building data
         const buildingResponse = await fetch(`/api/buildings/find-by-address?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}`);
+
+        if (!buildingResponse.ok) {
+          console.warn(`Building API returned ${buildingResponse.status}: ${buildingResponse.statusText}`);
+          setLoading(false);
+          return;
+        }
+
         const buildingResult = await buildingResponse.json();
         
         if (buildingResult.success && buildingResult.data) {
@@ -57,6 +64,13 @@ export default function MerchandiseLofts({ propertyData }) {
         // Fetch MLS counts (with cache-busting timestamp)
         const timestamp = new Date().getTime();
         const mlsResponse = await fetch(`/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}&_t=${timestamp}`);
+
+        if (!mlsResponse.ok) {
+          console.warn(`MLS count API returned ${mlsResponse.status}: ${mlsResponse.statusText}`);
+          setLoading(false);
+          return;
+        }
+
         const mlsResult = await mlsResponse.json();
         
         if (mlsResult.success) {
@@ -104,7 +118,15 @@ export default function MerchandiseLofts({ propertyData }) {
   // Use building data only - no fallbacks
   const buildingName = buildingData?.name || 'The Building';
   const buildingAddress = buildingData?.address || extractAddress()?.streetNumber + ' ' + extractAddress()?.streetName;
-  const buildingImage = buildingData?.main_image || buildingData?.images?.[0] || null;
+
+  // Get building image with fallback logic
+  let buildingImage = null;
+  if (buildingData?.main_image) {
+    buildingImage = buildingData.main_image;
+  } else if (buildingData?.images && Array.isArray(buildingData.images) && buildingData.images.length > 0) {
+    buildingImage = buildingData.images[0];
+  }
+
   const buildingId = buildingData?.id;
 
   return (
@@ -115,13 +137,17 @@ export default function MerchandiseLofts({ propertyData }) {
             {/* Left side - Image */}
             <div className="md:w-[330px]">
               {buildingImage ? (
-                <img 
+                <img
                   src={buildingImage}
                   alt={buildingName}
                   className="w-full h-48 md:h-full object-cover"
                   onError={(e) => {
-                    // Hide image on error instead of showing fallback
+                    console.error('Building image failed to load:', buildingImage);
+                    // Try to fallback to placeholder or hide
                     e.target.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('Building image loaded successfully:', buildingImage);
                   }}
                 />
               ) : (

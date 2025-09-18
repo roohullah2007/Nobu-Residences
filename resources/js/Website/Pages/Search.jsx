@@ -11,6 +11,7 @@ import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
+import LoginModal from '@/Website/Global/Components/LoginModal';
 
 
 // Icon components
@@ -149,17 +150,20 @@ const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters }) => {
   );
 };
 
-export default function EnhancedPropertySearch({ 
-  auth, 
+export default function EnhancedPropertySearch({
+  auth,
   website,
-  siteName, 
-  siteUrl, 
-  year, 
-  filters = {}, 
-  searchTab = 'listings', 
+  siteName,
+  siteUrl,
+  year,
+  filters = {},
+  searchTab = 'listings',
 }) {
   // Debug: Log the filters being passed from WebsiteController
   console.log('🔍 Search page filters from controller:', filters);
+
+  // State for login modal
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // Function to map backend status to user-friendly display
   const mapStatusToDisplay = (status) => {
@@ -541,6 +545,13 @@ export default function EnhancedPropertySearch({
   };
 
   const handleSaveSearch = async () => {
+    // Check if user is authenticated
+    if (!auth?.user) {
+      // Show login modal instead of saving
+      setShowLoginModal(true);
+      return;
+    }
+
     // Generate a default name for the search based on filters
     const filters = [];
     if (searchFilters.status) filters.push(searchFilters.status);
@@ -548,17 +559,17 @@ export default function EnhancedPropertySearch({
       filters.push(`$${(searchFilters.price_min || 0).toLocaleString()}-$${(searchFilters.price_max || 10000000).toLocaleString()}`);
     }
     if (searchFilters.bedrooms) filters.push(`${searchFilters.bedrooms}+ beds`);
-    
-    const searchName = filters.length > 0 
-      ? filters.join(', ') 
+
+    const searchName = filters.length > 0
+      ? filters.join(', ')
       : `Search - ${new Date().toLocaleDateString()}`;
-    
+
     const saveData = {
       name: searchName,
       search_params: searchFilters,
       email_alerts: false
     };
-    
+
     try {
       const response = await fetch('/api/save-search', {
         method: 'POST',
@@ -573,20 +584,8 @@ export default function EnhancedPropertySearch({
       // Check if response is HTML (likely a redirect to login)
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
-        // User is not authenticated
-        const loginMessage = document.createElement('div');
-        loginMessage.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        loginMessage.innerHTML = '<span class="flex items-center gap-2">⚠️ Please log in to save searches</span>';
-        document.body.appendChild(loginMessage);
-        
-        setTimeout(() => {
-          loginMessage.style.transition = 'opacity 0.3s';
-          loginMessage.style.opacity = '0';
-          setTimeout(() => loginMessage.remove(), 300);
-        }, 3000);
-        
-        // Optionally redirect to login
-        // window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search);
+        // User is not authenticated - show login modal
+        setShowLoginModal(true);
         return;
       }
 
@@ -723,7 +722,7 @@ export default function EnhancedPropertySearch({
       city: building.city,
       province: building.province,
       source: 'building',
-      imageUrl: building.main_image || '/images/building-placeholder.jpg',
+      imageUrl: building.main_image || '/images/no-image-placeholder.jpg',
       images: building.images || [],
       isImageLoading: false,
       // Additional building-specific data
@@ -1797,6 +1796,12 @@ export default function EnhancedPropertySearch({
 
         {/* Save Search Modal */}
         </div>
+
+        {/* Login Modal */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+        />
       </MainLayout>
     </>
   );

@@ -276,6 +276,241 @@ class PropertyDetailController extends Controller
     }
     
     /**
+     * Get nearby listings for a property
+     */
+    public function getNearbyListings(Request $request): JsonResponse
+    {
+        $listingKey = $request->input('listingKey');
+        $limit = $request->input('limit', 6);
+        
+        if (!$listingKey) {
+            return response()->json(['error' => 'Listing key is required'], 400);
+        }
+        
+        try {
+            // Get the main property first to get its location
+            $property = $this->ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$property) {
+                return response()->json(['error' => 'Property not found'], 404);
+            }
+            
+            $latitude = $property['Latitude'] ?? null;
+            $longitude = $property['Longitude'] ?? null;
+            
+            if (!$latitude || !$longitude) {
+                return response()->json(['properties' => []]);
+            }
+            
+            // Configure AMPRE API for nearby search
+            $this->ampreApi->resetFilters();
+            $this->ampreApi->setSelect([
+                'ListingKey', 'UnparsedAddress', 'StreetNumber', 'StreetName', 'StreetSuffix',
+                'UnitNumber', 'City', 'StateOrProvince', 'ListPrice', 'PropertyType',
+                'PropertySubType', 'TransactionType', 'BedroomsTotal', 'BathroomsTotalInteger',
+                'LivingArea', 'ParkingTotal', 'ListOfficeName', 'Latitude', 'Longitude',
+                'StandardStatus', 'MlsStatus'
+            ]);
+            $this->ampreApi->setTop($limit + 5); // Get a few extra to filter out current property
+
+            // Add filters for nearby search
+            $this->ampreApi->addFilter('TransactionType', 'For Sale');
+            $this->ampreApi->addFilter('StandardStatus', 'Active');
+
+            // Add property type filters
+            $propertyTypes = ['Apartment', 'Condo Apartment', 'Condo', 'Townhouse', 'House'];
+            $this->ampreApi->setFilterOr('PropertySubType', $propertyTypes);
+
+            // Get city from the current property for location filtering
+            $currentCity = $property['City'] ?? '';
+            if ($currentCity) {
+                $this->ampreApi->addCustomFilter("contains(City, '{$currentCity}')");
+            } else {
+                // Fallback to Toronto area
+                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+            }
+
+            // Fetch properties
+            $searchResults = $this->ampreApi->fetchProperties();
+            
+            if (empty($searchResults)) {
+                return response()->json(['properties' => []]);
+            }
+
+            // Filter out the current property and format results
+            $nearbyProperties = array_filter($searchResults, function($prop) use ($listingKey) {
+                return ($prop['ListingKey'] ?? '') !== $listingKey;
+            });
+
+            // Limit results
+            $nearbyProperties = array_slice($nearbyProperties, 0, $limit);
+
+            // Add images to properties
+            $propertiesWithImages = $this->addPropertyImages($nearbyProperties);
+
+            // Format properties for frontend
+            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $propertiesWithImages);
+            
+            return response()->json([
+                'properties' => $formattedProperties,
+                'count' => count($formattedProperties)
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch nearby listings: ' . $e->getMessage());
+            return response()->json(['properties' => []], 200); // Return empty array instead of error
+        }
+    }
+    
+    /**
+     * Get similar listings for a property
+     */
+    public function getSimilarListings(Request $request): JsonResponse
+    {
+        $listingKey = $request->input('listingKey');
+        $propertyType = $request->input('propertyType');
+        $propertySubType = $request->input('propertySubType');
+        $limit = $request->input('limit', 6);
+        
+        if (!$listingKey) {
+            return response()->json(['error' => 'Listing key is required'], 400);
+        }
+        
+        try {
+            // Get the main property first to get its characteristics
+            $property = $this->ampreApi->getPropertyByKey($listingKey);
+            
+            if (!$property) {
+                return response()->json(['error' => 'Property not found'], 404);
+            }
+            
+            $currentPrice = $property['ListPrice'] ?? 0;
+            $currentBedrooms = $property['BedroomsTotal'] ?? 0;
+            $currentPropertyType = $propertySubType ?: ($propertyType ?: ($property['PropertySubType'] ?? $property['PropertyType'] ?? ''));
+            
+            // Configure AMPRE API for similar search
+            $this->ampreApi->resetFilters();
+            $this->ampreApi->setSelect([
+                'ListingKey', 'UnparsedAddress', 'StreetNumber', 'StreetName', 'StreetSuffix',
+                'UnitNumber', 'City', 'StateOrProvince', 'ListPrice', 'PropertyType',
+                'PropertySubType', 'TransactionType', 'BedroomsTotal', 'BathroomsTotalInteger',
+                'LivingArea', 'ParkingTotal', 'ListOfficeName', 'Latitude', 'Longitude',
+                'StandardStatus', 'MlsStatus'
+            ]);
+            $this->ampreApi->setTop($limit + 10); // Get extra to filter out current property
+
+            // Add basic filters
+            $this->ampreApi->addFilter('TransactionType', 'For Sale');
+            $this->ampreApi->addFilter('StandardStatus', 'Active');
+
+            // Add property type filter
+            if ($currentPropertyType) {
+                $this->ampreApi->addFilter('PropertySubType', $currentPropertyType);
+            }
+
+            // Add price range (±30%)
+            if ($currentPrice > 0) {
+                $priceRange = $currentPrice * 0.3;
+                $minPrice = max(0, $currentPrice - $priceRange);
+                $maxPrice = $currentPrice + $priceRange;
+                $this->ampreApi->setPriceRange($minPrice, $maxPrice);
+            }
+
+            // Add bedroom range (±1)
+            if ($currentBedrooms > 0) {
+                $this->ampreApi->addFilter('BedroomsTotal', max(0, $currentBedrooms - 1), 'ge');
+                $this->ampreApi->addFilter('BedroomsTotal', $currentBedrooms + 1, 'le');
+            }
+
+            // Get city from the current property for location filtering
+            $currentCity = $property['City'] ?? '';
+            if ($currentCity) {
+                $this->ampreApi->addCustomFilter("contains(City, '{$currentCity}')");
+            } else {
+                // Fallback to Toronto area
+                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+            }
+
+            // Sort by newest
+            $this->ampreApi->setOrderBy('ListingContractDate desc');
+
+            $searchResults = $this->ampreApi->fetchProperties();
+            
+            if (empty($searchResults)) {
+                return response()->json(['properties' => []]);
+            }
+
+            // Filter out the current property
+            $similarProperties = array_filter($searchResults, function($prop) use ($listingKey) {
+                return ($prop['ListingKey'] ?? '') !== $listingKey;
+            });
+
+            // Limit results
+            $similarProperties = array_slice($similarProperties, 0, $limit);
+
+            // Add images to properties
+            $propertiesWithImages = $this->addPropertyImages($similarProperties);
+
+            // Format properties for frontend
+            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $propertiesWithImages);
+            
+            return response()->json([
+                'properties' => $formattedProperties,
+                'count' => count($formattedProperties)
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch similar listings: ' . $e->getMessage());
+            return response()->json(['properties' => []], 200); // Return empty array instead of error
+        }
+    }
+    
+    /**
+     * Format property data for listing display
+     */
+    private function formatPropertyForListing($property): array
+    {
+        // Get image URL from property if available
+        $imageUrl = null;
+        if (isset($property['Images']) && !empty($property['Images'])) {
+            // Get the first valid image
+            foreach ($property['Images'] as $img) {
+                if (!empty($img['MediaURL'])) {
+                    $imageUrl = $img['MediaURL'];
+                    break;
+                }
+            }
+        }
+
+        return [
+            'listingKey' => $property['ListingKey'] ?? '',
+            'address' => $property['UnparsedAddress'] ?? '',
+            'streetNumber' => $property['StreetNumber'] ?? '',
+            'streetName' => $property['StreetName'] ?? '',
+            'streetSuffix' => $property['StreetSuffix'] ?? '',
+            'unitNumber' => $property['UnitNumber'] ?? '',
+            'city' => $property['City'] ?? '',
+            'province' => $property['StateOrProvince'] ?? '',
+            'price' => $property['ListPrice'] ?? 0,
+            'propertyType' => $property['PropertyType'] ?? '',
+            'propertySubType' => $property['PropertySubType'] ?? '',
+            'transactionType' => $property['TransactionType'] ?? 'For Sale',
+            'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
+            'bathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0,
+            'livingAreaRange' => $property['LivingArea'] ?? '',
+            'parkingTotal' => $property['ParkingTotal'] ?? 0,
+            'listOfficeName' => $property['ListOfficeName'] ?? '',
+            'latitude' => $property['Latitude'] ?? null,
+            'longitude' => $property['Longitude'] ?? null,
+            'standardStatus' => $property['StandardStatus'] ?? '',
+            'mlsStatus' => $property['MlsStatus'] ?? '',
+            'imageUrl' => $imageUrl,
+            'MediaURL' => $imageUrl, // For PropertyCard compatibility
+            'images' => $property['Images'] ?? [],
+        ];
+    }
+    
+    /**
      * Format images data
      */
     private function formatImages($imagesResponse, $listingKey): array
@@ -301,5 +536,46 @@ class PropertyDetailController extends Controller
         });
         
         return $images;
+    }
+
+    /**
+     * Add property images using the same pattern as PropertySearchController
+     */
+    private function addPropertyImages(array $properties): array
+    {
+        if (empty($properties)) {
+            return $properties;
+        }
+
+        $listingKeys = array_column($properties, 'ListingKey');
+
+        if (empty($listingKeys)) {
+            return $properties;
+        }
+
+        try {
+            // Fetch images in smaller batches to avoid API limits and improve accuracy
+            $batchSize = 5;
+            $imagesByKey = [];
+
+            foreach (array_chunk($listingKeys, $batchSize) as $batch) {
+                $batchImages = $this->ampreApi->getPropertiesImages($batch);
+                $imagesByKey = array_merge($imagesByKey, $batchImages);
+            }
+
+            foreach ($properties as $index => $property) {
+                $listingKey = $property['ListingKey'] ?? null;
+                $propertyImages = $imagesByKey[$listingKey] ?? [];
+
+                // Add full Images array to property
+                $properties[$index]['Images'] = $propertyImages;
+            }
+
+            return $properties;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch property images: ' . $e->getMessage());
+            return $properties; // Return properties without images if fetch fails
+        }
     }
 }

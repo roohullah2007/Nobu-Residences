@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AmpreApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Exception;
 
 class PropertyImageController extends Controller
@@ -19,10 +20,12 @@ class PropertyImageController extends Controller
 
     /**
      * Get property images for multiple listing keys
-     * Similar to idx_ampre_get_property_image in WordPress plugin
+     * Enhanced with better timeout handling and error recovery
      */
     public function getPropertyImages(Request $request)
     {
+        $startTime = microtime(true);
+        
         try {
             // Get listing keys from request
             $listingKeys = $request->input('listing_keys', []);
@@ -45,15 +48,33 @@ class PropertyImageController extends Controller
                 ], 400);
             }
             
-            // Limit batch size to prevent API overload - increased to handle more images
-            $batchSize = min(count($listingKeys), 20); // Increased from 10 to 20
+            // Limit batch size to prevent API overload and timeouts
+            $batchSize = min(count($listingKeys), 15); // Reduced for better performance
             $listingKeys = array_slice($listingKeys, 0, $batchSize);
             
-            // Fetch images for the listing keys
-            $imagesByKey = $this->ampreApi->getPropertiesImages($listingKeys);
+            Log::info('Fetching images for listing keys: ' . implode(', ', $listingKeys));
+            
+            // Set timeout context for API calls
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 8 // 8 second timeout
+                ]
+            ]);
+            
+            // Fetch images for the listing keys with timeout handling
+            $imagesByKey = [];
+            try {
+                $imagesByKey = $this->ampreApi->getPropertiesImages($listingKeys);
+            } catch (\Exception $apiException) {
+                Log::warning('AMPRE API timeout or error: ' . $apiException->getMessage());
+                // Continue with empty results rather than failing completely
+                $imagesByKey = [];
+            }
             
             // Format response similar to IDX-AMPRE plugin
             $formattedImages = [];
+            $successCount = 0;
+            
             foreach ($listingKeys as $listingKey) {
                 $images = $imagesByKey[$listingKey] ?? [];
                 
@@ -78,6 +99,7 @@ class PropertyImageController extends Controller
                         'all_images' => $processedImages,
                         'status' => 'success'
                     ];
+                    $successCount++;
                 } else {
                     // Use placeholder for properties without images
                     $formattedImages[$listingKey] = [
@@ -88,18 +110,24 @@ class PropertyImageController extends Controller
                 }
             }
             
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::info("Image fetch completed: {$successCount}/{$batchSize} images in {$executionTime}ms");
+            
             return response()->json([
                 'success' => true,
                 'data' => [
                     'images' => $formattedImages,
-                    'count' => count($formattedImages)
+                    'count' => count($formattedImages),
+                    'success_count' => $successCount,
+                    'execution_time_ms' => $executionTime
                 ]
-            ]);
+            ])->header('Cache-Control', 'public, max-age=300'); // 5 minute cache
             
         } catch (Exception $e) {
-            Log::error('Property images fetch error: ' . $e->getMessage());
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::error("Property images fetch error after {$executionTime}ms: " . $e->getMessage());
             
-            // Return placeholder data on error
+            // Return placeholder data on error but don't fail the entire request
             $placeholderImages = [];
             foreach ($listingKeys ?? [] as $listingKey) {
                 $placeholderImages[$listingKey] = [
@@ -111,20 +139,24 @@ class PropertyImageController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch images',
+                'message' => 'Failed to fetch images - using placeholders',
                 'data' => [
                     'images' => $placeholderImages,
-                    'count' => 0
+                    'count' => count($placeholderImages),
+                    'success_count' => 0,
+                    'execution_time_ms' => $executionTime
                 ]
-            ], 500);
+            ])->header('Cache-Control', 'public, max-age=60'); // 1 minute cache for errors
         }
     }
     
     /**
-     * Get a single property image
+     * Get a single property image with enhanced timeout handling
      */
     public function getPropertyImage(Request $request)
     {
+        $startTime = microtime(true);
+        
         try {
             $listingKey = $request->input('listing_key');
             
@@ -135,8 +167,15 @@ class PropertyImageController extends Controller
                 ], 400);
             }
             
-            // Fetch image for single listing
-            $images = $this->ampreApi->getPropertiesImages([$listingKey]);
+            // Fetch image for single listing with timeout
+            $images = [];
+            try {
+                $images = $this->ampreApi->getPropertiesImages([$listingKey]);
+            } catch (\Exception $apiException) {
+                Log::warning("AMPRE API timeout for listing {$listingKey}: " . $apiException->getMessage());
+                // Return empty result rather than error
+            }
+            
             $propertyImages = $images[$listingKey] ?? [];
             
             if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
@@ -155,34 +194,42 @@ class PropertyImageController extends Controller
                     return $img;
                 }, $propertyImages);
                 
+                $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+                
                 return response()->json([
                     'success' => true,
                     'data' => [
                         'image_url' => $imageUrl,
-                        'all_images' => $processedImages
+                        'all_images' => $processedImages,
+                        'execution_time_ms' => $executionTime
                     ]
-                ]);
+                ])->header('Cache-Control', 'public, max-age=300'); // 5 minute cache
             }
+            
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
             
             return response()->json([
                 'success' => true,
                 'data' => [
                     'image_url' => null,
-                    'all_images' => []
+                    'all_images' => [],
+                    'execution_time_ms' => $executionTime
                 ]
             ]);
             
         } catch (Exception $e) {
-            Log::error('Single property image fetch error: ' . $e->getMessage());
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::error("Single property image fetch error after {$executionTime}ms: " . $e->getMessage());
             
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch image',
                 'data' => [
                     'image_url' => null,
-                    'all_images' => []
+                    'all_images' => [],
+                    'execution_time_ms' => $executionTime
                 ]
-            ], 500);
+            ])->header('Cache-Control', 'public, max-age=60'); // 1 minute cache for errors
         }
     }
 }

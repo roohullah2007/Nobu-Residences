@@ -6,8 +6,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
-import Navbar from '@/Website/Global/Navbar';
-import Footer from '@/Website/Global/Footer';
+import MainLayout from '@/Website/Global/MainLayout';
 
 export default function UserProfile({ auth, mustVerifyEmail, status, website }) {
     const user = auth.user;
@@ -131,13 +130,8 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website }) 
     };
 
     return (
-        <>
+        <MainLayout auth={auth} website={website}>
             <Head title="Profile Settings" />
-
-            {/* Header with background */}
-            <div className="bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10">
-                <Navbar auth={auth} website={website} />
-            </div>
 
             {/* Main Content */}
             <div className="min-h-screen bg-gray-50">
@@ -531,8 +525,6 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website }) 
                 </div>
             </div>
 
-            {/* Footer */}
-            <Footer website={website} />
-        </>
+        </MainLayout>
     );
 }

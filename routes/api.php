@@ -3,8 +3,12 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\SchoolController;
+use App\Http\Controllers\Api\PropertyImageController;
+use App\Http\Controllers\Api\PropertyDetailController;
+use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\FavouritesController;
 use App\Http\Controllers\PropertySearchController;
+use App\Http\Controllers\SavedSearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,7 +33,46 @@ Route::prefix('favourites')->group(function () {
     Route::post('/properties/check', [FavouritesController::class, 'checkProperty']);
     Route::post('/properties/toggle', [FavouritesController::class, 'toggleProperty']);
     Route::get('/properties', [FavouritesController::class, 'getProperties']);
+    Route::get('/properties/with-data', [FavouritesController::class, 'getPropertiesWithData']);
     Route::delete('/properties', [FavouritesController::class, 'removeProperty']);
+});
+
+// Saved Searches API Routes
+Route::prefix('saved-searches')->group(function () {
+    Route::get('/', [SavedSearchController::class, 'index']);
+    Route::post('/', [SavedSearchController::class, 'store']);
+    Route::delete('/{id}', [SavedSearchController::class, 'destroy']);
+    Route::get('/{id}/run', [SavedSearchController::class, 'run']);
+});
+
+// Property Image API Routes with Enhanced Error Handling
+Route::prefix('property-images')->group(function () {
+    Route::post('/', [PropertyImageController::class, 'getPropertyImages']);
+    Route::get('/single', [PropertyImageController::class, 'getPropertyImage']);
+});
+
+// Property Detail API Routes
+Route::prefix('properties')->group(function () {
+    Route::get('/nearby-listings', [PropertyDetailController::class, 'getNearbyListings']);
+    Route::get('/similar-listings', [PropertyDetailController::class, 'getSimilarListings']);
+});
+
+// Alternative routes for compatibility
+Route::post('/property-images', [PropertyImageController::class, 'getPropertyImages']);
+Route::get('/nearby-listings', [PropertyDetailController::class, 'getNearbyListings']);
+Route::get('/similar-listings', [PropertyDetailController::class, 'getSimilarListings']);
+
+// Building API Routes
+Route::prefix('buildings')->group(function () {
+    Route::get('/find-by-address', [BuildingController::class, 'findByAddress']);
+    Route::get('/count-mls-listings', [BuildingController::class, 'countMLSListings']);
+    Route::get('/featured', [BuildingController::class, 'featured']);
+    Route::get('/types', [BuildingController::class, 'buildingTypes']);
+    Route::get('/cities', [BuildingController::class, 'cities']);
+    Route::get('/search', [BuildingController::class, 'search']);
+    Route::post('/upload-image', [BuildingController::class, 'uploadImage']);
+    Route::get('/', [BuildingController::class, 'index']);
+    Route::get('/{id}', [BuildingController::class, 'show']);
 });
 
 // School API Routes

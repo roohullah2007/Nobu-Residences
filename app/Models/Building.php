@@ -89,6 +89,7 @@ class Building extends Model
         'agent_email',
         'agent_image'
         // Removed 'amenities' - now using relationship table
+        // Removed 'maintenance_fee_amenities' - now using relationship table
     ];
 
     protected $casts = [
@@ -98,6 +99,7 @@ class Building extends Model
         'features' => 'array',
         'nearby_transit' => 'array',
         // Removed 'amenities' => 'array' - now using relationship table
+        // Removed 'maintenance_fee_amenities' => 'array' - now using relationship table
         'is_featured' => 'boolean',
         'total_units' => 'integer',
         'units_for_sale' => 'integer',
@@ -129,6 +131,14 @@ class Building extends Model
     public function amenities()
     {
         return $this->belongsToMany(Amenity::class, 'amenity_building', 'building_id', 'amenity_id')->withTimestamps();
+    }
+
+    /**
+     * Get the maintenance fee amenities for this building
+     */
+    public function maintenanceFeeAmenities()
+    {
+        return $this->belongsToMany(MaintenanceFeeAmenity::class, 'building_maintenance_fee_amenities', 'building_id', 'maintenance_fee_amenity_id')->withTimestamps();
     }
 
     /**

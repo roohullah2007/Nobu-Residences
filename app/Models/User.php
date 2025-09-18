@@ -65,6 +65,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the user's saved searches
+     */
+    public function savedSearches(): HasMany
+    {
+        return $this->hasMany(SavedSearch::class);
+    }
+
+    /**
      * Check if user has favourited a specific property
      */
     public function hasFavouritedProperty(string $listingKey): bool

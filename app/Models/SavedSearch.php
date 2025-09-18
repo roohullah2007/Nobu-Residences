@@ -14,13 +14,17 @@ class SavedSearch extends Model
         'name',
         'search_params',
         'email_alerts',
-        'last_run_at'
+        'frequency',
+        'last_alert_sent',
+        'results_count'
     ];
 
     protected $casts = [
         'search_params' => 'array',
         'email_alerts' => 'boolean',
-        'last_run_at' => 'datetime'
+        'last_alert_sent' => 'datetime',
+        'frequency' => 'integer',
+        'results_count' => 'integer'
     ];
 
     /**
@@ -29,14 +33,6 @@ class SavedSearch extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Scope for active searches
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
     }
 
     /**
@@ -71,7 +67,7 @@ class SavedSearch extends Model
             $criteria[] = "Min Price: $" . number_format($params['price_min']);
         }
 
-        if (!empty($params['price_max']) && $params['price_max'] > 0) {
+        if (!empty($params['price_max']) && $params['price_max'] > 0 && $params['price_max'] < 10000000) {
             $criteria[] = "Max Price: $" . number_format($params['price_max']);
         }
 
@@ -87,10 +83,10 @@ class SavedSearch extends Model
     }
 
     /**
-     * Update the last run timestamp
+     * Update the last alert sent timestamp
      */
-    public function updateLastRun()
+    public function updateLastAlertSent()
     {
-        $this->update(['last_run_at' => now()]);
+        $this->update(['last_alert_sent' => now()]);
     }
 }

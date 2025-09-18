@@ -1,18 +1,13 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import Navbar from '@/Website/Global/Navbar';
 import ContactForm from '@/Website/Sections/Contact/ContactForm';
 import ContactInfo from '@/Website/Sections/Contact/ContactInfo';
 
 export default function Contact({ auth, siteName, siteUrl, year, website }) {
   return (
-    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth}>
       <Head title={`Contact Us - ${siteName}`} />
-      
-      <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-        <Navbar auth={auth} />
-      </div>
       
       <div className="idx mx-auto overflow-hidden bg-primary">
         <div className="px-4 md:px-0 max-w-[1280px] mx-auto">

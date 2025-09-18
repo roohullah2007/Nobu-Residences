@@ -35,11 +35,11 @@ const BuildingCard = ({ building, size = "default", className = "" }) => {
         {/* Building Image */}
         <div className="relative h-48 bg-gray-200">
           <img
-            src={main_image || '/images/building-placeholder.jpg'}
+            src={main_image || '/images/no-image-placeholder.jpg'}
             alt={name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.target.src = '/images/building-placeholder.jpg';
+              e.target.src = '/images/no-image-placeholder.jpg';
             }}
           />
           

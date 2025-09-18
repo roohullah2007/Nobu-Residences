@@ -36,7 +36,7 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
     };
 
     return (
-        <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} pageContent={pageContent}>
+        <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} pageContent={pageContent} auth={auth} hideHeader={true}>
             <Head title={`${siteName} - Your Next Home Is Just a Click Away`} />
             {/* Prevent horizontal overflow */}
             <div className="overflow-x-hidden">

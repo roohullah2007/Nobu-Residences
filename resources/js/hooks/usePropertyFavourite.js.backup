@@ -73,70 +73,16 @@ export const usePropertyFavourite = (property, auth) => {
     try {
       // Prepare property data for storage
       const propertyData = {
-        // Core identifiers
         listingKey: listingKey,
-        ListingKey: listingKey,
-        id: listingKey,
-
-        // Images - CRITICAL for display
-        MediaURL: property?.MediaURL || property?.imageUrl,
-        imageUrl: property?.imageUrl || property?.MediaURL,
-        images: property?.images || property?.Images || [],
-
-        // Price information
-        ListPrice: property?.price || property?.ListPrice || property?.ClosePrice,
+        address: property?.address || property?.Address || property?.full_address,
         price: property?.price || property?.ListPrice || property?.ClosePrice,
-        OriginalListPrice: property?.OriginalListPrice,
-        originalPrice: property?.originalPrice || property?.OriginalListPrice,
-
-        // Address information (formatted like search page)
-        address: property?.address || property?.Address || property?.UnparsedAddress || property?.full_address,
-        UnparsedAddress: property?.UnparsedAddress || property?.address,
-        StreetNumber: property?.StreetNumber || property?.streetNumber,
-        StreetName: property?.StreetName || property?.streetName,
-        StreetSuffix: property?.StreetSuffix || property?.streetSuffix,
-        UnitNumber: property?.UnitNumber || property?.unitNumber,
-        City: property?.city || property?.City,
-        StateOrProvince: property?.province || property?.StateOrProvince || 'ON',
-        PostalCode: property?.PostalCode || property?.postalCode,
-
-        // Property details
-        PropertyType: property?.propertyType || property?.PropertyType,
-        PropertySubType: property?.PropertySubType || property?.propertySubType || property?.propertyType,
         propertyType: property?.propertyType || property?.PropertyType || property?.PropertySubType,
-        TransactionType: property?.TransactionType || property?.transactionType || 'For Sale',
-        transactionType: property?.transactionType || property?.TransactionType || 'For Sale',
-
-        // Status information - IMPORTANT for proper display
-        StandardStatus: property?.StandardStatus || property?.status || 'Active',
-        MlsStatus: property?.MlsStatus || property?.mlsStatus,
-        formatted_status: property?.formatted_status,
-        status: property?.status || property?.StandardStatus || 'Active',
-
-        // Property specifications
-        BedroomsTotal: property?.bedrooms || property?.BedroomsTotal,
-        BathroomsTotalInteger: property?.bathrooms || property?.BathroomsTotalInteger,
-        LivingAreaRange: property?.area || property?.LivingAreaRange || property?.sqft,
-        AboveGradeFinishedArea: property?.AboveGradeFinishedArea,
-        ParkingTotal: property?.parking || property?.ParkingTotal,
-
-        // Additional MLS fields that might be needed
-        GarageSpaces: property?.GarageSpaces || property?.garageSpaces,
-        TaxAnnualAmount: property?.TaxAnnualAmount || property?.taxAmount,
-        AssociationFee: property?.AssociationFee || property?.associationFee,
-        YearBuilt: property?.YearBuilt || property?.yearBuilt,
-        LotSizeSquareFeet: property?.LotSizeSquareFeet || property?.lotSize,
-
-        // Dates
-        listingDate: property?.listingDate || property?.ListingContractDate,
-        ListingContractDate: property?.ListingContractDate || property?.listingDate,
-        DaysOnMarket: property?.DaysOnMarket || property?.daysOnMarket,
-
-        // Coordinates
-        latitude: property?.latitude || property?.Latitude,
-        longitude: property?.longitude || property?.Longitude,
-
-        // Store complete property object for any missing fields
+        city: property?.city || property?.City,
+        images: property?.images || property?.Images || [],
+        bedrooms: property?.bedrooms || property?.BedroomsTotal,
+        bathrooms: property?.bathrooms || property?.BathroomsTotalInteger,
+        area: property?.area || property?.LivingAreaRange || property?.BuildingAreaTotal,
+        // Store complete property object for future reference
         ...property
       };
 
@@ -152,7 +98,7 @@ export const usePropertyFavourite = (property, auth) => {
           property_address: propertyData.address,
           property_price: propertyData.price,
           property_type: propertyData.propertyType,
-          property_city: propertyData.City,
+          property_city: propertyData.city,
         })
       });
 

@@ -1,0 +1,37 @@
+
+    /**
+     * Get all favourite properties with full data for the current user
+     */
+    public function getPropertiesWithData(Request $request)
+    {
+        if (!Auth::check()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authentication required',
+                'requires_auth' => true
+            ], 401);
+        }
+
+        $favourites = UserPropertyFavourite::where('user_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($favourite) {
+                return [
+                    'id' => $favourite->id,
+                    'property_listing_key' => $favourite->property_listing_key,
+                    'property_data' => $favourite->property_data,
+                    'property_address' => $favourite->property_address,
+                    'property_price' => $favourite->property_price,
+                    'property_type' => $favourite->property_type,
+                    'property_city' => $favourite->property_city,
+                    'created_at' => $favourite->created_at,
+                    'favourited_date' => $favourite->created_at->format('M d, Y'),
+                    'favourited_at' => $favourite->created_at->toISOString()
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $favourites
+        ]);
+    }

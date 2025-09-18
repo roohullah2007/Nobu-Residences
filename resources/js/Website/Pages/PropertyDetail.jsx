@@ -3,10 +3,9 @@ import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
-import Navbar from '@/Website/Global/Navbar';
-import { 
+import {
   PropertyGallery,
-  MobileBottomBar, 
+  MobileBottomBar,
   PropertySections,
 } from '@/Website/Sections/PropertyDetail';
 import { TourScheduling } from '@/Website/Components';
@@ -288,11 +287,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
   }
   
   return (
-    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website}>
       <Head title={`${displayData.address} - Property Details - ${siteName}`} />
-      <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-      <Navbar auth={auth} website={website} />
-      </div>
       <div className="idx mx-auto overflow-hidden bg-primary">
       <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
 

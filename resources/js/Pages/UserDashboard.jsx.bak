@@ -1,45 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import UserFavouritesTab from '@/Components/UserFavouritesTab';
-import SavedSearchesTab from '@/Components/SavedSearchesTab';
 
 export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   const [activeTab, setActiveTab] = useState('saved');
-  const [favoritesCount, setFavoritesCount] = useState(0);
-  const [savedSearchesCount, setSavedSearchesCount] = useState(0);
+  
+  // Sample saved properties data
+  const savedProperties = [
+    {
+      id: 1,
+      image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80",
+      price: "$1,100,000",
+      address: "408 - 155 Dalhousie Street",
+      location: "King West, Downtown, Toronto",
+      beds: "2+1",
+      baths: "2",
+      sqft: "1276 sqft",
+      type: "For Sale",
+      savedDate: "3 days ago"
+    },
+    {
+      id: 2,
+      image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80",
+      price: "$2,000/month",
+      address: "104 Devonshire Avenue",
+      location: "London South, ON",
+      beds: "2",
+      baths: "1",
+      sqft: "900 sqft",
+      type: "For Rent",
+      savedDate: "1 week ago"
+    }
+  ];
 
-  useEffect(() => {
-    // Fetch favorites count
-    fetch('/api/favourites/properties', {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success && data.favourites) {
-        setFavoritesCount(data.favourites.length);
-      }
-    })
-    .catch(error => console.error('Error fetching favorites count:', error));
-
-    // Fetch saved searches count
-    fetch('/api/saved-searches', {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.data && Array.isArray(data.data)) {
-        setSavedSearchesCount(data.data.length);
-      }
-    })
-    .catch(error => console.error('Error fetching saved searches count:', error));
-  }, []);
+  // Sample recent searches
+  const recentSearches = [
+    {
+      id: 1,
+      query: "2 bedroom condos in Toronto",
+      location: "Toronto, ON",
+      priceRange: "$800k - $1.2M",
+      date: "Yesterday",
+      results: 45
+    },
+    {
+      id: 2,
+      query: "Rental properties downtown",
+      location: "Toronto, ON", 
+      priceRange: "$1500 - $2500/month",
+      date: "3 days ago",
+      results: 32
+    },
+    {
+      id: 3,
+      query: "Detached homes",
+      location: "Mississauga, ON",
+      priceRange: "$900k - $1.5M",
+      date: "1 week ago",
+      results: 28
+    }
+  ];
 
   // Sample alerts
   const alerts = [
@@ -54,7 +74,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
       id: 2,
       title: "Price drop alert",
       description: "408 - 155 Dalhousie Street reduced price by $39,000",
-      time: "1 day ago",
+      time: "1 day ago", 
       type: "price_drop"
     },
     {
@@ -85,8 +105,8 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   };
 
   const tabs = [
-    { id: 'saved', label: 'Saved Properties', count: favoritesCount },
-    { id: 'searches', label: 'Recent Searches', count: savedSearchesCount },
+    { id: 'saved', label: 'Saved Properties', count: savedProperties.length },
+    { id: 'searches', label: 'Recent Searches', count: recentSearches.length },
     { id: 'alerts', label: 'Alerts', count: alerts.length },
     { id: 'profile', label: 'Profile', count: null }
   ];
@@ -130,7 +150,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
                 } transition-colors`}
               >
                 {tab.label}
-                {tab.count !== null && tab.count > 0 && (
+                {tab.count !== null && (
                   <span className="ml-2 bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
                     {tab.count}
                   </span>
@@ -143,10 +163,129 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
         {/* Tab Content */}
         <div className="min-h-[400px]">
           {/* Saved Properties Tab */}
-          {activeTab === 'saved' && <UserFavouritesTab onCountUpdate={setFavoritesCount} />}
+          {activeTab === 'saved' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-space-grotesk font-bold text-[#293056]">
+                  Saved Properties
+                </h2>
+                <Link
+                  href="/search"
+                  className="text-sm text-[#293056] hover:text-[#1e2142] font-medium"
+                >
+                  Browse more properties →
+                </Link>
+              </div>
+
+              {savedProperties.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {savedProperties.map((property) => (
+                    <div key={property.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      <div className="relative">
+                        <img
+                          src={property.image}
+                          alt={property.address}
+                          className="w-full h-48 object-cover"
+                        />
+                        <div className="absolute top-3 left-3">
+                          <span className="bg-white text-[#293056] px-2 py-1 rounded text-xs font-medium">
+                            {property.type}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removeSavedProperty(property.id)}
+                          className="absolute top-3 right-3 bg-white rounded-full p-2 shadow-sm hover:bg-red-50 transition-colors"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="red" stroke="red" strokeWidth="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xl font-space-grotesk font-bold text-[#293056]">
+                            {property.price}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Saved {property.savedDate}
+                          </span>
+                        </div>
+                        <h3 className="font-medium text-gray-900 mb-1">{property.address}</h3>
+                        <p className="text-sm text-gray-600 mb-3">{property.location}</p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>{property.beds} beds</span>
+                          <span>{property.baths} baths</span>
+                          <span>{property.sqft}</span>
+                        </div>
+                        <div className="mt-4 flex space-x-2">
+                          <Link
+                            href="/property-detail"
+                            className="flex-1 bg-[#293056] text-white text-center py-2 rounded-lg text-sm font-medium hover:bg-[#1e2142] transition-colors"
+                          >
+                            View Details
+                          </Link>
+                          <button className="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                            Share
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No saved properties yet</h3>
+                  <p className="text-gray-600 mb-6">Start browsing and save properties you're interested in</p>
+                  <Link
+                    href="/search"
+                    className="inline-flex items-center px-4 py-2 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors"
+                  >
+                    Browse Properties
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Recent Searches Tab */}
-          {activeTab === 'searches' && <SavedSearchesTab onCountUpdate={setSavedSearchesCount} />}
+          {activeTab === 'searches' && (
+            <div>
+              <h2 className="text-xl font-space-grotesk font-bold text-[#293056] mb-6">
+                Recent Searches
+              </h2>
+
+              <div className="space-y-4">
+                {recentSearches.map((search) => (
+                  <div key={search.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 mb-1">{search.query}</h3>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>{search.location}</span>
+                          <span>•</span>
+                          <span>{search.priceRange}</span>
+                          <span>•</span>
+                          <span>{search.results} results</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{search.date}</p>
+                      </div>
+                      <button
+                        onClick={() => runSearch(search)}
+                        className="px-4 py-2 bg-[#293056] text-white rounded-lg text-sm font-medium hover:bg-[#1e2142] transition-colors"
+                      >
+                        Run Search
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Alerts Tab */}
           {activeTab === 'alerts' && (

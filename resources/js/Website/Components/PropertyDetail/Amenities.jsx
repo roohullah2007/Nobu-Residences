@@ -35,6 +35,7 @@ const Amenities = ({ propertyData }) => {
 
   console.log('Amenities Component - Building Data:', buildingData);
   console.log('Amenities Component - Building Amenities:', buildingAmenities);
+  console.log('Amenities Component - Maintenance Fee Amenities:', buildingData?.maintenance_fee_amenities);
 
   // Only show amenities from the database - NO HARDCODED DATA
   let allAmenities = [];
@@ -64,14 +65,19 @@ const Amenities = ({ propertyData }) => {
   }
   // NO FALLBACK TO HARDCODED DATA - if no amenities from backend, show nothing
 
-  // Included amenities (right sidebar)
-  const includedAmenities = [
-    { name: 'Hydro', iconPath: '/assets/svgs/hydro-power-water.svg', included: true },
-    { name: 'Water', iconPath: '/assets/svgs/shower.svg', included: true },
-    { name: 'Parking', iconPath: '/assets/svgs/parking-2.svg', included: true },
-    { name: 'Cable', iconPath: '/assets/svgs/tv.svg', included: false },
-    { name: 'Heat', iconPath: '/assets/svgs/radiator.svg', included: true }
-  ];
+  // Get maintenance fee amenities from backend
+  const maintenanceFeeAmenities = buildingData?.maintenance_fee_amenities || [];
+
+  console.log('Maintenance Fee Amenities from Backend:', maintenanceFeeAmenities);
+  console.log('Type of maintenance_fee_amenities:', typeof maintenanceFeeAmenities);
+  console.log('Is Array:', Array.isArray(maintenanceFeeAmenities));
+
+  // Use dynamic maintenance amenities from backend
+  const includedAmenities = maintenanceFeeAmenities.map(amenity => ({
+    name: amenity.name,
+    iconPath: amenity.icon || '/assets/svgs/amenity-default.svg',
+    included: true
+  }));
 
   const CheckIcon = () => (
     <img src="/assets/svgs/tick.svg" alt="Check" className="w-5 h-5" />
@@ -124,29 +130,35 @@ const Amenities = ({ propertyData }) => {
           </div>
         </div>
         
-        {/* Right sidebar - Included Amenities */}
-        <div className="w-full lg:w-[300px] lg:flex-shrink-0">
-          <h3 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Included in Maintenance Fees</h3>
-          <div className="border border-gray-200 rounded-lg p-4 h-full">
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-              {includedAmenities.map((amenity, index) => (
-                <div key={index} className="flex flex-row items-center gap-2">
-                  <img 
-                    src={amenity.iconPath} 
-                    alt={amenity.name}
-                    className="w-5 h-5 flex-shrink-0"
-                  />
-                  <span className="font-work-sans font-medium text-sm leading-6 tracking-[-0.03em] text-[#293056] flex-1 truncate">
-                    {amenity.name}
-                  </span>
-                  <div className="w-5 h-5 flex-shrink-0">
-                    {amenity.included ? <CheckIcon /> : <CrossIcon />}
-                  </div>
-                </div>
-              ))}
+        {/* Right sidebar - Included Amenities - Only show if we have data */}
+        {includedAmenities.length > 0 && (
+          <div className="w-full lg:w-[300px] lg:flex-shrink-0">
+            <h3 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Included in Maintenance Fees</h3>
+            <div className="border border-gray-200 rounded-lg p-4 h-full">
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                {includedAmenities.length === 0 ? (
+                  <p className="text-sm text-gray-500">No amenities included in maintenance fees</p>
+                ) : (
+                  includedAmenities.map((amenity, index) => (
+                    <div key={index} className="flex flex-row items-center gap-2">
+                      <img
+                        src={amenity.iconPath}
+                        alt={amenity.name}
+                        className="w-5 h-5 flex-shrink-0"
+                      />
+                      <span className="font-work-sans font-medium text-sm leading-6 tracking-[-0.03em] text-[#293056] flex-1 truncate">
+                        {amenity.name}
+                      </span>
+                      <div className="w-5 h-5 flex-shrink-0">
+                        <CheckIcon />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
