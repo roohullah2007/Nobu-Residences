@@ -14,7 +14,7 @@ export default function MainLayout({ children, siteName, siteUrl, year, website,
             )}
 
             <main className="md:px-0">{children}</main>
-            <Footer siteName={siteName} siteUrl={siteUrl} year={year} website={website} pageContent={pageContent} />
+            <Footer siteName={siteName} siteUrl={siteUrl} year={year} website={website} pageContent={pageContent} auth={auth} />
         </div>
     );
 }

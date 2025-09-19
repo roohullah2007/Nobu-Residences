@@ -37,7 +37,7 @@ const PropertiesForRent = ({ auth, forRentProperties = null, carouselSettings, m
       const response = await axios.get('/api/homepage-properties', {
         params
       });
-      
+
       if (response.data.success && response.data.data.forRent) {
         setProperties(response.data.data.forRent);
       }

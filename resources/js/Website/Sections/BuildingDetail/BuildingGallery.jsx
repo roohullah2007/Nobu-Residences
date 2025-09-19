@@ -210,27 +210,22 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
-                      <img 
-                        src={website?.contact_info?.agent?.image || buildingData?.agent_image || "/assets/school/jatin-gill.png"}
-                        alt={website?.contact_info?.agent?.name || buildingData?.agent_name || "Agent"}
+                      <img
+                        src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || buildingData?.agent_image || "/assets/school/jatin-gill.png"}
+                        alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || "Agent"}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="text-left">
                       <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
-                        {website?.contact_info?.agent?.name || buildingData?.agent_name || 'Contact Agent'}
+                        {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || 'Jatin Gill'}
                       </h3>
                       <p className="font-work-sans font-medium text-sm text-[#535862]">
-                        {website?.contact_info?.agent?.title || buildingData?.agent_title || 'Broker'}
+                        {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title || 'Property Manager'}
                       </p>
                       <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        {website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
+                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
                       </p>
-                      {(website?.contact_info?.agent?.phone || buildingData?.agent_phone) && (
-                        <p className="font-work-sans font-bold text-sm text-[#535862]">
-                          {website?.contact_info?.agent?.phone || buildingData.agent_phone}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -345,14 +340,16 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
       )}
       
       {/* Contact Agent Modal */}
-      <ContactAgentModal 
+      <ContactAgentModal
         isOpen={showContactModal}
         onClose={() => setShowContactModal(false)}
         agentData={{
           id: buildingData?.agent_id,
-          name: website?.contact_info?.agent?.name || buildingData?.agent_name,
-          title: website?.contact_info?.agent?.title || buildingData?.agent_title,
-          brokerage: website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage
+          name: website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name,
+          title: website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title,
+          phone: website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || buildingData?.agent_phone,
+          brokerage: website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage,
+          image: website?.agent_info?.profile_image || website?.contact_info?.agent?.image || buildingData?.agent_image
         }}
         propertyData={{
           ListingKey: buildingData?.id,
@@ -360,6 +357,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
           BuildingName: buildingData?.name
         }}
         auth={auth}
+        websiteSettings={{ website }}
       />
     </>
   );

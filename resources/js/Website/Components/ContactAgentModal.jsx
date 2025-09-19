@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
 
-export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth }) {
+export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
+    const [contactMethod, setContactMethod] = useState('form'); // 'form', 'phone', 'email'
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
         email: auth?.user?.email || '',
@@ -13,6 +14,39 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState(null);
     const [errors, setErrors] = useState({});
+    const [emailCopied, setEmailCopied] = useState(false);
+    const [phoneCopied, setPhoneCopied] = useState(false);
+
+    // Agent contact info from backend website settings or agentData
+    const agentInfo = websiteSettings?.website?.agent_info;
+    const agentPhone = agentData?.phone || agentInfo?.agent_phone || websiteSettings?.website?.contact_info?.phone || '+1 (647) 555-0123';
+    const agentEmail = agentData?.email || websiteSettings?.website?.contact_info?.email || 'agent@noburesidence.com';
+    const agentName = agentData?.name || agentInfo?.agent_name || 'Nobu Residence Agent';
+    const agentTitle = agentInfo?.agent_title || 'Property Manager';
+    const agentBrokerage = agentData?.brokerage || agentInfo?.brokerage || 'Nobu Residences';
+    const agentImage = agentData?.image || agentInfo?.profile_image || null;
+
+    const copyToClipboard = (text, type) => {
+        navigator.clipboard.writeText(text).then(() => {
+            if (type === 'email') {
+                setEmailCopied(true);
+                setTimeout(() => setEmailCopied(false), 2000);
+            } else if (type === 'phone') {
+                setPhoneCopied(true);
+                setTimeout(() => setPhoneCopied(false), 2000);
+            }
+        });
+    };
+
+    const handlePhoneCall = () => {
+        window.location.href = `tel:${agentPhone}`;
+    };
+
+    const handleEmailClick = () => {
+        const subject = encodeURIComponent(`Inquiry about ${propertyData?.UnparsedAddress || propertyData?.BuildingName || 'Property'}`);
+        const body = encodeURIComponent(`Hello ${agentName},\n\nI am interested in learning more about ${propertyData?.UnparsedAddress || propertyData?.BuildingName || 'this property'}.\n\nPlease contact me at your earliest convenience.\n\nThank you,\n${formData.name || ''}`);
+        window.location.href = `mailto:${agentEmail}?subject=${subject}&body=${body}`;
+    };
 
     const handleChange = (e) => {
         setFormData({
@@ -85,13 +119,13 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
     return (
         <div className="fixed inset-0 z-[999999] bg-black bg-opacity-50 flex items-center justify-center p-4" onClick={onClose}>
             {/* Modal Content */}
-            <div className="relative bg-white p-6 rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="relative bg-white p-6 rounded-lg max-w-md w-full" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold" style={{ color: 'rgb(41, 48, 86)' }}>
-                        Ask About Building
+                        Contact Agent
                     </h3>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="text-gray-500 bg-transparent border-none text-2xl font-bold cursor-pointer w-8 h-8 rounded flex items-center justify-center p-0 leading-none transition-colors hover:text-gray-800 hover:bg-gray-100 focus:outline-2 focus:outline-blue-500 focus:outline-offset-2"
                         aria-label="Close"
@@ -100,130 +134,37 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                     </button>
                 </div>
 
-                {submitStatus === 'success' ? (
-                    <div className="py-8 text-center">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
+                {/* Agent Info Display */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center">
+                        {agentImage && (
+                            <img
+                                src={agentImage}
+                                alt={agentName}
+                                className="w-16 h-16 rounded-full object-cover mr-4"
+                                onError={(e) => e.target.style.display = 'none'}
+                            />
+                        )}
+                        <div className="flex-1">
+                            <h4 className="font-bold text-lg text-gray-900">{agentName}</h4>
+                            {agentTitle && <p className="text-sm text-gray-600">{agentTitle}</p>}
+                            <p className="text-sm text-gray-600">{agentBrokerage}</p>
                         </div>
-                        <h3 className="font-bold text-xl text-[#293056] mb-2">
-                            Question Sent Successfully!
-                        </h3>
-                        <p className="text-gray-600">
-                            Our agent will get back to you within 24 hours.
-                        </p>
                     </div>
-                ) : (
-                    <>
-                        <p className="mb-4 text-gray-500">
-                            Have questions about this building? Our agent will get back to you within 24 hours.
-                        </p>
 
-                        <form onSubmit={handleSubmit}>
-                            {errors.general && (
-                                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
-                                    {errors.general}
-                                </div>
-                            )}
-
-                            <div className="mb-4">
-                                <label htmlFor="questionName" className="block text-gray-700 mb-1 font-medium">
-                                    Full Name
-                                </label>
-                                <input 
-                                    type="text" 
-                                    id="questionName" 
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    className={`w-full py-2 px-3 border rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                        errors.name ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    required
-                                />
-                                {errors.name && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
-                                )}
-                            </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="questionEmail" className="block text-gray-700 mb-1 font-medium">
-                                    Email Address
-                                </label>
-                                <input 
-                                    type="email" 
-                                    id="questionEmail" 
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className={`w-full py-2 px-3 border rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                        errors.email ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    required
-                                />
-                                {errors.email && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                                )}
-                            </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="questionPhone" className="block text-gray-700 mb-1 font-medium">
-                                    Phone Number
-                                </label>
-                                <input 
-                                    type="tel" 
-                                    id="questionPhone" 
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    className={`w-full py-2 px-3 border rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                        errors.phone ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    required
-                                />
-                                {errors.phone && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                                )}
-                            </div>
-
-                            <div className="mb-4">
-                                <label htmlFor="question" className="block text-gray-700 mb-1 font-medium">
-                                    Your Question
-                                </label>
-                                <textarea 
-                                    id="question" 
-                                    name="question"
-                                    value={formData.question}
-                                    onChange={handleChange}
-                                    className={`w-full py-2 px-3 border rounded-lg text-sm resize-y min-h-[100px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                        errors.question ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    placeholder="What would you like to know about this building?"
-                                    required
-                                />
-                                {errors.question && (
-                                    <p className="text-red-500 text-sm mt-1">{errors.question}</p>
-                                )}
-                            </div>
-
-                            <button 
-                                type="submit" 
-                                disabled={isSubmitting}
-                                className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800 disabled:opacity-70 transition-colors"
-                            >
-                                {isSubmitting ? (
-                                    <div className="flex items-center justify-center">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                                        Sending Question...
-                                    </div>
-                                ) : (
-                                    'Send Question'
-                                )}
-                            </button>
-                        </form>
-                    </>
-                )}
+                    {/* Contact Options - Only Phone */}
+                    <div className="mt-4">
+                        <a
+                            href={`tel:${agentPhone}`}
+                            className="flex items-center justify-center w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            Call {agentPhone}
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     );

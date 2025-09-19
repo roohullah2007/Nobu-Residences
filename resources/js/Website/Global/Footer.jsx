@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
+import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 
-const Footer = ({ 
-    siteName = 'Nobu Residences', 
-    siteUrl = 'www.noburesidences.com', 
+const Footer = ({
+    siteName = 'Nobu Residences',
+    siteUrl = 'www.noburesidences.com',
     year = new Date().getFullYear(),
     website = null,
-    pageContent = null
+    pageContent = null,
+    auth = null
 }) => {
+    const [showContactModal, setShowContactModal] = useState(false);
+
     // Get footer data from pageContent or fallback to defaults
     const footerData = pageContent?.footer || {};
     const footerEnabled = footerData?.enabled !== false; // Default to true
@@ -19,27 +23,31 @@ const Footer = ({
     
     // Get contact info from website or footer data
     const contactInfo = website?.contact_info || {};
+    const agentInfo = website?.agent_info || {};
     const socialMedia = website?.social_media || {
         facebook: 'https://facebook.com',
         instagram: 'https://instagram.com',
         linkedin: 'https://linkedin.com'
     };
-    
+
     // Contact display settings
     const contactSettings = footerData?.contact_info || {};
     const useGlobalContact = contactSettings?.use_global_contact !== false;
     const showPhone = contactSettings?.show_phone !== false;
     const showEmail = contactSettings?.show_email !== false;
     const showAddress = contactSettings?.show_address !== false;
-    
-    // Determine which contact info to use
+
+    // Determine which contact info to use - prioritize agent_info from database
     const displayContactInfo = {
         phone: useGlobalContact ? (contactInfo?.phone || '+1 437 998 1795') : (contactSettings?.custom_phone || '+1 437 998 1795'),
         email: useGlobalContact ? (contactInfo?.email || 'Contact@domain.com') : (contactSettings?.custom_email || 'Contact@domain.com'),
         address: useGlobalContact ? (contactInfo?.address || 'Building No.88, Toronto CA, Ontario, Toronto') : (contactSettings?.custom_address || 'Building No.88, Toronto CA, Ontario, Toronto'),
         agent: {
-            name: useGlobalContact ? (contactInfo?.agent?.name || 'Jatin Gill') : (contactSettings?.custom_agent_name || 'Jatin Gill'),
-            title: useGlobalContact ? (contactInfo?.agent?.title || 'Property Manager') : (contactSettings?.custom_agent_title || 'Property Manager')
+            name: agentInfo?.agent_name || contactInfo?.agent?.name || 'Jatin Gill',
+            title: agentInfo?.agent_title || contactInfo?.agent?.title || 'Property Manager',
+            phone: agentInfo?.agent_phone || contactInfo?.agent?.phone || '+1 437 998 1795',
+            brokerage: agentInfo?.brokerage || contactInfo?.agent?.brokerage || 'Property.ca Inc., Brokerage',
+            image: agentInfo?.profile_image || contactInfo?.agent?.image || '/assets/jatin-gill.png'
         }
     };
     
@@ -66,6 +74,7 @@ const Footer = ({
     const showInstagram = socialSettings?.show_instagram !== false;
     const showLinkedin = socialSettings?.show_linkedin !== false;
     return (
+        <>
         <footer className="bg-black text-white">
             {/* Main Footer Section */}
             <div className="py-8 md:py-16">
@@ -97,9 +106,9 @@ const Footer = ({
                                 {/* Avatar with responsive styles */}
                                 <div className="w-16 h-16 md:w-20 md:h-20 flex-none relative">
                                     <div className="absolute inset-0 bg-gray-300 border-[2.5px] border-white rounded-full flex items-center justify-center overflow-hidden">
-                                        <img 
-                                            src="/assets/jatin-gill.png" 
-                                            alt="Jatin Gill"
+                                        <img
+                                            src={displayContactInfo?.agent?.image}
+                                            alt={displayContactInfo?.agent?.name}
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
                                                 e.target.style.display = 'none';
@@ -108,7 +117,7 @@ const Footer = ({
                                         />
                                         <div className="absolute inset-0 bg-gray-300 rounded-full flex items-center justify-center hidden">
                                             <span className="font-work-sans font-medium text-sm md:text-base leading-6 text-[#1C1463]">
-                                                JG
+                                                {displayContactInfo?.agent?.name ? displayContactInfo.agent.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'JG'}
                                             </span>
                                         </div>
                                     </div>
@@ -126,11 +135,18 @@ const Footer = ({
                                         <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] tracking-[-0.03em] text-white">
                                             {displayContactInfo?.agent?.title || 'Property Manager'}
                                         </p>
+                                        {/* Brokerage with responsive styles */}
+                                        <p className="font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-5 tracking-[-0.03em] text-gray-300">
+                                            {displayContactInfo?.agent?.brokerage || 'Property.ca Inc., Brokerage'}
+                                        </p>
                                     </div>
                                     
                                     {/* Contact Button with responsive styles */}
                                     <div className="flex flex-col items-center md:items-start p-0 w-full md:w-[130px] h-10 mt-2 md:mt-0">
-                                        <button className="flex flex-col justify-center items-center p-0 gap-2 w-full md:w-[130px] h-10 bg-white rounded-full">
+                                        <button
+                                            onClick={() => setShowContactModal(true)}
+                                            className="flex flex-col justify-center items-center p-0 gap-2 w-full md:w-[130px] h-10 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                                        >
                                             <div className="flex flex-row justify-center items-center py-2 md:py-2.5 px-4 md:px-6 gap-2 w-full md:w-[130px] h-10 md:h-14">
                                                 <span className="font-work-sans font-bold text-sm md:text-base leading-6 text-center tracking-[-0.03em] text-[#293056]">
                                                     Contact us
@@ -267,6 +283,25 @@ const Footer = ({
                 </div>
             </div>
         </footer>
+
+        {/* Contact Agent Modal */}
+        <ContactAgentModal
+            isOpen={showContactModal}
+            onClose={() => setShowContactModal(false)}
+            agentData={{
+                name: displayContactInfo?.agent?.name,
+                title: displayContactInfo?.agent?.title,
+                phone: displayContactInfo?.agent?.phone,
+                brokerage: displayContactInfo?.agent?.brokerage,
+                image: displayContactInfo?.agent?.image
+            }}
+            propertyData={{
+                BuildingName: siteName
+            }}
+            auth={auth}
+            websiteSettings={{ website }}
+        />
+    </>
     );
 };
 

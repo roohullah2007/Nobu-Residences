@@ -6,7 +6,7 @@ export default function Edit({ auth }) {
     const { website, title } = usePage().props;
 
     const [logoPreview, setLogoPreview] = React.useState(website?.logo || website?.logo_url || '');
-    const [agentImagePreview, setAgentImagePreview] = React.useState(website?.contact_info?.agent?.image || '');
+    const [agentImagePreview, setAgentImagePreview] = React.useState(website?.agent_info?.profile_image || '');
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: website?.name || '',
@@ -32,12 +32,12 @@ export default function Edit({ auth }) {
         'contact_info.phone': website?.contact_info?.phone || '',
         'contact_info.email': website?.contact_info?.email || '',
         'contact_info.address': website?.contact_info?.address || '',
-        'contact_info.agent.name': website?.contact_info?.agent?.name || '',
-        'contact_info.agent.title': website?.contact_info?.agent?.title || '',
-        'contact_info.agent.phone': website?.contact_info?.agent?.phone || '',
-        'contact_info.agent.brokerage': website?.contact_info?.agent?.brokerage || '',
-        'contact_info.agent.image': website?.contact_info?.agent?.image || '',
-        agent_image_file: null,
+        // Agent Information (from agent_info table)
+        agent_name: website?.agent_info?.agent_name || '',
+        agent_title: website?.agent_info?.agent_title || '',
+        agent_phone: website?.agent_info?.agent_phone || '',
+        brokerage: website?.agent_info?.brokerage || '',
+        agent_profile_image: null,
         // Social media
         'social_media.facebook': website?.social_media?.facebook || '',
         'social_media.instagram': website?.social_media?.instagram || '',
@@ -65,7 +65,7 @@ export default function Edit({ auth }) {
                 console.log('Update successful');
                 // Reset file inputs after successful upload
                 setData('logo_file', null);
-                setData('agent_image_file', null);
+                setData('agent_profile_image', null);
             },
             onError: (errors) => {
                 console.error('Form errors:', errors);
@@ -485,8 +485,7 @@ export default function Edit({ auth }) {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            setData('contact_info.agent.image', '');
-                                                            setData('agent_image_file', null);
+                                                            setData('agent_profile_image', null);
                                                             setAgentImagePreview('');
                                                         }}
                                                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
@@ -498,7 +497,7 @@ export default function Edit({ auth }) {
                                                     </button>
                                                 </div>
                                                 <p className="text-xs text-gray-500 mt-2 text-center">
-                                                    {data.agent_image_file ? 'New Image' : 'Current Image'}
+                                                    {data.agent_profile_image ? 'New Image' : 'Current Image'}
                                                 </p>
                                             </div>
                                         )}
@@ -531,11 +530,10 @@ export default function Edit({ auth }) {
                                                                 onChange={(e) => {
                                                                     const file = e.target.files[0];
                                                                     if (file) {
-                                                                        setData('agent_image_file', file);
+                                                                        setData('agent_profile_image', file);
                                                                         const reader = new FileReader();
                                                                         reader.onload = (e) => {
                                                                             setAgentImagePreview(e.target.result);
-                                                                            setData('contact_info.agent.image', e.target.result);
                                                                         };
                                                                         reader.readAsDataURL(file);
                                                                     }
@@ -557,8 +555,8 @@ export default function Edit({ auth }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
                                     <input
                                         type="text"
-                                        value={data['contact_info.agent.name']}
-                                        onChange={(e) => setData('contact_info.agent.name', e.target.value)}
+                                        value={data.agent_name}
+                                        onChange={(e) => setData('agent_name', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="John Doe"
                                     />
@@ -568,8 +566,8 @@ export default function Edit({ auth }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Agent Title</label>
                                     <input
                                         type="text"
-                                        value={data['contact_info.agent.title']}
-                                        onChange={(e) => setData('contact_info.agent.title', e.target.value)}
+                                        value={data.agent_title}
+                                        onChange={(e) => setData('agent_title', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Senior Real Estate Agent"
                                     />
@@ -579,8 +577,8 @@ export default function Edit({ auth }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone</label>
                                     <input
                                         type="tel"
-                                        value={data['contact_info.agent.phone']}
-                                        onChange={(e) => setData('contact_info.agent.phone', e.target.value)}
+                                        value={data.agent_phone}
+                                        onChange={(e) => setData('agent_phone', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="+1 (555) 123-4567"
                                     />
@@ -590,8 +588,8 @@ export default function Edit({ auth }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Brokerage</label>
                                     <input
                                         type="text"
-                                        value={data['contact_info.agent.brokerage']}
-                                        onChange={(e) => setData('contact_info.agent.brokerage', e.target.value)}
+                                        value={data.brokerage}
+                                        onChange={(e) => setData('brokerage', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Keller Williams Realty"
                                     />

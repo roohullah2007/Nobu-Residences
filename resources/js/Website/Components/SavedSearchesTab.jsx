@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 
 export default function SavedSearchesTab() {
   const [savedSearches, setSavedSearches] = useState([]);
@@ -76,7 +76,71 @@ export default function SavedSearchesTab() {
   };
 
   const runSearch = (search) => {
-    window.location.href = `/saved-searches/${search.id}/run`;
+    // Extract search parameters
+    const params = search.search_params || {};
+
+    // Build query parameters for the search page
+    const queryParams = new URLSearchParams();
+
+    // Add the address/location query
+    if (params.query) {
+      queryParams.append('query', params.query);
+    }
+
+    // Add transaction type (status)
+    if (params.status) {
+      queryParams.append('status', params.status);
+    }
+
+    // Add price range
+    if (params.price_min) {
+      queryParams.append('price_min', params.price_min);
+    }
+    if (params.price_max) {
+      queryParams.append('price_max', params.price_max);
+    }
+
+    // Add property types
+    if (params.property_type && Array.isArray(params.property_type)) {
+      params.property_type.forEach(type => {
+        queryParams.append('property_type[]', type);
+      });
+    }
+
+    // Add bedrooms and bathrooms
+    if (params.bedrooms) {
+      queryParams.append('bedrooms', params.bedrooms);
+    }
+    if (params.bathrooms) {
+      queryParams.append('bathrooms', params.bathrooms);
+    }
+
+    // Add square footage
+    if (params.min_sqft) {
+      queryParams.append('min_sqft', params.min_sqft);
+    }
+    if (params.max_sqft) {
+      queryParams.append('max_sqft', params.max_sqft);
+    }
+
+    // Add parking
+    if (params.parking) {
+      queryParams.append('parking', params.parking);
+    }
+
+    // Add any other relevant parameters
+    if (params.sort_by) {
+      queryParams.append('sort_by', params.sort_by);
+    }
+
+    // Navigate to search page with parameters
+    const searchUrl = `/search?${queryParams.toString()}`;
+
+    // Use Inertia router to navigate
+    router.visit(searchUrl, {
+      preserveState: false,
+      preserveScroll: false
+    });
   };
 
   const deleteSavedSearch = async (searchId) => {
@@ -154,32 +218,57 @@ export default function SavedSearchesTab() {
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900 mb-1">{search.name}</h3>
                     <div className="flex items-center flex-wrap gap-2 text-sm text-gray-600">
+                      {/* Transaction Type */}
+                      {search.search_params.status && (
+                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                          {search.search_params.status}
+                        </span>
+                      )}
+
+                      {/* Location */}
                       <span className="bg-gray-100 px-2 py-1 rounded">{formatted.location}</span>
-                      <span>•</span>
-                      <span className="bg-gray-100 px-2 py-1 rounded">{formatted.priceRange}</span>
+
+                      {/* Price Range */}
+                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded">{formatted.priceRange}</span>
+
+                      {/* Property Types */}
                       {search.search_params.property_type && search.search_params.property_type.length > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="bg-gray-100 px-2 py-1 rounded">
-                            {search.search_params.property_type.join(', ')}
-                          </span>
-                        </>
+                        <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                          {search.search_params.property_type.join(', ')}
+                        </span>
                       )}
+
+                      {/* Bedrooms */}
                       {search.search_params.bedrooms > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="bg-gray-100 px-2 py-1 rounded">
-                            {search.search_params.bedrooms}+ beds
-                          </span>
-                        </>
+                        <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                          {search.search_params.bedrooms}+ beds
+                        </span>
                       )}
+
+                      {/* Bathrooms */}
                       {search.search_params.bathrooms > 0 && (
-                        <>
-                          <span>•</span>
-                          <span className="bg-gray-100 px-2 py-1 rounded">
-                            {search.search_params.bathrooms}+ baths
-                          </span>
-                        </>
+                        <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
+                          {search.search_params.bathrooms}+ baths
+                        </span>
+                      )}
+
+                      {/* Square Footage */}
+                      {(search.search_params.min_sqft > 0 || search.search_params.max_sqft > 0) && (
+                        <span className="bg-teal-100 text-teal-700 px-2 py-1 rounded">
+                          {search.search_params.min_sqft > 0 && search.search_params.max_sqft > 0
+                            ? `${search.search_params.min_sqft}-${search.search_params.max_sqft} sqft`
+                            : search.search_params.min_sqft > 0
+                              ? `${search.search_params.min_sqft}+ sqft`
+                              : `Up to ${search.search_params.max_sqft} sqft`
+                          }
+                        </span>
+                      )}
+
+                      {/* Parking */}
+                      {search.search_params.parking > 0 && (
+                        <span className="bg-gray-100 px-2 py-1 rounded">
+                          {search.search_params.parking}+ parking
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-4 mt-2">

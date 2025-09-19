@@ -52,6 +52,14 @@ class Website extends Model
     }
 
     /**
+     * Get the agent info for this website
+     */
+    public function agentInfo()
+    {
+        return $this->hasOne(AgentInfo::class);
+    }
+
+    /**
      * Get the home page for this website
      */
     public function homePage()

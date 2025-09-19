@@ -206,7 +206,7 @@ export default function EnhancedPropertySearch({
   // Get street address from filters (passed from controller) or URL parameters
   const streetNumber = filters.street_number || urlParams.get('street_number');
   const streetName = filters.street_name || urlParams.get('street_name');
-  const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('query') || filters.search || urlParams.get('location') || '');
+  const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (filters.search || urlParams.get('location') || '');
 
   const [searchFilters, setSearchFilters] = useState({
     query: locationQuery,
@@ -215,8 +215,8 @@ export default function EnhancedPropertySearch({
     building_id: buildingId || filters.building_id || '',
     street_number: streetNumber || filters.street_number || '',
     street_name: streetName || filters.street_name || '',
-    price_min: parseInt(urlParams.get('price_min')) || filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
-    price_max: parseInt(urlParams.get('price_max')) || filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
+    price_min: filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
+    price_max: filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
     bathrooms: filters.bathrooms || parseInt(urlParams.get('bathrooms')) || 0,
     sort: filters.sort || 'newest',
@@ -424,7 +424,7 @@ export default function EnhancedPropertySearch({
       // Get street address from filters prop (passed from controller) or URL parameters
       const streetNumber = filters.street_number || urlParams.get('street_number');
       const streetName = filters.street_name || urlParams.get('street_name');
-      const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('query') || urlParams.get('location') || filters.location || filters.query || '');
+      const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('location') || filters.location || filters.query || '');
 
       // Build filters from URL params, but use controller filters as defaults
       const initialFilters = {
@@ -434,8 +434,8 @@ export default function EnhancedPropertySearch({
         status: mapStatusToDisplay(statusFromTransaction || statusFromUrl || filters.status || 'For Sale'),
         property_type: propertyTypes.length > 0 ? propertyTypes : (filters.property_type || ['Condo Apartment']),
         building_id: buildingIdFromUrl || filters.building_id || '',
-        price_min: parseInt(urlParams.get('price_min')) || parseInt(urlParams.get('min_price')) || filters.price_min || 0,
-        price_max: parseInt(urlParams.get('price_max')) || parseInt(urlParams.get('max_price')) || filters.price_max || 10000000,
+        price_min: parseInt(urlParams.get('min_price')) || filters.price_min || 0,
+        price_max: parseInt(urlParams.get('max_price')) || filters.price_max || 10000000,
         bedrooms: parseInt(urlParams.get('bedrooms')) || filters.bedrooms || 0,
         bathrooms: parseInt(urlParams.get('bathrooms')) || filters.bathrooms || 0,
         sort: urlParams.get('sort') || filters.sort || 'newest',

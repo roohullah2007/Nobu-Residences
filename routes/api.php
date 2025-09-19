@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\BuildingController;
 use App\Http\Controllers\FavouritesController;
 use App\Http\Controllers\PropertySearchController;
 use App\Http\Controllers\SavedSearchController;
+use App\Http\Controllers\Api\TourRequestController;
+use App\Http\Controllers\Api\AgentInfoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -87,4 +89,27 @@ Route::prefix('schools')->group(function () {
     Route::get('/', [SchoolController::class, 'index']);
     Route::post('/{id}/geocode', [SchoolController::class, 'geocodeSchool']);
     Route::post('/batch-geocode', [SchoolController::class, 'batchGeocodeSchools']);
+});
+
+// Tour Request API Routes
+Route::prefix('tour-requests')->group(function () {
+    Route::post('/', [TourRequestController::class, 'store']);
+    Route::get('/', [TourRequestController::class, 'index']);
+    Route::put('/{id}/status', [TourRequestController::class, 'updateStatus']);
+});
+
+// Agent Info API Routes
+Route::prefix('agent-info')->group(function () {
+    Route::get('/', [AgentInfoController::class, 'getAgentInfo']);
+    Route::get('/website/{websiteId}', [AgentInfoController::class, 'getAgentInfoByWebsite']);
+});
+
+// Property Questions API Routes
+Route::prefix('property-questions')->group(function () {
+    Route::post('/', [\App\Http\Controllers\Api\PropertyQuestionController::class, 'store']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\PropertyQuestionController::class, 'index']);
+        Route::put('/{id}/status', [\App\Http\Controllers\Api\PropertyQuestionController::class, 'updateStatus']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\PropertyQuestionController::class, 'destroy']);
+    });
 });

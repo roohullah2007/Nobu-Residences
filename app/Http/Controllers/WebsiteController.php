@@ -23,7 +23,7 @@ class WebsiteController extends Controller
      */
     private function getCurrentWebsite()
     {
-        return Website::default()->active()->first() ?? Website::first();
+        return Website::with('agentInfo')->default()->active()->first() ?? Website::with('agentInfo')->first();
     }
 
     /**
@@ -61,6 +61,7 @@ class WebsiteController extends Controller
                 'favicon_url' => $website->favicon_url,
                 'contact_info' => $website->getContactInfo(),
                 'social_media' => $website->getSocialMedia(),
+                'agent_info' => $website->agentInfo,
             ],
             'siteName' => $website->name,
             'siteUrl' => $website->domain ?? request()->getHost(),
@@ -1459,20 +1460,97 @@ class WebsiteController extends Controller
     
     /**
      * Display the school detail page
+     * Handles both numeric IDs (from database) and Google Place IDs
      */
-    public function schoolDetail($schoolId)
+    public function schoolDetail($placeId, $schoolName = null)
     {
-        $school = \App\Models\School::active()->find($schoolId);
-        
         $schoolData = null;
-        
-        if ($school) {
-            $schoolData = $school->getDisplayData();
+        $displayName = 'School Detail';
+
+        // Check if this is a numeric ID (database school)
+        if (is_numeric($placeId)) {
+            $school = \App\Models\School::active()->find($placeId);
+
+            if ($school) {
+                $schoolData = $school->getDisplayData();
+                $displayName = $school->name;
+                
+                // If school name is not in URL, redirect to include it
+                if (!$schoolName) {
+                    $slugifiedName = \Illuminate\Support\Str::slug($school->name);
+                    return redirect()->route('school-detail', [
+                        'placeId' => $placeId,
+                        'schoolName' => $slugifiedName
+                    ]);
+                }
+            }
+        } else {
+            // This is a Google Place ID - fetch from Google Places API
+            $googlePlacesService = new \App\Services\GooglePlacesService();
+            $schoolDetails = $googlePlacesService->getSchoolDetails($placeId);
+
+            // Log for debugging
+            \Log::info('Fetching school details for Place ID: ' . $placeId, [
+                'has_details' => !empty($schoolDetails),
+                'details' => $schoolDetails ? 'Found' : 'Not found'
+            ]);
+
+            if ($schoolDetails) {
+                // Format Google Places data to match our school data structure
+                $schoolData = [
+                    'id' => $placeId,
+                    'place_id' => $placeId,
+                    'name' => $schoolDetails['name'] ?? 'School',
+                    'address' => $schoolDetails['formatted_address'] ?? '',
+                    'phone' => $schoolDetails['formatted_phone_number'] ?? null,
+                    'website_url' => $schoolDetails['website'] ?? null,
+                    'rating' => isset($schoolDetails['rating']) ? round($schoolDetails['rating'] * 2, 1) : null,
+                    'user_ratings_total' => $schoolDetails['user_ratings_total'] ?? 0,
+                    'latitude' => $schoolDetails['geometry']['location']['lat'] ?? null,
+                    'longitude' => $schoolDetails['geometry']['location']['lng'] ?? null,
+                    'opening_hours' => $schoolDetails['opening_hours']['weekday_text'] ?? [],
+                    'photos' => isset($schoolDetails['photos']) ? array_map(function($photo) {
+                        return [
+                            'photo_reference' => $photo['photo_reference'] ?? null,
+                            'width' => $photo['width'] ?? null,
+                            'height' => $photo['height'] ?? null
+                        ];
+                    }, $schoolDetails['photos']) : [],
+                    'reviews' => isset($schoolDetails['reviews']) ? array_map(function($review) {
+                        return [
+                            'author_name' => $review['author_name'] ?? 'Anonymous',
+                            'rating' => $review['rating'] ?? null,
+                            'text' => $review['text'] ?? '',
+                            'time' => $review['time'] ?? null,
+                            'relative_time_description' => $review['relative_time_description'] ?? ''
+                        ];
+                    }, $schoolDetails['reviews']) : [],
+                    'source' => 'google_places'
+                ];
+
+                $displayName = $schoolData['name'];
+                
+                // If school name is not in URL, redirect to include it
+                if (!$schoolName && isset($schoolData['name'])) {
+                    $slugifiedName = \Illuminate\Support\Str::slug($schoolData['name']);
+                    return redirect()->route('school-detail', [
+                        'placeId' => $placeId,
+                        'schoolName' => $slugifiedName
+                    ]);
+                }
+            }
         }
-        
-        return Inertia::render('Website/Pages/SchoolDetail', array_merge($this->getWebsiteSettings(), [
-            'title' => $school ? $school->name : 'School Detail',
-            'schoolId' => $schoolId,
+
+        // If school not found, return 404
+        if (!$schoolData) {
+            abort(404, 'School not found');
+        }
+
+        return Inertia::render('SchoolDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $displayName,
+            'schoolId' => $placeId,
+            'placeId' => $placeId,
+            'schoolName' => $schoolName,
             'schoolData' => $schoolData
         ]));
     }
@@ -1482,16 +1560,68 @@ class WebsiteController extends Controller
      */
     public function schoolDetailBySlug($schoolSlug)
     {
+        // First try to find by slug in database
         $school = \App\Models\School::active()->where('slug', $schoolSlug)->first();
-        
+
         $schoolData = null;
-        
+
         if ($school) {
             $schoolData = $school->getDisplayData();
+        } else {
+            // If not found in database, try to fetch from Google Places API
+            // by searching for schools with matching name
+            try {
+                $googlePlacesService = app(\App\Services\GooglePlacesService::class);
+
+                // Convert slug back to potential school name
+                $potentialName = str_replace('-', ' ', $schoolSlug);
+
+                // Search for schools with this name near Toronto
+                $searchResults = $googlePlacesService->searchSchools($potentialName, [
+                    'lat' => 43.6532,
+                    'lng' => -79.3832
+                ], 50000); // 50km radius
+
+                // Find exact or close match
+                if (!empty($searchResults)) {
+                    foreach ($searchResults as $result) {
+                        $resultSlug = \Illuminate\Support\Str::slug($result['name']);
+                        if ($resultSlug === $schoolSlug) {
+                            // Found exact match - fetch full details
+                            $details = $googlePlacesService->getSchoolDetails($result['place_id']);
+                            if ($details) {
+                                // Format the Google Places data to match our expected structure
+                                $schoolData = [
+                                    'id' => $result['place_id'],
+                                    'name' => $details['name'] ?? $result['name'],
+                                    'slug' => $schoolSlug,
+                                    'address' => $details['formatted_address'] ?? $result['address'],
+                                    'phone' => $details['formatted_phone_number'] ?? null,
+                                    'website' => $details['website'] ?? null,
+                                    'website_url' => $details['website'] ?? null,
+                                    'rating' => $details['rating'] ?? null,
+                                    'total_reviews' => $details['user_ratings_total'] ?? 0,
+                                    'reviews' => $details['reviews'] ?? [],
+                                    'opening_hours' => $details['opening_hours']['weekday_text'] ?? [],
+                                    'latitude' => $details['geometry']['location']['lat'] ?? null,
+                                    'longitude' => $details['geometry']['location']['lng'] ?? null,
+                                    'school_type_label' => 'School',
+                                    'grade_level_label' => '',
+                                    'school_board' => '',
+                                    'is_google_place' => true
+                                ];
+                            }
+                            break;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Error fetching school from Google Places: ' . $e->getMessage());
+            }
         }
-        
-        return Inertia::render('Website/Pages/SchoolDetail', array_merge($this->getWebsiteSettings(), [
-            'title' => $school ? $school->name : 'School Detail',
+
+        return Inertia::render('SchoolDetail', array_merge($this->getWebsiteSettings(), [
+            'title' => $schoolData ? $schoolData['name'] : 'School Detail',
             'schoolSlug' => $schoolSlug,
             'schoolData' => $schoolData
         ]));

@@ -1,5 +1,5 @@
 import React from 'react';
-import PropertyImageLoader from '@/Components/PropertyImageLoader';
+import PropertyImageLoader from '@/Website/Components/PropertyImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import { 
   formatCardAddress, 

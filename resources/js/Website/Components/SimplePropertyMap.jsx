@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
-import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
+import { renderPropertyCardInInfoWindow } from './MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
 import { createBuildingUrl } from '@/utils/slug';
 

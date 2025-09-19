@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import SimplePropertyMap from './SimplePropertyMap';
 import { debounce } from 'lodash';
 
-const ViewportAwarePropertyMap = ({ 
-  properties = [], 
-  className = '', 
+const ViewportAwarePropertyMap = ({
+  properties = [],
+  className = '',
   onPropertyClick = null,
   onPropertyHover = null,
   viewType = 'full',
@@ -21,44 +21,80 @@ const ViewportAwarePropertyMap = ({
   const [isFetchingViewport, setIsFetchingViewport] = useState(false);
   const lastBoundsRef = useRef(null);
   const isInitialLoadRef = useRef(true);
+  const previousBoundsRef = useRef(null);
+  const fetchTimeoutRef = useRef(null);
 
   // Get CSRF token
   const getCsrfToken = () => {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   };
 
+  // Check if bounds have changed significantly
+  const hasSignificantBoundsChange = (oldBounds, newBounds) => {
+    if (!oldBounds || !newBounds) return true;
+
+    // Calculate the percentage change in bounds
+    const latChange = Math.abs(newBounds.north - oldBounds.north) + Math.abs(newBounds.south - oldBounds.south);
+    const lngChange = Math.abs(newBounds.east - oldBounds.east) + Math.abs(newBounds.west - oldBounds.west);
+
+    // Get viewport dimensions
+    const latSpan = Math.abs(newBounds.north - newBounds.south);
+    const lngSpan = Math.abs(newBounds.east - newBounds.west);
+
+    // Calculate percentage change
+    const latChangePercent = (latChange / latSpan) * 100;
+    const lngChangePercent = (lngChange / lngSpan) * 100;
+
+    // Only fetch if map moved more than 30% of viewport
+    const threshold = 30;
+    return latChangePercent > threshold || lngChangePercent > threshold;
+  };
+
   // Fetch properties for current viewport
   const fetchPropertiesForBounds = useCallback(async (bounds) => {
     console.log('fetchPropertiesForBounds called with:', bounds);
-    
+
     if (!bounds) {
       console.log('No bounds provided, skipping fetch');
       return;
     }
-    
-    // Check if bounds have changed significantly (avoid duplicate calls)
-    const boundsKey = `${bounds.north}_${bounds.south}_${bounds.east}_${bounds.west}`;
+
+    // Round to 4 decimal places to avoid micro-changes
+    const roundedBounds = {
+      north: Math.round(bounds.north * 10000) / 10000,
+      south: Math.round(bounds.south * 10000) / 10000,
+      east: Math.round(bounds.east * 10000) / 10000,
+      west: Math.round(bounds.west * 10000) / 10000
+    };
+
+    // Check if bounds haven't changed at all
+    const boundsKey = `${roundedBounds.north}_${roundedBounds.south}_${roundedBounds.east}_${roundedBounds.west}`;
     if (lastBoundsRef.current === boundsKey) {
-      console.log('Bounds unchanged, skipping fetch');
+      console.log('Bounds unchanged (exact match), skipping fetch');
+      setIsFetchingViewport(false); // Make sure to hide loading indicator
       return;
     }
+
+    // Check if change is significant enough to warrant a new fetch
+    if (previousBoundsRef.current && !hasSignificantBoundsChange(previousBoundsRef.current, roundedBounds)) {
+      console.log('Bounds change not significant, skipping fetch');
+      setIsFetchingViewport(false);
+      return;
+    }
+
     lastBoundsRef.current = boundsKey;
+    previousBoundsRef.current = roundedBounds;
 
     console.log('Starting viewport fetch...');
     setIsFetchingViewport(true);
     
     try {
-      // Prepare search params with viewport bounds
+      // Prepare search params with viewport bounds (use rounded values)
       const searchParams = {
         ...searchFilters,
-        viewport_bounds: {
-          north: bounds.north,
-          south: bounds.south,
-          east: bounds.east,
-          west: bounds.west
-        },
+        viewport_bounds: roundedBounds,
         page: 1,
-        page_size: 15, // Load only 15 properties at once
+        page_size: 20, // Load 20 properties for better coverage
         map_search: true // Flag to indicate this is a map-based search
       };
 
@@ -110,12 +146,12 @@ const ViewportAwarePropertyMap = ({
     }
   }, [searchFilters, onViewportChange]);
 
-  // Create stable debounced function
+  // Create stable debounced function with longer delay for better UX
   const debouncedFetch = useCallback(
     debounce((bounds) => {
       console.log('Debounced fetch triggered with bounds:', bounds);
       fetchPropertiesForBounds(bounds);
-    }, 500), // Wait 500ms after user stops moving the map (reduced for better responsiveness)
+    }, 1500), // Wait 1.5 seconds after user stops moving the map to avoid too many requests
     [fetchPropertiesForBounds]
   );
 
@@ -125,6 +161,28 @@ const ViewportAwarePropertyMap = ({
     
     console.log('Map instance ready, setting up viewport listeners');
     setMapInstance(map);
+
+    // Store initial zoom level
+    let previousZoom = map.getZoom();
+    let hasMoved = false;
+
+    // Listen for drag start to track user interaction
+    const dragStartListener = map.addListener('dragstart', () => {
+      hasMoved = true;
+      console.log('User started dragging map');
+    });
+
+    // Listen for zoom changes
+    const zoomListener = map.addListener('zoom_changed', () => {
+      const currentZoom = map.getZoom();
+      console.log('Map zoom changed from', previousZoom, 'to', currentZoom);
+
+      // Only mark as moved if zoom changed significantly or user zoomed out
+      if (Math.abs(currentZoom - previousZoom) >= 1 || currentZoom < previousZoom) {
+        hasMoved = true;
+      }
+      previousZoom = currentZoom;
+    });
 
     // Listen for map idle event (user stopped moving/zooming)
     const idleListener = map.addListener('idle', () => {
@@ -141,34 +199,27 @@ const ViewportAwarePropertyMap = ({
       // Skip the initial load to avoid duplicate fetch
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false;
-        console.log('Skipping initial idle event, but will trigger first fetch');
-        // Still trigger the first fetch after a short delay
-        setTimeout(() => {
-          console.log('Triggering initial viewport fetch');
-          debouncedFetch(viewportBounds);
-        }, 100);
+        console.log('Initial map load - fetching properties');
+        // Trigger the first fetch
+        debouncedFetch(viewportBounds);
         return;
       }
 
-      console.log('Map viewport changed:', viewportBounds);
-      debouncedFetch(viewportBounds);
-    });
-
-    // Listen for zoom changes
-    const zoomListener = map.addListener('zoom_changed', () => {
-      const zoom = map.getZoom();
-      console.log('Map zoom changed:', zoom);
-      
-      // Show loading indicator
-      setIsFetchingViewport(true);
-      
-      // The idle event will handle the actual fetch
+      // Only fetch if user actually moved/zoomed the map
+      if (hasMoved) {
+        console.log('Map viewport changed after user interaction:', viewportBounds);
+        debouncedFetch(viewportBounds);
+        hasMoved = false; // Reset the flag
+      } else {
+        console.log('Map idle but no user interaction, skipping fetch');
+      }
     });
 
     // Clean up listeners on unmount
     return () => {
       if (idleListener) idleListener.remove();
       if (zoomListener) zoomListener.remove();
+      if (dragStartListener) dragStartListener.remove();
     };
   }, [debouncedFetch]);
 
@@ -197,13 +248,26 @@ const ViewportAwarePropertyMap = ({
     // Don't try to get map instance here - wait for onMapReady callback
   }, []);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+      // Cancel any pending debounced calls
+      if (debouncedFetch) {
+        debouncedFetch.cancel();
+      }
+    };
+  }, [debouncedFetch]);
+
   return (
     <div className={`relative ${className}`}>
-      {/* Loading overlay for viewport fetching */}
-      {isFetchingViewport && (
+      {/* Loading overlay - only show during initial load or significant moves */}
+      {isFetchingViewport && viewportProperties.length === 0 && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-white rounded-lg shadow-lg px-4 py-2 flex items-center gap-2">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#912018]"></div>
-          <span className="text-sm font-medium text-gray-700">Loading area properties...</span>
+          <span className="text-sm font-medium text-gray-700">Loading properties...</span>
         </div>
       )}
 

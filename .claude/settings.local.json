@@ -34,7 +34,8 @@
       "Bash(if [ -d \"F:/noburesidence/laravel-react-old\" ])",
       "Bash(else echo \"Directory not found\")",
       "Read(//f/noburesidence/**)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": [],

@@ -1,5 +1,5 @@
 import React from 'react';
-import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
+import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
 
 const PropertyCardV3 = ({ 
   image,

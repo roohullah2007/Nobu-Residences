@@ -37,11 +37,16 @@ const NearbySchools = ({ propertyData = null }) => {
     return null;
   };
 
-  // Fetch nearby schools from API
+  // Fetch nearby schools from API - only when component mounts (tab is clicked)
   useEffect(() => {
     const fetchNearbySchools = async () => {
       if (!propertyData) {
         setIsLoading(false);
+        return;
+      }
+
+      // Don't fetch if we already have schools data
+      if (schools.length > 0) {
         return;
       }
 
@@ -119,16 +124,38 @@ const NearbySchools = ({ propertyData = null }) => {
 
   // Format schools data for display
   const getSchoolsData = () => {
-    return schools.map(school => ({
-      id: school.id,
-      slug: school.slug,
-      distance_km: school.distance_text || `${school.distance_km} km`,
-      walk_time: school.walking_time_text || `${school.walking_time_minutes} min walk`,
-      name: school.name,
-      type: school.school_type_label,
-      board: `${school.school_type_label} | ${school.grade_level_label}${school.school_board ? ' | ' + school.school_board : ''}`,
-      url: school.slug ? `/schools/${school.slug}` : `/school/${school.id}`
-    }));
+    return schools.map(school => {
+      // Create URL for all schools - use only school name slug
+      let url = null;
+      if (school.slug) {
+        // Use existing slug if available
+        url = `/school/${school.slug}`;
+      } else if (school.name) {
+        // Create slug from school name
+        const schoolNameSlug = school.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/-+/g, '-') // Replace multiple hyphens with single
+          .trim('-'); // Remove leading/trailing hyphens
+
+        url = `/school/${schoolNameSlug}`;
+      }
+
+      return {
+        id: school.id,
+        slug: school.slug,
+        distance_km: school.distance_text || `${school.distance_km} km`,
+        walk_time: school.walking_time_text || `${school.walking_time_minutes} min walk`,
+        name: school.name,
+        type: school.school_type_label,
+        board: `${school.school_type_label} | ${school.grade_level_label}${school.school_board ? ' | ' + school.school_board : ''}`,
+        url: url,
+        rating: school.rating,
+        in_boundary: school.in_boundary,
+        place_id: school.place_id // Keep track of Google Place ID if available
+      };
+    });
   };
 
   const schoolsData = getSchoolsData();
@@ -198,22 +225,40 @@ const NearbySchools = ({ propertyData = null }) => {
                   {school.walk_time}
                 </div>
               </div>
-              
+
               {/* School Info Column */}
               <div className="flex flex-col justify-center items-start p-0 gap-1 flex-1 h-auto md:h-[50px]">
-                {/* School Name - Clickable if we have a valid URL */}
-                {school.url && school.url !== '#' ? (
-                  <Link 
-                    href={school.url}
-                    className="font-work-sans font-bold text-base leading-[25px] flex items-center tracking-[-0.03em] text-[#293056] hover:underline cursor-pointer transition-colors duration-200"
-                  >
-                    {school.name}
-                  </Link>
-                ) : (
-                  <div className="font-work-sans font-bold text-base leading-[25px] flex items-center tracking-[-0.03em] text-[#293056]">
-                    {school.name}
-                  </div>
-                )}
+                {/* School Name with Rating and Boundary Badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {school.url ? (
+                    <Link
+                      href={school.url}
+                      className="font-work-sans font-bold text-base leading-[25px] flex items-center tracking-[-0.03em] text-[#293056] hover:underline cursor-pointer transition-colors duration-200"
+                    >
+                      {school.name}
+                    </Link>
+                  ) : (
+                    <div className="font-work-sans font-bold text-base leading-[25px] flex items-center tracking-[-0.03em] text-[#293056]">
+                      {school.name}
+                    </div>
+                  )}
+                  {/* Rating Badge */}
+                  {school.rating && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      {school.rating}/10
+                    </span>
+                  )}
+                  {/* Boundary Badge */}
+                  {school.in_boundary !== null && school.in_boundary !== undefined && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      school.in_boundary
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {school.in_boundary ? 'In Boundary' : 'Out of Boundary'}
+                    </span>
+                  )}
+                </div>
                 <div className="font-work-sans font-normal text-sm leading-6 flex items-center tracking-[-0.03em] text-[#717680]">
                   {school.board}
                 </div>

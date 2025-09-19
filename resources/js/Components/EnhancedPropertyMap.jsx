@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import EnhancedPropertyImageLoader from '@/Components/EnhancedPropertyImageLoader';
-import { renderPropertyCardInInfoWindow } from '@/Components/MapPropertyCard';
+import { renderPropertyCardInInfoWindow } from '@/Website/Components/MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
 
 /**

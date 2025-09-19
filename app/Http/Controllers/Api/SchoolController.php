@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\School;
+use App\Services\GooglePlacesService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
@@ -19,9 +20,9 @@ class SchoolController extends Controller
     {
         $latitude = $request->input('latitude');
         $longitude = $request->input('longitude');
-        $address = $request->input('address'); // New: Accept address for geocoding
+        $address = $request->input('address');
         $radius = $request->input('radius', 2); // Default 2km radius
-        $limit = $request->input('limit', 100); // Default to 100 to get all schools
+        $limit = $request->input('limit', 100);
 
         // Debug logging
         \Log::info('getNearbySchools called with:', [
@@ -35,7 +36,6 @@ class SchoolController extends Controller
         // If no coordinates provided but address is, try to geocode
         if ((!$latitude || !$longitude) && $address) {
             // Clean up the address for better geocoding
-            // Remove unit numbers and extra details that might confuse geocoding
             $cleanAddress = $address;
 
             // Remove unit/apartment numbers (e.g., "15 Mercer Street 610" -> "15 Mercer Street")
@@ -90,10 +90,65 @@ class SchoolController extends Controller
                 ]);
             }
         }
-        
+
         try {
+            // First try to get schools from Google Places API
+            $googlePlacesService = new GooglePlacesService();
+            $googleSchools = $googlePlacesService->getNearbySchools($latitude, $longitude, $radius * 1000); // Convert km to meters
+
+            // If we have Google Places results, return them
+            if (!empty($googleSchools)) {
+                \Log::info('Found ' . count($googleSchools) . ' schools from Google Places API');
+
+                // Format schools for display
+                $formattedSchools = collect($googleSchools)->map(function ($school) {
+                    return [
+                        'id' => $school['id'] ?? uniqid(),
+                        'name' => $school['name'],
+                        'slug' => null,
+                        'address' => $school['address'] ?? '',
+                        'city' => 'Toronto',
+                        'province' => 'ON',
+                        'phone' => null,
+                        'email' => null,
+                        'website_url' => null,
+                        'school_type' => $school['school_type'] ?? 'Public',
+                        'school_type_label' => $school['school_type'] ?? 'Public',
+                        'grade_level' => $school['grade_level'] ?? 'Elementary',
+                        'grade_level_label' => $school['grade_level'] ?? 'Elementary',
+                        'school_board' => $school['school_board'] ?? '',
+                        'principal_name' => null,
+                        'student_capacity' => null,
+                        'established_year' => null,
+                        'rating' => $school['rating'] ?? null,
+                        'programs' => [],
+                        'languages' => [],
+                        'facilities' => [],
+                        'distance_km' => $school['distance_km'],
+                        'distance_text' => $school['distance_text'],
+                        'walking_time_minutes' => $school['walking_time_minutes'],
+                        'walking_time_text' => $school['walking_time_text'],
+                        'place_id' => $school['place_id'] ?? null,
+                        'in_boundary' => $school['in_boundary'] ?? null,
+                    ];
+                });
+
+                // Limit results if needed
+                if ($limit && $formattedSchools->count() > $limit) {
+                    $formattedSchools = $formattedSchools->take($limit);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $formattedSchools->values(),
+                    'source' => 'google_places'
+                ]);
+            }
+
+            // Fallback to database schools if Google Places returns nothing
+            \Log::info('No schools from Google Places, trying database');
             $schools = School::getNearbySchools($latitude, $longitude, $radius, $limit);
-            
+
             // Format schools for display
             $formattedSchools = $schools->map(function ($school) {
                 return [
@@ -124,15 +179,16 @@ class SchoolController extends Controller
                     'walking_time_text' => $school->walking_time_text,
                 ];
             });
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $formattedSchools
+                'data' => $formattedSchools,
+                'source' => 'database'
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error fetching nearby schools: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching nearby schools',

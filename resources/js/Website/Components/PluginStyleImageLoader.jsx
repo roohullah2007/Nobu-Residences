@@ -153,13 +153,29 @@ const PluginStyleImageLoader = ({
     if (src && (imageState.src !== src || (!imageState.loaded && !imageState.loading))) {
       // Check if src is a valid URL
       try {
+        // Convert to string and trim
+        const srcString = String(src).trim();
+
+        // If empty string after conversion, show error
+        if (!srcString) {
+          setImageState(prev => ({
+            ...prev,
+            loading: false,
+            error: true,
+            loaded: false,
+            src: null,
+            inView: true
+          }));
+          return;
+        }
+
         // For AMPRE images, ensure we're using HTTP
-        let processedSrc = src;
-        if (src.includes('ampre.ca') && src.startsWith('https://')) {
-          processedSrc = src.replace('https://', 'http://');
+        let processedSrc = srcString;
+        if (srcString.includes('ampre.ca') && srcString.startsWith('https://')) {
+          processedSrc = srcString.replace('https://', 'http://');
           console.log('Converting AMPRE URL to HTTP:', processedSrc);
         }
-        
+
         // Check if it's a full URL or starts with http/https
         if (processedSrc.startsWith('http://') || processedSrc.startsWith('https://') || processedSrc.startsWith('//')) {
           loadImage(processedSrc, 0);
@@ -168,9 +184,9 @@ const PluginStyleImageLoader = ({
           loadImage(processedSrc, 0);
         } else {
           // Not a valid URL, show error state
-          setImageState(prev => ({ 
-            ...prev, 
-            loading: false, 
+          setImageState(prev => ({
+            ...prev,
+            loading: false,
             error: true,
             loaded: false,
             src: null,
@@ -258,8 +274,8 @@ const PluginStyleImageLoader = ({
               </svg>
             </div>
             <span className="text-xs font-medium">No Image Available</span>
-            {src && src.startsWith('http') && (
-              <button 
+            {src && typeof src === 'string' && src.startsWith('http') && (
+              <button
                 onClick={() => loadImage(src, 0)}
                 className="text-xs text-blue-500 hover:text-blue-700 underline"
               >

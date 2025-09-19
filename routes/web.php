@@ -39,7 +39,6 @@ Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
     ->name('city-for-rent');
 Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
-Route::get('/school', [WebsiteController::class, 'school'])->name('school');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // New SEO-friendly property route structure: /city/street-address/mls-id
@@ -57,13 +56,10 @@ Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailR
 // Building routes - both formats supported
 Route::get('/building/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 
-// School routes
-Route::get('/school/{schoolId}', [WebsiteController::class, 'schoolDetail'])
-    ->where('schoolId', '[0-9]+')
-    ->name('school-detail');
-Route::get('/schools/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySlug'])
+// School routes - simplified to use only school name slug
+Route::get('/school/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySlug'])
     ->where('schoolSlug', '[a-z0-9\-]+')
-    ->name('school-detail-slug');
+    ->name('school-detail');
 
 Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::class, 'proxy'])->name('image-proxy');
 
@@ -146,7 +142,7 @@ Route::get('/dashboard', function () {
 
 // User Dashboard Route - For regular website users
 Route::get('/user/dashboard', function () {
-    return Inertia::render('UserDashboard', [
+    return Inertia::render('Website/Pages/UserDashboard', [
         'siteName' => 'X Houses',
         'siteUrl' => config('app.url'),
         'year' => date('Y')
@@ -155,7 +151,7 @@ Route::get('/user/dashboard', function () {
 
 // User Favourites Route
 Route::get('/user/favourites', function () {
-    return Inertia::render('UserFavourites', [
+    return Inertia::render('Website/Pages/UserFavourites', [
         'siteName' => 'X Houses',
         'siteUrl' => config('app.url'),
         'year' => date('Y')
@@ -206,7 +202,18 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);
 
     // Schools removed - using API data instead
-    
+
+    // Tour Requests Management
+    Route::get('/tour-requests', [\App\Http\Controllers\Admin\TourRequestController::class, 'index'])->name('tour-requests.index');
+    Route::get('/tour-requests/export', [\App\Http\Controllers\Admin\TourRequestController::class, 'export'])->name('tour-requests.export');
+
+    // Property Questions Management
+    Route::get('/property-questions', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'index'])->name('property-questions.index');
+    Route::get('/property-questions/data', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'data'])->name('property-questions.data');
+    Route::put('/property-questions/{id}/status', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'updateStatus'])->name('property-questions.updateStatus');
+    Route::delete('/property-questions/{id}', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'destroy'])->name('property-questions.destroy');
+    Route::get('/property-questions/export', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'export'])->name('property-questions.export');
+
     // Contact Form Management routes
     Route::prefix('contacts')->name('contacts.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\ContactController::class, 'index'])->name('index');
@@ -218,128 +225,15 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Website Management routes
     Route::prefix('websites')->name('websites.')->group(function () {
-        Route::get('/', [AdminController::class, 'websites'])->name('index');
-        Route::get('/create', function() { 
-            return Inertia::render('Admin/Websites/Create', ['title' => 'Create New Website']); 
-        })->name('create');
-        Route::post('/', function() { 
-            return redirect()->route('admin.websites.index')->with('success', 'Website created!'); 
-        })->name('store');
-        Route::get('/{id}', function($id) { 
-            return Inertia::render('Admin/Websites/Show', [
-                'title' => 'Website Details',
-                'website' => [
-                    'id' => $id,
-                    'name' => 'Nobu Residences',
-                    'slug' => 'nobu-residences',
-                    'is_default' => true,
-                    'is_active' => true,
-                    'logo_url' => '/assets/logo.png',
-                    'domain' => null,
-                    'description' => 'Luxury condos in downtown Toronto',
-                    'timezone' => 'America/Toronto',
-                    'brand_colors' => [
-                        'primary' => '#912018',
-                        'secondary' => '#293056',
-                        'accent' => '#F5F8FF',
-                        'text' => '#000000',
-                        'background' => '#FFFFFF'
-                    ],
-                    'contact_info' => [
-                        'phone' => '+1 437 998 1795',
-                        'email' => 'contact@noburesidences.com',
-                        'address' => 'Building No.88, Toronto CA, Ontario, Toronto',
-                        'agent' => [
-                            'name' => 'Jatin Gill',
-                            'title' => 'Property Manager'
-                        ]
-                    ],
-                    'social_media' => [
-                        'facebook' => 'https://facebook.com/noburesidences',
-                        'instagram' => 'https://instagram.com/noburesidences',
-                        'twitter' => 'https://twitter.com/noburesidences',
-                        'linkedin' => 'https://linkedin.com/company/noburesidences'
-                    ],
-                    'pages' => [
-                        ['id' => 1, 'page_type' => 'home', 'title' => 'Home', 'is_active' => true]
-                    ]
-                ]
-            ]); 
-        })->name('show');
-        Route::get('/{id}/edit', function($id) { 
-            return Inertia::render('Admin/Websites/Edit', [
-                'title' => 'Edit Website',
-                'website' => [
-                    'id' => $id,
-                    'name' => 'Nobu Residences',
-                    'slug' => 'nobu-residences',
-                    'is_default' => true,
-                    'is_active' => true,
-                    'logo_url' => '/assets/logo.png',
-                    'domain' => null,
-                    'description' => 'Luxury condos in downtown Toronto',
-                    'timezone' => 'America/Toronto',
-                    'meta_title' => 'Nobu Residences - Luxury Condos Toronto',
-                    'meta_description' => 'Discover luxury living at Nobu Residences in downtown Toronto',
-                    'meta_keywords' => 'toronto condos, luxury residences, nobu',
-                    'favicon_url' => '/favicon.ico',
-                    'brand_colors' => [
-                        'primary' => '#912018',
-                        'secondary' => '#293056',
-                        'accent' => '#F5F8FF',
-                        'text' => '#000000',
-                        'background' => '#FFFFFF'
-                    ],
-                    'contact_info' => [
-                        'phone' => '+1 437 998 1795',
-                        'email' => 'contact@noburesidences.com',
-                        'address' => 'Building No.88, Toronto CA, Ontario, Toronto',
-                        'agent' => [
-                            'name' => 'Jatin Gill',
-                            'title' => 'Property Manager'
-                        ]
-                    ],
-                    'social_media' => [
-                        'facebook' => 'https://facebook.com/noburesidences',
-                        'instagram' => 'https://instagram.com/noburesidences',
-                        'twitter' => 'https://twitter.com/noburesidences',
-                        'linkedin' => 'https://linkedin.com/company/noburesidences'
-                    ]
-                ]
-            ]); 
-        })->name('edit');
-        Route::put('/{id}', [WebsiteManagementController::class, 'updateWebsite'])->name('update');
-        Route::delete('/{id}', function($id) { 
-            return redirect()->route('admin.websites.index')->with('success', 'Website deleted!'); 
-        })->name('destroy');
-        
-        // Pages management
-        Route::get('/{id}/pages', function($id) { 
-            return Inertia::render('Admin/Websites/Pages', [
-                'title' => 'Website Pages',
-                'website' => [
-                    'id' => $id,
-                    'name' => 'Nobu Residences',
-                    'slug' => 'nobu-residences',
-                    'is_default' => true,
-                    'is_active' => true,
-                    'pages' => [
-                        [
-                            'id' => 1, 
-                            'page_type' => 'home', 
-                            'title' => 'Home Page', 
-                            'slug' => '',
-                            'is_active' => true,
-                            'updated_at' => '2024-08-03T10:30:00Z'
-                        ]
-                    ]
-                ]
-            ]); 
-        })->name('pages');
-        
-        // Home page management
-        Route::get('/{id}/home-page/edit', [WebsiteManagementController::class, 'editHomePage'])->name('home-page.edit');
-        Route::put('/{id}/home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('home-page.update');
+        Route::get('/', [WebsiteManagementController::class, 'index'])->name('index');
+        Route::get('/create', [WebsiteManagementController::class, 'create'])->name('create');
+        Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
+        Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
+        Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
+        Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');
+        Route::delete('/{website}', [WebsiteManagementController::class, 'destroy'])->name('destroy');
+        Route::get('/{website}/edit-home-page', [WebsiteManagementController::class, 'editHomePage'])->name('edit-home-page');
+        Route::put('/{website}/update-home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('update-home-page');
     });
     
     // Icon Management routes
@@ -379,7 +273,7 @@ require __DIR__.'/auth.php';
 // SEO-friendly building URLs - must be at the end to avoid matching admin routes
 Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
     ->where([
-        'city' => '[a-z][a-z0-9\-]*',  // Must start with lowercase letter
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z0-9\-]*',  // Must start with lowercase letter and exclude reserved words
         'street' => '[a-z0-9\-]+', 
         'buildingSlug' => '.*'
     ])

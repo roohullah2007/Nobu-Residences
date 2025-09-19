@@ -145,8 +145,9 @@ class HomepagePropertiesController extends Controller
                 $this->ampreApi->addCustomFilter("contains(UnparsedAddress, '{$streetName}')");
             }
 
-            // Filter by city
-            $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+            // Filter by city - extract just the city name from full address format
+            $cityName = explode(',', $city)[0] ?? 'Toronto';
+            $this->ampreApi->addCustomFilter("contains(City, '{$cityName}')");
 
             // Sort by newest listings first
             $this->ampreApi->setOrderBy('ListingContractDate desc');
@@ -202,7 +203,9 @@ class HomepagePropertiesController extends Controller
                 $this->ampreApi->setSkip(0);
                 $this->ampreApi->addFilter('TransactionType', $transactionType);
                 $this->ampreApi->addFilter('StandardStatus', 'Active');
-                $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+                // Filter by city - extract just the city name from full address format
+                $cityName = explode(',', $city)[0] ?? 'Toronto';
+                $this->ampreApi->addCustomFilter("contains(City, '{$cityName}')");
 
                 // Add reasonable price filter for broader search
                 if ($transactionType === 'For Sale') {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import PluginStyleImageLoader from '@/Components/PluginStyleImageLoader';
+import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
-import RequestTourModal from '@/Components/RequestTourModal';
+import RequestTourModal from '@/Website/Components/RequestTourModal';
 import { 
   formatCardAddress, 
   buildCardFeatures, 

@@ -235,9 +235,6 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
       <Head title={`${effectiveBuildingData.name} - Building Details - ${siteName}`} />
-      <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
-        <Navbar auth={auth} website={website} />
-      </div>
       <div className="idx mx-auto overflow-hidden bg-primary">
         <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
 
@@ -306,7 +303,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                 )}
                 
                 {/* Building Tour Scheduling */}
-                <BuildingTourScheduling website={website} />
+                <BuildingTourScheduling website={website} buildingData={effectiveBuildingData} />
               </div>
             </div>
           </div>

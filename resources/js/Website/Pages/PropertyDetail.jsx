@@ -355,7 +355,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                 )}
                 
                 {/* Tour Scheduling */}
-                <TourScheduling website={website} />
+                <TourScheduling website={website} propertyData={displayData} />
               </div>
             </div>
       </div>

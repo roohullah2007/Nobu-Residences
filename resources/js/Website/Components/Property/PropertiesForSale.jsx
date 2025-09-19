@@ -37,7 +37,7 @@ const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings, m
       const response = await axios.get('/api/homepage-properties', {
         params
       });
-      
+
       if (response.data.success && response.data.data.forSale) {
         setProperties(response.data.data.forSale);
       }

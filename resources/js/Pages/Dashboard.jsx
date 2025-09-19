@@ -20,9 +20,16 @@ export default function Dashboard({ auth }) {
                 }
             });
 
+            console.log('Saved searches API response status:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('Saved searches data:', data);
                 setSavedSearches(data.data || []);
+            } else {
+                console.error('Failed to fetch saved searches:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
             }
         } catch (error) {
             console.error('Error fetching saved searches:', error);
@@ -77,7 +84,7 @@ export default function Dashboard({ auth }) {
                                 <p className="text-gray-600">Manage your saved searches and property interests from your dashboard.</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                 <Link
                                     href="/search"
                                     className="block p-6 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-200"

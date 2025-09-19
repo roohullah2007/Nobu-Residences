@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Website;
 use App\Models\WebsitePage;
 use App\Models\Icon;
+use App\Models\AgentInfo;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -33,7 +34,7 @@ class WebsiteManagementController extends Controller
      */
     public function show(Website $website): Response
     {
-        $website->load('pages');
+        $website->load(['pages', 'agentInfo']);
 
         return Inertia::render('Admin/Websites/Show', [
             'title' => "Website: {$website->name}",
@@ -69,10 +70,11 @@ class WebsiteManagementController extends Controller
             'meta_keywords' => 'nullable|string|max:255',
             'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
-            'contact_info.agent.phone' => 'nullable|string|max:255',
-            'contact_info.agent.brokerage' => 'nullable|string|max:255',
-            'contact_info.agent.image' => 'nullable|string',
-            'agent_image_file' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'agent_name' => 'nullable|string|max:255',
+            'agent_title' => 'nullable|string|max:255',
+            'agent_phone' => 'nullable|string|max:255',
+            'brokerage' => 'nullable|string|max:255',
+            'agent_profile_image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'social_media' => 'nullable|array',
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
@@ -84,7 +86,25 @@ class WebsiteManagementController extends Controller
             Website::where('is_default', true)->update(['is_default' => false]);
         }
 
+        // Remove agent fields from validated array as they're handled separately
+        $agentData = [
+            'agent_name' => $validated['agent_name'] ?? null,
+            'agent_title' => $validated['agent_title'] ?? null,
+            'agent_phone' => $validated['agent_phone'] ?? null,
+            'brokerage' => $validated['brokerage'] ?? null,
+        ];
+        unset($validated['agent_name'], $validated['agent_title'], $validated['agent_phone'],
+              $validated['brokerage'], $validated['agent_profile_image']);
+
         $website = Website::create($validated);
+
+        // Create agent info if provided
+        if ($agentData['agent_name'] || $agentData['agent_title'] || $agentData['agent_phone'] || $agentData['brokerage']) {
+            AgentInfo::create([
+                'website_id' => $website->id,
+                ...$agentData
+            ]);
+        }
 
         // Create default home page
         WebsitePage::create([
@@ -105,6 +125,8 @@ class WebsiteManagementController extends Controller
      */
     public function edit(Website $website): Response
     {
+        $website->load('agentInfo');
+
         return Inertia::render('Admin/Websites/Edit', [
             'title' => "Edit Website: {$website->name}",
             'website' => $website
@@ -202,10 +224,11 @@ class WebsiteManagementController extends Controller
             'meta_keywords' => 'nullable|string|max:255',
             'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
-            'contact_info.agent.phone' => 'nullable|string|max:255',
-            'contact_info.agent.brokerage' => 'nullable|string|max:255',
-            'contact_info.agent.image' => 'nullable|string',
-            'agent_image_file' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
+            'agent_name' => 'nullable|string|max:255',
+            'agent_title' => 'nullable|string|max:255',
+            'agent_phone' => 'nullable|string|max:255',
+            'brokerage' => 'nullable|string|max:255',
+            'agent_profile_image' => 'nullable|file|mimes:jpg,jpeg,png,webp|max:2048',
             'social_media' => 'nullable|array',
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
@@ -242,41 +265,51 @@ class WebsiteManagementController extends Controller
             unset($validated['logo_file']);
         }
 
-        // Handle agent image upload
-        if ($request->hasFile('agent_image_file')) {
-            $agentImageFile = $request->file('agent_image_file');
-            
+        // Handle agent information separately
+        $agentData = [
+            'website_id' => $website->id,
+            'agent_name' => $validated['agent_name'] ?? null,
+            'agent_title' => $validated['agent_title'] ?? null,
+            'agent_phone' => $validated['agent_phone'] ?? null,
+            'brokerage' => $validated['brokerage'] ?? null,
+        ];
+
+        // Handle agent profile image upload
+        if ($request->hasFile('agent_profile_image')) {
+            $agentImageFile = $request->file('agent_profile_image');
+
             // Ensure storage directory exists
             if (!Storage::disk('public')->exists('agents')) {
                 Storage::disk('public')->makeDirectory('agents');
             }
-            
+
             // Delete old image if exists
-            $currentContactInfo = $website->contact_info ?? [];
-            if (isset($currentContactInfo['agent']['image']) && 
-                strpos($currentContactInfo['agent']['image'], '/storage/') === 0) {
-                $oldPath = str_replace('/storage/', '', $currentContactInfo['agent']['image']);
+            $agentInfo = $website->agentInfo;
+            if ($agentInfo && $agentInfo->profile_image &&
+                strpos($agentInfo->profile_image, '/storage/') === 0) {
+                $oldPath = str_replace('/storage/', '', $agentInfo->profile_image);
                 Storage::disk('public')->delete($oldPath);
             }
-            
+
             // Generate unique filename for agent image
             $agentImageFileName = uniqid() . '_' . time() . '.' . $agentImageFile->getClientOriginalExtension();
 
             // Store the file with specific filename
             $agentImagePath = $agentImageFile->storeAs('agents', $agentImageFileName, 'public');
 
-            // Update contact info with new agent image
-            if (!isset($validated['contact_info'])) {
-                $validated['contact_info'] = $currentContactInfo;
-            }
-            if (!isset($validated['contact_info']['agent'])) {
-                $validated['contact_info']['agent'] = [];
-            }
-            $validated['contact_info']['agent']['image'] = Storage::url($agentImagePath);
-
-            // Remove agent_image_file from validated array as it's not a database field
-            unset($validated['agent_image_file']);
+            // Update agent data with new image path
+            $agentData['profile_image'] = Storage::url($agentImagePath);
         }
+
+        // Update or create agent info
+        AgentInfo::updateOrCreate(
+            ['website_id' => $website->id],
+            $agentData
+        );
+
+        // Remove agent fields from validated array as they're handled separately
+        unset($validated['agent_name'], $validated['agent_title'], $validated['agent_phone'],
+              $validated['brokerage'], $validated['agent_profile_image']);
 
         // If this is set as default, remove default from other websites
         if ($validated['is_default'] ?? false) {

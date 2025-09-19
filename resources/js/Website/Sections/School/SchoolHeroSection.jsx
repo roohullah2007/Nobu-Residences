@@ -1,7 +1,10 @@
 import { Link } from '@inertiajs/react';
+import React, { useState } from 'react';
 import Navbar from '@/Website/Global/Navbar';
+import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 
 export default function SchoolHeroSection({ auth, siteName = 'X Houses', website }) {
+    const [showContactModal, setShowContactModal] = useState(false);
     const brandColors = website?.brand_colors || {
         primary: '#912018',
         secondary: '#293056'
@@ -70,10 +73,10 @@ export default function SchoolHeroSection({ auth, siteName = 'X Houses', website
                                     {/* Agent Header */}
                                     <div className="flex flex-row items-center p-0 gap-3 sm:gap-4 w-full">
                                         {/* Avatar */}
-                                        <div 
+                                        <div
                                             className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 border-2 border-[#293056] rounded-full bg-cover bg-center"
                                             style={{
-                                                backgroundImage: `url('/assets/school/jatin-gill.png')`
+                                                backgroundImage: `url('${website?.agent_info?.profile_image || website?.contact_info?.agent?.image || '/assets/school/jatin-gill.png'}')`
                                             }}
                                         />
 
@@ -81,28 +84,31 @@ export default function SchoolHeroSection({ auth, siteName = 'X Houses', website
                                         <div className="flex flex-col items-start p-0 flex-1 min-w-0">
                                             {/* Name */}
                                             <div className="w-full font-space-grotesk font-bold text-sm sm:text-base leading-5 sm:leading-[26px] flex items-center tracking-wider uppercase text-[#293056] truncate">
-                                                JATIN GILL
+                                                {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'JATIN GILL').toUpperCase()}
                                             </div>
 
                                             {/* Title */}
                                             <div className="w-full font-work-sans font-bold text-xs sm:text-sm leading-5 sm:leading-6 flex items-center tracking-wider text-[#7E2410] truncate">
-                                                Sales Representative
+                                                {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || 'Property Manager'}
                                             </div>
 
                                             {/* Company */}
                                             <div className="w-full font-work-sans font-medium text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056] truncate">
-                                                Property.ca Inc, Brokerage
+                                                {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Property.ca Inc, Brokerage'}
                                             </div>
 
                                             {/* Phone */}
                                             <div className="w-full font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056]">
-                                                647-490-1532
+                                                {website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Contact Button */}
-                                    <button className="flex justify-center items-center w-full h-10 sm:h-12 bg-[#7E2410] rounded-full hover:bg-[#6B1F0E] transition-colors duration-200">
+                                    <button
+                                        onClick={() => setShowContactModal(true)}
+                                        className="flex justify-center items-center w-full h-10 sm:h-12 bg-[#7E2410] rounded-full hover:bg-[#6B1F0E] transition-colors duration-200"
+                                    >
                                         <span className="font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-6 tracking-wider text-white whitespace-nowrap">
                                             Contact agent
                                         </span>
@@ -141,6 +147,24 @@ export default function SchoolHeroSection({ auth, siteName = 'X Houses', website
                     </div>
                 </div>
             </main>
+
+            {/* Contact Agent Modal */}
+            <ContactAgentModal
+                isOpen={showContactModal}
+                onClose={() => setShowContactModal(false)}
+                agentData={{
+                    name: website?.agent_info?.agent_name || website?.contact_info?.agent?.name,
+                    title: website?.agent_info?.agent_title || website?.contact_info?.agent?.title,
+                    phone: website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone,
+                    brokerage: website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage,
+                    image: website?.agent_info?.profile_image || website?.contact_info?.agent?.image
+                }}
+                propertyData={{
+                    BuildingName: 'School Property'
+                }}
+                auth={auth}
+                websiteSettings={{ website }}
+            />
         </div>
     );
 }

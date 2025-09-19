@@ -15,7 +15,13 @@ class SavedSearchController extends Controller
     {
         $savedSearches = Auth::user()->savedSearches()
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($search) {
+                // Ensure the formatted_criteria attribute is included
+                return array_merge($search->toArray(), [
+                    'formatted_criteria' => $search->formatted_criteria
+                ]);
+            });
 
         return response()->json([
             'success' => true,
@@ -111,16 +117,70 @@ class SavedSearchController extends Controller
 
         // Build URL parameters from saved search params
         $params = $savedSearch->search_params;
-        $queryString = http_build_query([
-            'location' => $params['query'] ?? '',
-            'status' => $params['status'] ?? 'For Sale',
-            'property_sub_type' => isset($params['property_type'][0]) ? $params['property_type'][0] : '',
-            'min_price' => $params['price_min'] ?? 0,
-            'max_price' => $params['price_max'] ?? 10000000,
-            'bedrooms' => $params['bedrooms'] ?? 0,
-            'bathrooms' => $params['bathrooms'] ?? 0,
-            'sort' => $params['sort'] ?? 'newest'
-        ]);
+
+        // Map saved search params to search page URL params
+        $urlParams = [];
+
+        // Location/Query
+        if (!empty($params['query'])) {
+            $urlParams['query'] = $params['query'];
+        }
+
+        // Transaction type (For Sale/For Rent)
+        if (!empty($params['status'])) {
+            $urlParams['status'] = $params['status'];
+        } elseif (!empty($params['transaction_type'])) {
+            $urlParams['status'] = $params['transaction_type'];
+        }
+
+        // Property types - handle as array
+        if (!empty($params['property_type'])) {
+            if (is_array($params['property_type'])) {
+                // If multiple types, join them
+                $urlParams['property_type'] = implode(',', $params['property_type']);
+            } else {
+                $urlParams['property_type'] = $params['property_type'];
+            }
+        }
+
+        // Price range
+        if (isset($params['price_min']) && $params['price_min'] > 0) {
+            $urlParams['min_price'] = $params['price_min'];
+        }
+        if (isset($params['price_max']) && $params['price_max'] < 10000000) {
+            $urlParams['max_price'] = $params['price_max'];
+        }
+
+        // Bedrooms and bathrooms
+        if (isset($params['bedrooms']) && $params['bedrooms'] > 0) {
+            $urlParams['bedrooms'] = $params['bedrooms'];
+        }
+        if (isset($params['bathrooms']) && $params['bathrooms'] > 0) {
+            $urlParams['bathrooms'] = $params['bathrooms'];
+        }
+
+        // Square footage
+        if (isset($params['min_sqft']) && $params['min_sqft'] > 0) {
+            $urlParams['min_sqft'] = $params['min_sqft'];
+        }
+        if (isset($params['max_sqft']) && $params['max_sqft'] > 0) {
+            $urlParams['max_sqft'] = $params['max_sqft'];
+        }
+
+        // Sort order
+        if (!empty($params['sort'])) {
+            $urlParams['sort'] = $params['sort'];
+        }
+
+        // Other filters that might be saved
+        if (!empty($params['parking'])) {
+            $urlParams['parking'] = $params['parking'];
+        }
+        if (!empty($params['year_built'])) {
+            $urlParams['year_built'] = $params['year_built'];
+        }
+
+        $queryString = http_build_query($urlParams);
 
         return redirect('/search?' . $queryString);
     }

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const TourSchedulingComponent = ({ website }) => {
+const TourSchedulingComponent = ({ website, propertyData }) => {
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [isFixed, setIsFixed] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const rightColumnRef = useRef(null);
   const contentRef = useRef(null);
@@ -111,36 +113,129 @@ const TourSchedulingComponent = ({ website }) => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Prevent double submission
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
     const selectedDate = dates[currentDateIndex + selectedDateSlot];
-    const tourRequest = {
-      date: selectedDate.date,
-      time: selectedTime,
-      ...formData
+    const formattedDate = `${selectedDate.day}, ${selectedDate.month} ${selectedDate.dayNum}`;
+    const timeRanges = {
+      morning: '9AM to 12PM',
+      afternoon: '12PM to 4PM',
+      evening: '4PM to 8PM'
     };
-    
-    console.log('Tour Request:', tourRequest);
-    
-    // Reset form and close modal
-    setFormData({ name: '', email: '', phone: '', message: '' });
-    setIsModalOpen(false);
-    
-    alert('Your tour request has been submitted successfully!');
+
+    try {
+      const response = await fetch('/api/tour-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          full_name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+          selected_date: formattedDate,
+          selected_time: timeRanges[selectedTime],
+          property_type: 'property',
+          property_id: propertyData?.listingKey || propertyData?.ListingKey || null,
+          property_address: propertyData?.address || propertyData?.Property?.Address?.AddressText ||
+            propertyData?.StreetAddress || 'Property Address Not Available'
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Reset form and show success
+        setFormData({ name: '', email: '', phone: '', message: '' });
+        setIsModalOpen(false);
+        setShowSuccess(true);
+
+        // Hide success message after 5 seconds
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 5000);
+      } else {
+        // Handle validation errors
+        if (result.errors) {
+          const errorMessages = Object.values(result.errors).flat().join('\n');
+          alert(`Please correct the following errors:\n${errorMessages}`);
+        } else {
+          alert(result.message || 'Failed to submit tour request. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting tour request:', error);
+      alert('An error occurred while submitting your request. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle question form submission
-  const handleQuestionSubmit = (e) => {
+  const handleQuestionSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log('Question Request:', questionFormData);
-    
-    // Reset form and close modal
-    setQuestionFormData({ name: '', email: '', phone: '', question: '' });
-    setIsQuestionModalOpen(false);
-    
-    alert('Your question has been submitted successfully! We will get back to you soon.');
+
+    // Prevent double submission
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/property-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          name: questionFormData.name,
+          email: questionFormData.email,
+          phone: questionFormData.phone,
+          question: questionFormData.question,
+          property_listing_key: propertyData?.listingKey || propertyData?.ListingKey || null,
+          property_address: propertyData?.address || propertyData?.Property?.Address?.AddressText ||
+            propertyData?.StreetAddress || 'Property Address Not Available',
+          property_type: 'property'
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Reset form and close modal
+        setQuestionFormData({ name: '', email: '', phone: '', question: '' });
+        setIsQuestionModalOpen(false);
+
+        // Show success
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 5000);
+      } else {
+        // Handle validation errors
+        if (result.errors) {
+          const errorMessages = Object.values(result.errors).flat().join('\n');
+          alert(`Please correct the following errors:\n${errorMessages}`);
+        } else {
+          alert(result.message || 'Failed to submit question. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting question:', error);
+      alert('An error occurred while submitting your question. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Get selected date and time string for modal
@@ -208,8 +303,35 @@ const TourSchedulingComponent = ({ website }) => {
 
   return (
     <>
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-[1000000] animate-slide-in-right">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start shadow-lg max-w-sm">
+            <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-green-800">
+                Tour Request Submitted!
+              </h3>
+              <p className="text-sm text-green-700 mt-1">
+                We'll contact you shortly to confirm your tour.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSuccess(false)}
+              className="ml-3 text-green-400 hover:text-green-600"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Right Column Container */}
-      <div 
+      <div
         ref={rightColumnRef}
         className="flex flex-col gap-2 relative max-w-[309px]"
       >
@@ -337,16 +459,17 @@ const TourSchedulingComponent = ({ website }) => {
 
             {/* Agent Info Section */}
             <div className="mt-6 pt-6 border-t border-gray-200 w-full">
-              <div className="flex items-center mb-4 justify-around">
-                <img 
-                  src={website?.contact_info?.agent?.image || "/assets/jatin-gill.png"} 
-                  alt={website?.contact_info?.agent?.name || "Agent"} 
-                  className="w-14 h-14 rounded-full mr-4 object-cover"
+              <div className="flex items-center mb-4">
+                <img
+                  src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || "/assets/jatin-gill.png"}
+                  alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || "Agent"}
+                  className="w-14 h-14 rounded-full mr-4 object-cover flex-shrink-0"
                 />
-                <div>
-                  <h3 className="font-bold mb-1" style={{ color: '#293056' }}>{website?.contact_info?.agent?.name || 'Jatin Gill'}</h3>
-                  <p className="text-gray-500 text-sm mb-1">{website?.contact_info?.agent?.brokerage || 'Nobu Residences'}</p>
-                  <p className="text-gray-700 text-sm">{website?.contact_info?.agent?.phone || '647-490-1532'}</p>
+                <div className="text-left">
+                  <h3 className="font-bold mb-1 text-left" style={{ color: '#293056' }}>{website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'Jatin Gill'}</h3>
+                  <p className="text-gray-500 text-sm text-left">{website?.agent_info?.agent_title || website?.contact_info?.agent?.title || 'Property Manager'}</p>
+                  <p className="text-gray-500 text-sm text-left">{website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Nobu Residences'}</p>
+                  <p className="text-gray-700 text-sm font-semibold text-left">{website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}</p>
                 </div>
               </div>
             </div>
@@ -376,9 +499,19 @@ const TourSchedulingComponent = ({ website }) => {
               </button>
             </div>
 
-            <p className="mb-4 text-gray-500">
-              You've selected: <span className="font-medium">{getSelectedDateTime()}</span>
-            </p>
+            <div className="mb-4 space-y-2">
+              <p className="text-gray-500">
+                You've selected: <span className="font-medium">{getSelectedDateTime()}</span>
+              </p>
+              {propertyData && (
+                <p className="text-gray-600 text-sm">
+                  Property: <span className="font-medium">
+                    {propertyData?.address || propertyData?.Property?.Address?.AddressText ||
+                     propertyData?.StreetAddress || 'Property'}
+                  </span>
+                </p>
+              )}
+            </div>
 
             <div>
               <div className="mb-4">
@@ -434,9 +567,22 @@ const TourSchedulingComponent = ({ website }) => {
 
               <button
                 onClick={handleSubmit}
-                className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800"
+                disabled={isSubmitting}
+                className={`w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-colors ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
+                }`}
               >
-                Confirm Tour Request
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    Submitting...
+                  </span>
+                ) : (
+                  'Confirm Tour Request'
+                )}
               </button>
             </div>
           </div>
