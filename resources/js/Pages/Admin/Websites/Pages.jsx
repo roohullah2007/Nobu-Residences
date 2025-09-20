@@ -187,7 +187,7 @@ export default function Pages({ auth }) {
                                                                 <div className="py-1">
                                                                     {/* Edit Content - Only available for home page */}
                                                                     <Link
-                                                                        href={route('admin.websites.home-page.edit', website.id)}
+                                                                        href={route('admin.websites.edit-home-page', website.id)}
                                                                         className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                                                         onClick={() => setOpenDropdownId(null)}
                                                                     >

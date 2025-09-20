@@ -182,7 +182,7 @@ export default function Show({ auth }) {
                                         </span>
                                         {page.page_type === 'home' && (
                                             <Link
-                                                href={route('admin.websites.home-page.edit', website.id)}
+                                                href={route('admin.websites.edit-home-page', website.id)}
                                                 className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
                                             >
                                                 Edit Content
