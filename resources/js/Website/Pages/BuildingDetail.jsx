@@ -309,7 +309,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
           </div>
           <div className='description'>
             {/* Real Estate Market Links Section */}
-            <RealEstateLinksSection />
+            <RealEstateLinksSection propertyData={buildingData} />
           </div>     
         </div>
       </div>

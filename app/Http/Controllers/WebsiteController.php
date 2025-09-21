@@ -1389,7 +1389,7 @@ class WebsiteController extends Controller
         $building = null;
         
         // Try to find building by slug first
-        $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+        $building = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities', 'properties' => function($query) {
             $query->where('status', 'active')
                   ->orderBy('created_at', 'desc')
                   ->limit(10);
@@ -1399,7 +1399,7 @@ class WebsiteController extends Controller
         if (!$building) {
             $buildingId = $this->extractBuildingIdFromSlug($buildingSlug);
             if ($this->isValidUuid($buildingId)) {
-                $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+                $building = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities', 'properties' => function($query) {
                     $query->where('status', 'active')
                           ->orderBy('created_at', 'desc')
                           ->limit(10);
@@ -1412,7 +1412,7 @@ class WebsiteController extends Controller
             // Convert the slug back to potential building name for search
             $nameFromSlug = str_replace('-', ' ', $buildingSlug);
             
-            $building = Building::with(['developer', 'amenities', 'properties' => function($query) {
+            $building = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities', 'properties' => function($query) {
                 $query->where('status', 'active')
                       ->orderBy('created_at', 'desc')
                       ->limit(10);

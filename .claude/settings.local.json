@@ -35,7 +35,9 @@
       "Bash(else echo \"Directory not found\")",
       "Read(//f/noburesidence/**)",
       "Bash(git add:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(if [ -f \"F:\\noburesidence\\NOBU\\laravel-react-starter\\resources\\js\\Website\\Components\\ViewportAwarePropertyMap.jsx\" ])",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": [],

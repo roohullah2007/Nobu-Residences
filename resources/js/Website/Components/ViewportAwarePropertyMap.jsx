@@ -50,9 +50,11 @@ const ViewportAwarePropertyMap = ({
     return latChangePercent > threshold || lngChangePercent > threshold;
   };
 
-  // Fetch properties for current viewport
+  // Fetch properties for current viewport - DISABLED to prevent map refresh
   const fetchPropertiesForBounds = useCallback(async (bounds) => {
-    console.log('fetchPropertiesForBounds called with:', bounds);
+    // DISABLED - Don't fetch new properties when map moves
+    console.log('fetchPropertiesForBounds called but DISABLED - only showing left side properties');
+    return;
 
     if (!bounds) {
       console.log('No bounds provided, skipping fetch');
@@ -158,9 +160,12 @@ const ViewportAwarePropertyMap = ({
   // Handle map ready event
   const handleMapReady = useCallback((map) => {
     if (!map) return;
-    
-    console.log('Map instance ready, setting up viewport listeners');
+
+    console.log('Map instance ready - viewport loading DISABLED');
     setMapInstance(map);
+
+    // DISABLED - Don't listen for viewport changes to prevent loading more properties
+    return;
 
     // Store initial zoom level
     let previousZoom = map.getZoom();
@@ -223,24 +228,14 @@ const ViewportAwarePropertyMap = ({
     };
   }, [debouncedFetch]);
 
-  // Replace properties with viewport properties when map moves
+  // Only use properties from the left side list - don't replace with viewport properties
   useEffect(() => {
-    console.log('Properties update - Initial:', properties.length, 'Viewport:', viewportProperties.length);
-    
-    // When viewport properties are loaded, replace existing properties
-    if (viewportProperties.length > 0) {
-      // Replace all properties with viewport properties
-      console.log('Replacing properties with viewport results');
-      setCombinedProperties(viewportProperties);
-    } else if (properties.length > 0) {
-      // Use initial properties only when no viewport properties
-      console.log('Using initial properties');
-      setCombinedProperties(properties);
-    } else {
-      // No properties at all
-      setCombinedProperties([]);
-    }
-  }, [properties, viewportProperties]);
+    console.log('Properties update - Using left side properties only:', properties.length);
+
+    // ALWAYS use the properties passed from parent (left side list)
+    // Never replace with viewport properties to prevent refresh and disappearing listings
+    setCombinedProperties(properties);
+  }, [properties]);
 
   // Get the SimplePropertyMap ref to access its map instance
   const handleSimpleMapRef = useCallback((ref) => {

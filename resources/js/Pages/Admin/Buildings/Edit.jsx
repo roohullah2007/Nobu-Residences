@@ -18,6 +18,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const { data, setData, put, processing, errors } = useForm({
         name: building.name || '',
         address: building.address || '',
+        street_address_1: building.street_address_1 || '',
+        street_address_2: building.street_address_2 || '',
         city: building.city || '',
         province: building.province || 'ON',
         postal_code: building.postal_code || '',
@@ -326,6 +328,34 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         required
                                     />
                                     <InputError message={errors.address} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="street_address_1" value="Street Address 1" />
+                                    <TextInput
+                                        id="street_address_1"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.street_address_1}
+                                        onChange={(e) => setData('street_address_1', e.target.value)}
+                                        placeholder="e.g., 15 Mercer St"
+                                    />
+                                    <InputError message={errors.street_address_1} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">For buildings with multiple addresses</p>
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="street_address_2" value="Street Address 2" />
+                                    <TextInput
+                                        id="street_address_2"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.street_address_2}
+                                        onChange={(e) => setData('street_address_2', e.target.value)}
+                                        placeholder="e.g., 35 Mercer"
+                                    />
+                                    <InputError message={errors.street_address_2} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">Optional second address for the same building</p>
                                 </div>
 
                                 <div className="sm:col-span-2">

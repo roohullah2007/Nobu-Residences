@@ -98,6 +98,8 @@ class BuildingController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
+            'street_address_1' => 'nullable|string|max:255',
+            'street_address_2' => 'nullable|string|max:255',
             'city' => 'required|string|max:100',
             'province' => 'required|string|max:100',
             'postal_code' => 'nullable|string|max:20',
@@ -233,6 +235,8 @@ class BuildingController extends Controller
                 'id' => $building->id,
                 'name' => $building->name,
                 'address' => $building->address,
+                'street_address_1' => $building->street_address_1,
+                'street_address_2' => $building->street_address_2,
                 'city' => $building->city,
                 'province' => $building->province,
                 'postal_code' => $building->postal_code,
@@ -279,10 +283,12 @@ class BuildingController extends Controller
     public function update(Request $request, $buildingSlug)
     {
         $building = $this->resolveBuildingFromSlug($buildingSlug);
-        
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:255',
+            'street_address_1' => 'nullable|string|max:255',
+            'street_address_2' => 'nullable|string|max:255',
             'city' => 'required|string|max:100',
             'province' => 'required|string|max:100',
             'postal_code' => 'nullable|string|max:20',

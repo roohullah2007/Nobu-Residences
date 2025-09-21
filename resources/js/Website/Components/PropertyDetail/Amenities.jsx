@@ -29,10 +29,11 @@ const Amenities = ({ propertyData }) => {
     'Lounge': '/assets/svgs/party-horn.svg'
   };
 
-  // Get building data from propertyData
-  const buildingData = propertyData?.buildingData;
+  // Get building data from propertyData (could be directly passed building or property with buildingData)
+  const buildingData = propertyData?.buildingData || propertyData;
   const buildingAmenities = buildingData?.amenities || [];
 
+  console.log('Amenities Component - Property Data:', propertyData);
   console.log('Amenities Component - Building Data:', buildingData);
   console.log('Amenities Component - Building Amenities:', buildingAmenities);
   console.log('Amenities Component - Maintenance Fee Amenities:', buildingData?.maintenance_fee_amenities);
@@ -65,19 +66,23 @@ const Amenities = ({ propertyData }) => {
   }
   // NO FALLBACK TO HARDCODED DATA - if no amenities from backend, show nothing
 
-  // Get maintenance fee amenities from backend
-  const maintenanceFeeAmenities = buildingData?.maintenance_fee_amenities || [];
+  // Get maintenance fee amenities from backend - check both possible property names
+  const maintenanceFeeAmenities = buildingData?.maintenance_fee_amenities ||
+                                  buildingData?.maintenanceFeeAmenities ||
+                                  [];
 
   console.log('Maintenance Fee Amenities from Backend:', maintenanceFeeAmenities);
   console.log('Type of maintenance_fee_amenities:', typeof maintenanceFeeAmenities);
   console.log('Is Array:', Array.isArray(maintenanceFeeAmenities));
 
   // Use dynamic maintenance amenities from backend
-  const includedAmenities = maintenanceFeeAmenities.map(amenity => ({
-    name: amenity.name,
-    iconPath: amenity.icon || '/assets/svgs/amenity-default.svg',
-    included: true
-  }));
+  const includedAmenities = Array.isArray(maintenanceFeeAmenities)
+    ? maintenanceFeeAmenities.map(amenity => ({
+        name: amenity.name,
+        iconPath: amenity.icon || '/assets/svgs/amenity-default.svg',
+        included: true
+      }))
+    : [];
 
   const CheckIcon = () => (
     <img src="/assets/svgs/tick.svg" alt="Check" className="w-5 h-5" />

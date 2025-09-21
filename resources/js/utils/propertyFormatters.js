@@ -15,9 +15,12 @@ export const formatCardAddress = (property) => {
     // Check if address contains multiple addresses
     const address = property.address || property.Address || '';
     if (address) {
-      return address; // Return the full building address as-is
+      // Remove city, province, postal code from building addresses
+      // Split by comma and take only the first part (street address)
+      const cleanAddress = address.split(',')[0].trim();
+      return cleanAddress; // Return only the street part
     }
-    
+
     // Fallback to building name if no address
     return property.name || property.building_name || 'Building Address';
   }
@@ -28,24 +31,30 @@ export const formatCardAddress = (property) => {
   const streetName = property.StreetName || property.streetName || '';
   
   // Try to parse from UnparsedAddress if individual fields are empty
-  if (!unitNumber || !streetNumber || !streetName) {
+  if (!unitNumber && !streetNumber && !streetName) {
     const unparsedAddress = property.address || property.UnparsedAddress || property.unparsedAddress || '';
-    
+
     if (unparsedAddress) {
-      // Try to parse address like "68 Corporate Drive 3338, Toronto E09, ON M1H 3H3"
-      // Pattern: Street + Unit at end, followed by comma and location
-      const addressMatch = unparsedAddress.match(/^(.+?)\s+(\d+)\s*,?\s*(.*)$/);
-      if (addressMatch) {
-        const [, streetPart, unit, rest] = addressMatch;
-        
-        // Split street part into number and name
-        const streetMatch = streetPart.match(/^(\d+)\s+(.+)$/);
-        if (streetMatch) {
-          const [, parsedStreetNumber, parsedStreetName] = streetMatch;
-          
-          return `${unit} - ${parsedStreetNumber} ${parsedStreetName}`;
-        }
+      // First, extract just the street part (before first comma)
+      const streetPart = unparsedAddress.split(',')[0].trim();
+
+      // Try to parse patterns like "1801 - 62 Wellesley Street W" or "68 Corporate Drive 3338"
+      // Pattern 1: Unit - StreetNumber StreetName
+      const pattern1 = streetPart.match(/^(\d+)\s*-\s*(\d+)\s+(.+)$/);
+      if (pattern1) {
+        const [, unit, streetNum, streetName] = pattern1;
+        return `${unit} - ${streetNum} ${streetName}`;
       }
+
+      // Pattern 2: StreetNumber StreetName Unit (at end)
+      const pattern2 = streetPart.match(/^(\d+)\s+(.+?)\s+(\d+)$/);
+      if (pattern2) {
+        const [, streetNum, streetName, unit] = pattern2;
+        return `${unit} - ${streetNum} ${streetName}`;
+      }
+
+      // Pattern 3: Just return the street part as-is if no pattern matches
+      return streetPart;
     }
   }
   
@@ -75,8 +84,15 @@ export const formatCardAddress = (property) => {
     return parts.join(' - ');
   }
   
-  // Fallback to full address if specific fields not available
-  return property.address || property.UnparsedAddress || 'Address not available';
+  // Fallback - try to extract just street address from full address
+  const fullAddress = property.address || property.UnparsedAddress || property.unparsedAddress || '';
+  if (fullAddress) {
+    // Remove city, province, postal code by taking only the part before the first comma
+    const streetOnly = fullAddress.split(',')[0].trim();
+    return streetOnly;
+  }
+
+  return 'Address not available';
 };
 
 /**

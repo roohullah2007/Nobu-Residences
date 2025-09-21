@@ -425,6 +425,24 @@ const SimplePropertyMap = React.forwardRef(({
         bounds.extend(marker.getPosition());
       });
       mapInstanceRef.current.fitBounds(bounds);
+
+      // Prevent zooming in too much when there are few properties
+      // Add a listener that triggers once after fitBounds completes
+      const boundsListener = mapInstanceRef.current.addListener('bounds_changed', () => {
+        // Remove this listener immediately as we only need it once
+        window.google.maps.event.removeListener(boundsListener);
+
+        // If zoom is too high (too zoomed in), set it to a reasonable level
+        const currentZoom = mapInstanceRef.current.getZoom();
+        if (currentZoom > 15) {
+          mapInstanceRef.current.setZoom(15); // Max zoom level 15 for better overview
+        }
+
+        // For single property, ensure we don't zoom in too much
+        if (markersRef.current.length === 1 && currentZoom > 13) {
+          mapInstanceRef.current.setZoom(13);
+        }
+      });
     }
   }, [properties, onPropertyClick, activeTab]);
 

@@ -16,7 +16,7 @@ export default function BuildingSections({
   sampleRentProperties 
 }) {
   return (
-    <div className="min-h-screen space-y-4 font-work-sans overflow-x-hidden">
+    <div className="min-h-screen font-work-sans overflow-x-hidden flex flex-col gap-y-4">
       {/* Building Status and Navigation Tabs */}
       <BuildingStatusTabs building={buildingData} />
 
@@ -24,21 +24,21 @@ export default function BuildingSections({
       {/* <div data-price-history>
         <PriceHistory propertyData={buildingData} />
       </div> */}
-             
+
       {/* The Merchandise Lofts Section */}
-      
+
       {/* <MerchandiseLofts /> */}
-      
+
       {/* Properties For Sale Section - Fetch condo apartments dynamically */}
-      <MoreBuildings 
+      <MoreBuildings
         title="Properties For Sale"
         propertyType="Condo Apartment"
         transactionType="For Sale"
         buildingData={buildingData}
       />
-             
+
       {/* Properties For Rent Section - Fetch condo apartments dynamically */}
-      <MoreBuildings 
+      <MoreBuildings
         title="Properties For Rent"
         propertyType="Condo Apartment"
         transactionType="For Rent"
@@ -46,14 +46,14 @@ export default function BuildingSections({
       />
 
       {/* Nearby Buildings Section - Fetch from backend */}
-      <MoreBuildings 
+      <MoreBuildings
         title="Nearby Buildings"
         fetchType="buildings"
         buildingData={buildingData}
       />
-             
+
       {/* Similar Buildings Section - Fetch from backend */}
-      <MoreBuildings 
+      <MoreBuildings
         title="Similar Buildings"
         fetchType="buildings"
         buildingData={buildingData}
@@ -92,7 +92,7 @@ export default function BuildingSections({
              
       {/* Building Description Section */}
       {/* <PropertyDescriptionSection /> */}
-       
+
       {/* FAQ Section */}
       <div className="faq-section">
         <FAQ />

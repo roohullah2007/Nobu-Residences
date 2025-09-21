@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
-import PropertyCardV6 from '../../Global/Components/PropertyCards/PropertyCardV6';
+import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
 
@@ -192,18 +192,11 @@ const MoreBuildings = ({
   const fetchSimilarListings = async () => {
     setIsLoading(true);
     try {
-      // Build query params with property type filtering
+      // Build query params - keep it simple to avoid backend errors
       const params = new URLSearchParams({
         listingKey: listingKey,
         limit: 6
       });
-      
-      // Add property type filters if available
-      if (propertySubType) {
-        params.append('propertySubType', propertySubType);
-      } else if (propertyType) {
-        params.append('propertyType', propertyType);
-      }
       
       console.log('Fetching similar listings with params:', params.toString());
       
@@ -334,42 +327,95 @@ const MoreBuildings = ({
   const fetchCondoApartments = async () => {
     setIsLoading(true);
     try {
-      // Prepare search parameters in the correct format
-      const searchParams = {
-        search_params: {
-          property_type: ['Condo Apartment', 'Condo Apt', 'Condo'], // Include variations
-          status: filterTransactionType || 'For Sale',
-          page_size: 12,
-          page: 1,
-          query: buildingData?.city || '', // Use city as query if available
-          price_min: 0,
-          price_max: filterTransactionType === 'For Rent' ? 50000 : 10000000,
-          bedrooms: 0,
-          bathrooms: 0,
-          sort: 'newest'
+      // Collect all addresses to check
+      const addressesToCheck = [];
+
+      // Add street_address_1 if available
+      if (buildingData?.street_address_1) {
+        addressesToCheck.push(buildingData.street_address_1);
+      }
+
+      // Add street_address_2 if available
+      if (buildingData?.street_address_2) {
+        addressesToCheck.push(buildingData.street_address_2);
+      }
+
+      // Fallback to parsing main address if no street addresses specified
+      if (addressesToCheck.length === 0 && buildingData?.address) {
+        const fullAddress = buildingData.address;
+        // Split addresses by "&" or "and" to handle multiple addresses
+        const parts = fullAddress.split(/\s+(?:&|and)\s+/i).map(part => part.trim());
+        addressesToCheck.push(...parts);
+      }
+
+      console.log('Addresses to check for properties:', addressesToCheck);
+
+      let allProperties = [];
+
+      // Fetch properties for each address
+      for (const addressPart of addressesToCheck) {
+        // Extract street number and name from each part
+        const match = addressPart.match(/^(\d+)\s+(.+?)(?:,|$)/);
+        if (match) {
+          const streetNumber = match[1];
+          let streetName = match[2];
+
+          // Remove trailing street type words for better matching
+          streetName = streetName.replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '').trim();
+
+          console.log(`Fetching properties for: ${streetNumber} ${streetName}`);
+
+          // Prepare search parameters
+          const searchParams = {
+            search_params: {
+              property_type: ['Condo Apartment', 'Condo Apt', 'Condo'], // Include variations
+              status: filterTransactionType || 'For Sale',
+              street_number: streetNumber,
+              street_name: streetName,
+              page_size: 100, // Get all available properties
+              page: 1,
+              price_min: 0,
+              price_max: filterTransactionType === 'For Rent' ? 50000 : 10000000,
+              bedrooms: 0,
+              bathrooms: 0,
+              sort: 'newest'
+            }
+          };
+
+          console.log('Fetching condo apartments with params:', searchParams);
+
+          try {
+            const response = await fetch('/api/property-search', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+              },
+              body: JSON.stringify(searchParams)
+            });
+
+            const result = await response.json();
+            console.log(`API response for ${streetNumber} ${streetName}:`, result);
+
+            // Check for properties in the correct response structure
+            const properties = result.data?.properties || result.properties || [];
+
+            if (properties && properties.length > 0) {
+              allProperties.push(...properties);
+            }
+          } catch (err) {
+            console.error(`Error fetching properties for ${streetNumber} ${streetName}:`, err);
+          }
+        } else {
+          console.log(`Could not parse address part: "${addressPart}"`);
         }
-      };
+      }
 
-      console.log('Fetching condo apartments with params:', searchParams);
+      console.log('Total properties found:', allProperties.length);
 
-      const response = await fetch('/api/property-search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-        },
-        body: JSON.stringify(searchParams)
-      });
-
-      const result = await response.json();
-      console.log('Condo apartments API response:', result);
-
-      // Check for properties in the correct response structure
-      const properties = result.data?.properties || result.properties || [];
-      
-      if (properties && properties.length > 0) {
+      if (allProperties.length > 0) {
         // Format the properties for display
-        const formattedListings = properties.map((property) => {
+        const formattedListings = allProperties.map((property) => {
           // Get the first image URL
           let imageUrl = null;
           if (property.images && Array.isArray(property.images) && property.images.length > 0) {
@@ -656,16 +702,28 @@ const MoreBuildings = ({
     setCurrentSlide(slideIndex);
   };
 
+  // Check if this should be displayed as a grid (for Properties For Sale/Rent on building page)
+  const isGridLayout = (title === "Properties For Sale" || title === "Properties For Rent") && buildingData;
+
   return (
     <section className={`p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 ${
-      title === "Nearby Listings" ? 'nearby-listings-container' : 
+      title === "Nearby Listings" ? 'nearby-listings-container' :
       title === "Similar Listings" ? 'similar-listings-container' : ''
     }`}>
       <div className="max-w-[1280px] mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
+            {/* Show count bubble for Properties For Sale/Rent on building page */}
+            {isGridLayout && buildings.length > 0 && (
+              <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold bg-[#293056] text-white rounded-full">
+                {buildings.length}
+              </span>
+            )}
+          </div>
           
-          {/* Navigation Arrows - Desktop Only */}
+          {/* Navigation Arrows - Desktop Only (hide for grid layout) */}
+          {!isGridLayout && (
           <div className="hidden md:flex gap-2">
             <button
               onClick={prevSlide}
@@ -695,6 +753,7 @@ const MoreBuildings = ({
               </svg>
             </button>
           </div>
+          )}
         </div>
 
         {/* Loading State */}
@@ -711,17 +770,38 @@ const MoreBuildings = ({
           </div>
         )}
         
-        {/* Mobile: Horizontal Scrollable Row */}
-        {!isLoading && buildings.length > 0 && (
+        {/* Grid Layout for Properties For Sale/Rent on Building Page */}
+        {!isLoading && buildings.length > 0 && isGridLayout && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {buildings.map((building) => (
+            <div key={building.listingKey || building.id} className="flex justify-center">
+              <PropertyCardV5
+                property={building}
+                size="grid"
+                onClick={() => {
+                  if (building.source === 'building' && building.id) {
+                    window.location.href = createBuildingUrl(building.name || building.address, building.id);
+                  } else if (building.listingKey) {
+                    window.location.href = `/property/${building.listingKey}`;
+                  }
+                }}
+                className="w-[300px]"
+              />
+            </div>
+          ))}
+        </div>
+        )}
+
+        {/* Mobile: Horizontal Scrollable Row (for carousel layouts) */}
+        {!isLoading && buildings.length > 0 && !isGridLayout && (
         <div className="block md:hidden">
           <div className="mobile-listings-scroll">
             {buildings.map((building) => (
               <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item">
                 {/* Use PropertyCardV6 for all cards for consistency */}
-                <PropertyCardV6
+                <PropertyCardV5
                   property={building}
-                  auth={auth}
-                  size="mobile"
+                  size="default"
                   onClick={() => {
                     if (building.source === 'building' && building.id) {
                       window.location.href = createBuildingUrl(building.name || building.address, building.id);
@@ -729,7 +809,7 @@ const MoreBuildings = ({
                       window.location.href = `/property/${building.listingKey}`;
                     }
                   }}
-                  className="w-[300px] min-w-[300px] h-auto"
+                  className="w-[300px]"
                 />
               </div>
             ))}
@@ -737,8 +817,8 @@ const MoreBuildings = ({
         </div>
         )}
 
-        {/* Desktop: Slider Container */}
-        {!isLoading && buildings.length > 0 && (
+        {/* Desktop: Slider Container (for carousel layouts) */}
+        {!isLoading && buildings.length > 0 && !isGridLayout && (
         <div className="hidden md:block relative overflow-hidden">
           <div 
             ref={sliderRef}
@@ -753,9 +833,8 @@ const MoreBuildings = ({
                     .map((building) => (
                       <div key={building.listingKey || building.id} className="flex justify-center items-start slider-item">
                         {/* Use PropertyCardV6 for all cards for consistency */}
-                        <PropertyCardV6
+                        <PropertyCardV5
                           property={building}
-                          auth={auth}
                           size="default"
                           onClick={() => {
                             if (building.source === 'building' && building.id) {
@@ -764,7 +843,7 @@ const MoreBuildings = ({
                               window.location.href = `/property/${building.listingKey}`;
                             }
                           }}
-                          className="w-[300px] min-w-[300px] h-auto"
+                          className="w-[300px]"
                         />
                       </div>
                     ))}
@@ -775,8 +854,8 @@ const MoreBuildings = ({
         </div>
         )}
 
-        {/* Dots Indicator - Desktop Only */}
-        {!isLoading && buildings.length > 0 && totalSlides > 1 && (
+        {/* Dots Indicator - Desktop Only (for carousel layouts) */}
+        {!isLoading && buildings.length > 0 && totalSlides > 1 && !isGridLayout && (
         <div className="hidden md:flex justify-center mt-6 gap-2">
           {Array.from({ length: totalSlides }).map((_, index) => (
             <button

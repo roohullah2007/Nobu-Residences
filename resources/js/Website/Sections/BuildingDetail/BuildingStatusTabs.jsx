@@ -44,7 +44,7 @@ const BuildingStatusTabs = ({ building }) => {
           <div className="flex flex-col rounded-xl border-gray-200 border p-4 items-start gap-2 w-full max-w-[1280px]">
             <div className="w-full font-work-sans text-lg leading-7 tracking-tight text-[#252B37]">
               <h3 className="font-bold mr-2 font-space-grotesk" style={{ color: '#293056' }}>About The Building</h3>
-              <span className="font-normal">{buildingData.description}</span>
+              <span className="font-normal">{building?.description || buildingData.description}</span>
             </div>
           </div>
         );
@@ -52,14 +52,14 @@ const BuildingStatusTabs = ({ building }) => {
       case 'amenities':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <Amenities propertyData={buildingData} />
+            <Amenities propertyData={building} />
           </div>
         );
       
       case 'schools':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <NearbySchools />
+            <NearbySchools propertyData={building} />
           </div>
         );
       
@@ -77,23 +77,27 @@ const BuildingStatusTabs = ({ building }) => {
           {/* Building Status Badge */}
           <div className="flex items-center px-2 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
             <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap px-2">
-              {buildingData.status} Building
+              {building?.status || 'Available'} Building
             </span>
           </div>
-          
+
           {/* Construction Date Badge */}
-          <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
-              Built in 2001
-            </span>
-          </div>
-          
+          {building?.year_built && (
+            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+                Built in {building.year_built}
+              </span>
+            </div>
+          )}
+
           {/* Units Available Badge */}
-          <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
-              378 Total Units
-            </span>
-          </div>
+          {building?.total_units && (
+            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
+              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+                {building.total_units} Total Units
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Navigation Tabs Section */}

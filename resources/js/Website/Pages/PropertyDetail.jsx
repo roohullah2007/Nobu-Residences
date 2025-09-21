@@ -361,7 +361,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       </div>
       <div className='description'>
              {/* Real Estate Market Links Section */}
-             <RealEstateLinksSection />
+             <RealEstateLinksSection propertyData={displayData} />
              </div>     
       </div>
       </div>

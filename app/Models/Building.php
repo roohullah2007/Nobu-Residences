@@ -40,6 +40,8 @@ class Building extends Model
         'name',
         'slug',
         'address',
+        'street_address_1',
+        'street_address_2',
         'city',
         'province',
         'postal_code',
@@ -194,7 +196,12 @@ class Building extends Model
         if (!$this->relationLoaded('amenities')) {
             $this->load('amenities');
         }
-        
+
+        // Ensure maintenanceFeeAmenities relationship is loaded
+        if (!$this->relationLoaded('maintenanceFeeAmenities')) {
+            $this->load('maintenanceFeeAmenities');
+        }
+
         // Get amenities from relationship only (no JSON fallback)
         $amenities = $this->amenities->map(function($amenity) {
             return [
@@ -203,13 +210,24 @@ class Building extends Model
                 'icon' => $amenity->icon
             ];
         })->toArray();
-        
+
+        // Get maintenance fee amenities
+        $maintenanceFeeAmenities = $this->maintenanceFeeAmenities->map(function($amenity) {
+            return [
+                'id' => $amenity->id,
+                'name' => $amenity->name,
+                'icon' => $amenity->icon
+            ];
+        })->toArray();
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
             'address' => $this->address,
+            'street_address_1' => $this->street_address_1,
+            'street_address_2' => $this->street_address_2,
             'city' => $this->city,
             'province' => $this->province,
             'developer' => $this->developer,
@@ -219,6 +237,7 @@ class Building extends Model
             'date_registered' => $this->date_registered,
             // Always use relationship amenities
             'amenities' => $amenities,
+            'maintenance_fee_amenities' => $maintenanceFeeAmenities,
             'available_units_count' => $this->getAvailableUnitsCountAttribute(),
             'agent_name' => $this->agent_name,
             'agent_title' => $this->agent_title,
@@ -233,6 +252,8 @@ class Building extends Model
             'total_units' => $this->total_units,
             'units_for_sale' => $this->units_for_sale,
             'units_for_rent' => $this->units_for_rent,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
         ];
     }
 
