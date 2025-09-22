@@ -16,6 +16,8 @@ class Website extends Model
         'domain',
         'is_default',
         'is_active',
+        'homepage_building_id',
+        'use_building_as_homepage',
         'logo',
         'logo_url',
         'logo_width',
@@ -36,6 +38,7 @@ class Website extends Model
     protected $casts = [
         'is_default' => 'boolean',
         'is_active' => 'boolean',
+        'use_building_as_homepage' => 'boolean',
         'brand_colors' => 'array',
         'fonts' => 'array',
         'contact_info' => 'array',
@@ -57,6 +60,14 @@ class Website extends Model
     public function agentInfo()
     {
         return $this->hasOne(AgentInfo::class);
+    }
+
+    /**
+     * Get the homepage building for this website
+     */
+    public function homepageBuilding()
+    {
+        return $this->belongsTo(Building::class, 'homepage_building_id');
     }
 
     /**

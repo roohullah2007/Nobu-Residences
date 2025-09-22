@@ -125,11 +125,17 @@ class WebsiteManagementController extends Controller
      */
     public function edit(Website $website): Response
     {
-        $website->load('agentInfo');
+        $website->load('agentInfo', 'homepageBuilding');
+
+        // Get all buildings for the dropdown
+        $buildings = \App\Models\Building::select('id', 'name', 'address')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('Admin/Websites/Edit', [
             'title' => "Edit Website: {$website->name}",
-            'website' => $website
+            'website' => $website,
+            'buildings' => $buildings
         ]);
     }
 
@@ -214,6 +220,8 @@ class WebsiteManagementController extends Controller
             'domain' => 'nullable|string|max:255',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
+            'homepage_building_id' => 'nullable|exists:buildings,id',
+            'use_building_as_homepage' => 'boolean',
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
             'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',

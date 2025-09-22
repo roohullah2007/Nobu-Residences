@@ -53,7 +53,11 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         architect: building.architect || '',
         interior_designer: building.interior_designer || '',
         landscape_architect: building.landscape_architect || '',
-        maintenance_fee_amenity_ids: building.maintenance_fee_amenity_ids || []
+        maintenance_fee_amenity_ids: building.maintenance_fee_amenity_ids || [],
+        developer_name: building.developer_name || '',
+        management_name: building.management_name || '',
+        corp_number: building.corp_number || '',
+        date_registered: building.date_registered || ''
     });
 
     // Initialize selected amenities immediately from props
@@ -511,6 +515,57 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         ))}
                                     </select>
                                     <InputError message={errors.developer_id} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="developer_name" value="Developer Name (Text)" />
+                                    <TextInput
+                                        id="developer_name"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.developer_name}
+                                        onChange={(e) => setData('developer_name', e.target.value)}
+                                        placeholder="Developer name"
+                                    />
+                                    <InputError message={errors.developer_name} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="management_name" value="Management Company" />
+                                    <TextInput
+                                        id="management_name"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.management_name}
+                                        onChange={(e) => setData('management_name', e.target.value)}
+                                        placeholder="Management company name"
+                                    />
+                                    <InputError message={errors.management_name} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="corp_number" value="Corp Number" />
+                                    <TextInput
+                                        id="corp_number"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.corp_number}
+                                        onChange={(e) => setData('corp_number', e.target.value)}
+                                        placeholder="e.g., TSCC 2500"
+                                    />
+                                    <InputError message={errors.corp_number} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="date_registered" value="Date Registered" />
+                                    <TextInput
+                                        id="date_registered"
+                                        type="date"
+                                        className="mt-1 block w-full"
+                                        value={data.date_registered}
+                                        onChange={(e) => setData('date_registered', e.target.value)}
+                                    />
+                                    <InputError message={errors.date_registered} className="mt-2" />
                                 </div>
 
                                 <div className="sm:col-span-3">

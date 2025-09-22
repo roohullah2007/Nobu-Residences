@@ -3,7 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import React from 'react';
 
 export default function Edit({ auth }) {
-    const { website, title } = usePage().props;
+    const { website, title, buildings } = usePage().props;
 
     const [logoPreview, setLogoPreview] = React.useState(website?.logo || website?.logo_url || '');
     const [agentImagePreview, setAgentImagePreview] = React.useState(website?.agent_info?.profile_image || '');
@@ -14,6 +14,8 @@ export default function Edit({ auth }) {
         domain: website?.domain || '',
         is_default: website?.is_default || false,
         is_active: website?.is_active || true,
+        homepage_building_id: website?.homepage_building_id || null,
+        use_building_as_homepage: website?.use_building_as_homepage || false,
         logo_url: website?.logo_url || '',
         logo_file: null, // New field for file upload
         meta_title: website?.meta_title || '',
@@ -222,6 +224,78 @@ export default function Edit({ auth }) {
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Homepage Settings */}
+                    <div className="bg-white shadow rounded-lg border border-gray-200">
+                        <div className="px-4 py-5 sm:p-6">
+                            <div className="flex items-center mb-4">
+                                <div className="flex-shrink-0">
+                                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                        <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div className="ml-3">
+                                    <h3 className="text-lg font-medium text-gray-900">Homepage Settings</h3>
+                                    <p className="text-sm text-gray-500">Configure what shows as your homepage</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Use Building as Homepage Toggle */}
+                                <div className="flex items-start">
+                                    <div className="flex items-center h-5">
+                                        <input
+                                            id="use_building_as_homepage"
+                                            type="checkbox"
+                                            checked={data.use_building_as_homepage}
+                                            onChange={(e) => setData('use_building_as_homepage', e.target.checked)}
+                                            className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm">
+                                        <label htmlFor="use_building_as_homepage" className="font-medium text-gray-700">
+                                            Use Building Page as Homepage
+                                        </label>
+                                        <p className="text-gray-500">
+                                            Display a building details page as the homepage instead of the default homepage
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Building Selection */}
+                                {data.use_building_as_homepage && (
+                                    <div className="ml-7">
+                                        <label htmlFor="homepage_building_id" className="block text-sm font-medium text-gray-700 mb-1">
+                                            Select Building
+                                        </label>
+                                        <select
+                                            id="homepage_building_id"
+                                            value={data.homepage_building_id || ''}
+                                            onChange={(e) => setData('homepage_building_id', e.target.value || null)}
+                                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                        >
+                                            <option value="">-- Select a Building --</option>
+                                            {buildings?.map((building) => (
+                                                <option key={building.id} value={building.id}>
+                                                    {building.name} {building.address && `- ${building.address}`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errors.homepage_building_id && (
+                                            <p className="mt-2 text-sm text-red-600">{errors.homepage_building_id}</p>
+                                        )}
+                                        {data.homepage_building_id && (
+                                            <p className="mt-2 text-sm text-gray-500">
+                                                When users visit your homepage, they will see the details page for the selected building.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

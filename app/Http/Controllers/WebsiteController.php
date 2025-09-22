@@ -143,9 +143,50 @@ class WebsiteController extends Controller
      */
     public function home()
     {
+        $website = $this->getCurrentWebsite();
+
+        // Check if the website is configured to use a building as homepage
+        if ($website && $website->use_building_as_homepage && $website->homepage_building_id) {
+            // Load the building with all necessary relationships
+            $building = Building::with([
+                'properties' => function($query) {
+                    $query->select('id', 'building_id', 'title', 'price', 'bedrooms',
+                        'bathrooms', 'area', 'area_unit', 'status', 'property_type', 'images');
+                },
+                'amenities'
+            ])->find($website->homepage_building_id);
+
+            // If building exists, render the building detail page as homepage
+            if ($building) {
+                $settings = $this->getWebsiteSettings();
+
+                // Calculate aggregated data
+                $properties = $building->properties;
+                $availableUnits = $properties->where('status', 'available')->count();
+                $priceRange = $properties->count() > 0 ? [
+                    'min' => $properties->min('price'),
+                    'max' => $properties->max('price')
+                ] : null;
+
+                return Inertia::render('Website/Pages/BuildingDetail', [
+                    'buildingData' => $building,
+                    'buildingId' => $building->id,
+                    'properties' => $properties,
+                    'availableUnits' => $availableUnits,
+                    'priceRange' => $priceRange,
+                    'isHomepage' => true,
+                    'auth' => [
+                        'user' => request()->user(),
+                    ],
+                    ...$settings
+                ]);
+            }
+        }
+
+        // Otherwise, render the regular homepage
         $settings = $this->getWebsiteSettings();
         $pageContent = $this->getPageContent('home');
-        
+
         // Get all icons grouped by category for the frontend
         $icons = Icon::active()
             ->select('id', 'name', 'category', 'svg_content', 'icon_url', 'description')
