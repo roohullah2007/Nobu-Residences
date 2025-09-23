@@ -435,10 +435,19 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             value={searchData.propertyStatus}
                             onChange={(e) => {
                                 const newStatus = e.target.value;
-                                
-                                // Allow all users to see Sold/Leased properties (removed authentication check)
-                                setSearchData({ 
-                                    ...searchData, 
+
+                                // Check if non-authenticated user is trying to access Sold/Leased
+                                if (!isAuthenticated && (newStatus === 'Sold' || newStatus === 'Leased')) {
+                                    // Show login modal
+                                    setShowLoginModal(true);
+                                    // Reset the select value to empty
+                                    e.target.value = '';
+                                    return;
+                                }
+
+                                // Allow authenticated users or Active Listings selection
+                                setSearchData({
+                                    ...searchData,
                                     propertyStatus: newStatus,
                                     // Reset property type to default when selecting a status
                                     propertyType: newStatus ? 'For Sale' : searchData.propertyType
@@ -446,12 +455,8 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             }}
                         >
                             <option value="">Active Listings</option>
-                            {isAuthenticated && (
-                                <>
-                                    <option value="Sold">Sold</option>
-                                    <option value="Leased">Leased</option>
-                                </>
-                            )}
+                            <option value="Sold">Sold</option>
+                            <option value="Leased">Leased</option>
                         </select>
                         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
                             <ChevronDown className="w-5 h-5 text-[#912018]" />

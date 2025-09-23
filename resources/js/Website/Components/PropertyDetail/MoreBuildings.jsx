@@ -785,7 +785,6 @@ const MoreBuildings = ({
                     window.location.href = `/property/${building.listingKey}`;
                   }
                 }}
-                className="w-[300px]"
               />
             </div>
           ))}

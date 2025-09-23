@@ -48,9 +48,9 @@
 .idx-ampre-property-card {
     font-family: 'Work Sans', sans-serif;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 300px !important;
-    max-width: 300px !important;
-    min-width: 300px !important;
+    width: 300px;
+    max-width: 300px;
+    min-width: 300px;
     /* REMOVED: Fixed min-height that was causing empty space */
     /* ADDED: Dynamic height based on content */
     height: auto;
@@ -104,14 +104,16 @@
 @media (max-width: 650px) {
     .idx-ampre-grid {
         gap: 16px;
-        max-width: 320px;
+        max-width: 100%;
         padding: 20px 10px;
+        grid-template-columns: 1fr;
+        width: 100%;
     }
 
     .idx-ampre-property-card {
-        width: 280px !important;
-        max-width: 280px !important;
-        min-width: 280px !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
     }
 }
 

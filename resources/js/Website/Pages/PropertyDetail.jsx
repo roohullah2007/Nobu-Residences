@@ -293,8 +293,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
 
       {/* Property Header */}
-        <div className="mb-7">
-        <PropertyHeader 
+        <div className="mb-5">
+        <PropertyHeader
           data={displayData}
           auth={auth}
           type="property"

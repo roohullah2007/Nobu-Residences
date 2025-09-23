@@ -80,7 +80,7 @@ const PropertyCardV5 = ({
   // Size configurations - Updated with dynamic height
   const sizeConfig = {
     default: {
-      container: `w-[300px] ${dynamicMinHeight} idx-ampre-property-card`,
+      container: `w-full md:w-[300px] ${dynamicMinHeight}`,
       image: 'h-[200px] property-image-container',
       content: 'p-4 gap-2.5',
       chip: 'px-3 py-1.5 text-sm property-badge',
@@ -88,7 +88,7 @@ const PropertyCardV5 = ({
       details: 'text-base'
     },
     mobile: {
-      container: `w-[280px] ${dynamicMinHeight} idx-ampre-property-card`,
+      container: `w-full md:w-[280px] ${dynamicMinHeight}`,
       image: 'h-[200px] property-image-container',
       content: 'p-3 gap-2',
       chip: 'px-2 py-1 text-xs property-badge',
@@ -96,7 +96,7 @@ const PropertyCardV5 = ({
       details: 'text-sm'
     },
     grid: {
-      container: `w-[300px] ${dynamicMinHeight} idx-ampre-property-card`,
+      container: `w-[372px] md:w-[300px] ${dynamicMinHeight}`,
       image: 'h-[200px] property-image-container',
       content: 'p-4 gap-2.5',
       chip: 'px-3 py-1.5 text-sm property-badge',

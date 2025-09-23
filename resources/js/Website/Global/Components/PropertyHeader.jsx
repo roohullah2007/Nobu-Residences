@@ -201,7 +201,7 @@ export default function PropertyHeader({
     if (type === 'building') {
       return null; // Buildings don't show price in header
     }
-    return data?.soldFor || '$1,100,000';
+    return data?.soldFor || null; // Only return actual sold price, no fallback
   };
 
   const showMobilePricing = type === 'property' && getPriceDisplay();

@@ -333,7 +333,7 @@ export default function SchoolDetail({
 
       <div className="overflow-x-hidden px-4 md:px-0">
         {/* School Information Section */}
-        <section className="py-16 bg-white relative z-10">
+        <section className="py-4 md:py-8 bg-white relative z-10">
           <div className="max-w-[1280px] mx-auto">
             {/* School Description */}
             {schoolData.description ? (
@@ -341,7 +341,7 @@ export default function SchoolDetail({
                 <h2 className="font-space-grotesk font-bold text-2xl text-[#293056] mb-4">
                   About {schoolData.name}
                 </h2>
-                <p className="font-work-sans text-gray-700 leading-relaxed mb-12">
+                <p className="font-work-sans text-gray-700 leading-relaxed mb-4 md:mb-8">
                   {schoolData.description}
                 </p>
               </>
@@ -350,7 +350,7 @@ export default function SchoolDetail({
                 <h2 className="font-space-grotesk font-bold text-2xl text-[#293056] mb-4">
                   About {schoolData.name}
                 </h2>
-                <p className="font-work-sans text-gray-700 leading-relaxed mb-12">
+                <p className="font-work-sans text-gray-700 leading-relaxed mb-4 md:mb-8">
                   {schoolData.name} is a {getSchoolType().toLowerCase()} {getGradeLevel().toLowerCase()} school
                   located in {city}, {province}. The school serves the local community with quality education
                   and various programs designed to help students reach their full potential.
@@ -360,7 +360,7 @@ export default function SchoolDetail({
 
             {/* Opening Hours - for Google Places schools */}
             {schoolData.opening_hours && schoolData.opening_hours.length > 0 && (
-              <div className="mb-12">
+              <div className="mb-4">
                 <h3 className="font-space-grotesk font-bold text-2xl text-[#293056] mb-4">
                   Opening Hours
                 </h3>
@@ -375,7 +375,7 @@ export default function SchoolDetail({
             )}
 
             {/* Additional School Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Programs */}
               {schoolData.programs && schoolData.programs.length > 0 && (
                 <div className="bg-gray-50 p-6 rounded-xl">

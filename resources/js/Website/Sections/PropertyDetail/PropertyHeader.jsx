@@ -127,20 +127,22 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
         </div>
       </div>
 
-      {/* Mobile Pricing Section - Only visible on mobile */}
-      <div className="md:hidden bg-white px-4 py-6">
-        <div className="flex justify-between items-start">
-          {/* Left side - Sold For text */}
-          <div className="font-work-sans font-bold text-lg text-[#8B4513]">
-            SOLD FOR
-          </div>
-          
-          {/* Right side - Price */}
-          <div className="font-space-grotesk font-bold text-2xl text-black">
-            {propertyData.soldFor || '$1,100,000'}
+      {/* Mobile Pricing Section - Only visible on mobile when property has soldFor price */}
+      {propertyData.soldFor && (
+        <div className="md:hidden bg-white px-4 py-6">
+          <div className="flex justify-between items-start">
+            {/* Left side - Sold For text */}
+            <div className="font-work-sans font-bold text-lg text-[#8B4513]">
+              SOLD FOR
+            </div>
+
+            {/* Right side - Price */}
+            <div className="font-space-grotesk font-bold text-2xl text-black">
+              {propertyData.soldFor}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Click outside to close share dropdown */}
       {showShareDropdown && (
