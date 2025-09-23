@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import UserFavouritesTab from '@/Components/UserFavouritesTab';
-import SavedSearchesTab from '@/Components/SavedSearchesTab';
+import UserFavouritesTab from '@/Website/Components/UserFavouritesTab';
+import SavedSearchesTab from '@/Website/Components/SavedSearchesTab';
 
 export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   const [activeTab, setActiveTab] = useState('saved');
