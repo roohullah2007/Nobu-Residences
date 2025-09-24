@@ -103,9 +103,14 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState(initMaintenanceFeeAmenities());
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
+    const [galleryImages, setGalleryImages] = useState(
+        Array.isArray(building.images) ? building.images :
+        (building.images ? JSON.parse(building.images) : [])
+    );
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
 
     const buildingTypes = [
@@ -218,51 +223,133 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         }
     };
 
-    const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    const handleImageUpload = async (e, imageType = 'main') => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
-        // Validate file type
+        // For main image, only take the first file
+        const filesToUpload = imageType === 'main' ? [files[0]] : files;
+
+        // Validate file types and sizes
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            alert('Please upload a valid image file (JPEG, PNG, GIF, or WebP)');
-            return;
+        for (const file of filesToUpload) {
+            if (!validTypes.includes(file.type)) {
+                alert(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`File too large: ${file.name}. Images must be less than 5MB.`);
+                return;
+            }
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Image size should be less than 5MB');
-            return;
+        if (imageType === 'main') {
+            setUploadingImage(true);
+        } else {
+            setUploadingGalleryImage(true);
         }
 
-        setUploadingImage(true);
+        const uploadPromises = filesToUpload.map(async (file) => {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('building_id', building.id);
+            formData.append('image_type', imageType);
 
-        const formData = new FormData();
-        formData.append('image', file);
-        formData.append('building_id', building.id);
+            try {
+                const response = await fetch('/api/buildings/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.url) {
+                    return result.url;
+                } else {
+                    console.error('Upload failed:', result.message);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`Error uploading ${file.name}:`, error);
+                return null;
+            }
+        });
 
         try {
-            const response = await fetch('/api/buildings/upload-image', {
+            const uploadedUrls = await Promise.all(uploadPromises);
+            const successfulUploads = uploadedUrls.filter(url => url !== null);
+
+            if (successfulUploads.length > 0) {
+                if (imageType === 'main') {
+                    setData('main_image', successfulUploads[0]);
+                    setImagePreview(successfulUploads[0]);
+                } else {
+                    const updatedImages = [...galleryImages, ...successfulUploads];
+                    setGalleryImages(updatedImages);
+                    setData('images', updatedImages);
+                }
+
+                if (successfulUploads.length < filesToUpload.length) {
+                    alert(`${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully.`);
+                }
+            } else {
+                alert('Failed to upload images. Please try again.');
+            }
+        } catch (error) {
+            console.error('Image upload error:', error);
+            alert('Failed to upload images. Please try again.');
+        } finally {
+            if (imageType === 'main') {
+                setUploadingImage(false);
+            } else {
+                setUploadingGalleryImage(false);
+            }
+            // Reset the input
+            e.target.value = null;
+        }
+    };
+
+    const handleDeleteImage = async (imageUrl, isMainImage = false) => {
+        if (!confirm('Are you sure you want to delete this image?')) return;
+
+        try {
+            const response = await fetch('/api/buildings/delete-image', {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
                 },
-                body: formData
+                body: JSON.stringify({
+                    building_id: building.id,
+                    image_url: imageUrl
+                })
             });
 
             const result = await response.json();
 
-            if (result.success && result.url) {
-                setData('main_image', result.url);
-                setImagePreview(result.url);
+            if (result.success) {
+                if (isMainImage) {
+                    setData('main_image', '');
+                    setImagePreview('');
+                } else {
+                    const updatedImages = galleryImages.filter(img => img !== imageUrl);
+                    setGalleryImages(updatedImages);
+                    setData('images', updatedImages);
+                }
             } else {
-                alert('Failed to upload image. Please try again.');
+                alert('Failed to delete image. Please try again.');
             }
         } catch (error) {
-            console.error('Image upload error:', error);
-            alert('Failed to upload image. Please try again.');
-        } finally {
-            setUploadingImage(false);
+            console.error('Image delete error:', error);
+            alert('Failed to delete image. Please try again.');
         }
     };
 
@@ -778,59 +865,120 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Media & Links</h2>
-                            <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="main_image" value="Building Image" />
-                                    <div className="mt-1 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
-                                                <input
-                                                    type="file"
-                                                    className="sr-only"
-                                                    accept="image/*"
-                                                    onChange={handleImageUpload}
-                                                    disabled={uploadingImage}
-                                                />
-                                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                </svg>
-                                                {uploadingImage ? 'Uploading...' : 'Select Image'}
-                                            </label>
-                                            {imagePreview && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setData('main_image', '');
-                                                        setImagePreview('');
-                                                    }}
-                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
-                                                >
-                                                    Remove Image
-                                                </button>
+
+                            {/* Main Image Section */}
+                            <div className="mb-8">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-4">Main Building Image</h3>
+                                <div className="grid grid-cols-1 gap-x-6 gap-y-4">
+                                    <div>
+                                        <div className="mt-1 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
+                                                    <input
+                                                        type="file"
+                                                        className="sr-only"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleImageUpload(e, 'main')}
+                                                        disabled={uploadingImage}
+                                                    />
+                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                    </svg>
+                                                    {uploadingImage ? 'Uploading...' : 'Select Main Image'}
+                                                </label>
+                                                {imagePreview && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteImage(imagePreview, true)}
+                                                        className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
+                                                    >
+                                                        Remove Main Image
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {!imagePreview && (
+                                                <p className="text-sm text-gray-500">Select the main image for the building (JPG, PNG, GIF, max 5MB)</p>
                                             )}
                                         </div>
-                                        {!imagePreview && (
-                                            <p className="text-sm text-gray-500">Select an image from your computer (JPG, PNG, GIF, max 5MB)</p>
+                                        <InputError message={errors.main_image} className="mt-2" />
+
+                                        {/* Main Image Preview */}
+                                        {imagePreview && (
+                                            <div className="mt-3">
+                                                <img
+                                                    src={imagePreview}
+                                                    alt="Main building image"
+                                                    className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                                                    onError={(e) => {
+                                                        e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image';
+                                                    }}
+                                                />
+                                            </div>
                                         )}
                                     </div>
-                                    <InputError message={errors.main_image} className="mt-2" />
-                                    
-                                    {/* Image Preview */}
-                                    {imagePreview && (
-                                        <div className="mt-3">
-                                            <p className="text-sm text-gray-500 mb-2">Preview:</p>
-                                            <img 
-                                                src={imagePreview} 
-                                                alt="Building preview" 
-                                                className="w-full h-48 object-cover rounded-lg border border-gray-200"
-                                                onError={(e) => {
-                                                    e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image';
-                                                }}
+                                </div>
+                            </div>
+
+                            {/* Gallery Images Section */}
+                            <div className="mb-8 border-t pt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-4">Gallery Images</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <label className="relative cursor-pointer bg-green-600 rounded-md font-medium text-white hover:bg-green-700 px-4 py-2 inline-flex items-center">
+                                            <input
+                                                type="file"
+                                                className="sr-only"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e) => handleImageUpload(e, 'gallery')}
+                                                disabled={uploadingGalleryImage}
                                             />
+                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            {uploadingGalleryImage ? 'Uploading...' : 'Add Gallery Images (Multiple)'}
+                                        </label>
+                                        <span className="text-sm text-gray-500">
+                                            {galleryImages.length} image{galleryImages.length !== 1 ? 's' : ''} in gallery
+                                        </span>
+                                    </div>
+
+                                    {/* Gallery Images Grid */}
+                                    {galleryImages.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                                            {galleryImages.map((image, index) => (
+                                                <div key={index} className="relative group">
+                                                    <img
+                                                        src={image}
+                                                        alt={`Gallery image ${index + 1}`}
+                                                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                                                        onError={(e) => {
+                                                            e.target.src = 'https://via.placeholder.com/200x150?text=Invalid+Image';
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteImage(image)}
+                                                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Delete image"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
-                                </div>
 
+                                    {galleryImages.length === 0 && (
+                                        <p className="text-sm text-gray-500 italic">No gallery images uploaded yet</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Website Links */}
+                            <div className="border-t pt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="website_url" value="Website URL" />
                                     <TextInput
@@ -857,18 +1005,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     />
                                     <InputError message={errors.virtual_tour_url} className="mt-2" />
                                 </div>
-
-                                {imagePreview && (
-                                    <div className="sm:col-span-6">
-                                        <p className="text-sm text-gray-600 mb-2">Image Preview:</p>
-                                        <img
-                                            src={imagePreview}
-                                            alt="Building preview"
-                                            className="max-w-xs rounded-lg shadow-md"
-                                            onError={() => setImagePreview('')}
-                                        />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>

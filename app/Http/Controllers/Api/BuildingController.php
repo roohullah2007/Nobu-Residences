@@ -368,30 +368,67 @@ class BuildingController extends Controller
     {
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
-            'building_id' => 'required|exists:buildings,id'
+            'building_id' => 'required|exists:buildings,id',
+            'image_type' => 'nullable|in:main,gallery' // Optional, defaults to main
         ]);
 
         try {
+            \Log::info('Upload request received', [
+                'building_id' => $request->building_id,
+                'image_type' => $request->input('image_type', 'main'),
+                'has_file' => $request->hasFile('image')
+            ]);
+
             $building = Building::findOrFail($request->building_id);
 
             // Store the image
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $imageName = 'building_' . $building->id . '_' . time() . '.' . $image->getClientOriginalExtension();
-                
+                $imageName = 'building_' . $building->id . '_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+
+                // Create directory if it doesn't exist
+                $uploadPath = public_path('images/buildings');
+                if (!file_exists($uploadPath)) {
+                    mkdir($uploadPath, 0777, true);
+                }
+
                 // Store in public/images/buildings directory
-                $path = $image->move(public_path('images/buildings'), $imageName);
-                
+                $path = $image->move($uploadPath, $imageName);
+
                 // Generate URL
                 $imageUrl = asset('images/buildings/' . $imageName);
-                
-                // Update building with new image URL
-                $building->main_image = $imageUrl;
+
+                $imageType = $request->input('image_type', 'main');
+
+                if ($imageType === 'main') {
+                    // Update main image
+                    $building->main_image = $imageUrl;
+                } else {
+                    // Add to gallery images
+                    $currentImages = $building->images;
+                    if (is_string($currentImages)) {
+                        $images = json_decode($currentImages, true) ?? [];
+                    } elseif (is_array($currentImages)) {
+                        $images = $currentImages;
+                    } else {
+                        $images = [];
+                    }
+
+                    $images[] = $imageUrl;
+                    $building->images = $images; // Laravel will handle the JSON encoding
+                }
+
                 $building->save();
+
+                \Log::info('Image uploaded successfully', [
+                    'url' => $imageUrl,
+                    'type' => $imageType
+                ]);
 
                 return response()->json([
                     'success' => true,
                     'url' => $imageUrl,
+                    'type' => $imageType,
                     'message' => 'Image uploaded successfully'
                 ]);
             }
@@ -405,6 +442,62 @@ class BuildingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete image from a building
+     */
+    public function deleteImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'building_id' => 'required|exists:buildings,id',
+            'image_url' => 'required|string'
+        ]);
+
+        try {
+            $building = Building::findOrFail($request->building_id);
+            $imageUrl = $request->image_url;
+
+            // Check if it's the main image
+            if ($building->main_image === $imageUrl) {
+                $building->main_image = null;
+            } else {
+                // Remove from gallery images
+                $currentImages = $building->images;
+                if (is_string($currentImages)) {
+                    $images = json_decode($currentImages, true) ?? [];
+                } elseif (is_array($currentImages)) {
+                    $images = $currentImages;
+                } else {
+                    $images = [];
+                }
+
+                $images = array_values(array_filter($images, function($img) use ($imageUrl) {
+                    return $img !== $imageUrl;
+                }));
+                $building->images = $images; // Laravel will handle the JSON encoding
+            }
+
+            $building->save();
+
+            // Try to delete the physical file (optional)
+            $filename = basename($imageUrl);
+            $filePath = public_path('images/buildings/' . $filename);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Image deleted successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete image: ' . $e->getMessage()
             ], 500);
         }
     }

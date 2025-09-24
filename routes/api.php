@@ -73,6 +73,7 @@ Route::prefix('buildings')->group(function () {
     Route::get('/cities', [BuildingController::class, 'cities']);
     Route::get('/search', [BuildingController::class, 'search']);
     Route::post('/upload-image', [BuildingController::class, 'uploadImage']);
+    Route::post('/delete-image', [BuildingController::class, 'deleteImage']);
     Route::get('/', [BuildingController::class, 'index']);
     Route::get('/{id}', [BuildingController::class, 'show']);
 });
