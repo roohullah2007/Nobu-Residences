@@ -168,7 +168,7 @@ class WebsiteController extends Controller
                     'max' => $properties->max('price')
                 ] : null;
 
-                return Inertia::render('Website/Pages/BuildingDetail', [
+                return Inertia::render('BuildingDetail', [
                     'buildingData' => $building,
                     'buildingId' => $building->id,
                     'properties' => $properties,
