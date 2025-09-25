@@ -434,7 +434,7 @@ class BuildingController extends Controller
             
             // Get pagination parameters
             $page = $searchParams['page'] ?? 1;
-            $pageSize = $searchParams['page_size'] ?? 15;
+            $pageSize = $searchParams['page_size'] ?? 16;
             
             // Build query
             $query = Building::with(['developer', 'amenities']);

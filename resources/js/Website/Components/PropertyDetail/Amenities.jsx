@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Amenities = ({ propertyData }) => {
+const Amenities = ({ buildingData, propertyData }) => {
   // Default amenity icon mapping
   const amenityIcons = {
     'Concierge': '/assets/svgs/concierge.svg',
@@ -29,14 +29,15 @@ const Amenities = ({ propertyData }) => {
     'Lounge': '/assets/svgs/party-horn.svg'
   };
 
-  // Get building data from propertyData (could be directly passed building or property with buildingData)
-  const buildingData = propertyData?.buildingData || propertyData;
-  const buildingAmenities = buildingData?.amenities || [];
+  // Use buildingData directly or fallback to propertyData
+  const building = buildingData || propertyData?.buildingData || propertyData;
+  const buildingAmenities = building?.amenities || [];
 
   console.log('Amenities Component - Property Data:', propertyData);
   console.log('Amenities Component - Building Data:', buildingData);
+  console.log('Amenities Component - Building:', building);
   console.log('Amenities Component - Building Amenities:', buildingAmenities);
-  console.log('Amenities Component - Maintenance Fee Amenities:', buildingData?.maintenance_fee_amenities);
+  console.log('Amenities Component - Maintenance Fee Amenities:', building?.maintenance_fee_amenities);
 
   // Only show amenities from the database - NO HARDCODED DATA
   let allAmenities = [];
@@ -67,8 +68,8 @@ const Amenities = ({ propertyData }) => {
   // NO FALLBACK TO HARDCODED DATA - if no amenities from backend, show nothing
 
   // Get maintenance fee amenities from backend - check both possible property names
-  const maintenanceFeeAmenities = buildingData?.maintenance_fee_amenities ||
-                                  buildingData?.maintenanceFeeAmenities ||
+  const maintenanceFeeAmenities = building?.maintenance_fee_amenities ||
+                                  building?.maintenanceFeeAmenities ||
                                   [];
 
   console.log('Maintenance Fee Amenities from Backend:', maintenanceFeeAmenities);
@@ -93,7 +94,7 @@ const Amenities = ({ propertyData }) => {
   );
 
   // Get building name from property data
-  const buildingName = buildingData?.name || propertyData?.buildingName || propertyData?.building?.name || 'this building';
+  const buildingName = building?.name || propertyData?.buildingName || propertyData?.building?.name || 'this building';
 
   // Don't render if no amenities available
   if (!allAmenities || allAmenities.length === 0) {

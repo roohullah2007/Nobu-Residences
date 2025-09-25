@@ -340,7 +340,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
     return (
         <>
-            <div className="bg-gradient-to-r from-white to-gray-50 shadow-xl rounded-2xl p-6 border border-gray-300">
+            <div className="bg-gradient-to-r from-white to-gray-50 shadow-xl rounded-2xl p-6 border-2 border-gray-300">
             <div className="flex flex-col space-y-6">
                 {/* Main Search Row */}
                 <div className="flex flex-col lg:flex-row gap-4">
@@ -351,7 +351,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             <button
                                 type="button"
                                 onClick={() => setShowSearchTypeDropdown(!showSearchTypeDropdown)}
-                                className="px-4 py-3.5 bg-white border border-r-0 border-gray-300 rounded-l-xl hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 shadow-sm focus:border-[#912018] focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20"
+                                className="px-4 py-3.5 bg-white border-2 border-r-0 border-gray-300 rounded-l-xl hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 shadow-sm focus:border-[#912018] focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20"
                             >
                                 {currentSearchType.icon}
                                 <span className="hidden sm:inline font-medium text-gray-700">{currentSearchType.label}</span>
@@ -360,7 +360,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
                             {/* Dropdown Menu */}
                             {showSearchTypeDropdown && (
-                                <div className="absolute top-full left-0 mt-2 w-56 bg-gray-100 border border-gray-300 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                <div className="absolute top-full left-0 mt-2 w-56 bg-gray-100 border-2 border-gray-300 rounded-xl shadow-2xl z-50 overflow-hidden">
                                     {searchTypes.map((type, index) => (
                                         <button
                                             key={type.value}
@@ -387,7 +387,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             ref={locationInputRef}
                             type="text"
                             placeholder={currentSearchType.placeholder}
-                            className="flex-1 px-4 py-3.5 bg-white border border-l-0 border-gray-300 rounded-r-xl focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20 focus:border-[#912018] transition-all duration-200 text-gray-900 placeholder-gray-500"
+                            className="flex-1 px-4 py-3.5 bg-white border-2 border-l-0 border-gray-300 rounded-r-xl focus:ring-2 focus:ring-[#912018] focus:ring-opacity-20 focus:border-[#912018] transition-all duration-200 text-gray-900 placeholder-gray-500"
                             value={searchData.location}
                             onChange={(e) => {
                                 setSearchData({ ...searchData, location: e.target.value });
@@ -574,7 +574,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
                         {/* Price Range Slider */}
                         {showPriceSlider && (
-                            <div className="absolute top-full left-0 mt-2 p-4 bg-gray-100 border border-gray-300 rounded-lg shadow-xl z-40" style={{ width: '450px' }} ref={priceSliderRef}>
+                            <div className="absolute top-full left-0 mt-2 p-4 bg-gray-100 border-2 border-gray-300 rounded-lg shadow-xl z-40" style={{ width: '450px' }} ref={priceSliderRef}>
                                 <div className="space-y-4">
                                     {/* Manual Price Inputs */}
                                     <div className="grid grid-cols-2 gap-3">
@@ -583,7 +583,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                                             <input
                                                 type="number"
                                                 placeholder="Min Price"
-                                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-sm"
+                                                className="w-full px-3 py-2 bg-white border-2 border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-sm"
                                                 style={{ 
                                                     focusRingColor: '#912018',
                                                     borderColor: '#912018'
@@ -597,7 +597,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                                             <input
                                                 type="number"
                                                 placeholder="Max Price"
-                                                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-sm"
+                                                className="w-full px-3 py-2 bg-white border-2 border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all text-sm"
                                                 style={{ 
                                                     focusRingColor: '#912018',
                                                     borderColor: '#912018'
@@ -647,19 +647,19 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                                     <div className="grid grid-cols-3 gap-2 text-xs">
                                         <button
                                             onClick={() => setSearchData({ ...searchData, minPrice: 0, maxPrice: 500000 })}
-                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border border-gray-300"
+                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border-2 border-gray-300"
                                         >
                                             Under $500K
                                         </button>
                                         <button
                                             onClick={() => setSearchData({ ...searchData, minPrice: 500000, maxPrice: 1000000 })}
-                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border border-gray-300"
+                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border-2 border-gray-300"
                                         >
                                             $500K - $1M
                                         </button>
                                         <button
                                             onClick={() => setSearchData({ ...searchData, minPrice: 1000000, maxPrice: 10000000 })}
-                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border border-gray-300"
+                                            className="px-3 py-2 bg-white hover:bg-gray-50 rounded-md transition-colors border-2 border-gray-300"
                                         >
                                             Over $1M
                                         </button>

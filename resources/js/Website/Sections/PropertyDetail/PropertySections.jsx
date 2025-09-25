@@ -17,16 +17,28 @@ export default function PropertySections({
 }) {
   // Log building data for debugging
   React.useEffect(() => {
-    console.log('PropertySections: Received buildingData:', buildingData);
+    console.log('🔗 === PropertySections Component ===');
+    console.log('🔗 Received buildingData:', buildingData);
+    console.log('🔗 BuildingData type:', typeof buildingData);
+    console.log('🔗 BuildingData is null?', buildingData === null);
+    console.log('🔗 BuildingData is undefined?', buildingData === undefined);
+
     if (buildingData) {
-      console.log('PropertySections: Building amenities:', {
-        buildingName: buildingData.name,
+      console.log('🔗 Building data exists!');
+      console.log('🔗 Building ID:', buildingData.id);
+      console.log('🔗 Building Name:', buildingData.name);
+      console.log('🔗 Building amenities:', {
         hasAmenities: !!(buildingData.amenities && buildingData.amenities.length > 0),
         amenitiesCount: buildingData.amenities ? buildingData.amenities.length : 0,
-        amenities: buildingData.amenities
+        amenitiesArray: buildingData.amenities
+      });
+      console.log('🔗 Passing to PropertyStatusTabs:', {
+        property: !!propertyData,
+        buildingData: !!buildingData
       });
     } else {
-      console.log('PropertySections: No building data available for property');
+      console.log('⚠️ PropertySections: No building data available for property');
+      console.log('⚠️ This will prevent amenities tab from showing');
     }
   }, [buildingData]);
 

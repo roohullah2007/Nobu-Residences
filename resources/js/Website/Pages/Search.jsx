@@ -229,6 +229,7 @@ export default function EnhancedPropertySearch({
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [buildings, setBuildings] = useState([]);
+  const [mapProperties, setMapProperties] = useState([]); // Properties for map display (32 on initial load)
   const [viewportProperties, setViewportProperties] = useState([]); // Properties from map viewport
   const [showViewportProperties, setShowViewportProperties] = useState(false); // Toggle between search results and viewport properties
   const [total, setTotal] = useState(0);
@@ -284,7 +285,7 @@ export default function EnhancedPropertySearch({
         // For buildings, only send relevant filters (no default status filter)
         searchParams = {
           page: resetPage ? 1 : (params.page || 1),
-          page_size: 15
+          page_size: 16
         };
         
         // Only add filters if they have meaningful values
@@ -314,30 +315,36 @@ export default function EnhancedPropertySearch({
         searchParams = {
           ...mappedParams,
           page: resetPage ? 1 : (params.page || 1),
-          page_size: 15
+          page_size: 16
         };
       }
 
       const endpoint = currentTab === 'buildings' ? '/api/buildings-search' : '/api/property-search';
-      
+
       // Debug: Log search parameters being sent
       console.log('🔍 Search Parameters:', {
         ...searchParams,
         property_status: searchParams.property_status,
         status: searchParams.status
       });
-      
+
+      // Add fetch_for_map flag when on page 1 for properties
+      const fetchForMap = currentTab === 'listings' && searchParams.page === 1;
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-TOKEN': getCsrfToken()
         },
-        body: JSON.stringify({ search_params: searchParams })
+        body: JSON.stringify({
+          search_params: searchParams,
+          fetch_for_map: fetchForMap
+        })
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         const currentTab = tabOverride || activeTab;
         if (currentTab === 'listings') {
@@ -351,11 +358,11 @@ export default function EnhancedPropertySearch({
               TransactionType: result.data.properties[0].TransactionType,
               formatted_status: result.data.properties[0].formatted_status
             });
-            
+
             // Check if we're getting the right properties
             if (searchParams.property_status === 'Sold' || searchParams.property_status === 'Leased') {
-              const statusCount = result.data.properties.filter(p => 
-                p.StandardStatus === searchParams.property_status || 
+              const statusCount = result.data.properties.filter(p =>
+                p.StandardStatus === searchParams.property_status ||
                 p.MlsStatus === searchParams.property_status
               ).length;
               console.log(`✅ ${searchParams.property_status} properties: ${statusCount}/${result.data.properties.length}`);
@@ -363,13 +370,25 @@ export default function EnhancedPropertySearch({
           }
           setProperties(result.data.properties || []);
           setBuildings([]);
+
+          // Handle map properties
+          if (result.data.map_properties) {
+            // Page 1: Set 32 properties (2 pages) for map
+            console.log('🗺️ Loading 32 properties for map display (pages 1 & 2)');
+            setMapProperties(result.data.map_properties);
+          } else {
+            // Other pages: Set only current page properties for map
+            console.log(`🗺️ Loading ${result.data.properties?.length || 0} properties for map display (page ${result.data.page})`);
+            setMapProperties(result.data.properties || []);
+          }
         } else {
           setBuildings(result.data.buildings || []);
           setProperties([]);
+          setMapProperties([]); // Clear map properties for buildings tab
         }
         setTotal(result.data.total || 0);
         setCurrentPage(result.data.page || 1);
-        setLastPage(Math.ceil((result.data.total || 0) / 15));
+        setLastPage(Math.ceil((result.data.total || 0) / 16));
       } else {
         console.error('Search failed:', result.message);
         setProperties([]);
@@ -743,7 +762,7 @@ export default function EnhancedPropertySearch({
   return (
     <>
       <Navbar auth={auth} website={website} />
-      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
+      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth}>
         <Head title={`Property Search - ${siteName}`} />
         <div className="enhanced-property-search">
         
@@ -1449,8 +1468,8 @@ export default function EnhancedPropertySearch({
               </div>
             ) : viewType === 'map' ? (
               // Full Map View with viewport-aware loading
-              <ViewportAwarePropertyMap 
-                properties={activeTab === 'listings' ? properties : buildings}
+              <ViewportAwarePropertyMap
+                properties={activeTab === 'listings' ? mapProperties : buildings}
                 className="w-full h-[600px]"
                 onPropertyClick={(property) => {
                   // Don't navigate directly - let the info window handle it
@@ -1591,8 +1610,8 @@ export default function EnhancedPropertySearch({
                 
                 {/* Right side - Enhanced Map with viewport loading - IDX-AMPRE style */}
                 <div className="flex-shrink-0 flex flex-col bg-gray-50" style={{ width: '600px' }}>
-                  <ViewportAwarePropertyMap 
-                    properties={activeTab === 'listings' ? properties : buildings}
+                  <ViewportAwarePropertyMap
+                    properties={activeTab === 'listings' ? mapProperties : buildings}
                     className="w-full h-full"
                     onPropertyClick={(property) => {
                       // Don't navigate directly - let the info window handle it
@@ -1687,7 +1706,7 @@ export default function EnhancedPropertySearch({
             )}
             
             {/* Pagination - IDX-AMPRE style */}
-            {total > 15 && (
+            {total > 16 && (
               <div className="pagination-grid-container mt-12">
                 <div className="pagination-wrapper flex justify-center items-center gap-2">
                   {/* Previous Button */}

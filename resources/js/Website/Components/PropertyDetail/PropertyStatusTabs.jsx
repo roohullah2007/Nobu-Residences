@@ -7,6 +7,38 @@ import Amenities from './Amenities';
 const PropertyStatusTabs = ({ property, buildingData }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Comprehensive debugging for buildingData
+  React.useEffect(() => {
+    console.log('🏢 === PropertyStatusTabs Component Debug ===');
+    console.log('🏢 Props received:', { property, buildingData });
+    console.log('🏢 Building data type:', typeof buildingData);
+    console.log('🏢 Building data is null/undefined?', buildingData === null || buildingData === undefined);
+    console.log('🏢 Building data is empty object?', buildingData && Object.keys(buildingData).length === 0);
+
+    if (buildingData) {
+      console.log('🏢 Building data exists!');
+      console.log('🏢 Building ID:', buildingData.id);
+      console.log('🏢 Building Name:', buildingData.name);
+      console.log('🏢 Building Address:', buildingData.address);
+      console.log('🏢 Building Keys:', Object.keys(buildingData));
+      console.log('🏢 Has amenities property?', 'amenities' in buildingData);
+      console.log('🏢 Amenities value:', buildingData.amenities);
+      console.log('🏢 Amenities is array?', Array.isArray(buildingData.amenities));
+      console.log('🏢 Amenities length:', buildingData.amenities ? buildingData.amenities.length : 'N/A');
+      console.log('🏢 Full building data object:', JSON.stringify(buildingData, null, 2));
+    } else {
+      console.log('⚠️ Building data is NOT present!');
+      console.log('⚠️ This property does not have building data');
+    }
+
+    // Check property for building reference
+    if (property) {
+      console.log('🏠 Property has building_id?', property.building_id);
+      console.log('🏠 Property has building?', property.building);
+      console.log('🏠 Property keys:', Object.keys(property));
+    }
+  }, [buildingData, property]);
+
   // Calculate days on market from ListingContractDate to today
   const calculateDaysOnMarket = () => {
     // Debug: Log the property object to see structure
@@ -144,6 +176,22 @@ const PropertyStatusTabs = ({ property, buildingData }) => {
     description: property?.PublicRemarks || property?.publicRemarks || property?.description || ''
   };
 
+  // Debug building data
+  console.log('📊 === Tab Building Check ===');
+  console.log('📊 Building Data:', buildingData);
+  console.log('📊 Building Data Type:', typeof buildingData);
+  console.log('📊 Building Data Keys:', buildingData ? Object.keys(buildingData) : 'null');
+
+  // Check amenities presence
+  const hasAmenities = buildingData && buildingData.amenities && Array.isArray(buildingData.amenities) && buildingData.amenities.length > 0;
+  const hasMaintenanceFeeAmenities = buildingData && buildingData.maintenance_fee_amenities && Array.isArray(buildingData.maintenance_fee_amenities) && buildingData.maintenance_fee_amenities.length > 0;
+
+  console.log('📊 Has regular amenities:', hasAmenities);
+  console.log('📊 Has maintenance fee amenities:', hasMaintenanceFeeAmenities);
+  console.log('📊 Building exists:', !!buildingData);
+  console.log('📊 Building ID:', buildingData?.id);
+  console.log('📊 Building Name:', buildingData?.name);
+
   // Build tabs dynamically - only include amenities if building exists
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -152,9 +200,23 @@ const PropertyStatusTabs = ({ property, buildingData }) => {
     { id: 'schools', label: 'Nearby schools' }
   ];
 
-  // Only add amenities tab if building exists with amenities
-  if (buildingData && buildingData.amenities && buildingData.amenities.length > 0) {
+  // Add amenities tab if building exists - even if amenities are empty, we want to show the tab
+  // because the building might have amenities that just aren't loaded yet
+  console.log('🎯 === AMENITIES TAB DECISION ===');
+  console.log('🎯 Checking condition: buildingData && buildingData.id');
+  console.log('🎯 buildingData exists?', !!buildingData);
+  console.log('🎯 buildingData.id exists?', !!(buildingData && buildingData.id));
+  console.log('🎯 buildingData.id value:', buildingData?.id);
+
+  if (buildingData && buildingData.id) {
     tabs.push({ id: 'amenities', label: 'Amenities' });
+    console.log('✅ AMENITIES TAB ADDED! Building ID:', buildingData.id);
+    console.log('✅ Final tabs array:', tabs.map(t => t.id));
+  } else {
+    console.log('❌ AMENITIES TAB NOT ADDED!');
+    console.log('❌ Reason: buildingData =', buildingData);
+    console.log('❌ Reason: buildingData?.id =', buildingData?.id);
+    console.log('❌ Final tabs array:', tabs.map(t => t.id));
   }
 
   const handleTabClick = (tabId) => {
@@ -197,7 +259,7 @@ const PropertyStatusTabs = ({ property, buildingData }) => {
       case 'amenities':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <Amenities propertyData={property} />
+            <Amenities buildingData={buildingData} />
           </div>
         );
       

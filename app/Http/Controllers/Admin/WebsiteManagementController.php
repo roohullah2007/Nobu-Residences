@@ -247,27 +247,41 @@ class WebsiteManagementController extends Controller
         if ($request->hasFile('logo_file')) {
             $logoFile = $request->file('logo_file');
 
-            // Ensure storage directory exists
-            if (!Storage::disk('public')->exists('logos')) {
-                Storage::disk('public')->makeDirectory('logos');
-            }
-
-            // Delete old logo if it exists and is in storage
+            // Delete old logo if it exists
             $oldLogoPath = $website->logo ?? $website->logo_url;
-            if ($oldLogoPath && strpos($oldLogoPath, '/storage/') === 0) {
-                $oldPath = str_replace('/storage/', '', $oldLogoPath);
-                Storage::disk('public')->delete($oldPath);
+            if ($oldLogoPath) {
+                // Handle logos in storage directory
+                if (strpos($oldLogoPath, '/storage/') === 0) {
+                    $oldPath = str_replace('/storage/', '', $oldLogoPath);
+                    Storage::disk('public')->delete($oldPath);
+                }
+                // Handle logos in public/assets directory
+                elseif (strpos($oldLogoPath, '/assets/') === 0) {
+                    $publicPath = public_path(ltrim($oldLogoPath, '/'));
+                    if (file_exists($publicPath) && is_file($publicPath)) {
+                        // Don't delete the default Logo.png - keep it as backup
+                        if (basename($publicPath) !== 'Logo.png') {
+                            unlink($publicPath);
+                        }
+                    }
+                }
             }
 
             // Generate unique filename
-            $logoFileName = uniqid() . '_' . time() . '.' . $logoFile->getClientOriginalExtension();
+            $logoFileName = 'logo_' . uniqid() . '_' . time() . '.' . $logoFile->getClientOriginalExtension();
 
-            // Store the file
-            $logoPath = $logoFile->storeAs('logos', $logoFileName, 'public');
+            // Store in public/assets directory for consistency
+            $assetsPath = public_path('assets');
+            if (!file_exists($assetsPath)) {
+                mkdir($assetsPath, 0755, true);
+            }
 
-            // Update both logo and logo_url with the storage path
-            $validated['logo'] = Storage::url($logoPath);
-            $validated['logo_url'] = Storage::url($logoPath);
+            // Move the uploaded file to assets directory
+            $logoFile->move($assetsPath, $logoFileName);
+
+            // Update both logo and logo_url with the assets path
+            $validated['logo'] = '/assets/' . $logoFileName;
+            $validated['logo_url'] = '/assets/' . $logoFileName;
 
             // Remove logo_file from validated array as it's not a database field
             unset($validated['logo_file']);

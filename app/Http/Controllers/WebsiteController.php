@@ -153,7 +153,8 @@ class WebsiteController extends Controller
                     $query->select('id', 'building_id', 'title', 'price', 'bedrooms',
                         'bathrooms', 'area', 'area_unit', 'status', 'property_type', 'images');
                 },
-                'amenities'
+                'amenities',
+                'maintenanceFeeAmenities'
             ])->find($website->homepage_building_id);
 
             // If building exists, render the building detail page as homepage
@@ -1034,13 +1035,13 @@ class WebsiteController extends Controller
         if (is_numeric($listingKey)) {
             $property = Property::with(['building.amenities' => function($query) {
                 $query->orderBy('name');
-            }])->find($listingKey);
+            }, 'building.maintenanceFeeAmenities'])->find($listingKey);
             if ($property) {
                 $propertyData = $property->getDisplayData();
                 // Get building data and amenities if property belongs to a building
                 if ($property->building) {
-                    // Force load the amenities relationship
-                    $property->building->load('amenities');
+                    // Force load the amenities relationships if not loaded
+                    $property->building->loadMissing(['amenities', 'maintenanceFeeAmenities']);
                     
                     $amenities = $property->building->amenities->map(function($amenity) {
                         return [
@@ -1104,32 +1105,55 @@ class WebsiteController extends Controller
                     // Try to match building by address for MLS properties
                     if (!empty($propertyData['address'])) {
                         // Extract building address from full property address
-                        // Example: "15 Mercer Street 610, Toronto C01, ON M5V 1H2" -> "15 Mercer Street"
+                        // Example: "15 Mercer Street 419, Toronto C01, ON M5V 1H2" -> "15 Mercer"
                         $fullAddress = $propertyData['address'];
-                        
-                        // Extract street number and street name
-                        if (preg_match('/^(\d+)\s+([^,\d]+?)(?:\s+\d+)?(?:,|$)/', $fullAddress, $matches)) {
+
+                        // Extract street number and street name (handle both "Street" and "St" etc)
+                        if (preg_match('/^(\d+)\s+([A-Za-z]+)(?:\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Court|Ct|Place|Pl|Lane|Ln))?\s*(?:\d+)?(?:,|$)/i', $fullAddress, $matches)) {
                             $streetNumber = $matches[1]; // "15"
-                            $streetName = trim($matches[2]); // "Mercer Street"
-                            $buildingAddress = $streetNumber . ' ' . $streetName; // "15 Mercer Street"
-                            
-                            \Log::info('MLS property building matching', [
+                            $streetBaseName = $matches[2]; // "Mercer" (just the base name)
+
+                            \Log::info('MLS property building matching - improved', [
                                 'listing_key' => $listingKey,
                                 'full_address' => $fullAddress,
-                                'extracted_address' => $buildingAddress,
                                 'street_number' => $streetNumber,
-                                'street_name' => $streetName
+                                'street_base_name' => $streetBaseName
                             ]);
-                            
-                            // Find building by address
+
+                            // Log all available buildings for debugging
+                            $allBuildings = \App\Models\Building::pluck('address', 'name');
+                            \Log::info('All available buildings:', $allBuildings->toArray());
+
+                            // Find building by address - more flexible matching
+                            // Look for buildings that start with the same street number and contain the street base name
                             $building = \App\Models\Building::with(['amenities' => function($query) {
                                 $query->orderBy('name');
-                            }])->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                            }, 'maintenanceFeeAmenities'])
+                                ->where(function($query) use ($streetNumber, $streetBaseName) {
+                                    // Match "15 Mercer" in any form (St, Street, etc)
+                                    $query->where('address', 'LIKE', $streetNumber . ' ' . $streetBaseName . '%')
+                                          // Also try with just the street number and base name anywhere in address
+                                          ->orWhere(function($q) use ($streetNumber, $streetBaseName) {
+                                              $q->where('address', 'LIKE', '%' . $streetNumber . '%')
+                                                ->where('address', 'LIKE', '%' . $streetBaseName . '%');
+                                          });
+                                })
                                 ->first();
-                            
+
+                            if (!$building) {
+                                \Log::warning('Building not found with flexible matching', [
+                                    'street_number' => $streetNumber,
+                                    'street_base_name' => $streetBaseName,
+                                    'attempted_patterns' => [
+                                        $streetNumber . ' ' . $streetBaseName . '%',
+                                        '%' . $streetNumber . '%' . ' AND ' . '%' . $streetBaseName . '%'
+                                    ]
+                                ]);
+                            }
+
                             if ($building) {
-                                // Force load the amenities relationship
-                                $building->load('amenities');
+                                // Force load the amenities relationships if not loaded
+                                $building->loadMissing(['amenities', 'maintenanceFeeAmenities']);
                                 
                                 $amenities = $building->amenities->map(function($amenity) {
                                     return [

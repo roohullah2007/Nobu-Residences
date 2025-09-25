@@ -38,21 +38,27 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
   // Global function to open viewing modal from property cards
   useEffect(() => {
     // Debug building data for amenities
-    console.log('=== PropertyDetail Debug - Building Data ===');
-    console.log('Initial buildingData from backend:', initialBuildingData);
-    console.log('Current buildingData state:', buildingData);
-    console.log('Property data:', initialPropertyData);
-    
+    console.log('🌐 === PropertyDetail Page - Root Component ===');
+    console.log('🌐 Initial buildingData from backend:', initialBuildingData);
+    console.log('🌐 BuildingData type from backend:', typeof initialBuildingData);
+    console.log('🌐 Current buildingData state:', buildingData);
+    console.log('🌐 Property data:', initialPropertyData);
+
     if (initialBuildingData) {
-      console.log('Building Details:', {
+      console.log('✅ 🌐 Building data received from backend!');
+      console.log('🌐 Building Details:', {
         id: initialBuildingData.id,
         name: initialBuildingData.name,
+        address: initialBuildingData.address,
         hasAmenities: !!(initialBuildingData.amenities && initialBuildingData.amenities.length > 0),
         amenitiesCount: initialBuildingData.amenities ? initialBuildingData.amenities.length : 0,
-        amenitiesData: initialBuildingData.amenities
+        amenitiesData: initialBuildingData.amenities,
+        allKeys: Object.keys(initialBuildingData)
       });
+      console.log('🌐 Full building object:', JSON.stringify(initialBuildingData, null, 2));
     } else {
-      console.log('No building data received from backend for this property');
+      console.log('❌ 🌐 No building data received from backend for this property');
+      console.log('🌐 This property likely does not belong to any building');
     }
     
     window.openViewingModal = (property) => {
@@ -271,7 +277,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
   if (isLoading) {
     return (
-      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year}>
+      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website}>
         <Head title={`Loading Property... - ${siteName}`} />
         <div className='bg-[#293056] w-screen h-[85px] md:h-[120px] mb-10'>
           <Navbar auth={auth} website={website} />
@@ -315,6 +321,16 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         <div className="md:w-[950px]">
 
         {/* Property Sections */}
+        {
+          console.log('📦 === Passing data to PropertySections ==='),
+          console.log('📦 displayData:', !!displayData),
+          console.log('📦 auth:', !!auth),
+          console.log('📦 website:', !!website),
+          console.log('📦 buildingData being passed:', buildingData),
+          console.log('📦 buildingData type:', typeof buildingData),
+          console.log('📦 buildingData ID:', buildingData?.id),
+          null
+        }
         <PropertySections
           propertyData={displayData}
           auth={auth}

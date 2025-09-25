@@ -98,6 +98,10 @@ class PropertySearchController extends Controller
             $searchParams = $request->input('search_params', []);
             $sanitizedParams = $this->sanitizeSearchParams($searchParams);
 
+            // Check if we need to fetch multiple pages for map (initial load only)
+            $fetchForMap = $request->input('fetch_for_map', false);
+            $mapProperties = [];
+
             // Configure API client
             $this->configureApiClient($sanitizedParams);
 
@@ -108,6 +112,26 @@ class PropertySearchController extends Controller
             $apiResult = $this->ampreApi->fetchPropertiesWithCount();
             $properties = $apiResult['properties'];
             $totalCount = $apiResult['count'];
+
+            // If this is initial load (page 1) and fetch_for_map is true, fetch page 2 for map
+            if ($fetchForMap && $sanitizedParams['page'] == 1 && $totalCount > 16) {
+                // Save current page 1 properties
+                $page1Properties = $properties;
+
+                // Fetch page 2
+                $sanitizedParams['page'] = 2;
+                $this->configureApiClient($sanitizedParams);
+                $this->applySearchFilters($sanitizedParams);
+                $page2Result = $this->ampreApi->fetchPropertiesWithCount();
+                $page2Properties = $page2Result['properties'];
+
+                // Combine both pages for map display (32 listings total)
+                $mapProperties = array_merge($page1Properties, $page2Properties);
+
+                // Reset properties to page 1 for grid display
+                $properties = $page1Properties;
+                $sanitizedParams['page'] = 1;
+            }
             
             // Debug log for Sold/Leased searches
             if (!empty($sanitizedParams['property_status'])) {
@@ -154,16 +178,26 @@ class PropertySearchController extends Controller
             // Format properties for JSON response (frontend will handle geocoding)
             $formattedProperties = $this->formatProperties($propertiesWithImages);
 
+            // Prepare response data
+            $responseData = [
+                'properties' => $formattedProperties,
+                'total' => $totalCount,
+                'displayed' => count($formattedProperties),
+                'page' => $sanitizedParams['page'],
+                'page_size' => $sanitizedParams['page_size'],
+                'has_more' => count($formattedProperties) >= $sanitizedParams['page_size']
+            ];
+
+            // If we have map properties (page 1 with fetch_for_map), include them
+            if (!empty($mapProperties)) {
+                $mapPropertiesWithImages = $this->addPropertyImages($mapProperties);
+                $formattedMapProperties = $this->formatProperties($mapPropertiesWithImages);
+                $responseData['map_properties'] = $formattedMapProperties;
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'properties' => $formattedProperties,
-                    'total' => $totalCount,
-                    'displayed' => count($formattedProperties),
-                    'page' => $sanitizedParams['page'],
-                    'page_size' => $sanitizedParams['page_size'],
-                    'has_more' => count($formattedProperties) >= $sanitizedParams['page_size']
-                ]
+                'data' => $responseData
             ]);
 
         } catch (Exception $e) {
@@ -202,8 +236,8 @@ class PropertySearchController extends Controller
                 ], 400);
             }
 
-            // Set page size to 15 for map searches as requested
-            $sanitizedParams['page_size'] = 15; // Load only 15 properties at once
+            // Set page size to 16 for map searches as requested
+            $sanitizedParams['page_size'] = 16; // Load only 16 properties at once
             
             // Configure API client
             $this->configureApiClient($sanitizedParams);
@@ -627,7 +661,7 @@ class PropertySearchController extends Controller
         ]);
         
         // Set pagination parameters
-        $pageSize = $params['page_size'] ?? 15;
+        $pageSize = $params['page_size'] ?? 16;
         $page = $params['page'] ?? 1;
         $skip = ($page - 1) * $pageSize;
         
@@ -1348,7 +1382,7 @@ class PropertySearchController extends Controller
     {
         $defaults = [
             'page' => 1,
-            'page_size' => 15,
+            'page_size' => 16,
             'query' => '',
             'status' => 'For Sale',
             'property_status' => '', // New parameter for Sold/Leased

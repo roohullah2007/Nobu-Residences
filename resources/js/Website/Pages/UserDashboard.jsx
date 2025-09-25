@@ -4,7 +4,7 @@ import MainLayout from '@/Website/Global/MainLayout';
 import UserFavouritesTab from '@/Website/Components/UserFavouritesTab';
 import SavedSearchesTab from '@/Website/Components/SavedSearchesTab';
 
-export default function UserDashboard({ auth, siteName, siteUrl, year }) {
+export default function UserDashboard({ auth, siteName, siteUrl, year, website }) {
   const [activeTab, setActiveTab] = useState('saved');
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [savedSearchesCount, setSavedSearchesCount] = useState(0);
@@ -92,7 +92,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   ];
 
   return (
-    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website}>
       <Head title={`My Account - ${siteName}`} />
 
       <div className="max-w-[1280px] mx-auto px-4 md:px-0 py-8">

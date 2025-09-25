@@ -52,7 +52,7 @@ const BuildingStatusTabs = ({ building }) => {
       case 'amenities':
         return (
           <div className="p-4 rounded-xl border-gray-200 border shadow-sm">
-            <Amenities propertyData={building} />
+            <Amenities buildingData={building} />
           </div>
         );
       

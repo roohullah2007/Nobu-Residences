@@ -8,6 +8,12 @@ export default function Navbar({ auth = {}, website = {} }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
+    // Debug website data
+    useEffect(() => {
+        console.log('Navbar - Website data received:', website);
+        console.log('Navbar - Logo URL:', website?.logo_url);
+    }, [website]);
+
     // Close mobile menu when screen size changes to desktop
     useEffect(() => {
         const handleResize = () => {
@@ -43,7 +49,7 @@ export default function Navbar({ auth = {}, website = {} }) {
                     <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
                             <img
-                                src={website.logo || website.logo_url}
+                                src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
                                 style={{
                                     width: website?.logo_width ? `${website.logo_width}px` : '146px',
@@ -86,7 +92,7 @@ export default function Navbar({ auth = {}, website = {} }) {
                     <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
                             <img
-                                src={website.logo || website.logo_url}
+                                src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
                                 style={{
                                     width: website?.logo_width ? `${website.logo_width}px` : '146px',
