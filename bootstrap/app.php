@@ -31,7 +31,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/save-search',
             'api/saved-searches',
             'api/buildings-search',
-            'api/schools/*'
+            'api/schools/*',
+            'api/buildings/upload-image',
+            'api/buildings/delete-image'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
