@@ -1,0 +1,157 @@
+/* Google Maps Info Window Custom Styling */
+
+/* Remove default Google Maps info window styling */
+.gm-style .gm-style-iw-c {
+    padding: 0 !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.gm-style .gm-style-iw-d {
+    overflow: visible !important;
+    max-height: none !important;
+}
+
+/* Hide the default close button */
+.gm-style .gm-style-iw-t::after {
+    display: none !important;
+}
+
+/* Hide default close button */
+.gm-ui-hover-effect {
+    display: none !important;
+}
+
+/* Custom info window arrow */
+.gm-style .gm-style-iw-tc {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.gm-style .gm-style-iw-tc::after {
+    background: white !important;
+}
+
+/* Map property card in info window */
+.map-property-card-wrapper {
+    animation: fadeInScale 0.2s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Ensure PropertyCardV5 renders correctly in info window - Smaller size */
+.gm-style-iw .map-property-card-wrapper {
+    width: 240px !important;
+    max-width: 240px !important;
+}
+
+/* Ensure the card is compact */
+.gm-style-iw .map-card-compact {
+    width: 100% !important;
+}
+
+.gm-style-iw .idx-ampre-property-card {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+/* Hide the empty div that causes spacing */
+.gm-style-iw-ch {
+    display: none !important;
+}
+
+/* Compact card styles for map - Much smaller and readable */
+.map-card-compact {
+    transform: scale(1);
+}
+
+/* Override mobile card height for map */
+.map-info-window-card {
+    height: auto !important;
+    max-height: 280px !important;
+}
+
+/* Remove top padding/margin from card elements */
+.map-card-compact > div:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+.map-card-compact .property-card {
+    padding-top: 0 !important;
+}
+
+/* Make image container much smaller for map view - increased by 15px */
+.map-card-compact .property-image-container,
+.map-card-compact .h-60 {
+    height: 115px !important;
+    max-height: 115px !important;
+}
+
+.map-card-compact img {
+    height: 115px !important;
+    max-height: 115px !important;
+    object-fit: cover;
+}
+
+/* Increase font sizes for better readability in compact view */
+.map-card-compact .text-lg {
+    font-size: 1rem !important; /* Increased from 0.875rem */
+    font-weight: 600 !important;
+}
+
+.map-card-compact .text-base {
+    font-size: 0.875rem !important; /* Increased from 0.75rem */
+}
+
+.map-card-compact .text-sm {
+    font-size: 0.8125rem !important; /* Increased from 0.7rem */
+}
+
+/* Reduce content height */
+.map-card-compact .h-44,
+.map-card-compact .h-[220px] {
+    height: auto !important;
+    max-height: 150px !important;
+}
+
+/* Reduce padding in card content */
+.map-card-compact .p-4 {
+    padding: 0.5rem !important;
+}
+
+.map-card-compact .p-3 {
+    padding: 0.4rem !important;
+}
+
+/* Hide action buttons in map card */
+.map-card-compact .property-action-btn {
+    display: none !important;
+}
+
+.map-card-compact .space-y-2 > * + * {
+    margin-top: 0.25rem !important;
+}
+
+/* Override PropertyCardV5 styles for map */
+.map-property-card .property-card {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+}
+
+.map-property-card .property-card:hover {
+    box-shadow: none !important;
+    transform: none !important;
+}

@@ -1,0 +1,87 @@
+@echo off
+setlocal enabledelayedexpansion
+
+echo ==================================================
+echo    COMPLETE FIX FOR ROUTE [home] NOT DEFINED
+echo ==================================================
+echo.
+
+REM Check if we're in the right directory
+if not exist "artisan" (
+    echo ❌ This script must be run from the Laravel project root
+    echo Current directory: %CD%
+    pause
+    exit /b 1
+)
+
+echo ✅ Laravel project found
+echo.
+
+echo 🔧 STEP 1: Clear all caches and routes
+echo ----------------------------------------
+php artisan route:clear
+php artisan config:clear  
+php artisan cache:clear
+php artisan view:clear
+echo ✅ Caches cleared
+
+echo.
+echo 🔧 STEP 2: Test route definitions
+echo --------------------------------
+php test-routes.php
+
+echo.
+echo 🔧 STEP 3: Create admin user (if needed)
+echo ---------------------------------------
+php fix-admin-access.php
+
+echo.
+echo 🔧 STEP 4: Final route verification
+echo ----------------------------------
+echo Checking if routes are properly registered...
+php artisan route:list --compact 2>nul | findstr "GET.*/" | findstr "home" >nul
+if !errorlevel! equ 0 (
+    echo ✅ Home route is registered
+) else (
+    echo ⚠️ Home route may not be visible in route list
+)
+
+php artisan route:list --compact 2>nul | findstr "admin/dashboard" >nul
+if !errorlevel! equ 0 (
+    echo ✅ Admin dashboard route is registered
+) else (
+    echo ❌ Admin dashboard route not found
+)
+
+echo.
+echo 🎯 TESTING COMPLETE!
+echo ===================
+echo.
+echo The following should now work:
+echo.
+echo 🌐 URLS TO TEST:
+echo ---------------
+echo 1. Home page:        http://127.0.0.1:8000/
+echo 2. Login page:       http://127.0.0.1:8000/login
+echo 3. Register:         http://127.0.0.1:8000/register  
+echo 4. User dashboard:   http://127.0.0.1:8000/user/dashboard
+echo 5. Admin dashboard:  http://127.0.0.1:8000/admin/dashboard
+echo 6. Property detail:  http://127.0.0.1:8000/property-detail
+echo.
+echo 📋 ADMIN CREDENTIALS:
+echo --------------------
+echo Email:    admin@noburesidences.com
+echo Password: admin123
+echo.
+echo 📝 WHAT WAS FIXED:
+echo -----------------
+echo ✅ Added name('home') to the root route
+echo ✅ Cleared all route caches
+echo ✅ Created admin user for testing
+echo ✅ Verified route definitions
+echo.
+echo 🚀 Starting development server...
+echo Press Ctrl+C to stop when done testing
+echo.
+
+php artisan serve --host=127.0.0.1 --port=8000

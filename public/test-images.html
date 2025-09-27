@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Property Images API</title>
+    <meta name="csrf-token" content="">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Property Images API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+    // Get CSRF token
+    fetch('/')
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const csrfToken = doc.querySelector('meta[name="csrf-token"]')?.content;
+            console.log('CSRF Token:', csrfToken);
+            
+            // First, get properties from search
+            fetch('/api/property-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    search_params: {
+                        page: 1,
+                        page_size: 5,
+                        status: 'For Sale'
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Search Response:', data);
+                document.getElementById('results').innerHTML += '<h2>Search Results:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                if (data.success && data.data && data.data.properties) {
+                    // Extract listing keys
+                    const listingKeys = data.data.properties.map(p => p.ListingKey).filter(key => key);
+                    console.log('Listing Keys:', listingKeys);
+                    
+                    if (listingKeys.length > 0) {
+                        // Test image fetch endpoint
+                        fetch('/api/property-images', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken
+                            },
+                            body: JSON.stringify({
+                                listing_keys: listingKeys.slice(0, 3) // Test with first 3
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(imageData => {
+                            console.log('Image API Response:', imageData);
+                            document.getElementById('results').innerHTML += '<h2>Image API Response:</h2><pre>' + JSON.stringify(imageData, null, 2) + '</pre>';
+                        })
+                        .catch(error => {
+                            console.error('Image fetch error:', error);
+                            document.getElementById('results').innerHTML += '<h2>Image API Error:</h2><pre>' + error + '</pre>';
+                        });
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                document.getElementById('results').innerHTML += '<h2>Search Error:</h2><pre>' + error + '</pre>';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+import React, { useEffect, useRef, useState } from 'react';
+
+// Simple map placeholder that can be enhanced with Google Maps API
+const PropertyMap = ({ properties = [], center = null, zoom = 12, onPropertyClick = null }) => {
+  const mapRef = useRef(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
+
+  // Default center (Toronto)
+  const defaultCenter = center || { lat: 43.651070, lng: -79.347015 };
+
+  useEffect(() => {
+    // Check if Google Maps is loaded
+    if (window.google && window.google.maps) {
+      initializeMap();
+    } else {
+      // Load Google Maps script if not already loaded
+      loadGoogleMaps();
+    }
+  }, [properties]);
+
+  const loadGoogleMaps = () => {
+    // For now, we'll show a placeholder
+    // In production, you would load the Google Maps script:
+    /*
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeMap;
+    document.head.appendChild(script);
+    */
+    
+    // Show placeholder for now
+    setMapLoaded(true);
+  };
+
+  const initializeMap = () => {
+    if (!mapRef.current || !window.google) return;
+
+    // Calculate bounds if we have properties with coordinates
+    const validProperties = properties.filter(p => p.latitude && p.longitude);
+    
+    let mapCenter = defaultCenter;
+    if (validProperties.length > 0) {
+      // Calculate center based on property locations
+      const lat = validProperties.reduce((sum, p) => sum + parseFloat(p.latitude), 0) / validProperties.length;
+      const lng = validProperties.reduce((sum, p) => sum + parseFloat(p.longitude), 0) / validProperties.length;
+      mapCenter = { lat, lng };
+    }
+
+    const map = new window.google.maps.Map(mapRef.current, {
+      center: mapCenter,
+      zoom: zoom,
+      styles: [
+        // Custom map styling can go here
+      ]
+    });
+
+    // Add markers for each property
+    validProperties.forEach((property, index) => {
+      const marker = new window.google.maps.Marker({
+        position: {
+          lat: parseFloat(property.latitude),
+          lng: parseFloat(property.longitude)
+        },
+        map: map,
+        title: property.address,
+        icon: {
+          url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="12" fill="#3B82F6" stroke="white" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="white" font-size="10" font-weight="bold">
+                $${property.formattedPrice.replace('$', '').split('.')[0]}
+              </text>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(32, 32)
+        }
+      });
+
+      // Add click event to marker
+      marker.addListener('click', () => {
+        setSelectedProperty(property);
+        if (onPropertyClick) {
+          onPropertyClick(property);
+        }
+      });
+    });
+
+    setMapLoaded(true);
+  };
+
+  // Placeholder map component
+  const PlaceholderMap = () => (
+    <div className="w-full h-full bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center text-center p-8 rounded-lg">
+      <div className="mb-6">
+        <svg className="w-20 h-20 text-blue-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">Interactive Property Map</h3>
+        <p className="text-gray-600 mb-4">
+          Showing {properties.filter(p => p.latitude && p.longitude).length} of {properties.length} properties with location data
+        </p>
+      </div>
+      
+      {/* Property Distribution */}
+      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3">
+          <div className="font-semibold text-gray-800">For Sale</div>
+          <div className="text-blue-600 font-bold">
+            {properties.filter(p => !p.isRental).length}
+          </div>
+        </div>
+        <div className="bg-white/60 backdrop-blur-sm rounded-lg p-3">
+          <div className="font-semibold text-gray-800">For Rent</div>
+          <div className="text-green-600 font-bold">
+            {properties.filter(p => p.isRental).length}
+          </div>
+        </div>
+      </div>
+
+      {/* Price Range Summary */}
+      {properties.length > 0 && (
+        <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 w-full max-w-sm">
+          <h4 className="font-semibold text-gray-800 mb-2">Price Range</h4>
+          <div className="text-sm text-gray-600">
+            {(() => {
+              const prices = properties.map(p => p.price).filter(p => p > 0).sort((a, b) => a - b);
+              if (prices.length === 0) return 'No pricing data';
+              
+              const min = prices[0];
+              const max = prices[prices.length - 1];
+              const formatPrice = (price) => {
+                if (price >= 1000000) return `$${(price / 1000000).toFixed(1)}M`;
+                if (price >= 1000) return `$${(price / 1000).toFixed(0)}K`;
+                return `$${price.toLocaleString()}`;
+              };
+              
+              return `${formatPrice(min)} - ${formatPrice(max)}`;
+            })()}
+          </div>
+        </div>
+      )}
+      
+      <div className="mt-6 text-xs text-gray-500">
+        <p>🗺️ Google Maps integration available</p>
+        <p>Configure API key in environment settings</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full h-full relative">
+      {window.google && window.google.maps ? (
+        <div ref={mapRef} className="w-full h-full rounded-lg" />
+      ) : (
+        <PlaceholderMap />
+      )}
+      
+      {/* Property Info Window */}
+      {selectedProperty && (
+        <div className="absolute top-4 left-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{selectedProperty.formattedPrice}</h3>
+              <p className="text-sm text-gray-600">{selectedProperty.address}</p>
+              <p className="text-sm text-gray-500">{selectedProperty.city}, {selectedProperty.province}</p>
+              <div className="mt-2 text-xs text-gray-500">
+                {selectedProperty.bedrooms}BD • {selectedProperty.bathrooms}BA
+                {selectedProperty.livingArea && ` • ${selectedProperty.livingArea} ${selectedProperty.livingAreaUnits}`}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <a
+                href={selectedProperty.detailUrl}
+                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              >
+                View Details
+              </a>
+              <button
+                onClick={() => setSelectedProperty(null)}
+                className="px-2 py-1 bg-gray-200 text-gray-600 text-xs rounded hover:bg-gray-300 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PropertyMap;

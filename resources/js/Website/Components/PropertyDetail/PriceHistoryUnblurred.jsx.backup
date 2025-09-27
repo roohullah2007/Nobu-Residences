@@ -1,0 +1,63 @@
+import React from 'react';
+
+const PriceHistoryUnblurred = ({ propertyData = null }) => {
+  // Get property image from propertyData or use placeholder
+  const getPropertyImage = () => {
+    if (propertyData?.Images && Array.isArray(propertyData.Images) && propertyData.Images.length > 0) {
+      const firstImage = propertyData.Images[0];
+      if (firstImage?.MediaURL) {
+        return firstImage.MediaURL;
+      }
+    }
+    // Fallback placeholder image
+    return "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+  };
+
+  const propertyImage = getPropertyImage();
+  
+  return (
+    <div className="w-full p-4 rounded-xl border-gray-200 border shadow-sm max-w-[1280px] mx-auto">
+      {/* Price History */}
+      <div className="bg-white rounded-lg p-0">
+        <h2 className="text-[24px] font-bold text-[#263238] mb-1 font-space-grotesk">Price History</h2>
+        <p className="text-gray-600 text-sm mb-4">Discover the price history for 203 - 219 Fort York Boulevard</p>
+      </div>
+
+      {/* Price History Table */}
+      <div className="flex flex-col px-2 space-y-2 overflow-hidden">
+        {/* Table Rows */}
+        <div className="flex shadow-sm bg-[#F8F8F8] rounded-lg">
+          <div className="w-[69px] py-3 px-2">
+            <img 
+              src={propertyImage} 
+              alt="Property" 
+              className="w-full h-[52px] object-cover rounded-lg"
+              onError={(e) => {
+                e.target.src = "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80";
+              }}
+            />
+          </div>
+          <div className="flex space-x-4 justify-between items-center p-4 w-full">
+            <div className="flex flex-col">
+              <div className="text-sm text-gray-600 mb-1">Jul 08, 2025</div>
+              <div className="text-sm text-gray-600">29 days ago</div>
+            </div>
+            <div className="flex flex-col">
+              <div className="text-red-500 font-medium text-sm">Expired</div>
+              <div className="text-sm text-gray-600">Listed for $749,900 on May 08, 2025</div>
+            </div>
+            <div className="flex items-center justify-center text-sm text-gray-600">
+              61 days on market
+            </div>
+          </div>
+        </div>
+
+        <button className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-lg">
+          View full listing history
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default PriceHistoryUnblurred;

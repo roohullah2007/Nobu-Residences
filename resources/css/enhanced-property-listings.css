@@ -1,0 +1,262 @@
+/* Enhanced Property Listings CSS */
+
+/* Loading animation improvements */
+.property-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.property-image-container .loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #f0f0f0 25%, transparent 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+/* Fade in animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Mobile listings scroll */
+.mobile-listings-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.5rem;
+}
+
+.mobile-listings-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-listings-scroll .carousel-item {
+  min-width: 300px;
+  max-width: 300px;
+}
+
+/* Desktop listings grid */
+.desktop-listings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  justify-items: center;
+}
+
+.desktop-listings-grid .slider-item {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Enhanced error states */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.error-icon {
+  width: 3rem;
+  height: 3rem;
+  color: #ef4444;
+  margin-bottom: 1rem;
+}
+
+.retry-button {
+  background-color: #293056;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.retry-button:hover:not(:disabled) {
+  background-color: #1f2441;
+}
+
+.retry-button:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Loading spinner improvements */
+.loading-spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #f3f4f6;
+  border-radius: 50%;
+  border-top-color: #293056;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Image error state */
+.image-error-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.image-error-icon {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Container specific styles */
+.nearby-listings-container {
+  border-left: 4px solid #3b82f6;
+}
+
+.similar-listings-container {
+  border-left: 4px solid #10b981;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .desktop-listings-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .mobile-listings-scroll {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-listings-scroll .carousel-item {
+    min-width: 280px;
+    max-width: 280px;
+  }
+}
+
+/* Hover effects for property cards */
+.property-card-enhanced {
+  transition: all 0.3s ease;
+}
+
+.property-card-enhanced:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Navigation arrows improvements */
+.nav-arrow {
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.nav-arrow:not(:disabled):hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+/* Status indicators */
+.status-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-loading {
+  background-color: #fbbf24;
+  color: #92400e;
+}
+
+.status-loaded {
+  background-color: #10b981;
+  color: #064e3b;
+}
+
+.status-error {
+  background-color: #ef4444;
+  color: #7f1d1d;
+}
+
+/* Accessibility improvements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus states */
+.nav-arrow:focus,
+.retry-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Animation for slide transitions */
+.slide-transition {
+  transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Improved loading text */
+.loading-text {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-left: 0.75rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

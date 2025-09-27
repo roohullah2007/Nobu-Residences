@@ -1,0 +1,102 @@
+import React from 'react';
+import { Head } from '@inertiajs/react';
+
+export default function PropertyDetailSimple({ auth, siteName, siteUrl, year, title }) {
+    return (
+        <>
+            <Head title={title || `Property Details - ${siteName}`} />
+            <div className="min-h-screen bg-gray-50">
+                {/* Simple Header */}
+                <header className="bg-[#293056] text-white py-4">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <h1 className="text-2xl font-bold">{siteName || 'Nobu Residences'}</h1>
+                    </div>
+                </header>
+
+                {/* Main Content */}
+                <main className="max-w-7xl mx-auto px-4 py-8">
+                    <div className="bg-white rounded-lg shadow-lg p-6">
+                        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                            408 - 155 Dalhousie Street
+                        </h2>
+                        <p className="text-lg text-gray-600 mb-6">
+                            NO55 Mercer Condos in King West, Downtown, Toronto
+                        </p>
+
+                        {/* Property Images */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="col-span-1 md:col-span-2">
+                                <img 
+                                    src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+                                    alt="Property"
+                                    className="w-full h-64 md:h-96 object-cover rounded-lg"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Property Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <h3 className="text-xl font-semibold mb-4">Property Details</h3>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Price:</span>
+                                        <span className="font-semibold">$1,100,000</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Type:</span>
+                                        <span>Residential Condo</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Bedrooms:</span>
+                                        <span>2+1</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Bathrooms:</span>
+                                        <span>2</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Area:</span>
+                                        <span>1,276 sqft</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Parking:</span>
+                                        <span>2 spaces</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-xl font-semibold mb-4">Contact Information</h3>
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                    <p className="font-semibold text-lg mb-2">Interested in this property?</p>
+                                    <p className="text-gray-600 mb-4">Contact us for more information or to schedule a viewing.</p>
+                                    <button className="w-full bg-[#293056] text-white py-2 px-4 rounded-lg hover:bg-[#1a1d3a] transition-colors">
+                                        Contact Agent
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="mt-8">
+                            <h3 className="text-xl font-semibold mb-4">Description</h3>
+                            <p className="text-gray-700 leading-relaxed">
+                                This beautiful 2+1 bedroom condo in the heart of King West offers modern living with stunning city views. 
+                                Located in the prestigious NO55 Mercer building, this unit features high-end finishes, floor-to-ceiling windows, 
+                                and access to premium amenities. Perfect for urban professionals seeking luxury downtown living.
+                            </p>
+                        </div>
+                    </div>
+                </main>
+
+                {/* Simple Footer */}
+                <footer className="bg-[#293056] text-white py-8 mt-16">
+                    <div className="max-w-7xl mx-auto px-4 text-center">
+                        <p>&copy; {year || new Date().getFullYear()} {siteName || 'Nobu Residences'}. All rights reserved.</p>
+                    </div>
+                </footer>
+            </div>
+        </>
+    );
+}

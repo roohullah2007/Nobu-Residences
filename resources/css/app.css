@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import './idx-ampre-styles.css';
+@import './map-info-window.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force remove space-y-4 from modal forms */
+.space-y-4 > :not([hidden]) ~ :not([hidden]),
+form.space-y-4 > :not([hidden]) ~ :not([hidden]),
+form > .space-y-4 > :not([hidden]) ~ :not([hidden]),
+.space-y-4 > * {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    --tw-space-y-reverse: 0 !important;
+}
+
+/* Override any space-y classes in modals */
+.fixed.inset-0 form > * {
+    margin-top: 0 !important;
+}
+
+.fixed.inset-0 form > *:not(:first-child) {
+    margin-top: 1rem !important;
+}
+
+/* Specific override for modal forms */
+.fixed.inset-0 .space-y-4 > *,
+.fixed.inset-0 form .space-y-4 > * {
+    margin-top: 0 !important;
+    margin-bottom: 1rem !important;
+}
+
+/* IDX-AMPRE Grid Styles for consistency across all pages */
+.idx-ampre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.idx-ampre-mixed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+/* Ensure consistent card sizing */
+.idx-ampre-property-card {
+  width: 100%;
+  min-width: 280px;
+  max-width: 320px;
+}
+
+/* Hide scrollbar for carousel */
+.scrollbar-hide {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none; /* WebKit */
+}
+
+/* Hide horizontal scrollbar globally */
+html, body {
+    overflow-x: hidden;
+}
+
+/* Additional scrollbar hiding utilities */
+.overflow-x-hidden {
+    overflow-x: hidden;
+}
+
+.no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Custom letter spacing utilities */
+.tracking-tight-3 {
+    letter-spacing: -0.03em;
+}
+
+.tracking-tight-4 {
+    letter-spacing: -0.04em;
+}
+
+/* Work Sans font utility */
+.font-work-sans {
+    font-family: 'Work Sans', sans-serif;
+}
+
+/* Space Grotesk font utility */
+.font-space-grotesk {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Red Hat Display font utility */
+.font-red-hat-display {
+    font-family: 'Red Hat Display', sans-serif;
+}
+
+/* Hide default select dropdown arrows */
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Ensure buttons are clickable and not selectable */
+button {
+    cursor: pointer !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+select::-ms-expand {
+    display: none;
+}
+
+/* Remove focus borders and rings from all inputs */
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+}
+
+/* Remove Tailwind's default focus ring */
+.focus\:ring-0:focus {
+    --tw-ring-shadow: none !important;
+    box-shadow: none !important;
+}
+
+.focus\:border-none:focus {
+    border: none !important;
+}
+
+/* Google Places Autocomplete Dropdown Styles */
+.pac-container {
+    z-index: 9999 !important;
+    font-family: 'Work Sans', sans-serif;
+    border-radius: 8px;
+    margin-top: 2px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.pac-item {
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.pac-item:hover {
+    background-color: #f3f4f6;
+}
+
+.pac-item-selected {
+    background-color: #e5e7eb;
+}
+
+.pac-matched {
+    font-weight: 600;
+}

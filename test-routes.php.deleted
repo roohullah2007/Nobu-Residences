@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * Route Test Script
+ * Run this with: php test-routes.php
+ */
+
+require_once 'vendor/autoload.php';
+
+$app = require_once 'bootstrap/app.php';
+$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+
+echo "🔍 Testing Route Definitions...\n\n";
+
+// Test important routes
+$routesToTest = [
+    'home',
+    'login',
+    'register',
+    'user.dashboard',
+    'admin.dashboard',
+    'property-detail',
+    'rent',
+    'sale',
+    'search'
+];
+
+foreach ($routesToTest as $routeName) {
+    try {
+        $url = route($routeName);
+        echo "✅ Route '$routeName': $url\n";
+    } catch (Exception $e) {
+        echo "❌ Route '$routeName': {$e->getMessage()}\n";
+    }
+}
+
+echo "\n";
+
+// Test if we can generate URLs without route names
+try {
+    $homeUrl = url('/');
+    echo "✅ Home URL (direct): $homeUrl\n";
+} catch (Exception $e) {
+    echo "❌ Home URL (direct): {$e->getMessage()}\n";
+}
+
+echo "\n🎯 Route testing complete!\n";

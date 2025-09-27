@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Laravel React Property Search Setup Script
+# This script sets up the enhanced property search with Ampre API integration
+
+echo "🏠 Setting up Laravel React Property Search with Ampre API..."
+
+# Check if we're in the right directory
+if [ ! -f "artisan" ]; then
+    echo "❌ Error: Please run this script from the Laravel project root directory"
+    exit 1
+fi
+
+echo "📦 Installing/updating dependencies..."
+
+# Install PHP dependencies
+composer install --no-dev --optimize-autoloader
+
+# Install and build frontend assets
+npm install
+npm run build
+
+echo "🔧 Setting up configuration..."
+
+# Create .env file if it doesn't exist
+if [ ! -f ".env" ]; then
+    cp .env.example .env
+    echo "✅ Created .env file from .env.example"
+fi
+
+# Generate application key if not set
+php artisan key:generate
+
+echo "🗄️ Setting up database..."
+
+# Run migrations
+php artisan migrate --force
+
+# Seed database if needed
+php artisan db:seed --force
+
+echo "🧹 Clearing caches..."
+
+# Clear various caches
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan cache:clear
+
+echo "🔗 Creating storage link..."
+php artisan storage:link
+
+echo "📝 Setting up Ampre API configuration..."
+
+echo ""
+echo "⚙️  AMPRE API CONFIGURATION"
+echo "================================"
+echo "To complete the setup, please add these variables to your .env file:"
+echo ""
+echo "# Ampre API Configuration"
+echo "AMPRE_API_URL=https://query.ampre.ca/odata/"
+echo "AMPRE_VOW_TOKEN=your_vow_token_here"
+echo "AMPRE_IDX_TOKEN=your_idx_token_here"
+echo "AMPRE_CACHE_TTL=300"
+echo ""
+echo "# Optional: Google Maps Integration"
+echo "GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here"
+echo ""
+echo "# Optional: WalkScore Integration" 
+echo "WALKSCORE_API_KEY=your_walkscore_api_key_here"
+echo ""
+
+echo "🧪 Testing API configuration..."
+
+# Test basic Laravel setup
+php artisan config:cache
+php artisan route:cache
+
+echo ""
+echo "✅ Setup complete!"
+echo ""
+echo "🚀 NEXT STEPS:"
+echo "1. Add your Ampre API credentials to the .env file"
+echo "2. Test the API connection: GET /api/ampre/test/config"
+echo "3. Test property search: GET /api/ampre/test/properties"
+echo "4. Visit /search to see the new property search page"
+echo ""
+echo "📋 AVAILABLE TEST ENDPOINTS:"
+echo "• GET /api/ampre/test/config - Test API configuration"
+echo "• GET /api/ampre/test/properties - Test property fetching"
+echo "• GET /api/ampre/test/properties-with-count - Test with count"
+echo "• GET /api/ampre/test/price-range - Test price filtering"
+echo "• GET /api/ampre/test/or-filters - Test OR filtering"
+echo "• GET /search - New enhanced search page"
+echo "• GET /api/properties/search - AJAX search endpoint"
+echo ""
+echo "🎯 FEATURES IMPLEMENTED:"
+echo "• ✅ Real-time property search with Ampre API"
+echo "• ✅ Advanced filtering (price, beds, baths, location)"
+echo "• ✅ Multiple view types (Grid, List, Mixed with Map)"
+echo "• ✅ Property images from Ampre API"
+echo "• ✅ Pagination and sorting"
+echo "• ✅ Responsive design"
+echo "• ✅ Property count display"
+echo "• ✅ Error handling and loading states"
+echo ""
+echo "🗺️  MAP INTEGRATION:"
+echo "The map view is ready for Google Maps integration."
+echo "Add your Google Maps API key to enable interactive maps."
+echo ""
+
+# Check if server is running
+if curl -s http://localhost:8000 > /dev/null; then
+    echo "🌐 Server is running at http://localhost:8000"
+    echo "🔍 Visit http://localhost:8000/search to test the property search"
+else
+    echo "⚠️  Start the development server with: php artisan serve"
+fi
+
+echo ""
+echo "📞 Need help? Check the documentation or test the API endpoints above."

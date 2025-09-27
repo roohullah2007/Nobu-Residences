@@ -1,0 +1,30 @@
+--- a/resources/js/Website/Pages/Search.jsx
++++ b/resources/js/Website/Pages/Search.jsx
+@@ -180,6 +180,7 @@
+   // Get property type from URL params if available
+   const urlParams = new URLSearchParams(window.location.search);
+   const propertySubType = urlParams.get('property_sub_type');
++  const propertyTypeParam = urlParams.get('property_type'); // Get property_type from URL (saved searches)
+   const buildingId = urlParams.get('building_id');
+   const transactionType = filters.transaction_type || urlParams.get('transaction_type');
+
+@@ -196,6 +197,9 @@
+   if (propertySubType !== null) {
+     // If property_sub_type is explicitly set in URL (even as empty), use it
+     propertyTypeArray = propertySubType ? [propertySubType] : [];
++  } else if (propertyTypeParam) {
++    // Parse comma-separated property types from saved search
++    propertyTypeArray = propertyTypeParam.split(',').map(type => type.trim());
+   }
+
+   // Default to Condo Apartment if building_id is provided (from building count buttons)
+@@ -206,7 +210,8 @@
+   // Get street address from filters (passed from controller) or URL parameters
+   const streetNumber = filters.street_number || urlParams.get('street_number');
+   const streetName = filters.street_name || urlParams.get('street_name');
+-  const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (filters.search || urlParams.get('location') || '');
++  const queryParam = urlParams.get('query'); // Get query from saved search
++  const locationQuery = queryParam || ((streetNumber && streetName) ? `${streetNumber} ${streetName}` : (filters.search || urlParams.get('location') || ''));
+
+   const [searchFilters, setSearchFilters] = useState({
+     query: locationQuery,

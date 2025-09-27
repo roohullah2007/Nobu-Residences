@@ -1,0 +1,129 @@
+import React from 'react';
+
+const ChevronLeft = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18L9 12L15 6" />
+  </svg>
+);
+
+const ChevronRight = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 18L15 12L9 6" />
+  </svg>
+);
+
+const PropertyGallery = ({ 
+  propertyImages, 
+  currentMobileSlide, 
+  changeMobileSlide, 
+  openModal 
+}) => {
+  return (
+    <div className="mb-8">
+      <div className="flex gap-0 md:gap-[17px]">
+        {/* Main Large Image - Desktop Only */}
+        <div className="hidden lg:block relative w-[619px] h-[645px] flex-shrink-0">
+          <div 
+            className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+            onClick={() => openModal(0)}
+          >
+            <img 
+              src={propertyImages[0]}
+              alt="Main property image"
+              className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+          </div>
+        </div>
+        
+        {/* Small Images Column - Hidden on Mobile */}
+        <div className="hidden md:flex lg:flex justify-between flex-col w-full md:w-[318px] h-auto md:h-[645px] gap-2 md:gap-0">
+          {/* Small Image 1 */}
+          <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
+            <div 
+              className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+              onClick={() => openModal(1)}
+            >
+              <img 
+                src={propertyImages[1]}
+                alt="Property image 2"
+                className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+            </div>
+          </div>
+          
+          {/* Small Image 2 with See All Photos Button */}
+          <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
+            <div 
+              className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+              onClick={() => openModal(2)}
+            >
+              <img 
+                src={propertyImages[2]}
+                alt="Property image 3"
+                className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+              
+              {/* See All Photos Button - Hidden on Mobile */}
+              <div className="hidden md:block absolute bottom-4 right-4">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openModal(0);
+                  }}
+                  className="flex justify-center items-center w-[129px] h-10 bg-black rounded-xl text-white font-work-sans font-bold text-sm hover:bg-gray-800 transition-colors"
+                >
+                  See all photos
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Gallery - Tablet and Mobile Only */}
+        <div className="lg:hidden relative w-full h-[300px] md:h-[400px] rounded-none md:rounded-xl overflow-hidden">
+          <div className="relative w-full h-full">
+            {propertyImages.map((image, index) => (
+              <div
+                key={index}
+                className={`absolute inset-0 transition-opacity duration-300 ${
+                  index === currentMobileSlide ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                <img 
+                  src={image}
+                  alt={`Property image ${index + 1}`}
+                  className="w-full h-full object-cover object-center"
+                />
+              </div>
+            ))}
+            
+            {/* Mobile Navigation */}
+            <button 
+              onClick={() => changeMobileSlide('prev')}
+              className="absolute left-2 md:left-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+            >
+              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+            
+            <button 
+              onClick={() => changeMobileSlide('next')}
+              className="absolute right-2 md:right-4 top-1/2 transform -translate-y-1/2 w-9 h-9 md:w-10 md:h-10 bg-black bg-opacity-50 rounded-full flex items-center justify-center text-white hover:bg-opacity-70 transition-all duration-300"
+            >
+              <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+            
+            {/* Mobile Counter */}
+            <div className="absolute bottom-3 md:bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-xs md:text-sm font-medium">
+              {currentMobileSlide + 1} / {propertyImages.length}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PropertyGallery;
