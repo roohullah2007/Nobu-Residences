@@ -501,4 +501,112 @@ class BuildingController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Generate AI description for building using Gemini AI
+     */
+    public function generateAiDescription(Request $request): JsonResponse
+    {
+        try {
+            $buildingData = $request->input('building_data', []);
+            $buildingId = $request->input('building_id');
+
+            // Create a comprehensive building description prompt
+            $prompt = $this->buildAiDescriptionPrompt($buildingData);
+
+            // Use Gemini AI to generate description
+            $geminiService = app(\App\Services\GeminiAIService::class);
+            $description = $geminiService->generateBuildingDescription($prompt, $buildingData);
+
+            if ($description) {
+                // If building_id is provided, save the description to the building
+                if ($buildingId) {
+                    $building = Building::find($buildingId);
+                    if ($building) {
+                        $building->description = $description;
+                        $building->save();
+                        \Log::info("AI description saved for building: {$buildingId}");
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'description' => $description,
+                    'message' => 'AI description generated successfully'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to generate AI description'
+            ], 500);
+
+        } catch (\Exception $e) {
+            \Log::error('Error generating building AI description: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to generate AI description: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Build AI description prompt for building
+     */
+    private function buildAiDescriptionPrompt(array $buildingData): string
+    {
+        $name = $buildingData['name'] ?? 'Building';
+        $address = $buildingData['address'] ?? '';
+        $city = $buildingData['city'] ?? '';
+        $province = $buildingData['province'] ?? '';
+        $buildingType = $buildingData['building_type'] ?? 'residential';
+        $totalUnits = $buildingData['total_units'] ?? '';
+        $yearBuilt = $buildingData['year_built'] ?? '';
+        $floors = $buildingData['floors'] ?? '';
+        $amenities = $buildingData['amenities'] ?? [];
+        $maintenanceAmenities = $buildingData['maintenance_fee_amenities'] ?? [];
+        $priceRange = $buildingData['price_range'] ?? '';
+        $maintenanceFeeRange = $buildingData['maintenance_fee_range'] ?? '';
+        $developerName = $buildingData['developer_name'] ?? '';
+        $managementName = $buildingData['management_name'] ?? '';
+
+        $prompt = "Generate a compelling and professional real estate description for this building:\n\n";
+        $prompt .= "Building Name: {$name}\n";
+
+        if ($address) {
+            $prompt .= "Address: {$address}";
+            if ($city) $prompt .= ", {$city}";
+            if ($province) $prompt .= ", {$province}";
+            $prompt .= "\n";
+        }
+
+        if ($buildingType) $prompt .= "Type: " . ucfirst($buildingType) . "\n";
+        if ($totalUnits) $prompt .= "Total Units: {$totalUnits}\n";
+        if ($floors) $prompt .= "Number of Floors: {$floors}\n";
+        if ($yearBuilt) $prompt .= "Year Built: {$yearBuilt}\n";
+        if ($priceRange) $prompt .= "Price Range: {$priceRange}\n";
+        if ($maintenanceFeeRange) $prompt .= "Maintenance Fee Range: {$maintenanceFeeRange}\n";
+        if ($developerName) $prompt .= "Developer: {$developerName}\n";
+        if ($managementName) $prompt .= "Management: {$managementName}\n";
+
+        if (!empty($amenities)) {
+            $prompt .= "Building Amenities: " . implode(', ', $amenities) . "\n";
+        }
+
+        if (!empty($maintenanceAmenities)) {
+            $prompt .= "Amenities Included in Maintenance Fees: " . implode(', ', $maintenanceAmenities) . "\n";
+        }
+
+        $prompt .= "\nPlease create a compelling, professional building description that:\n";
+        $prompt .= "- Highlights the building's key features and location benefits\n";
+        $prompt .= "- Emphasizes luxury and lifestyle aspects\n";
+        $prompt .= "- Mentions the amenities and their value\n";
+        $prompt .= "- Appeals to potential buyers or residents\n";
+        $prompt .= "- Is 100-200 words in length\n";
+        $prompt .= "- Uses engaging, professional real estate language\n";
+        $prompt .= "- Focuses on quality of life and investment value\n\n";
+        $prompt .= "Return only the description text, no additional formatting or explanations.";
+
+        return $prompt;
+    }
 }

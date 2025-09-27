@@ -821,4 +821,92 @@ class GeminiAIService
 
         return $faqs;
     }
+
+    /**
+     * Generate building description using Gemini AI
+     */
+    public function generateBuildingDescription(string $prompt, array $buildingData): string
+    {
+        try {
+            Log::info("Generating building description with Gemini AI", [
+                'building_name' => $buildingData['name'] ?? 'Unknown',
+                'prompt_length' => strlen($prompt)
+            ]);
+
+            // Use the existing generateContent method with the building prompt
+            $description = $this->generateContent($prompt);
+
+            Log::info("Building description generated successfully", [
+                'description_length' => strlen($description)
+            ]);
+
+            return $description;
+
+        } catch (\Exception $e) {
+            Log::error("Error generating building description with Gemini AI: " . $e->getMessage());
+
+            // Return a fallback description based on building data
+            return $this->getFallbackBuildingDescription($buildingData);
+        }
+    }
+
+    /**
+     * Generate fallback building description when AI fails
+     */
+    private function getFallbackBuildingDescription(array $buildingData): string
+    {
+        $name = $buildingData['name'] ?? 'This exceptional building';
+        $address = $buildingData['address'] ?? '';
+        $city = $buildingData['city'] ?? '';
+        $buildingType = $buildingData['building_type'] ?? 'residential building';
+        $totalUnits = $buildingData['total_units'] ?? null;
+        $floors = $buildingData['floors'] ?? null;
+        $yearBuilt = $buildingData['year_built'] ?? null;
+        $developer = $buildingData['developer'] ?? '';
+        $amenities = $buildingData['amenities'] ?? [];
+        $maintenanceFeeAmenities = $buildingData['maintenance_fee_amenities'] ?? [];
+
+        $description = "Welcome to {$name}";
+
+        if ($address) {
+            $description .= ", located at {$address}";
+            if ($city) {
+                $description .= " in {$city}";
+            }
+        }
+
+        $description .= ". This premium {$buildingType} offers modern living in a sought-after location";
+
+        if ($yearBuilt) {
+            $description .= ", built in {$yearBuilt}";
+        }
+
+        if ($developer) {
+            $description .= " by renowned developer {$developer}";
+        }
+
+        $description .= ".";
+
+        if ($totalUnits) {
+            $description .= " The building features {$totalUnits} thoughtfully designed units";
+            if ($floors) {
+                $description .= " across {$floors} floors";
+            }
+            $description .= ".";
+        }
+
+        // Add amenities
+        $allAmenities = array_merge($amenities, $maintenanceFeeAmenities);
+        if (!empty($allAmenities)) {
+            $description .= " Residents enjoy world-class amenities including " . implode(', ', array_slice($allAmenities, 0, 5));
+            if (count($allAmenities) > 5) {
+                $description .= " and many more premium features";
+            }
+            $description .= ".";
+        }
+
+        $description .= " This building represents the perfect blend of luxury, convenience, and modern design, offering an unparalleled living experience in one of the area's most desirable locations.";
+
+        return $description;
+    }
 }

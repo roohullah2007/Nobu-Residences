@@ -112,6 +112,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
+    const [generatingAiDescription, setGeneratingAiDescription] = useState(false);
+    const [aiDescriptionError, setAiDescriptionError] = useState('');
 
     const buildingTypes = [
         { value: 'condominium', label: 'Condominium' },
@@ -167,6 +169,67 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         'EV Charging': '🔌',
         'Bike Storage': '🚲',
         'Car Wash': '🚗'
+    };
+
+    // Generate AI description for building
+    const handleGenerateAiDescription = async () => {
+        if (!building.id) {
+            setAiDescriptionError('Building ID is required to generate AI description');
+            return;
+        }
+
+        setGeneratingAiDescription(true);
+        setAiDescriptionError('');
+
+        try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            const response = await fetch('/api/buildings/generate-ai-description', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    building_id: building.id,
+                    building_data: {
+                        name: data.name,
+                        address: data.address,
+                        city: data.city,
+                        province: data.province,
+                        building_type: data.building_type,
+                        total_units: data.total_units,
+                        year_built: data.year_built,
+                        floors: data.floors,
+                        amenities: selectedAmenities.map(a => a.name),
+                        maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
+                        price_range: data.price_range,
+                        maintenance_fee_range: data.maintenance_fee_range,
+                        developer_name: data.developer_name,
+                        management_name: data.management_name,
+                        existing_description: data.description
+                    }
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.description) {
+                setData('description', result.description);
+                console.log('✅ 🤖 Building AI description generated successfully');
+            } else {
+                setAiDescriptionError(result.error || 'Failed to generate AI description');
+                console.error('❌ 🤖 Error generating building AI description:', result.error);
+            }
+        } catch (error) {
+            console.error('❌ 🤖 Error generating building AI description:', error);
+            setAiDescriptionError('Failed to generate AI description. Please try again.');
+        } finally {
+            setGeneratingAiDescription(false);
+        }
     };
 
     const handleSubmit = (e) => {
@@ -514,15 +577,34 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-6">
-                                    <InputLabel htmlFor="description" value="Description" />
+                                    <div className="flex items-center justify-between">
+                                        <InputLabel htmlFor="description" value="Description" />
+                                        <button
+                                            type="button"
+                                            onClick={handleGenerateAiDescription}
+                                            disabled={generatingAiDescription}
+                                            className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            {generatingAiDescription ? 'Generating...' : 'Generate with AI'}
+                                        </button>
+                                    </div>
                                     <textarea
                                         id="description"
                                         rows={4}
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         value={data.description}
                                         onChange={(e) => setData('description', e.target.value)}
+                                        placeholder="Enter building description or use AI to generate one automatically..."
                                     />
                                     <InputError message={errors.description} className="mt-2" />
+                                    {aiDescriptionError && (
+                                        <div className="mt-2 text-sm text-red-600">
+                                            {aiDescriptionError}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

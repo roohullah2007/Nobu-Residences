@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MainLayout from '../Layouts/MainLayout';
+import MainLayout from '../Global/MainLayout';
 import PropertyAiDescription from '../Components/Property/PropertyAiDescription';
 
 const PropertyAiDemo = () => {

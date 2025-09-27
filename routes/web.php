@@ -112,6 +112,7 @@ Route::prefix('api/buildings')->group(function () {
     Route::get('/find-by-address', [\App\Http\Controllers\Api\BuildingController::class, 'findByAddress']);
     Route::get('/count-mls-listings', [\App\Http\Controllers\Api\BuildingController::class, 'countMLSListings']);
     Route::post('/upload-image', [\App\Http\Controllers\Api\BuildingController::class, 'uploadImage'])->middleware('auth');
+    Route::post('/generate-ai-description', [\App\Http\Controllers\Api\BuildingController::class, 'generateAiDescription'])->middleware('auth');
     Route::get('/{id}', [\App\Http\Controllers\Api\BuildingController::class, 'show']);
 });
 
