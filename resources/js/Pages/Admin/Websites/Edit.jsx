@@ -5,8 +5,17 @@ import React from 'react';
 export default function Edit({ auth }) {
     const { website, title, buildings } = usePage().props;
 
+    // Check for both snake_case and camelCase (Laravel typically sends as snake_case)
+    const agentInfo = website?.agent_info || website?.agentInfo;
+    let initialAgentImage = agentInfo?.profile_image || '';
+
+    // If the image path exists and doesn't start with http or /, prepend /storage/
+    if (initialAgentImage && !initialAgentImage.startsWith('http') && !initialAgentImage.startsWith('/')) {
+        initialAgentImage = `/storage/${initialAgentImage}`;
+    }
+
     const [logoPreview, setLogoPreview] = React.useState(website?.logo || website?.logo_url || '');
-    const [agentImagePreview, setAgentImagePreview] = React.useState(website?.agent_info?.profile_image || '');
+    const [agentImagePreview, setAgentImagePreview] = React.useState(initialAgentImage);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: website?.name || '',
@@ -35,10 +44,10 @@ export default function Edit({ auth }) {
         'contact_info.email': website?.contact_info?.email || '',
         'contact_info.address': website?.contact_info?.address || '',
         // Agent Information (from agent_info table)
-        agent_name: website?.agent_info?.agent_name || '',
-        agent_title: website?.agent_info?.agent_title || '',
-        agent_phone: website?.agent_info?.agent_phone || '',
-        brokerage: website?.agent_info?.brokerage || '',
+        agent_name: agentInfo?.agent_name || '',
+        agent_title: agentInfo?.agent_title || '',
+        agent_phone: agentInfo?.agent_phone || '',
+        brokerage: agentInfo?.brokerage || '',
         agent_profile_image: null,
         // Social media
         'social_media.facebook': website?.social_media?.facebook || '',
@@ -567,9 +576,6 @@ export default function Edit({ auth }) {
                                                         src={agentImagePreview}
                                                         alt="Agent Profile"
                                                         className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
-                                                        onError={(e) => {
-                                                            e.target.style.display = 'none';
-                                                        }}
                                                     />
                                                     {/* Remove button */}
                                                     <button
