@@ -1073,6 +1073,7 @@ class WebsiteController extends Controller
     {
         // Try to fetch property data from AMPRE API or local database
         $propertyData = null;
+        $rawAmpreData = null; // Store raw AMPRE data for AI generation
         $propertyImages = [];
         $buildingData = null;
 
@@ -1148,7 +1149,10 @@ class WebsiteController extends Controller
                         'AssociationFee' => $ampreProperty['AssociationFee'] ?? 'not set',
                     ]);
                     
-                    // Format the property data
+                    // Store raw AMPRE data for AI generation
+                    $rawAmpreData = $ampreProperty;
+
+                    // Format the property data for display
                     $propertyData = $this->formatAmprePropertyData($ampreProperty);
                     
                     // Try to match building by address for MLS properties
@@ -1385,14 +1389,17 @@ class WebsiteController extends Controller
                 ->get();
 
             // Generate AI content if it doesn't exist and we have property data
-            if ($propertyData && (!$aiDescriptionRecord || $aiFaqsCollection->count() == 0)) {
+            // Use raw AMPRE data for AI generation, or fallback to formatted data
+            $aiGenerationData = $rawAmpreData ?: $propertyData;
+
+            if ($aiGenerationData && (!$aiDescriptionRecord || $aiFaqsCollection->count() == 0)) {
                 $geminiService = new \App\Services\GeminiAIService();
 
                 // Generate description if it doesn't exist
                 if (!$aiDescriptionRecord) {
                     try {
                         \Log::info('Generating AI description for property:', ['listingKey' => $listingKey]);
-                        $descriptions = $geminiService->generatePropertyDescriptions($propertyData, $listingKey);
+                        $descriptions = $geminiService->generatePropertyDescriptions($aiGenerationData, $listingKey);
                         $aiDescriptionRecord = \App\Models\PropertyAiDescription::where('mls_id', $listingKey)->first();
                     } catch (\Exception $e) {
                         \Log::error('Failed to generate AI description:', ['error' => $e->getMessage()]);
@@ -1403,7 +1410,7 @@ class WebsiteController extends Controller
                 if ($aiFaqsCollection->count() == 0) {
                     try {
                         \Log::info('Generating AI FAQs for property:', ['listingKey' => $listingKey]);
-                        $faqsResult = $geminiService->generatePropertyFaqs($propertyData, $listingKey);
+                        $faqsResult = $geminiService->generatePropertyFaqs($aiGenerationData, $listingKey);
                         $aiFaqsCollection = \App\Models\PropertyFaq::where('mls_id', $listingKey)
                             ->where('is_active', true)
                             ->orderBy('order', 'asc')
