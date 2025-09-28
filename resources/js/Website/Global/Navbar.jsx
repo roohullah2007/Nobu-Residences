@@ -4,7 +4,7 @@ import { LoginModal } from '@/Website/Global/Components';
 import Dropdown from '@/Components/Dropdown';
 import { Heart } from '@/Website/Components/Icons';
 
-export default function Navbar({ auth = {}, website = {} }) {
+export default function Navbar({ auth = {}, website = {}, simplified = false }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -104,67 +104,75 @@ export default function Navbar({ auth = {}, website = {} }) {
                     
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex items-center" style={{ gap: '32px' }}>
-                        <Link 
-                            href="/" 
+                        <Link
+                            href="/"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Home
                         </Link>
-                        <Link 
-                            href="/toronto/for-rent" 
+                        <Link
+                            href="/toronto/for-rent"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Rent
                         </Link>
-                        <Link 
-                            href="/toronto/for-sale" 
+                        <Link
+                            href="/toronto/for-sale"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Sale
                         </Link>
-                        <Link 
-                            href="/search" 
+                        <Link
+                            href="/search"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Search All
                         </Link>
-                        <Link 
-                            href="/blog" 
+                        <Link
+                            href="/blog"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Blog
                         </Link>
-                        <Link 
-                            href="/contact" 
+                        <Link
+                            href="/contact"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
-                            style={{ 
-                                fontSize: '16px', 
-                                fontWeight: '500' 
+                            style={{
+                                fontSize: '16px',
+                                fontWeight: '500'
                             }}
                         >
                             Contact Us
                         </Link>
-                        {auth?.user ? (
+                        {simplified ? (
+                            <button
+                                onClick={() => setLoginModalOpen(true)}
+                                className="px-4 py-2 rounded-lg transition-colors font-work-sans hover:bg-gray-100"
+                                style={{ fontSize: '16px', fontWeight: '500' }}
+                            >
+                                Log In
+                            </button>
+                        ) : auth?.user ? (
                             <Dropdown>
                                 <Dropdown.Trigger>
                                     <button className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-work-sans hover:bg-gray-100">

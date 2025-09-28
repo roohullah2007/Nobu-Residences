@@ -761,10 +761,14 @@ export default function EnhancedPropertySearch({
 
   return (
     <>
-      <Navbar auth={auth} website={website} />
+      <div className="bg-[#293056] w-screen h-[85px] md:h-[120px]">
+        <div className="relative">
+          <Navbar auth={auth} website={website} simplified={true} />
+        </div>
+      </div>
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} noPadding={true}>
         <Head title={`Property Search - ${siteName}`} />
-        <div className="enhanced-property-search pt-20 md:pt-32">
+        <div className="enhanced-property-search">
         
 
         <div className="max-w-[1280px] mx-auto px-4 md:px-0">
