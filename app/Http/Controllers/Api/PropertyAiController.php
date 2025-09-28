@@ -159,13 +159,13 @@ class PropertyAiController extends Controller
             }
 
             // Generate FAQs
-            $faqs = $this->geminiService->generatePropertyFaqs($propertyData, $mlsId);
+            $faqsResult = $this->geminiService->generatePropertyFaqs($propertyData, $mlsId);
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'faqs' => $faqs['faqs'],
-                    'cached' => false
+                    'faqs' => $faqsResult['faqs'] ?? $faqsResult,
+                    'cached' => $faqsResult['cached'] ?? false
                 ]
             ]);
 

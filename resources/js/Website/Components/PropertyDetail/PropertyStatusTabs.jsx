@@ -15,8 +15,11 @@ const PropertyStatusTabs = ({ property, buildingData, aiDescription: backendAiDe
   const {
     loading: aiLoading,
     description: aiDescription,
+    faqs: aiFaqs,
     error: aiError,
     generateDescription,
+    generateFaqs,
+    generateDescriptionAndFaqs,
     getAllContent,
     setDescription
   } = usePropertyAiDescription();
@@ -29,42 +32,42 @@ const PropertyStatusTabs = ({ property, buildingData, aiDescription: backendAiDe
 
   // Auto-load existing AI description when component mounts - PRIORITY #1
   useEffect(() => {
-    // If we have AI description from backend, use it immediately
-    if (backendAiDescription && backendAiDescription.exists) {
-      console.log('✅ 🤖 Using AI description from backend');
-      setDescription({
-        overview: backendAiDescription.overview,
-        detailed: backendAiDescription.detailed
-      });
-      return;
+    // If we have AI description and FAQs from backend, use them immediately
+    if (backendAiDescription) {
+      if (backendAiDescription.overview || backendAiDescription.detailed) {
+        setDescription({
+          overview: backendAiDescription.overview,
+          detailed: backendAiDescription.detailed
+        });
+      }
+      if ((backendAiDescription.overview || backendAiDescription.detailed) && backendAiDescription.faqs) {
+        return; // Both exist, no need to generate
+      }
     }
 
     // PRIORITY: AI generation must happen FIRST before other content
-    if (mlsId && !backendAiDescription && !isGenerating) {
-      console.log('🤖 PRIORITY: Starting AI generation for MLS:', mlsId);
-
-      // First, immediately try to generate/fetch AI description
+    if (mlsId && !isGenerating) {
       setIsGenerating(true);
 
       // Quick check for existing content first
       getAllContent(mlsId).then((result) => {
-        if (result && result.description) {
-          console.log('✅ 🤖 Found existing AI description');
+        const hasDescription = result && result.description;
+        const hasFaqs = result && result.faqs && result.faqs.length > 0;
+
+        if (hasDescription && hasFaqs) {
           setIsGenerating(false);
         } else {
-          // If not found, generate AI description with HIGH PRIORITY
-          console.log('🤖 Generating AI description with HIGH PRIORITY for MLS:', mlsId);
+          // Generate missing content
           handleGenerateAiDescription();
         }
       }).catch((error) => {
         // If any error, immediately start AI generation
-        console.log('🤖 Generating AI description with HIGH PRIORITY for MLS:', mlsId);
         handleGenerateAiDescription();
       });
     }
   }, [mlsId, backendAiDescription]);
 
-  // Function to generate AI description
+  // Function to generate AI description and FAQs
   const handleGenerateAiDescription = async () => {
     if (!mlsId || isGenerating) {
       return;
@@ -72,12 +75,10 @@ const PropertyStatusTabs = ({ property, buildingData, aiDescription: backendAiDe
 
     setIsGenerating(true);
     try {
-      const result = await generateDescription(mlsId, false); // Don't force regenerate
-      if (result) {
-        console.log('✅ 🤖 AI Description generated successfully');
-      }
+      const result = await generateDescriptionAndFaqs(mlsId, false); // Don't force regenerate
+      // Result logging is handled inside generateDescriptionAndFaqs
     } catch (error) {
-      console.error('❌ 🤖 Error generating AI description:', error);
+      console.error('Error generating AI content');
     } finally {
       setIsGenerating(false);
     }

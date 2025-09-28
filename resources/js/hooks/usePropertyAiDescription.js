@@ -8,7 +8,7 @@ export const usePropertyAiDescription = () => {
     const [error, setError] = useState(null);
 
     const generateDescription = useCallback(async (mlsId, forceRegenerate = false) => {
-        console.log('🤖 Generating AI description for MLS:', mlsId);
+        console.log('🤖 Generating AI description...');
 
         setLoading(true);
         setError(null);
@@ -22,14 +22,13 @@ export const usePropertyAiDescription = () => {
             });
 
             if (response.data.success) {
-                console.log('✅ 🤖 AI description generated successfully');
+                console.log('✅ AI description generated');
                 setDescription(response.data.data);
                 return response.data.data;
             } else {
                 throw new Error(response.data.error || 'Failed to generate description');
             }
         } catch (err) {
-            console.error('❌ 🤖 Error generating AI description:', err.message);
             setError(err.response?.data?.error || err.message || 'Failed to generate AI description');
             return null;
         } finally {
@@ -38,6 +37,7 @@ export const usePropertyAiDescription = () => {
     }, []);
 
     const generateFaqs = useCallback(async (mlsId, forceRegenerate = false) => {
+        console.log('🤖 Generating AI FAQs...');
         setLoading(true);
         setError(null);
 
@@ -45,17 +45,19 @@ export const usePropertyAiDescription = () => {
             const response = await axios.post('/api/property-ai/generate-faqs', {
                 mls_id: mlsId,
                 force_regenerate: forceRegenerate
+            }, {
+                timeout: 60000 // 60 second timeout for AI generation
             });
 
-            if (response.data.success) {
+            if (response.data.success && response.data.data.faqs) {
+                console.log(`✅ AI FAQs generated (${response.data.data.faqs.length} questions)`);
                 setFaqs(response.data.data.faqs);
                 return response.data.data.faqs;
             } else {
                 throw new Error(response.data.error || 'Failed to generate FAQs');
             }
         } catch (err) {
-            console.error('Error generating AI FAQs:', err);
-            setError(err.message || 'Failed to generate AI FAQs');
+            setError(err.response?.data?.error || err.message || 'Failed to generate AI FAQs');
             return null;
         } finally {
             setLoading(false);
@@ -63,36 +65,26 @@ export const usePropertyAiDescription = () => {
     }, []);
 
     const getAllContent = useCallback(async (mlsId) => {
-        setLoading(true);
-        setError(null);
-
         try {
             const response = await axios.get('/api/property-ai/content', {
                 params: { mls_id: mlsId },
-                timeout: 5000 // 5 second timeout for fetching existing content
+                timeout: 10000 // 10 second timeout for fetching existing content
             });
 
             if (response.data.success) {
                 const { description: desc, faqs: faqList } = response.data.data;
-                console.log('✅ 🤖 Found existing AI content');
                 setDescription(desc);
                 setFaqs(faqList);
                 return response.data.data;
-            } else {
-                throw new Error(response.data.error || 'Failed to fetch AI content');
             }
-        } catch (err) {
-            if (err.response?.status === 404) {
-                // No existing content found - this is normal for new properties
-                setError(null);
-                return null;
-            }
-
-            console.error('❌ 🤖 Error fetching AI content:', err.message);
-            setError(err.response?.data?.error || err.message || 'Failed to fetch AI content');
             return null;
-        } finally {
-            setLoading(false);
+        } catch (err) {
+            // Silently handle errors - this is expected for new properties
+            if (err.response?.status !== 404) {
+                // Only log non-404 errors
+                console.error('Error fetching AI content');
+            }
+            return null;
         }
     }, []);
 
@@ -102,6 +94,61 @@ export const usePropertyAiDescription = () => {
         setError(null);
     }, []);
 
+    const generateDescriptionAndFaqs = useCallback(async (mlsId, forceRegenerate = false) => {
+        console.log('🤖 Generating AI content...');
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Generate both in parallel for better performance
+            const [descResponse, faqResponse] = await Promise.all([
+                axios.post('/api/property-ai/generate-description', {
+                    mls_id: mlsId,
+                    force_regenerate: forceRegenerate
+                }, {
+                    timeout: 60000
+                }),
+                axios.post('/api/property-ai/generate-faqs', {
+                    mls_id: mlsId,
+                    force_regenerate: forceRegenerate
+                }, {
+                    timeout: 60000
+                })
+            ]);
+
+            let success = true;
+            let descData = null;
+            let faqData = null;
+
+            if (descResponse.data.success) {
+                console.log('✅ AI description ready');
+                descData = descResponse.data.data;
+                setDescription(descData);
+            } else {
+                success = false;
+            }
+
+            if (faqResponse.data.success && faqResponse.data.data.faqs) {
+                console.log(`✅ AI FAQs ready (${faqResponse.data.data.faqs.length} questions)`);
+                faqData = faqResponse.data.data.faqs;
+                setFaqs(faqData);
+                // Log the FAQ questions for verification
+                faqResponse.data.data.faqs.forEach((faq, index) => {
+                    console.log(`   ${index + 1}. ${faq.question}`);
+                });
+            } else {
+                success = false;
+            }
+
+            return { description: descData, faqs: faqData, success };
+        } catch (err) {
+            setError(err.response?.data?.error || err.message || 'Failed to generate AI content');
+            return null;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     return {
         loading,
         description,
@@ -109,6 +156,7 @@ export const usePropertyAiDescription = () => {
         error,
         generateDescription,
         generateFaqs,
+        generateDescriptionAndFaqs,
         getAllContent,
         clearContent,
         setDescription

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { usePropertyAiDescription } from '@/hooks/usePropertyAiDescription';
 
-export default function PropertyDescriptionSection({ propertyData, aiDescription: backendAiDescription }) {
+export default function PropertyDescriptionSection({ propertyData, aiDescription: backendAiDescription, auth }) {
   // AI Description integration
   const {
     description: aiDescription,
@@ -20,7 +20,7 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
   // Auto-load existing AI description when component mounts
   useEffect(() => {
     // If we have AI description from backend, use it immediately
-    if (backendAiDescription && backendAiDescription.exists) {
+    if (backendAiDescription && (backendAiDescription.exists || backendAiDescription.overview || backendAiDescription.detailed)) {
       setDescription({
         overview: backendAiDescription.overview,
         detailed: backendAiDescription.detailed
@@ -33,21 +33,16 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
     // Wait for AI generation - this is now PRIORITY
     if (mlsId && !backendAiDescription && !hasLoadedAi) {
       setWaitingForAi(true);
-      console.log('🤖 PropertyDescriptionSection waiting for AI generation...');
 
       // Check for existing content or wait for generation
       getAllContent(mlsId).then((result) => {
         if (result && result.description) {
           setHasLoadedAi(true);
           setWaitingForAi(false);
-          console.log('✅ 🤖 PropertyDescriptionSection got AI content');
-        } else {
-          // Keep waiting - AI generation happening in PropertyStatusTabs
-          console.log('🤖 PropertyDescriptionSection still waiting for AI...');
         }
+        // Silently wait if not ready yet
       }).catch((error) => {
-        // Keep waiting for AI generation to complete
-        console.log('🤖 PropertyDescriptionSection waiting for AI generation to complete...');
+        // Silently wait for AI generation to complete
       });
     }
   }, [mlsId, backendAiDescription, hasLoadedAi]);
@@ -64,16 +59,14 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
   useEffect(() => {
     if (waitingForAi && mlsId && !hasLoadedAi) {
       const pollInterval = setInterval(() => {
-        console.log('🤖 Polling for AI description completion...');
         getAllContent(mlsId).then((result) => {
           if (result && result.description) {
-            console.log('✅ 🤖 AI description completed!');
             setHasLoadedAi(true);
             setWaitingForAi(false);
             clearInterval(pollInterval);
           }
         }).catch(() => {
-          // Continue polling on error
+          // Continue polling silently on error
         });
       }, 3000); // Check every 3 seconds
 
@@ -136,11 +129,12 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
 
   // Get property description (prioritize AI content)
   const getDescription = () => {
-    // Check for AI content from multiple sources
-    const aiContent = aiDescription?.detailed ||
-                     aiDescription?.overview ||
-                     backendAiDescription?.detailed ||
-                     backendAiDescription?.overview;
+    // Check for AI content from multiple sources - PRIORITIZE DETAILED over OVERVIEW
+    const aiDetailedContent = aiDescription?.detailed || backendAiDescription?.detailed;
+    const aiOverviewContent = aiDescription?.overview || backendAiDescription?.overview;
+
+    // Use detailed description if available, otherwise use overview
+    const aiContent = aiDetailedContent || aiOverviewContent;
 
     if (aiContent) {
       // Show loading indicator is no longer needed once we have AI content
@@ -187,9 +181,19 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
     <section className="bg-white md:py-8 ">
       <div className="mx-auto max-w-[950px]">
         <div className="bg-white">
-          <h2 className="mb-4 md:mb-6 text-center font-space-grotesk font-bold text-lg md:text-xl leading-tight" style={{ color: '#293056' }}>
-            {address}
-          </h2>
+          <div className="flex items-center justify-center gap-2 mb-4 md:mb-6">
+            <h2 className="text-center font-space-grotesk font-bold text-lg md:text-xl leading-tight" style={{ color: '#293056' }}>
+              {address}
+            </h2>
+            {description.isAiGenerated && auth?.user?.role === 'admin' && (
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                AI Generated
+              </span>
+            )}
+          </div>
           <div className="space-y-4 md:space-y-6 text-sm md:text-base leading-relaxed md:leading-normal" style={{ fontFamily: 'Work Sans', fontWeight: 400 }}>
             {/* Show AI content directly without loading indicators */}
             {description.main && (

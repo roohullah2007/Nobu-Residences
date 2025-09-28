@@ -4,12 +4,14 @@ import React, { useState } from 'react';
  * Global FAQ Component
  * Reusable across Home page, Property Detail, and other pages
  */
-const FAQ = ({ 
-  faqItems = null, 
+const FAQ = ({
+  faqItems = null,
   title = 'FAQs',
   className = '',
   containerClassName = 'md:py-8 bg-white',
-  showContainer = true
+  showContainer = true,
+  isAiGenerated = false,
+  isAdmin = false
 }) => {
   // Default FAQ data if none provided
   const defaultFAQs = [
@@ -73,9 +75,19 @@ const FAQ = ({
     <div className={`mx-auto max-w-[1280px] ${className}`}>
       <div className="md:my-4 my-3 mx-auto">
         {/* FAQ Title */}
-        <h2 className="md:text-xl text-lg font-bold md:mb-3 mb-2.5 text-black leading-5 font-space-grotesk tracking-tight">
-          {title}
-        </h2>
+        <div className="flex items-center gap-2 md:mb-3 mb-2.5">
+          <h2 className="md:text-xl text-lg font-bold text-black leading-5 font-space-grotesk tracking-tight">
+            {title}
+          </h2>
+          {isAiGenerated && isAdmin && (
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              AI Generated
+            </span>
+          )}
+        </div>
         
         {/* Accordion Container */}
         <div className="flex flex-col md:gap-4 gap-3">

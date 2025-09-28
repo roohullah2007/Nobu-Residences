@@ -1375,27 +1375,81 @@ class WebsiteController extends Controller
             \Log::info('No building data found for property:', ['listingKey' => $listingKey]);
         }
 
-        // Fetch AI description from database if it exists
+        // Fetch AI description and FAQs from database if they exist
         $aiDescription = null;
         try {
             $aiDescriptionRecord = \App\Models\PropertyAiDescription::where('mls_id', $listingKey)->first();
-            if ($aiDescriptionRecord) {
-                $aiDescription = [
-                    'overview' => $aiDescriptionRecord->overview_description,
-                    'detailed' => $aiDescriptionRecord->detailed_description,
-                    'generated_at' => $aiDescriptionRecord->created_at,
-                    'exists' => true
-                ];
-                \Log::info('Found existing AI description for property:', [
-                    'listingKey' => $listingKey,
-                    'has_overview' => !empty($aiDescriptionRecord->overview_description),
-                    'has_detailed' => !empty($aiDescriptionRecord->detailed_description)
-                ]);
+            $aiFaqsCollection = \App\Models\PropertyFaq::where('mls_id', $listingKey)
+                ->where('is_active', true)
+                ->orderBy('order', 'asc')
+                ->get();
+
+            // Generate AI content if it doesn't exist and we have property data
+            if ($propertyData && (!$aiDescriptionRecord || $aiFaqsCollection->count() == 0)) {
+                $geminiService = new \App\Services\GeminiAIService();
+
+                // Generate description if it doesn't exist
+                if (!$aiDescriptionRecord) {
+                    try {
+                        \Log::info('Generating AI description for property:', ['listingKey' => $listingKey]);
+                        $descriptions = $geminiService->generatePropertyDescriptions($propertyData, $listingKey);
+                        $aiDescriptionRecord = \App\Models\PropertyAiDescription::where('mls_id', $listingKey)->first();
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to generate AI description:', ['error' => $e->getMessage()]);
+                    }
+                }
+
+                // Generate FAQs if they don't exist
+                if ($aiFaqsCollection->count() == 0) {
+                    try {
+                        \Log::info('Generating AI FAQs for property:', ['listingKey' => $listingKey]);
+                        $faqsResult = $geminiService->generatePropertyFaqs($propertyData, $listingKey);
+                        $aiFaqsCollection = \App\Models\PropertyFaq::where('mls_id', $listingKey)
+                            ->where('is_active', true)
+                            ->orderBy('order', 'asc')
+                            ->get();
+                    } catch (\Exception $e) {
+                        \Log::error('Failed to generate AI FAQs:', ['error' => $e->getMessage()]);
+                    }
+                }
+            }
+
+            if ($aiDescriptionRecord || $aiFaqsCollection->count() > 0) {
+                $aiDescription = [];
+
+                if ($aiDescriptionRecord) {
+                    $aiDescription['overview'] = $aiDescriptionRecord->overview_description;
+                    $aiDescription['detailed'] = $aiDescriptionRecord->detailed_description;
+                    $aiDescription['generated_at'] = $aiDescriptionRecord->created_at;
+                    $aiDescription['exists'] = true;
+
+                    \Log::info('AI description ready for property:', [
+                        'listingKey' => $listingKey,
+                        'has_overview' => !empty($aiDescriptionRecord->overview_description),
+                        'has_detailed' => !empty($aiDescriptionRecord->detailed_description)
+                    ]);
+                }
+
+                if ($aiFaqsCollection->count() > 0) {
+                    $aiDescription['faqs'] = $aiFaqsCollection->map(function ($faq) {
+                        return [
+                            'id' => $faq->id,
+                            'question' => $faq->question,
+                            'answer' => $faq->answer,
+                            'order' => $faq->order
+                        ];
+                    })->toArray();
+
+                    \Log::info('AI FAQs ready for property:', [
+                        'listingKey' => $listingKey,
+                        'faq_count' => $aiFaqsCollection->count()
+                    ]);
+                }
             } else {
-                \Log::info('No AI description found in database for property:', ['listingKey' => $listingKey]);
+                \Log::info('No AI content available for property:', ['listingKey' => $listingKey]);
             }
         } catch (\Exception $e) {
-            \Log::error('Error fetching AI description:', ['error' => $e->getMessage()]);
+            \Log::error('Error fetching AI content:', ['error' => $e->getMessage()]);
         }
 
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [

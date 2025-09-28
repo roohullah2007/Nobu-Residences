@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FAQ, PropertyCarousel } from '@/Website/Global/Components';
 import {
   PropertyStatusTabs,
@@ -16,6 +16,18 @@ export default function PropertySections({
   buildingData,
   aiDescription
 }) {
+  // Log AI description and FAQs for debugging (minimal logging)
+  useEffect(() => {
+    if (aiDescription) {
+      if (aiDescription.overview || aiDescription.detailed) {
+        console.log('✅ AI description displayed');
+      }
+
+      if (aiDescription.faqs && aiDescription.faqs.length > 0) {
+        console.log(`✅ AI FAQs displayed (${aiDescription.faqs.length} questions)`);
+      }
+    }
+  }, [aiDescription]);
 
   return (
     <div className="min-h-screen flex flex-col gap-4 font-work-sans overflow-x-hidden">
@@ -115,11 +127,19 @@ export default function PropertySections({
       {/* Comparable Sales Section */}
       
       {/* Property Description Section */}
-      <PropertyDescriptionSection propertyData={propertyData} aiDescription={aiDescription} />
+      <PropertyDescriptionSection propertyData={propertyData} aiDescription={aiDescription} auth={auth} />
 
       {/* FAQ Section */}
       <div className="faq-section">
-        <FAQ />
+        <FAQ
+          faqItems={aiDescription?.faqs ? aiDescription.faqs.map((faq, index) => ({
+            id: faq.id || index + 1,
+            question: faq.question,
+            answer: faq.answer
+          })) : null}
+          isAiGenerated={!!aiDescription?.faqs && aiDescription.faqs.length > 0}
+          isAdmin={auth?.user?.role === 'admin'}
+        />
       </div>
 
  
