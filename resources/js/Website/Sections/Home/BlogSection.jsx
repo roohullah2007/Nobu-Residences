@@ -80,7 +80,10 @@ const BlogCard = ({ blog, formatDate }) => {
     const categorySlug = blog.blog_category?.slug || blog.category?.toLowerCase() || 'general';
 
     return (
-        <Link href={`/blogs/${blog.slug || blog.id}`}>
+        <Link
+            href={`/blogs/${blog.slug || blog.id}`}
+            className="block group"
+        >
             <article className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
                 {/* Blog Image */}
                 {blog.image ? (
@@ -103,7 +106,7 @@ const BlogCard = ({ blog, formatDate }) => {
                     </span>
 
                     {/* Blog Title */}
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                         {blog.title}
                     </h3>
 

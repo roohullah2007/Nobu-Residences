@@ -148,8 +148,12 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 {filteredPosts.map(post => (
-                                    <Link key={post.id} href={`/blogs/${post.slug || post.id}`}>
-                                        <article className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer">
+                                    <Link
+                                        key={post.id}
+                                        href={`/blogs/${post.slug || post.id}`}
+                                        className="block group"
+                                    >
+                                        <article className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer h-full">
                                             {post.image ? (
                                                 <img
                                                     src={post.image}
@@ -171,7 +175,7 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                                                         {post.blog_category.name}
                                                     </span>
                                                 )}
-                                                <h3 className="text-lg font-semibold text-gray-900 mb-2 hover:text-blue-600 transition-colors">
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                                                     {post.title}
                                                 </h3>
                                                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">
