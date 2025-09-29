@@ -45,10 +45,18 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
 
   const primaryAddress = getPrimaryAddress();
   // Format as URL: "15 Mercer St" becomes "15-Mercer"
-  const buildingUrlSlug = primaryAddress
+  let buildingUrlSlug = primaryAddress
     .replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '')
     .replace(/[,\.]/g, '')
     .replace(/\s+/g, '-');
+
+  // Check if this is a Mercer building (15 or 35 Mercer)
+  const isMercerBuilding = buildingUrlSlug === '15-Mercer' || buildingUrlSlug === '35-Mercer';
+
+  // Use combined URL for Mercer buildings
+  if (isMercerBuilding) {
+    buildingUrlSlug = '15-35-Mercer';
+  }
   
   // Fetch property counts on component mount
   useEffect(() => {

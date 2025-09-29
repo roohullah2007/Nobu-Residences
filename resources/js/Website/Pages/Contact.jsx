@@ -6,9 +6,8 @@ import ContactInfo from '@/Website/Sections/Contact/ContactInfo';
 
 export default function Contact({ auth, siteName, siteUrl, year, website }) {
   return (
-    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader={true}>
       <Head title={`Contact Us - ${siteName}`} />
-      
       <div className="idx mx-auto overflow-hidden bg-primary">
         <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
           

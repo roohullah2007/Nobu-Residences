@@ -13,6 +13,7 @@ export default function BlogCreate() {
         content: '',
         excerpt: '',
         category: '',
+        category_id: null,
         status: 'draft',
         image: null,
         meta_title: '',
@@ -236,26 +237,36 @@ export default function BlogCreate() {
                             <div className="bg-white border border-gray-200 rounded-lg p-4">
                                 <h3 className="text-sm font-medium text-gray-900 mb-3">Category</h3>
                                 <div>
-                                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                                    <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-2">
                                         Category
                                     </label>
-                                    <input
-                                        type="text"
-                                        id="category"
-                                        value={data.category}
-                                        onChange={(e) => setData('category', e.target.value)}
+                                    <select
+                                        id="category_id"
+                                        value={data.category_id || ''}
+                                        onChange={(e) => {
+                                            const selectedId = e.target.value;
+                                            const selectedCategory = categories.find(c => c.id == selectedId);
+                                            setData({
+                                                ...data,
+                                                category_id: selectedId ? parseInt(selectedId) : null,
+                                                category: selectedCategory ? selectedCategory.name : ''
+                                            });
+                                        }}
                                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        placeholder="Enter category..."
-                                        list="categories"
-                                    />
-                                    <datalist id="categories">
+                                    >
+                                        <option value="">Select a category...</option>
                                         {categories.map(category => (
-                                            <option key={category} value={category} />
+                                            <option key={category.id} value={category.id}>
+                                                {category.name}
+                                            </option>
                                         ))}
-                                    </datalist>
-                                    {errors.category && (
-                                        <p className="mt-1 text-sm text-red-600">{errors.category}</p>
+                                    </select>
+                                    {errors.category_id && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.category_id}</p>
                                     )}
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Choose a category to organize your blog post
+                                    </p>
                                 </div>
                             </div>
 

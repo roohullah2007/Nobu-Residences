@@ -22,6 +22,12 @@ Route::get('/rent', [WebsiteController::class, 'rent'])->name('rent');
 Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
 
+// Special routes for combined Mercer buildings
+Route::get('/15-35-Mercer/for-sale', [WebsiteController::class, 'mercerBuildingsForSale'])
+    ->name('mercer-buildings-for-sale');
+Route::get('/15-35-Mercer/for-rent', [WebsiteController::class, 'mercerBuildingsForRent'])
+    ->name('mercer-buildings-for-rent');
+
 // SEO-friendly building-based search routes (e.g., /15-Mercer/for-sale)
 Route::get('/{building}/for-sale', [WebsiteController::class, 'buildingForSale'])
     ->where('building', '\d+-[A-Za-z\-]+')
@@ -37,8 +43,8 @@ Route::get('/{city}/for-sale', [WebsiteController::class, 'cityForSale'])
 Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
     ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-rent');
-Route::get('/blog', [WebsiteController::class, 'blog'])->name('blog');
-Route::get('/blog/{slug}', [WebsiteController::class, 'blogDetail'])->name('blog.detail');
+Route::get('/blogs', [WebsiteController::class, 'blog'])->name('blog');
+Route::get('/blogs/{slug}', [WebsiteController::class, 'blogDetail'])->name('blog.detail');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
@@ -281,6 +287,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::delete('/{blog}', [\App\Http\Controllers\Admin\BlogController::class, 'destroy'])->name('destroy');
         Route::post('/bulk-delete', [\App\Http\Controllers\Admin\BlogController::class, 'bulkDelete'])->name('bulk-delete');
     });
+
+    // Blog Categories Management routes
+    Route::resource('blog-categories', \App\Http\Controllers\Admin\BlogCategoryController::class);
 });
 
 require __DIR__.'/auth.php';

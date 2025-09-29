@@ -132,7 +132,18 @@ class PropertySearchController extends Controller
                 $properties = $page1Properties;
                 $sanitizedParams['page'] = 1;
             }
-            
+
+            // Debug log for search results
+            Log::info("Property search executed", [
+                'location' => $sanitizedParams['query'] ?? 'none',
+                'property_type' => $sanitizedParams['property_type'] ?? [],
+                'property_status' => $sanitizedParams['property_status'] ?? '',
+                'status' => $sanitizedParams['status'] ?? '',
+                'search_type' => $sanitizedParams['search_type'] ?? '',
+                'total_found' => $totalCount,
+                'properties_returned' => count($properties)
+            ]);
+
             // Debug log for Sold/Leased searches
             if (!empty($sanitizedParams['property_status'])) {
                 Log::info("Property status search results", [
@@ -854,16 +865,23 @@ class PropertySearchController extends Controller
             ]);
         }
 
+        // Check for Nobu Residences special case (both 15 and 35 Mercer)
+        if (!empty($params['mercer_buildings']) && !empty($params['street_name']) && strtolower($params['street_name']) === 'mercer') {
+            // Search for both 15 and 35 Mercer Street
+            $this->ampreApi->addCustomFilter("(StreetNumber eq '15' or StreetNumber eq '35')");
+            $this->ampreApi->addCustomFilter("contains(StreetName, 'Mercer')");
+            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+        }
         // Check for street_number and street_name parameters first
-        if (!empty($params['street_number']) && !empty($params['street_name'])) {
+        elseif (!empty($params['street_number']) && !empty($params['street_name'])) {
             // If both street_number and street_name are provided, search for that specific address
             $streetNumber = trim($params['street_number']);
             $streetName = trim($params['street_name']);
-            
+
             // Apply filters for street number and street name
             $this->ampreApi->addFilter('StreetNumber', $streetNumber);
             $this->ampreApi->addCustomFilter("contains(StreetName, '{$streetName}')");
-            
+
             // Also search in Toronto area
             $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
         } elseif (!empty($params['query']) && trim($params['query']) !== '') {
@@ -1074,10 +1092,356 @@ class PropertySearchController extends Controller
         }
         
         // Fallback to original search for simple queries
-        $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
-                       "or contains(City, '" . $escapedQuery . "') " .
-                       "or contains(PostalCode, '" . $escapedQuery . "'))";
-        
+        // Check if this is a neighborhood search (not a postal code and not a full address)
+        // Allow multi-word neighborhoods like "Bay St. Corridor" or "Yonge and Eglinton"
+        $isNeighborhood = !preg_match('/[A-Z]\d[A-Z]/i', $escapedQuery) && str_word_count($escapedQuery) <= 5;
+
+        if ($isNeighborhood) {
+            // For neighborhoods, search more broadly in Toronto area
+            // Many Toronto neighborhoods don't have the neighborhood name in the address fields
+            $knownNeighborhoods = [
+                'yorkville' => 'Toronto',
+                'the annex' => 'Toronto',
+                'rosedale' => 'Toronto',
+                'forest hill' => 'Toronto',
+                'king west' => 'Toronto',
+                'bay st. corridor' => 'Toronto',
+                'entertainment district' => 'Toronto',
+                'financial district' => 'Toronto',
+                'liberty village' => 'Toronto',
+                'cityplace' => 'Toronto',
+                'mimico' => 'Toronto',
+                'the waterfront' => 'Toronto',
+                'st. lawrence' => 'Toronto',
+                'distillery district' => 'Toronto',
+                'regent park' => 'Toronto',
+                'corktown' => 'Toronto',
+                'church st. corridor' => 'Toronto',
+                'yonge and bloor' => 'Toronto',
+                'mount pleasant west' => 'Toronto',
+                'willowdale east' => 'Toronto',
+                'davisville' => 'Toronto',
+                'yonge and eglinton' => 'Toronto',
+                'lawrence park' => 'Toronto',
+                'leaside' => 'Toronto',
+                'sheppard and yonge' => 'Toronto',
+                'bayview village' => 'Toronto',
+                'don mills' => 'Toronto',
+                'york mills' => 'Toronto',
+                'humber bay' => 'Toronto',
+                'islington village' => 'Toronto',
+                'royal york' => 'Toronto',
+                'the kingsway' => 'Toronto',
+                'scarborough town centre' => 'Toronto',
+                'birch cliff' => 'Toronto',
+                'cliffside' => 'Toronto',
+                'guildwood' => 'Toronto',
+                'leslieville' => 'Toronto',
+                'beaches' => 'Toronto',
+                'the beach' => 'Toronto',
+                'etobicoke' => 'Toronto',
+                'scarborough' => 'Toronto',
+                'north york' => 'Toronto',
+                'mississauga' => 'Mississauga',
+                'oakville' => 'Oakville',
+                'burlington' => 'Burlington',
+                'richmond hill' => 'Richmond Hill',
+                'vaughan' => 'Vaughan',
+                'markham' => 'Markham',
+                'aurora' => 'Aurora',
+                'pickering' => 'Pickering',
+                'ajax' => 'Ajax',
+                'brampton' => 'Brampton',
+                'milton' => 'Milton',
+                'caledon' => 'Caledon',
+                'whitby' => 'Whitby',
+                'oshawa' => 'Oshawa'
+            ];
+
+            $lowerQuery = strtolower($escapedQuery);
+            if (isset($knownNeighborhoods[$lowerQuery])) {
+                // Search in the city where this neighborhood is located
+                $city = $knownNeighborhoods[$lowerQuery];
+
+                // Log for debugging
+                \Log::info('Neighborhood search detected', [
+                    'query' => $escapedQuery,
+                    'city' => $city,
+                    'neighborhood' => $lowerQuery,
+                    'search_type' => 'neighborhood'
+                ]);
+
+                // Try to find properties with the neighborhood name in available fields
+                // Only use fields that exist in AMPRE API
+                $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
+                               "or contains(StreetName, '" . $escapedQuery . "'))";
+
+                // Neighborhood-specific search logic
+                switch ($lowerQuery) {
+                    case 'yorkville':
+                        // Yorkville postal codes (M4Y, M5R, parts of M4W)
+                        $postalCodes = ['M4Y', 'M5R', 'M4W'];
+                        $streets = ['Cumberland', 'Yorkville', 'Hazelton', 'Scollard', 'Bellair'];
+                        break;
+                    case 'bay st. corridor':
+                        // Bay Street Corridor postal codes
+                        $postalCodes = ['M5G', 'M5S', 'M5R'];
+                        $streets = ['Bay', 'Charles', 'St Joseph', 'St Mary', 'Irwin'];
+                        break;
+                    case 'entertainment district':
+                        // Entertainment District postal codes
+                        $postalCodes = ['M5V', 'M5J'];
+                        $streets = ['King', 'Peter', 'John', 'Duncan', 'Adelaide'];
+                        break;
+                    case 'financial district':
+                        // Financial District postal codes
+                        $postalCodes = ['M5H', 'M5J', 'M5X'];
+                        $streets = ['Bay', 'York', 'Wellington', 'Front', 'Richmond'];
+                        break;
+                    case 'cityplace':
+                        // CityPlace postal codes
+                        $postalCodes = ['M5V'];
+                        $streets = ['Spadina', 'Bremner', 'Fort York', 'Dan Leckie', 'Canoe'];
+                        break;
+                    case 'mimico':
+                        // Mimico postal codes
+                        $postalCodes = ['M8V'];
+                        $streets = ['Lake Shore', 'Park Lawn', 'Marine Parade', 'Grand', 'Superior'];
+                        break;
+                    case 'the waterfront':
+                        // Waterfront postal codes
+                        $postalCodes = ['M5V', 'M5J', 'M5A'];
+                        $streets = ['Queens Quay', 'Lake Shore', 'Harbour', 'York', 'Yonge'];
+                        break;
+                    case 'st. lawrence':
+                        // St. Lawrence postal codes
+                        $postalCodes = ['M5A', 'M5E'];
+                        $streets = ['Front', 'King', 'Market', 'Jarvis', 'The Esplanade'];
+                        break;
+                    case 'regent park':
+                        // Regent Park postal codes
+                        $postalCodes = ['M5A'];
+                        $streets = ['Dundas', 'River', 'Oak', 'Sackville', 'Regent'];
+                        break;
+                    case 'church st. corridor':
+                        // Church Street Corridor postal codes
+                        $postalCodes = ['M4Y', 'M5B'];
+                        $streets = ['Church', 'Wellesley', 'Carlton', 'McGill', 'Alexander'];
+                        break;
+                    case 'yonge and bloor':
+                        // Yonge and Bloor postal codes
+                        $postalCodes = ['M4W', 'M4Y', 'M5R'];
+                        $streets = ['Yonge', 'Bloor', 'Cumberland', 'Bay', 'Charles'];
+                        break;
+                    case 'mount pleasant west':
+                        // Mount Pleasant West postal codes
+                        $postalCodes = ['M4S', 'M4P'];
+                        $streets = ['Mount Pleasant', 'Eglinton', 'Davisville', 'Soudan', 'Manor'];
+                        break;
+                    case 'willowdale east':
+                        // Willowdale East postal codes
+                        $postalCodes = ['M2N', 'M2M'];
+                        $streets = ['Yonge', 'Sheppard', 'Finch', 'Empress', 'Byng'];
+                        break;
+                    case 'davisville':
+                        // Davisville postal codes
+                        $postalCodes = ['M4S', 'M4P'];
+                        $streets = ['Davisville', 'Mount Pleasant', 'Bayview', 'Cleveland', 'Millwood'];
+                        break;
+                    case 'yonge and eglinton':
+                        // Yonge and Eglinton postal codes
+                        $postalCodes = ['M4P', 'M4S'];
+                        $streets = ['Yonge', 'Eglinton', 'Broadway', 'Roehampton', 'Redpath'];
+                        break;
+                    case 'lawrence park':
+                        // Lawrence Park postal codes
+                        $postalCodes = ['M4N', 'M5P'];
+                        $streets = ['Lawrence', 'Mount Pleasant', 'Bayview', 'Yonge', 'St Clements'];
+                        break;
+                    case 'leaside':
+                        // Leaside postal codes
+                        $postalCodes = ['M4G', 'M4H'];
+                        $streets = ['Bayview', 'Laird', 'Eglinton', 'McRae', 'Sutherland'];
+                        break;
+                    case 'sheppard and yonge':
+                        // Sheppard and Yonge postal codes
+                        $postalCodes = ['M2N', 'M2P'];
+                        $streets = ['Sheppard', 'Yonge'];
+                        break;
+                    case 'bayview village':
+                        // Bayview Village postal codes
+                        $postalCodes = ['M2K', 'M2L'];
+                        $streets = ['Bayview', 'Sheppard'];
+                        break;
+                    case 'don mills':
+                        // Don Mills postal codes
+                        $postalCodes = ['M3B', 'M3C'];
+                        $streets = ['Don Mills', 'Lawrence', 'Eglinton'];
+                        break;
+                    case 'york mills':
+                        // York Mills postal codes
+                        $postalCodes = ['M2P', 'M2L'];
+                        $streets = ['York Mills', 'Bayview', 'Leslie'];
+                        break;
+                    case 'humber bay':
+                        // Humber Bay postal codes
+                        $postalCodes = ['M8V', 'M8W'];
+                        $streets = ['Lake Shore', 'Park Lawn', 'Marine Parade'];
+                        break;
+                    case 'islington village':
+                        // Islington Village postal codes
+                        $postalCodes = ['M9A'];
+                        $streets = ['Islington', 'Bloor', 'Dundas'];
+                        break;
+                    case 'royal york':
+                        // Royal York postal codes
+                        $postalCodes = ['M8Y', 'M8Z'];
+                        $streets = ['Royal York', 'The Kingsway', 'Bloor'];
+                        break;
+                    case 'the kingsway':
+                        // The Kingsway postal codes
+                        $postalCodes = ['M8X', 'M9A'];
+                        $streets = ['The Kingsway', 'Bloor', 'Royal York'];
+                        break;
+                    case 'scarborough town centre':
+                        // Scarborough Town Centre postal codes
+                        $postalCodes = ['M1P', 'M1W'];
+                        $streets = ['McCowan', 'Ellesmere', 'Borough', 'Progress'];
+                        break;
+                    case 'birch cliff':
+                        // Birch Cliff postal codes
+                        $postalCodes = ['M1M', 'M1N'];
+                        $streets = ['Kingston', 'Birch Cliff', 'Warden'];
+                        break;
+                    case 'cliffside':
+                        // Cliffside postal codes
+                        $postalCodes = ['M1M'];
+                        $streets = ['Kingston', 'Bellamy', 'Scarborough Golf Club'];
+                        break;
+                    case 'guildwood':
+                        // Guildwood postal codes
+                        $postalCodes = ['M1E'];
+                        $streets = ['Guildwood', 'Kingston', 'Morningside'];
+                        break;
+
+                    case 'the annex':
+                        // The Annex postal codes (M5R, M5S)
+                        $postalCodes = ['M5R', 'M5S'];
+                        $streets = ['Bloor', 'Spadina', 'Bathurst', 'Madison', 'Walmer', 'Brunswick'];
+                        break;
+
+                    case 'rosedale':
+                        // Rosedale postal codes (M4W, M4X)
+                        $postalCodes = ['M4W', 'M4X', 'M5A'];
+                        $streets = ['Park', 'Rosedale', 'Glen', 'Crescent', 'Chestnut Park'];
+                        break;
+
+                    case 'forest hill':
+                        // Forest Hill postal codes (M4V, M5N, M5P)
+                        $postalCodes = ['M4V', 'M5N', 'M5P'];
+                        $streets = ['Spadina Road', 'Forest Hill', 'Russell Hill', 'Old Forest Hill', 'Lonsdale'];
+                        break;
+
+                    case 'king west':
+                        // King West postal codes (M5V, M5H)
+                        $postalCodes = ['M5V', 'M5H', 'M5X'];
+                        $streets = ['King', 'Wellington', 'Front', 'Portland', 'Spadina'];
+                        break;
+
+                    case 'liberty village':
+                        // Liberty Village postal codes (M6K)
+                        $postalCodes = ['M6K'];
+                        $streets = ['Liberty', 'Strachan', 'East Liberty', 'Hanna', 'Atlantic'];
+                        break;
+
+                    case 'distillery district':
+                        // Distillery District postal codes (M5A)
+                        $postalCodes = ['M5A'];
+                        $streets = ['Mill', 'Trinity', 'Distillery', 'Gristmill', 'Tank House'];
+                        break;
+
+                    case 'etobicoke':
+                        // Major Etobicoke areas
+                        $postalCodes = ['M8V', 'M8W', 'M8X', 'M8Y', 'M8Z', 'M9A', 'M9B', 'M9C', 'M9P', 'M9R', 'M9V', 'M9W'];
+                        $streets = null; // Too large, search by postal codes and city
+                        break;
+
+                    case 'scarborough':
+                        // Major Scarborough areas
+                        $postalCodes = ['M1B', 'M1C', 'M1E', 'M1G', 'M1H', 'M1J', 'M1K', 'M1L', 'M1M', 'M1N', 'M1P', 'M1R', 'M1S', 'M1T', 'M1V', 'M1W', 'M1X'];
+                        $streets = null; // Too large, search by postal codes and city
+                        break;
+
+                    case 'north york':
+                        // Major North York areas
+                        $postalCodes = ['M2H', 'M2J', 'M2K', 'M2L', 'M2M', 'M2N', 'M2P', 'M2R', 'M3A', 'M3B', 'M3C', 'M3H', 'M3J', 'M3K', 'M3L', 'M3M', 'M3N', 'M4A', 'M5M', 'M6A', 'M6B', 'M6L', 'M9L', 'M9M'];
+                        $streets = null; // Too large, search by postal codes and city
+                        break;
+
+                    default:
+                        // For cities like Mississauga, Oakville, etc., just search by city name
+                        $postalCodes = null;
+                        $streets = null;
+                        break;
+                }
+
+                // Build the search filter based on available data
+                if (!empty($postalCodes) || !empty($streets)) {
+                    $filters = [];
+
+                    // Add postal code filters
+                    if (!empty($postalCodes)) {
+                        $postalFilters = [];
+                        foreach ($postalCodes as $postal) {
+                            $postalFilters[] = "contains(PostalCode, '" . $postal . "')";
+                        }
+                        $filters[] = "(" . implode(' or ', $postalFilters) . ")";
+                    }
+
+                    // Add street filters
+                    if (!empty($streets)) {
+                        $streetFilters = [];
+                        foreach ($streets as $street) {
+                            $streetFilters[] = "contains(StreetName, '" . $street . "')";
+                        }
+                        $filters[] = "(" . implode(' or ', $streetFilters) . ")";
+                    }
+
+                    // Combine filters with OR and limit to city
+                    $searchFilter = "(" . implode(' or ', $filters) . ") and contains(City, '" . $city . "')";
+
+                    // Log the final search filter for debugging
+                    \Log::info('Neighborhood search filter built', [
+                        'neighborhood' => $lowerQuery,
+                        'postal_codes' => $postalCodes ?? [],
+                        'streets' => $streets ?? [],
+                        'filter' => $searchFilter
+                    ]);
+                } else {
+                    // For regular cities or unknown neighborhoods
+                    $searchFilter = "contains(City, '" . $city . "')";
+                }
+            } else {
+                // For unknown neighborhoods, search in available fields
+                $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
+                               "or contains(City, '" . $escapedQuery . "') " .
+                               "or contains(StreetName, '" . $escapedQuery . "'))";
+            }
+        } else {
+            // Enhanced search for addresses and other queries
+            $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
+                           "or contains(City, '" . $escapedQuery . "') " .
+                           "or contains(PostalCode, '" . $escapedQuery . "') " .
+                           "or contains(StreetName, '" . $escapedQuery . "'))";
+        }
+
+        // Debug logging for search filter
+        \Log::info('Applied search filter:', [
+            'query' => $escapedQuery,
+            'filter' => $searchFilter,
+            'isNeighborhood' => $isNeighborhood ?? false
+        ]);
+
         $this->ampreApi->addCustomFilter($searchFilter);
     }
 

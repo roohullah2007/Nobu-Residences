@@ -42,7 +42,17 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
         maxPrice: initialValues.maxPrice || 10000000,
     });
 
-    const [searchType, setSearchType] = useState('street'); // street, city, postal, global
+    // Determine initial search type based on initialValues
+    const getInitialSearchType = () => {
+        // If search_type is provided in initialValues, use it
+        if (initialValues.searchType) {
+            return initialValues.searchType;
+        }
+        // Otherwise, default to global for better flexibility
+        return 'global';
+    };
+
+    const [searchType, setSearchType] = useState(getInitialSearchType()); // street, city, postal, global
     const [showSearchTypeDropdown, setShowSearchTypeDropdown] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [showPriceSlider, setShowPriceSlider] = useState(false);
@@ -51,6 +61,16 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
     const autocompleteRef = useRef(null);
     const dropdownRef = useRef(null);
     const priceSliderRef = useRef(null);
+
+    // Update searchData when initialValues.location changes
+    useEffect(() => {
+        if (initialValues.location !== undefined) {
+            setSearchData(prev => ({
+                ...prev,
+                location: initialValues.location || ''
+            }));
+        }
+    }, [initialValues.location]);
 
     // Search type options
     const searchTypes = [
@@ -414,7 +434,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                     {/* Transaction Type */}
                     <div className="relative">
                         <select
-                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyStatus ? 'from-gray-100 to-gray-200 cursor-not-allowed opacity-60' : searchData.propertyType !== 'For Sale' ? 'from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-200' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl ${searchData.propertyStatus ? '' : 'hover:border-gray-400'} transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
+                            className={`idx-ampre-search-bar appearance-none w-full lg:w-48 pl-4 pr-10 py-3.5 bg-gradient-to-b ${searchData.propertyStatus ? 'from-gray-100 to-gray-200 cursor-not-allowed opacity-60' : 'from-white to-gray-50'} border-2 border-gray-300 rounded-xl ${searchData.propertyStatus ? '' : 'hover:border-gray-400'} transition-all cursor-pointer text-gray-900 shadow-sm font-medium text-sm`}
                             value={searchData.propertyType}
                             onChange={(e) => setSearchData({ ...searchData, propertyType: e.target.value })}
                             disabled={!!searchData.propertyStatus}
@@ -423,7 +443,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             <option value="For Sale">For Sale</option>
                             <option value="For Rent">For Rent</option>
                         </select>
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <ChevronDown className={`w-5 h-5 ${searchData.propertyStatus ? 'text-gray-400' : 'text-[#912018]'}`} />
                         </div>
                     </div>
@@ -458,7 +478,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                             <option value="Sold">Sold</option>
                             <option value="Leased">Leased</option>
                         </select>
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
+                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <ChevronDown className="w-5 h-5 text-[#912018]" />
                         </div>
                     </div>
@@ -567,7 +587,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                                 ? `${formatPrice(searchData.minPrice)} - ${formatPrice(searchData.maxPrice)}`
                                 : 'Select price range...'
                             }
-                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none bg-white rounded-md px-1">
+                            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none">
                                 <ChevronDown className={`w-5 h-5 text-[#912018] transition-transform ${showPriceSlider ? 'rotate-180' : ''}`} />
                             </div>
                         </button>

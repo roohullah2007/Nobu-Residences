@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head } from '@inertiajs/react';
-import MainLayout from '@/Layouts/MainLayout';
+import MainLayout from '@/Website/Global/MainLayout';
 import Navbar from '@/Website/Global/Navbar';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
@@ -196,6 +196,7 @@ export default function EnhancedPropertySearch({
   if (propertySubType !== null) {
     // If property_sub_type is explicitly set in URL (even as empty), use it
     propertyTypeArray = propertySubType ? [propertySubType] : [];
+    console.log('🏠 Property type from URL:', propertySubType, '→ Array:', propertyTypeArray);
   }
   
   // Default to Condo Apartment if building_id is provided (from building count buttons)
@@ -211,7 +212,8 @@ export default function EnhancedPropertySearch({
   const [searchFilters, setSearchFilters] = useState({
     query: locationQuery,
     status: mapStatusToDisplay(filters.status || filters.forSale || statusFromTransaction || urlParams.get('status') || urlParams.get('property_type') || 'For Sale'),
-    property_type: propertyTypeArray.length > 0 ? propertyTypeArray : ['Condo Apartment'], // Default to Condo Apartment if no type specified
+    property_status: urlParams.get('property_status') || filters.property_status || '', // For Sold/Leased properties
+    property_type: propertyTypeArray.length > 0 ? propertyTypeArray : [], // Don't default if no type specified
     building_id: buildingId || filters.building_id || '',
     street_number: streetNumber || filters.street_number || '',
     street_name: streetName || filters.street_name || '',
@@ -274,7 +276,36 @@ export default function EnhancedPropertySearch({
     // Reset viewport properties when doing a new search
     setShowViewportProperties(false);
     setViewportProperties([]);
-    
+
+    // Update URL with search params
+    const url = new URL(window.location);
+
+    // Clear all existing search params except 'tab' and 'page'
+    const tabParam = url.searchParams.get('tab');
+    const pageParam = resetPage ? '1' : (url.searchParams.get('page') || '1');
+
+    // Clear all params
+    for (const key of [...url.searchParams.keys()]) {
+      url.searchParams.delete(key);
+    }
+
+    // Add back essential params
+    if (tabParam) url.searchParams.set('tab', tabParam);
+    url.searchParams.set('page', pageParam);
+
+    // Add query/location to URL
+    if (params.query) {
+      url.searchParams.set('query', params.query);
+    }
+
+    // Add other relevant params
+    if (params.status && params.status !== 'For Sale') {
+      url.searchParams.set('status', params.status);
+    }
+
+    // Update the URL without reloading
+    window.history.replaceState({}, '', url);
+
     try {
       // Use different endpoint based on active tab (use override if provided)
       const currentTab = tabOverride || activeTab;
@@ -311,7 +342,8 @@ export default function EnhancedPropertySearch({
         // Include street_number and street_name if present
         if (params.street_number) mappedParams.street_number = params.street_number;
         if (params.street_name) mappedParams.street_name = params.street_name;
-        
+        if (params.mercer_buildings) mappedParams.mercer_buildings = params.mercer_buildings;
+
         searchParams = {
           ...mappedParams,
           page: resetPage ? 1 : (params.page || 1),
@@ -325,8 +357,19 @@ export default function EnhancedPropertySearch({
       console.log('🔍 Search Parameters:', {
         ...searchParams,
         property_status: searchParams.property_status,
-        status: searchParams.status
+        status: searchParams.status,
+        query: searchParams.query,
+        property_type: searchParams.property_type
       });
+
+      // Special logging for neighborhood searches
+      if (searchParams.query) {
+        console.log('🏘️ Neighborhood Search:', {
+          query: searchParams.query,
+          isNeighborhoodSearch: ['yorkville', 'the annex', 'rosedale', 'forest hill'].includes(searchParams.query.toLowerCase()),
+          propertyTypes: searchParams.property_type
+        });
+      }
 
       // Add fetch_for_map flag when on page 1 for properties
       const fetchForMap = currentTab === 'listings' && searchParams.page === 1;
@@ -443,13 +486,17 @@ export default function EnhancedPropertySearch({
       // Get street address from filters prop (passed from controller) or URL parameters
       const streetNumber = filters.street_number || urlParams.get('street_number');
       const streetName = filters.street_name || urlParams.get('street_name');
-      const locationQuery = (streetNumber && streetName) ? `${streetNumber} ${streetName}` : (urlParams.get('query') || urlParams.get('location') || filters.location || filters.query || '');
+      // Special handling for Mercer buildings
+      const locationQuery = filters.mercer_buildings ? '15 & 35 Mercer' :
+        (streetNumber && streetName) ? `${streetNumber} ${streetName}` :
+        (urlParams.get('query') || urlParams.get('location') || filters.location || filters.query || '');
 
       // Build filters from URL params, but use controller filters as defaults
       const initialFilters = {
         query: locationQuery,
         street_number: streetNumber || '',
         street_name: streetName || '',
+        mercer_buildings: filters.mercer_buildings || false,
         status: mapStatusToDisplay(statusFromTransaction || statusFromUrl || filters.status || 'For Sale'),
         property_type: propertyTypes.length > 0 ? propertyTypes : (filters.property_type || ['Condo Apartment']),
         building_id: buildingIdFromUrl || filters.building_id || '',
@@ -482,7 +529,7 @@ export default function EnhancedPropertySearch({
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [filters.street_number, filters.street_name, filters.transaction_type]); // Re-run when filters from controller change
+  }, [filters.street_number, filters.street_name, filters.transaction_type, filters.mercer_buildings]); // Re-run when filters from controller change
 
   const handleFilterChange = (field, value) => {
     // Reset to page 1 when filters change
@@ -760,13 +807,7 @@ export default function EnhancedPropertySearch({
 
 
   return (
-    <>
-      <div className="bg-[#293056] w-screen h-[85px] md:h-[120px]">
-        <div className="relative">
-          <Navbar auth={auth} website={website} simplified={true} />
-        </div>
-      </div>
-      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} noPadding={true}>
+    <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} noPadding={true} blueHeader={true}>
         <Head title={`Property Search - ${siteName}`} />
         <div className="enhanced-property-search">
         
@@ -976,6 +1017,7 @@ export default function EnhancedPropertySearch({
                 bathrooms: String(searchFilters.bathrooms || '0'),
                 minPrice: searchFilters.price_min || 0,
                 maxPrice: searchFilters.price_max || 10000000,
+                searchType: urlParams.get('search_type') || 'global',
               }}
               onSearch={(searchData) => {
                 setSearchFilters(prev => ({
@@ -1289,7 +1331,13 @@ export default function EnhancedPropertySearch({
             <div className="mb-8">
               {/* Main Heading */}
               <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] tracking-[-0.03em] text-black mb-6">
-                {activeTab === 'listings' ? 'Property Listings' : 'Buildings'}
+                {activeTab === 'listings'
+                  ? (searchFilters.property_status === 'Sold' ? 'Sold Properties' :
+                     searchFilters.property_status === 'Leased' ? 'Leased Properties' :
+                     searchFilters.status === 'For Rent' ? 'Properties For Rent' :
+                     searchFilters.status === 'For Sale' ? 'Properties For Sale' :
+                     'Property Listings')
+                  : 'Buildings'}
               </h1>
               
               {/* Navigation and Controls */}
@@ -1813,6 +1861,5 @@ export default function EnhancedPropertySearch({
           onClose={() => setShowLoginModal(false)}
         />
       </MainLayout>
-    </>
   );
 }

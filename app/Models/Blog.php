@@ -13,6 +13,7 @@ class Blog extends Model
         'content',
         'image',
         'category',
+        'category_id',
         'author',
         'is_published',
         'published_at',
@@ -24,6 +25,14 @@ class Blog extends Model
         'published_at' => 'datetime',
         'views' => 'integer'
     ];
+
+    /**
+     * Get the category that owns the blog.
+     */
+    public function blogCategory()
+    {
+        return $this->belongsTo(BlogCategory::class, 'category_id');
+    }
 
     // Scope to get only published blogs
     public function scopePublished($query)
