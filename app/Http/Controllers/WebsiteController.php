@@ -196,12 +196,26 @@ class WebsiteController extends Controller
             ->get()
             ->groupBy('category');
 
+        // Get latest blogs for homepage
+        $blogs = \App\Models\Blog::with('blogCategory')
+            ->published()
+            ->orderBy('published_at', 'desc')
+            ->limit(6)
+            ->get();
+
+        // Get active blog categories
+        $blogCategories = \App\Models\BlogCategory::active()
+            ->ordered()
+            ->get(['id', 'name', 'slug', 'description', 'featured_image']);
+
         return Inertia::render('Welcome', array_merge($settings, [
             'auth' => [
                 'user' => request()->user(),
             ],
             'pageContent' => $pageContent,
-            'availableIcons' => $icons
+            'availableIcons' => $icons,
+            'blogs' => $blogs,
+            'blogCategories' => $blogCategories
         ]));
     }
 
@@ -248,6 +262,50 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display combined Mercer buildings for sale page (e.g., /15-35-Mercer/for-sale)
+     */
+    public function mercerBuildingsForSale(Request $request)
+    {
+        // Set filters for both 15 and 35 Mercer properties
+        $filters = [
+            'mercer_buildings' => true,
+            'street_name' => 'Mercer',
+            'transaction_type' => 'sale'
+        ];
+
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
+            'title' => "Nobu Residences (15 & 35 Mercer) - Properties for Sale",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
+     * Display combined Mercer buildings for rent page (e.g., /15-35-Mercer/for-rent)
+     */
+    public function mercerBuildingsForRent(Request $request)
+    {
+        // Set filters for both 15 and 35 Mercer properties
+        $filters = [
+            'mercer_buildings' => true,
+            'street_name' => 'Mercer',
+            'transaction_type' => 'rent'
+        ];
+
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
+            'title' => "Nobu Residences (15 & 35 Mercer) - Properties for Rent",
+            'filters' => $filters,
+            'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
      * Display building-based for sale page (e.g., /15-Mercer/for-sale)
      */
     public function buildingForSale(Request $request, string $building)
@@ -256,19 +314,25 @@ class WebsiteController extends Controller
         $parts = explode('-', $building, 2);
         $streetNumber = $parts[0] ?? '';
         $streetName = isset($parts[1]) ? str_replace('-', ' ', $parts[1]) : '';
-        
-        // Set filters for properties in this building for sale
+
+        // For Mercer street, redirect to combined URL
+        if (strtolower($streetName) === 'mercer' && ($streetNumber === '15' || $streetNumber === '35')) {
+            return redirect()->route('mercer-buildings-for-sale');
+        }
+
+        // Regular single building search
         $filters = [
             'street_number' => $streetNumber,
             'street_name' => $streetName,
             'transaction_type' => 'sale'
         ];
-        
+        $title = "{$streetNumber} {$streetName} - Properties for Sale";
+
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => [
                 'user' => $request->user(),
             ],
-            'title' => "{$streetNumber} {$streetName} - Properties for Sale",
+            'title' => $title,
             'filters' => $filters,
             'searchTab' => 'listings'
         ]));
@@ -283,19 +347,25 @@ class WebsiteController extends Controller
         $parts = explode('-', $building, 2);
         $streetNumber = $parts[0] ?? '';
         $streetName = isset($parts[1]) ? str_replace('-', ' ', $parts[1]) : '';
-        
-        // Set filters for properties in this building for rent
+
+        // For Mercer street, redirect to combined URL
+        if (strtolower($streetName) === 'mercer' && ($streetNumber === '15' || $streetNumber === '35')) {
+            return redirect()->route('mercer-buildings-for-rent');
+        }
+
+        // Regular single building search
         $filters = [
             'street_number' => $streetNumber,
             'street_name' => $streetName,
             'transaction_type' => 'rent'
         ];
-        
+        $title = "{$streetNumber} {$streetName} - Properties for Rent";
+
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => [
                 'user' => $request->user(),
             ],
-            'title' => "{$streetNumber} {$streetName} - Properties for Rent",
+            'title' => $title,
             'filters' => $filters,
             'searchTab' => 'listings'
         ]));
@@ -564,24 +634,39 @@ class WebsiteController extends Controller
     /**
      * Display the blog page
      */
-    public function blog()
+    public function blog(Request $request)
     {
-        // Fetch published blogs from database
-        $blogs = \App\Models\Blog::published()
-            ->orderBy('published_at', 'desc')
+        // Get the category from URL parameter
+        $categorySlug = $request->get('category');
+        $selectedCategory = null;
+
+        // Build the query for blogs
+        $blogsQuery = \App\Models\Blog::with('blogCategory')
+            ->published();
+
+        // Filter by category if provided
+        if ($categorySlug) {
+            // Find the category by slug
+            $selectedCategory = \App\Models\BlogCategory::where('slug', $categorySlug)->first();
+            if ($selectedCategory) {
+                $blogsQuery->where('category_id', $selectedCategory->id);
+            }
+        }
+
+        // Fetch paginated blogs
+        $blogs = $blogsQuery->orderBy('published_at', 'desc')
             ->paginate(9);
 
-        // Get unique categories for filter
-        $categories = \App\Models\Blog::published()
-            ->distinct()
-            ->pluck('category')
-            ->filter()
-            ->values();
+        // Get active blog categories from the database
+        $categories = \App\Models\BlogCategory::active()
+            ->ordered()
+            ->get(['id', 'name', 'slug', 'description', 'featured_image']);
 
-        return Inertia::render('Blog', array_merge($this->getWebsiteSettings(), [
+        return Inertia::render('Website/Pages/Blog', array_merge($this->getWebsiteSettings(), [
             'title' => 'Real Estate Blog',
             'blogs' => $blogs,
-            'categories' => $categories
+            'categories' => $categories,
+            'selectedCategory' => $selectedCategory ? $selectedCategory->slug : null
         ]));
     }
 
@@ -590,7 +675,8 @@ class WebsiteController extends Controller
      */
     public function blogDetail($slug)
     {
-        $blog = \App\Models\Blog::where('slug', $slug)
+        $blog = \App\Models\Blog::with('blogCategory')
+            ->where('slug', $slug)
             ->orWhere('id', $slug)
             ->where('is_published', true)
             ->firstOrFail();
@@ -598,15 +684,17 @@ class WebsiteController extends Controller
         // Increment views
         $blog->increment('views');
 
-        // Get related posts
-        $relatedPosts = \App\Models\Blog::published()
+        // Get related posts by category_id
+        $relatedPosts = \App\Models\Blog::with('blogCategory')
+            ->published()
             ->where('id', '!=', $blog->id)
-            ->where('category', $blog->category)
+            ->where('category_id', $blog->category_id)
             ->limit(3)
             ->get();
 
         // Get recent posts
-        $recentPosts = \App\Models\Blog::published()
+        $recentPosts = \App\Models\Blog::with('blogCategory')
+            ->published()
             ->where('id', '!=', $blog->id)
             ->orderBy('published_at', 'desc')
             ->limit(4)
@@ -625,7 +713,7 @@ class WebsiteController extends Controller
      */
     public function contact()
     {
-        return Inertia::render('Contact', array_merge($this->getWebsiteSettings(), [
+        return Inertia::render('Website/Pages/Contact', array_merge($this->getWebsiteSettings(), [
             'title' => 'Contact Us'
         ]));
     }

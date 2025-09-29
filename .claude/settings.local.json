@@ -45,7 +45,8 @@
       "Bash(then grep \"GEMINI\" .env)",
       "Bash(/dev/null)",
       "Bash(npx eslint:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(move \"resources\\js\\Pages\\Blog.jsx\" \"resources\\js\\Website\\Pages\\Blog.jsx\")"
     ],
     "deny": [],
     "ask": [],

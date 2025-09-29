@@ -159,9 +159,10 @@ export default function PropertyHeader({
   // Get display values based on type
   const getTitle = () => {
     if (type === 'building') {
-      return data?.name;
+      // For buildings, show the address instead of name
+      return data?.address || data?.name;
     }
-    
+
     // For properties, format as "UnitNumber - StreetNumber StreetName"
     if (type === 'property' && data) {
       const unitNumber = data?.unitNumber || data?.UnitNumber || '';

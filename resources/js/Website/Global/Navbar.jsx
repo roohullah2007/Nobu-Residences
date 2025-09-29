@@ -145,7 +145,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                             Search All
                         </Link>
                         <Link
-                            href="/blog"
+                            href="/blogs"
                             className="text-gray-900 hover:text-blue-600 transition-colors font-work-sans"
                             style={{
                                 fontSize: '16px',
@@ -313,8 +313,8 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                                 >
                                     Search All
                                 </Link>
-                                <Link 
-                                    href="/blog" 
+                                <Link
+                                    href="/blogs"
                                     className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
                                     style={{ fontSize: '16px', fontWeight: '500' }}
                                     onClick={() => setMobileMenuOpen(false)}

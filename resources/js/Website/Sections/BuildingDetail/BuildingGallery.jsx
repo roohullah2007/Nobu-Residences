@@ -45,10 +45,18 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
 
   const primaryAddress = getPrimaryAddress();
   // Format as URL: "15 Mercer St" becomes "15-Mercer"
-  const buildingUrlSlug = primaryAddress
+  let buildingUrlSlug = primaryAddress
     .replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '')
     .replace(/[,\.]/g, '')
     .replace(/\s+/g, '-');
+
+  // Check if this is a Mercer building (15 or 35 Mercer)
+  const isMercerBuilding = buildingUrlSlug === '15-Mercer' || buildingUrlSlug === '35-Mercer';
+
+  // Use combined URL for Mercer buildings
+  if (isMercerBuilding) {
+    buildingUrlSlug = '15-35-Mercer';
+  }
   
   // Fetch property counts on component mount
   useEffect(() => {
@@ -198,22 +206,22 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
     <>
       {/* Main Container */}
       <div className="max-w-[1280px] mx-auto px-0 py-0">
-        <div className="flex flex-col md:flex-row gap-0 lg:gap-[17px]">
-          {/* Single Image Section */}
+        <div className="flex flex-col lg:flex-row gap-0 lg:gap-6">
+          {/* Single Image Section - Flexible width */}
           <div className="flex-1 order-1 lg:order-none">
             {/* Single Large Image with click to open modal */}
             <div className="relative w-full h-[300px] md:h-[400px] lg:h-[645px]">
-              <div 
+              <div
                 className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
                 onClick={() => openModal(0)}
               >
-                <img 
+                <img
                   src={buildingImages[0]}
                   alt="Building image"
                   className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-10"></div>
-                
+
                 {/* View Photos overlay on hover */}
                 <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="text-white text-lg font-work-sans font-semibold">
@@ -223,9 +231,9 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
               </div>
             </div>
           </div>
-          
-          {/* Building Details Card - Width 387px */}
-          <div className="w-full lg:w-[387px] h-auto lg:h-[645px] bg-gray-50 border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
+
+          {/* Building Details Card - Fixed width */}
+          <div className="w-full lg:w-[306px] h-auto lg:h-[645px] bg-gray-50 border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-6 lg:gap-8 mb-[30px] md:mb-0">
                 {/* Building Name Section */}
