@@ -1,6 +1,6 @@
 import React from 'react';
 import { FAQ } from '@/Website/Global/Components';
-import { 
+import {
   PriceHistory,
   TourSection,
   MoreBuildings,
@@ -9,6 +9,7 @@ import {
 } from '@/Website/Components/PropertyDetail';
 import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 import BuildingStatusTabs from './BuildingStatusTabs';
+import DeveloperBuildings from '@/Website/Components/PropertyDetail/DeveloperBuildings';
 
 export default function BuildingSections({ 
   buildingData,
@@ -45,20 +46,12 @@ export default function BuildingSections({
         buildingData={buildingData}
       />
 
-      {/* Nearby Buildings Section - Fetch from backend */}
-      <MoreBuildings
-        title="Nearby Buildings"
-        fetchType="buildings"
-        buildingData={buildingData}
-      />
+      {/* More Buildings by Developer Section - Show if developer_name exists */}
+      {buildingData?.developer_name && (
+        <DeveloperBuildings buildingData={buildingData} />
+      )}
 
-      {/* Similar Buildings Section - Fetch from backend */}
-      <MoreBuildings
-        title="Similar Buildings"
-        fetchType="buildings"
-        buildingData={buildingData}
-      />
-             
+
       {/* Comparable Sales Section */}
       {/* <ComparableSales /> */}
              

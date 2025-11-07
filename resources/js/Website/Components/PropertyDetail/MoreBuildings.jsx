@@ -38,7 +38,8 @@ const MoreBuildings = ({
     
     // If we need to fetch buildings from backend
     if (fetchType === 'buildings') {
-      if (title === "Nearby Buildings" || title === "Similar Buildings") {
+      if (title === "Nearby Buildings" || title === "Similar Buildings" || title.startsWith("More Buildings by")) {
+        console.log('DeveloperBuildings - buildingData:', buildingData);
         fetchBuildings();
       }
       return;
@@ -487,22 +488,29 @@ const MoreBuildings = ({
     try {
       // Prepare query parameters for buildings
       const params = new URLSearchParams();
-      
+
       // Add city filter if available
       if (buildingData?.city) {
         params.append('city', buildingData.city);
       }
-      
+
       // Add limit - don't limit if we don't have many buildings
       // params.append('limit', '12');
-      
+
       // For Similar Buildings, filter by building type
       if (title === "Similar Buildings" && buildingData?.building_type) {
         params.append('building_type', buildingData.building_type);
       }
 
+      // For Developer Buildings, filter by developer_name
+      if (title.startsWith("More Buildings by") && buildingData?.developer_name) {
+        params.append('developer_name', buildingData.developer_name);
+        console.log('DeveloperBuildings - developer_name:', buildingData.developer_name);
+        console.log('DeveloperBuildings - Fetching buildings for developer:', buildingData.developer_name);
+      }
+
       const url = `/api/buildings?${params.toString()}`;
-      console.log('Fetching buildings from:', url);
+      console.log('DeveloperBuildings - API URL:', url);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -517,10 +525,14 @@ const MoreBuildings = ({
 
       // The API returns buildings directly in data array
       const buildings = result.data || result || [];
-      
+
+      console.log('DeveloperBuildings - Total buildings found:', buildings.length);
+
       if (buildings && buildings.length > 0) {
         // Filter out current building if it's in the results
         const filteredBuildings = buildings.filter(b => b.id !== buildingData?.id);
+
+        console.log('DeveloperBuildings - After filtering current building:', filteredBuildings.length);
         
         // Format buildings for display as property cards
         const formattedBuildings = filteredBuildings.map((building) => {
@@ -562,6 +574,7 @@ const MoreBuildings = ({
         });
 
         console.log('Formatted buildings:', formattedBuildings);
+        console.log('DeveloperBuildings - Rendering with', formattedBuildings.length, 'buildings');
         setBuildingsData(formattedBuildings);
       } else {
         // If no buildings found, use sample data for demonstration
@@ -664,8 +677,8 @@ const MoreBuildings = ({
     if (propertyData?.properties && Array.isArray(propertyData.properties)) {
       return propertyData.properties;
     }
-    // Use buildings data for Nearby/Similar Buildings
-    if (title === "Nearby Buildings" || title === "Similar Buildings") {
+    // Use buildings data for Nearby/Similar/Developer Buildings
+    if (title === "Nearby Buildings" || title === "Similar Buildings" || title.startsWith("More Buildings by")) {
       return buildingsData;
     }
     // Use condo listings for Properties For Sale/Rent
@@ -765,8 +778,15 @@ const MoreBuildings = ({
         
         {/* No Data State */}
         {!isLoading && buildings.length === 0 && (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-gray-500">No listings available at the moment</div>
+          <div className="flex flex-col justify-center items-center py-12 text-center">
+            <div className="text-xl font-bold text-gray-700 mb-2">
+              {title.startsWith("More Buildings by") ? "No buildings found" : "No listings available"}
+            </div>
+            <div className="text-gray-500">
+              {title.startsWith("More Buildings by")
+                ? `No other buildings by ${buildingData?.developer_name || 'this developer'} are currently available in our database.`
+                : "No listings available at the moment"}
+            </div>
           </div>
         )}
         

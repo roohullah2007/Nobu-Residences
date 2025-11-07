@@ -42,33 +42,33 @@ export default function BuildingAmenities({ buildingData }) {
 
     // Fallback: Map amenity names to icon paths for backward compatibility
     const iconMap = {
-      'Concierge': '/assets/svgs/concierge.svg',
-      'Party Room': '/assets/svgs/party-horn.svg',
-      'Meeting Room': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
-      'Security Guard': '/assets/svgs/police-security-policeman.svg',
-      'Gym': '/assets/svgs/gym.svg',
-      'Visitor Parking': '/assets/svgs/parking.svg',
-      'Parking Garage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
-      'Guest Suites': '/assets/svgs/bed.svg',
-      'Pet Restriction': '/assets/svgs/pets.svg',
-      'BBQ Permitted': '/assets/svgs/bbq-grill.svg',
-      'Outdoor Pool': '/assets/svgs/pool-ladder.svg',
-      'Media Room': '/assets/svgs/media.svg',
-      'Rooftop Deck': '/assets/svgs/deck-chair-under-the-sun.svg',
-      'Security System': '/assets/svgs/security.svg',
-      'Indoor Pool': '/assets/svgs/pool-ladder.svg',
-      'Sauna': '/assets/svgs/sauna.svg',
-      'Tennis Court': '/assets/svgs/tennis.svg',
-      'Playground': '/assets/svgs/playground.svg',
-      'Library': '/assets/svgs/library.svg',
-      'Business Center': '/assets/svgs/business.svg',
-      'Bike Storage': '/assets/svgs/bike.svg',
-      'Storage Lockers': '/assets/svgs/storage.svg',
-      'Car Wash': '/assets/svgs/car-wash.svg',
-      'EV Charging': '/assets/svgs/ev-charging.svg'
+      'Concierge': '/storage/amenity-icons/concierge.svg',
+      'Party Room': '/storage/amenity-icons/party-room.svg',
+      'Meeting Room': '/storage/amenity-icons/meeting-room.svg',
+      'Security Guard': '/storage/amenity-icons/security-guard.svg',
+      'Gym': '/storage/amenity-icons/gym.svg',
+      'Visitor Parking': '/storage/amenity-icons/visitor-parking.svg',
+      'Parking Garage': '/storage/amenity-icons/parking-garage.svg',
+      'Guest Suites': '/storage/amenity-icons/bed.svg',
+      'Pet Restriction': '/storage/amenity-icons/pet-restriction.svg',
+      'BBQ Permitted': '/storage/amenity-icons/bbq-permitted.svg',
+      'Outdoor Pool': '/storage/amenity-icons/outdoor-pool.svg',
+      'Media Room': '/storage/amenity-icons/media-room.svg',
+      'Rooftop Deck': '/storage/amenity-icons/rooftop-deck.svg',
+      'Security System': '/storage/amenity-icons/security.svg',
+      'Indoor Pool': '/storage/amenity-icons/outdoor-pool.svg',
+      'Sauna': '/storage/amenity-icons/sauna.svg',
+      'Tennis Court': '/storage/amenity-icons/tennis.svg',
+      'Playground': '/storage/amenity-icons/playground.svg',
+      'Library': '/storage/amenity-icons/library.svg',
+      'Business Center': '/storage/amenity-icons/business.svg',
+      'Bike Storage': '/storage/amenity-icons/bike.svg',
+      'Storage Lockers': '/storage/amenity-icons/storage.svg',
+      'Car Wash': '/storage/amenity-icons/car-wash.svg',
+      'EV Charging': '/storage/amenity-icons/ev-charging.svg'
     };
 
-    return iconMap[amenity.name] || '/assets/svgs/amenity-default.svg';
+    return iconMap[amenity.name] || '/storage/amenity-icons/amenity-default.svg';
   };
 
   // Get maintenance fee amenities
@@ -100,7 +100,7 @@ export default function BuildingAmenities({ buildingData }) {
                     onError={(e) => {
                       console.log('Icon failed to load for amenity:', amenity.name, 'src:', iconSrc);
                       // Fallback to default icon if image fails to load
-                      e.target.src = '/assets/svgs/amenity-default.svg';
+                      e.target.src = '/storage/amenity-icons/amenity-default.svg';
                     }}
                     onLoad={() => {
                       console.log('Icon loaded successfully for amenity:', amenity.name);
@@ -131,7 +131,7 @@ export default function BuildingAmenities({ buildingData }) {
                     alt={amenity.name}
                     className="w-5 h-5 flex-shrink-0"
                     onError={(e) => {
-                      e.target.src = '/assets/svgs/amenity-default.svg';
+                      e.target.src = '/storage/amenity-icons/amenity-default.svg';
                     }}
                   />
                   <span className="font-work-sans font-medium text-sm leading-6 tracking-[-0.03em] text-[#293056] flex-1 truncate">

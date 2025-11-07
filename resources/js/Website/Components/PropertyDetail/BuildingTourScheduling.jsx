@@ -152,9 +152,16 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
           selected_time: timeRanges[selectedTime],
           property_type: 'building',
           property_id: buildingData?.id || null,
-          property_address: buildingData?.full_address ||
-            `${buildingData?.address || ''} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim() ||
-            buildingData?.name || 'Building Address Not Available'
+          property_address: (() => {
+            // Format address with & between street addresses
+            if (buildingData?.street_address_1 && buildingData?.street_address_2) {
+              return `${buildingData.street_address_1} & ${buildingData.street_address_2} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim();
+            }
+            // Fallback to full_address or address
+            return buildingData?.full_address ||
+              `${buildingData?.address || ''} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim() ||
+              buildingData?.name || 'Building Address Not Available';
+          })()
         })
       });
 
@@ -489,9 +496,16 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
               {buildingData && (
                 <p className="text-gray-600 text-sm">
                   Building: <span className="font-medium">
-                    {buildingData?.full_address ||
-                     `${buildingData?.address || ''} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim() ||
-                     buildingData?.name || 'Building'}
+                    {(() => {
+                      // Format address with & between street addresses
+                      if (buildingData?.street_address_1 && buildingData?.street_address_2) {
+                        return `${buildingData.street_address_1} & ${buildingData.street_address_2} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim();
+                      }
+                      // Fallback to full_address or address
+                      return buildingData?.full_address ||
+                             `${buildingData?.address || ''} ${buildingData?.city || ''} ${buildingData?.province || ''}`.trim() ||
+                             buildingData?.name || 'Building';
+                    })()}
                   </span>
                 </p>
               )}

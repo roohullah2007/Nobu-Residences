@@ -58,23 +58,31 @@ export const formatCardAddress = (property) => {
     }
   }
   
-  // Build the address parts - Unit - StreetNumber StreetName (no suffix)
+  // Build the address parts - Unit - StreetNumber StreetName StreetSuffix
   let parts = [];
-  
+
   if (unitNumber) {
     parts.push(unitNumber);
   }
-  
-  // Combine street number and name together (not separated by dash)
+
+  // Combine street number, name, and suffix together
+  const streetSuffix = property.StreetSuffix || property.streetSuffix || '';
   let streetPart = '';
   if (streetNumber && streetName) {
     streetPart = `${streetNumber} ${streetName}`;
+    // Add street suffix if available, otherwise default to "St"
+    if (streetSuffix) {
+      streetPart += ` ${streetSuffix}`;
+    } else {
+      // Default to "St" if no suffix provided
+      streetPart += ` St`;
+    }
   } else if (streetNumber) {
     streetPart = streetNumber;
   } else if (streetName) {
     streetPart = streetName;
   }
-  
+
   if (streetPart) {
     parts.push(streetPart);
   }

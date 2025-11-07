@@ -254,38 +254,26 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                     </span>
                   </div>
                   
-                  {/* Management */}
+                  {/* Address */}
                   <div className="flex justify-between items-start">
-                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Management</span>
-                    <span className={`font-work-sans text-sm text-right max-w-[180px] ${
-                      buildingData?.management_name && buildingData?.management_name !== '-' 
-                        ? 'text-[#7E2410] underline cursor-pointer hover:text-[#5A1A0B]' 
-                        : 'text-[#535862]'
-                    }`}>
-                      {buildingData?.management_name || '-'}
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Address</span>
+                    <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px]">
+                      {(() => {
+                        // Format address with & between street addresses
+                        if (buildingData?.street_address_1 && buildingData?.street_address_2) {
+                          return `${buildingData.street_address_1} & ${buildingData.street_address_2}`;
+                        }
+                        // Fallback to main address
+                        return buildingData?.address || buildingData?.name || '-';
+                      })()}
                     </span>
                   </div>
-                  
-                  {/* Corp */}
+
+                  {/* Neighbourhood */}
                   <div className="flex justify-between items-start">
-                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Corp</span>
+                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Neighbourhood</span>
                     <span className="font-work-sans text-sm text-[#535862]">
-                      {buildingData?.corp_number || '-'}
-                    </span>
-                  </div>
-                  
-                  {/* Date Registered */}
-                  <div className="flex justify-between items-start">
-                    <span className="font-work-sans font-semibold text-sm text-[#252B37]">Date Registered</span>
-                    <span className="font-work-sans text-sm text-[#535862]">
-                      {buildingData?.date_registered 
-                        ? new Date(buildingData.date_registered).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric', 
-                            year: 'numeric' 
-                          })
-                        : '-'
-                      }
+                      {buildingData?.neighborhood_info || buildingData?.neighbourhood || buildingData?.city || '-'}
                     </span>
                   </div>
                 </div>

@@ -34,9 +34,13 @@ class BuildingController extends Controller
         if ($request->has('building_type')) {
             $query->where('building_type', $request->input('building_type'));
         }
-        
+
         if ($request->has('listing_type')) {
             $query->where('listing_type', $request->input('listing_type'));
+        }
+
+        if ($request->has('developer_name')) {
+            $query->where('developer_name', $request->input('developer_name'));
         }
         
         if ($request->has('min_price')) {
