@@ -12,6 +12,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingAmenity, setEditingAmenity] = useState(null);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [iconPreview, setIconPreview] = useState(null);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: '',
@@ -21,6 +22,16 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
         is_active: true
     });
 
+    const handleIconChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setData('icon', file);
+            // Create preview URL
+            const previewUrl = URL.createObjectURL(file);
+            setIconPreview(previewUrl);
+        }
+    };
+
     const handleCreate = (e) => {
         e.preventDefault();
 
@@ -29,6 +40,11 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
             onSuccess: () => {
                 reset();
                 setShowCreateModal(false);
+                // Clean up preview URL
+                if (iconPreview) {
+                    URL.revokeObjectURL(iconPreview);
+                    setIconPreview(null);
+                }
             }
         });
     };
@@ -36,13 +52,20 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
     const handleEdit = (e) => {
         e.preventDefault();
 
-        post(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
+        router.post(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
+            ...data,
+            _method: 'PUT'
+        }, {
             forceFormData: true,
-            _method: 'put',
             onSuccess: () => {
                 reset();
                 setShowEditModal(false);
                 setEditingAmenity(null);
+                // Clean up preview URL
+                if (iconPreview) {
+                    URL.revokeObjectURL(iconPreview);
+                    setIconPreview(null);
+                }
             }
         });
     };
@@ -70,11 +93,13 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
             sort_order: amenity.sort_order || 0,
             is_active: amenity.is_active
         });
+        setIconPreview(null);
         setShowEditModal(true);
     };
 
     const openCreateModal = () => {
         reset();
+        setIconPreview(null);
         setShowCreateModal(true);
     };
 
@@ -98,6 +123,14 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6 text-gray-900">
+                            {/* Header with Create Button */}
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-semibold text-gray-800">Manage Amenities</h3>
+                                <PrimaryButton onClick={() => setShowCreateModal(true)}>
+                                    + Create New Amenity
+                                </PrimaryButton>
+                            </div>
+
                             {/* Search Bar */}
                             <form onSubmit={handleSearch} className="mb-6">
                                 <div className="flex gap-4">
@@ -247,6 +280,12 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
 
                             <div className="mb-4">
                                 <InputLabel htmlFor="icon" value="Icon (SVG file)" />
+                                {iconPreview && (
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <img src={iconPreview} alt="Preview" className="h-8 w-8" />
+                                        <span className="text-sm text-gray-600">Preview</span>
+                                    </div>
+                                )}
                                 <input
                                     id="icon"
                                     type="file"
@@ -257,7 +296,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                                         file:text-sm file:font-semibold
                                         file:bg-indigo-50 file:text-indigo-700
                                         hover:file:bg-indigo-100"
-                                    onChange={e => setData('icon', e.target.files[0])}
+                                    onChange={handleIconChange}
                                 />
                                 <InputError message={errors.icon} className="mt-2" />
                             </div>
@@ -290,7 +329,13 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                                 <PrimaryButton type="submit" disabled={processing}>
                                     Create
                                 </PrimaryButton>
-                                <SecondaryButton type="button" onClick={() => setShowCreateModal(false)}>
+                                <SecondaryButton type="button" onClick={() => {
+                                    setShowCreateModal(false);
+                                    if (iconPreview) {
+                                        URL.revokeObjectURL(iconPreview);
+                                        setIconPreview(null);
+                                    }
+                                }}>
                                     Cancel
                                 </SecondaryButton>
                             </div>
@@ -339,7 +384,12 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
 
                             <div className="mb-4">
                                 <InputLabel htmlFor="edit-icon" value="Icon (SVG file)" />
-                                {editingAmenity?.icon && (
+                                {iconPreview ? (
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <img src={iconPreview} alt="New icon preview" className="h-8 w-8" />
+                                        <span className="text-sm text-gray-600">New icon preview</span>
+                                    </div>
+                                ) : editingAmenity?.icon && (
                                     <div className="mb-2 flex items-center gap-2">
                                         <img src={editingAmenity.icon} alt="Current icon" className="h-8 w-8" />
                                         <span className="text-sm text-gray-600">Current icon</span>
@@ -355,7 +405,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                                         file:text-sm file:font-semibold
                                         file:bg-indigo-50 file:text-indigo-700
                                         hover:file:bg-indigo-100"
-                                    onChange={e => setData('icon', e.target.files[0])}
+                                    onChange={handleIconChange}
                                 />
                                 <p className="mt-1 text-xs text-gray-500">Leave empty to keep current icon</p>
                                 <InputError message={errors.icon} className="mt-2" />
@@ -389,7 +439,13 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                                 <PrimaryButton type="submit" disabled={processing}>
                                     Update
                                 </PrimaryButton>
-                                <SecondaryButton type="button" onClick={() => setShowEditModal(false)}>
+                                <SecondaryButton type="button" onClick={() => {
+                                    setShowEditModal(false);
+                                    if (iconPreview) {
+                                        URL.revokeObjectURL(iconPreview);
+                                        setIconPreview(null);
+                                    }
+                                }}>
                                     Cancel
                                 </SecondaryButton>
                             </div>

@@ -46,7 +46,9 @@
       "Bash(/dev/null)",
       "Bash(npx eslint:*)",
       "Bash(xxd:*)",
-      "Bash(move \"resources\\js\\Pages\\Blog.jsx\" \"resources\\js\\Website\\Pages\\Blog.jsx\")"
+      "Bash(move \"resources\\js\\Pages\\Blog.jsx\" \"resources\\js\\Website\\Pages\\Blog.jsx\")",
+      "Bash(nul)",
+      "Bash(xcopy publicassetssvgs*.svg publicsvgs /Y)"
     ],
     "deny": [],
     "ask": [],

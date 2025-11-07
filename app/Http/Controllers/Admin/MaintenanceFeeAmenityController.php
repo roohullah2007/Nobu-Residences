@@ -76,8 +76,8 @@ class MaintenanceFeeAmenityController extends Controller
         if ($request->hasFile('icon')) {
             $file = $request->file('icon');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('amenity-icons', $filename, 'public');
-            $validated['icon'] = '/storage/' . $path;
+            $file->move(public_path('svgs'), $filename);
+            $validated['icon'] = '/svgs/' . $filename;
         } else {
             unset($validated['icon']);
         }
@@ -128,14 +128,16 @@ class MaintenanceFeeAmenityController extends Controller
         if ($request->hasFile('icon')) {
             // Delete old icon if exists
             if ($maintenanceFeeAmenity->icon) {
-                $oldPath = str_replace('/storage/', '', $maintenanceFeeAmenity->icon);
-                \Storage::disk('public')->delete($oldPath);
+                $oldIconPath = public_path(str_replace('/', DIRECTORY_SEPARATOR, $maintenanceFeeAmenity->icon));
+                if (file_exists($oldIconPath)) {
+                    unlink($oldIconPath);
+                }
             }
 
             $file = $request->file('icon');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('amenity-icons', $filename, 'public');
-            $validated['icon'] = '/storage/' . $path;
+            $file->move(public_path('svgs'), $filename);
+            $validated['icon'] = '/svgs/' . $filename;
         } else {
             unset($validated['icon']);
         }
