@@ -63,7 +63,7 @@ class MaintenanceFeeAmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:maintenance_fee_amenities',
-            'icon' => 'nullable|string|max:255',
+            'icon' => 'nullable|file|mimes:svg|max:2048',
             'category' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer',
             'is_active' => 'boolean'
@@ -71,6 +71,16 @@ class MaintenanceFeeAmenityController extends Controller
 
         $validated['is_active'] = $validated['is_active'] ?? true;
         $validated['sort_order'] = $validated['sort_order'] ?? 0;
+
+        // Handle file upload
+        if ($request->hasFile('icon')) {
+            $file = $request->file('icon');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('amenity-icons', $filename, 'public');
+            $validated['icon'] = '/storage/' . $path;
+        } else {
+            unset($validated['icon']);
+        }
 
         MaintenanceFeeAmenity::create($validated);
 
@@ -108,11 +118,27 @@ class MaintenanceFeeAmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:maintenance_fee_amenities,name,' . $maintenanceFeeAmenity->id,
-            'icon' => 'nullable|string|max:255',
+            'icon' => 'nullable|file|mimes:svg|max:2048',
             'category' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer',
             'is_active' => 'boolean'
         ]);
+
+        // Handle file upload
+        if ($request->hasFile('icon')) {
+            // Delete old icon if exists
+            if ($maintenanceFeeAmenity->icon) {
+                $oldPath = str_replace('/storage/', '', $maintenanceFeeAmenity->icon);
+                \Storage::disk('public')->delete($oldPath);
+            }
+
+            $file = $request->file('icon');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('amenity-icons', $filename, 'public');
+            $validated['icon'] = '/storage/' . $path;
+        } else {
+            unset($validated['icon']);
+        }
 
         $maintenanceFeeAmenity->update($validated);
 

@@ -15,7 +15,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: '',
-        icon: '',
+        icon: null,
         category: '',
         sort_order: 0,
         is_active: true
@@ -25,6 +25,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
         e.preventDefault();
 
         post(route('admin.maintenance-fee-amenities.store'), {
+            forceFormData: true,
             onSuccess: () => {
                 reset();
                 setShowCreateModal(false);
@@ -35,7 +36,9 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
     const handleEdit = (e) => {
         e.preventDefault();
 
-        put(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
+        post(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
+            forceFormData: true,
+            _method: 'put',
             onSuccess: () => {
                 reset();
                 setShowEditModal(false);
@@ -62,7 +65,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
         setEditingAmenity(amenity);
         setData({
             name: amenity.name,
-            icon: amenity.icon || '',
+            icon: null,
             category: amenity.category || '',
             sort_order: amenity.sort_order || 0,
             is_active: amenity.is_active
@@ -72,7 +75,7 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
 
     const openCreateModal = () => {
         reset();
-        setShowCreateModal(false);
+        setShowCreateModal(true);
     };
 
     return (
@@ -243,14 +246,18 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                             </div>
 
                             <div className="mb-4">
-                                <InputLabel htmlFor="icon" value="Icon Path" />
-                                <TextInput
+                                <InputLabel htmlFor="icon" value="Icon (SVG file)" />
+                                <input
                                     id="icon"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    value={data.icon}
-                                    onChange={e => setData('icon', e.target.value)}
-                                    placeholder="/assets/svgs/icon.svg"
+                                    type="file"
+                                    accept=".svg"
+                                    className="mt-1 block w-full text-sm text-gray-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-md file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-indigo-50 file:text-indigo-700
+                                        hover:file:bg-indigo-100"
+                                    onChange={e => setData('icon', e.target.files[0])}
                                 />
                                 <InputError message={errors.icon} className="mt-2" />
                             </div>
@@ -331,15 +338,26 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
                             </div>
 
                             <div className="mb-4">
-                                <InputLabel htmlFor="edit-icon" value="Icon Path" />
-                                <TextInput
+                                <InputLabel htmlFor="edit-icon" value="Icon (SVG file)" />
+                                {editingAmenity?.icon && (
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <img src={editingAmenity.icon} alt="Current icon" className="h-8 w-8" />
+                                        <span className="text-sm text-gray-600">Current icon</span>
+                                    </div>
+                                )}
+                                <input
                                     id="edit-icon"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    value={data.icon}
-                                    onChange={e => setData('icon', e.target.value)}
-                                    placeholder="/assets/svgs/icon.svg"
+                                    type="file"
+                                    accept=".svg"
+                                    className="mt-1 block w-full text-sm text-gray-500
+                                        file:mr-4 file:py-2 file:px-4
+                                        file:rounded-md file:border-0
+                                        file:text-sm file:font-semibold
+                                        file:bg-indigo-50 file:text-indigo-700
+                                        hover:file:bg-indigo-100"
+                                    onChange={e => setData('icon', e.target.files[0])}
                                 />
+                                <p className="mt-1 text-xs text-gray-500">Leave empty to keep current icon</p>
                                 <InputError message={errors.icon} className="mt-2" />
                             </div>
 
