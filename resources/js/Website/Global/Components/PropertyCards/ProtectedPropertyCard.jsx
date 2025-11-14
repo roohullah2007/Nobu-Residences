@@ -27,20 +27,13 @@ const ProtectedPropertyCard = ({
   // Format price function
   const formatPrice = (price, isRental = false) => {
     if (!price || price <= 0) return 'Price on request';
-    
-    let formattedPrice = '';
-    if (price >= 1000000) {
-      formattedPrice = '$' + (price / 1000000).toFixed(1) + 'M';
-    } else if (price >= 1000) {
-      formattedPrice = '$' + Math.round(price / 1000) + 'K';
-    } else {
-      formattedPrice = '$' + price.toLocaleString();
-    }
-    
+
+    let formattedPrice = '$' + price.toLocaleString();
+
     if (isRental) {
       formattedPrice += '/mo';
     }
-    
+
     return formattedPrice;
   };
 

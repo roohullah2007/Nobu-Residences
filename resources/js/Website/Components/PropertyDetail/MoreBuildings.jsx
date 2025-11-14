@@ -4,8 +4,8 @@ import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5
 import { usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
 
-const MoreBuildings = ({ 
-  title = "More Buildings By Agent", 
+const MoreBuildings = ({
+  title = "More Buildings By Agent",
   propertyData = null,
   propertyType: filterPropertyType = null,
   transactionType: filterTransactionType = null,
@@ -19,6 +19,7 @@ const MoreBuildings = ({
   const [condoListings, setCondoListings] = useState([]);
   const [buildingsData, setBuildingsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAllListings, setShowAllListings] = useState(false);
   
   const { listingKey, auth } = usePage().props;
   
@@ -792,23 +793,37 @@ const MoreBuildings = ({
         
         {/* Grid Layout for Properties For Sale/Rent on Building Page */}
         {!isLoading && buildings.length > 0 && isGridLayout && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {buildings.map((building) => (
-            <div key={building.listingKey || building.id} className="flex justify-center">
-              <PropertyCardV5
-                property={building}
-                size="grid"
-                onClick={() => {
-                  if (building.source === 'building' && building.id) {
-                    window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                  } else if (building.listingKey) {
-                    window.location.href = `/property/${building.listingKey}`;
-                  }
-                }}
-              />
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(showAllListings ? buildings : buildings.slice(0, 6)).map((building) => (
+              <div key={building.listingKey || building.id} className="flex justify-center">
+                <PropertyCardV5
+                  property={building}
+                  size="grid"
+                  onClick={() => {
+                    if (building.source === 'building' && building.id) {
+                      window.location.href = createBuildingUrl(building.name || building.address, building.id);
+                    } else if (building.listingKey) {
+                      window.location.href = `/property/${building.listingKey}`;
+                    }
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Show All Button - Only show if there are more than 6 listings and not showing all */}
+          {buildings.length > 6 && !showAllListings && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => setShowAllListings(true)}
+                className="px-6 py-3 bg-[#293056] text-white font-work-sans font-semibold rounded-lg hover:bg-[#1f2442] transition-colors duration-200"
+              >
+                Show All Listings ({buildings.length})
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
         )}
 
         {/* Mobile: Horizontal Scrollable Row (for carousel layouts) */}

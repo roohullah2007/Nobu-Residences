@@ -41,14 +41,15 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                 {/* Mobile Navbar */}
                 <div className="flex md:hidden justify-between items-center px-4 py-2 bg-white rounded-xl">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center cursor-pointer">
+                    <Link href="/" className="flex items-center cursor-pointer mt-1">
                         {website?.logo_url ? (
                             <img
                                 src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
                                 style={{
-                                    width: website?.logo_width ? `${website.logo_width}px` : '146px',
-                                    height: website?.logo_height ? `${website.logo_height}px` : '36px'
+                                    width: '200px',
+                                    height: '50px',
+                                    maxWidth: '200px'
                                 }}
                                 className="object-contain"
                             />
@@ -58,7 +59,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                             </div>
                         )}
                     </Link>
-                    
+
                     {/* Mobile menu button */}
                     <div className="md:hidden">
                         <button 
@@ -84,14 +85,15 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                 {/* Desktop Navbar */}
                 <div className="hidden md:flex h-16 bg-white rounded-xl items-center justify-between px-6">
                     {/* Logo and Brand */}
-                    <Link href="/" className="flex items-center cursor-pointer">
+                    <Link href="/" className="flex items-center cursor-pointer mt-1">
                         {website?.logo_url ? (
                             <img
                                 src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
                                 style={{
-                                    width: website?.logo_width ? `${website.logo_width}px` : '146px',
-                                    height: website?.logo_height ? `${website.logo_height}px` : '36px'
+                                    width: '200px',
+                                    height: '50px',
+                                    maxWidth: '200px'
                                 }}
                                 className="object-contain"
                             />

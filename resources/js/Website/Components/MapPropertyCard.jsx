@@ -36,8 +36,6 @@ const MapPropertyCard = ({ property, onClose }) => {
     // Format price
     const formatPrice = (price) => {
         if (!price || price <= 0) return 'Price on request';
-        if (price >= 1000000) return '$' + (price / 1000000).toFixed(1) + 'M';
-        if (price >= 1000) return '$' + Math.round(price / 1000) + 'K';
         return '$' + price.toLocaleString();
     };
 

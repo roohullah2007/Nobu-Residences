@@ -18,11 +18,7 @@ export default function PropertyCardV3({
   };
 
   const formatPrice = (price) => {
-    if (price >= 1000000) {
-      return `$${(price / 1000000).toFixed(1)}M`;
-    } else if (price >= 1000) {
-      return `$${(price / 1000).toFixed(0)}K`;
-    }
+    if (!price || price <= 0) return 'Price on request';
     return `$${price.toLocaleString()}`;
   };
 

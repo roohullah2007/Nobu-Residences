@@ -219,9 +219,7 @@ const SimplePropertyMap = React.forwardRef(({
   // Format price for marker display
   const formatPrice = (price) => {
     if (!price || price <= 0) return '?';
-    if (price >= 1000000) return Math.round(price / 1000000) + 'M';
-    if (price >= 1000) return Math.round(price / 1000) + 'K';
-    return Math.round(price / 1000) + 'K';
+    return price.toLocaleString();
   };
 
   // Get label text based on tab - building name for buildings tab, price for properties

@@ -120,47 +120,12 @@ const PropertyRooms = ({ property }) => {
         </div>
       </div>
 
-      {/* Header Row with Toggle - Desktop Only */}
+      {/* Header Row - Desktop Only */}
       <div className="hidden md:flex items-center mb-2">
         <div className="grid grid-cols-12 text-sm gap-2 w-full">
-          <div className="col-span-3 font-medium">Name</div>
-          <div className="col-span-3 font-medium">Size</div>
-          <div className="col-span-2 flex items-center">
-            {/* Toggle Switch - Desktop */}
-            <div className="relative inline-block align-middle mr-2">
-              <input
-                type="checkbox"
-                id="unit-toggle-desktop"
-                className="sr-only"
-                checked={!isMetric}
-                onChange={handleToggleUnit}
-              />
-              <label htmlFor="unit-toggle-desktop" className="flex items-center cursor-pointer">
-                <div className="w-28 h-8 bg-gray-200 rounded-full relative flex items-center">
-                  {/* Sliding white background */}
-                  <div
-                    className={`absolute w-14 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out top-1 ${
-                      isMetric ? 'left-1' : 'left-[52px]'
-                    }`}
-                  ></div>
-
-                  {/* Text labels inside the toggle */}
-                  <div className="flex w-full relative z-10">
-                    <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
-                      isMetric ? 'text-gray-700' : 'text-gray-400'
-                    }`}>
-                      Meter
-                    </span>
-                    <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
-                      !isMetric ? 'text-gray-700' : 'text-gray-400'
-                    }`}>
-                      Feet
-                    </span>
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
+          <div className="col-span-3 font-medium">Rooms</div>
+          <div className="col-span-3 font-medium">Dimensions</div>
+          <div className="col-span-2"></div>
           <div className="col-span-4 font-medium">Features</div>
         </div>
       </div>
@@ -168,8 +133,8 @@ const PropertyRooms = ({ property }) => {
       {/* Mobile Header Row - Simple */}
       <div className="md:hidden mb-2">
         <div className="grid grid-cols-12 text-sm gap-2 w-full">
-          <div className="col-span-3 font-medium">Name</div>
-          <div className="col-span-3 font-medium">Size</div>
+          <div className="col-span-3 font-medium">Rooms</div>
+          <div className="col-span-3 font-medium">Dimensions</div>
           <div className="col-span-2"></div>
           <div className="col-span-4 font-medium">Features</div>
         </div>
@@ -205,13 +170,48 @@ const PropertyRooms = ({ property }) => {
         )}
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex justify-between items-center">
         <button
           onClick={handleToggleRooms}
           className="text-blue-600 text-sm hover:underline focus:outline-none"
         >
           {showHiddenRooms ? 'Show less' : 'Show more'}
         </button>
+
+        {/* Toggle Switch - Desktop */}
+        <div className="relative inline-block align-middle">
+          <input
+            type="checkbox"
+            id="unit-toggle-bottom"
+            className="sr-only"
+            checked={!isMetric}
+            onChange={handleToggleUnit}
+          />
+          <label htmlFor="unit-toggle-bottom" className="flex items-center cursor-pointer">
+            <div className="w-28 h-8 bg-gray-200 rounded-full relative flex items-center">
+              {/* Sliding white background */}
+              <div
+                className={`absolute w-14 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out top-1 ${
+                  isMetric ? 'left-1' : 'left-[52px]'
+                }`}
+              ></div>
+
+              {/* Text labels inside the toggle */}
+              <div className="flex w-full relative z-10">
+                <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                  isMetric ? 'text-gray-700' : 'text-gray-400'
+                }`}>
+                  Meter
+                </span>
+                <span className={`text-xs font-medium flex items-center justify-center w-14 transition-colors duration-300 ${
+                  !isMetric ? 'text-gray-700' : 'text-gray-400'
+                }`}>
+                  Feet
+                </span>
+              </div>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
   );

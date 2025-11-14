@@ -146,9 +146,7 @@ const PropertyMap = ({
     // Format price for marker
     const formatPrice = (price) => {
       if (!price || price <= 0) return '?';
-      if (price >= 1000000) return Math.round(price / 1000000) + 'M';
-      if (price >= 1000) return Math.round(price / 1000) + 'K';
-      return Math.round(price / 1000) + 'K';
+      return price.toLocaleString();
     };
 
     const priceText = formatPrice(property.ListPrice);

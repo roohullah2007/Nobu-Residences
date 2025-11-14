@@ -13,20 +13,13 @@ const CompareModal = ({ isOpen, onClose, properties = [] }) => {
 
   const formatPrice = (price, isRental = false) => {
     if (!price || price <= 0) return 'N/A';
-    
-    let formattedPrice = '';
-    if (price >= 1000000) {
-      formattedPrice = '$' + (price / 1000000).toFixed(1) + 'M';
-    } else if (price >= 1000) {
-      formattedPrice = '$' + Math.round(price / 1000) + 'K';
-    } else {
-      formattedPrice = '$' + price.toLocaleString();
-    }
-    
+
+    let formattedPrice = '$' + price.toLocaleString();
+
     if (isRental) {
       formattedPrice += '/mo';
     }
-    
+
     return formattedPrice;
   };
 
