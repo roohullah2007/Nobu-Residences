@@ -1,96 +1,233 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
+import { usePage } from '@inertiajs/react';
 
-const ComparableSales = ({ comparableSales = null }) => {
-  // NO DEFAULT DATA - only show real comparable sales
-  const salesData = comparableSales || [];
+const ComparableSales = ({
+  title = "Comparable Sales",
+  propertyData = null
+}) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const sliderRef = useRef(null);
+  const [comparableSales, setComparableSales] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const formatPrice = (price) => {
-    if (typeof price === 'string' && price.startsWith('$')) {
-      return price;
+  const { listingKey } = usePage().props;
+
+  // Fetch comparable sales from API
+  useEffect(() => {
+    if (listingKey) {
+      fetchComparableSales();
+    } else {
+      setIsLoading(false);
     }
-    return '$' + price.toLocaleString();
+  }, [listingKey]);
+
+  const fetchComparableSales = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/comparable-sales?listingKey=${listingKey}&limit=6`);
+      const data = await response.json();
+
+      console.log('Comparable sales API response:', data);
+
+      if (data.properties && data.properties.length > 0) {
+        // Format the data exactly like search page does for PropertyCardV5
+        const formattedSales = data.properties.map((property) => {
+          let imageUrl = property.MediaURL || null;
+
+          return {
+            // Match PropertyCardV5 expected format
+            listingKey: property.listingKey,
+            propertyType: property.propertySubType || property.propertyType || "Residential",
+            PropertySubType: property.propertySubType || property.PropertySubType || property.propertyType,
+            address: property.address || "Address not available",
+            // Include fields needed for formatCardAddress
+            UnitNumber: property.UnitNumber || property.unitNumber || '',
+            unitNumber: property.unitNumber || property.UnitNumber || '',
+            StreetNumber: property.StreetNumber || property.streetNumber || '',
+            streetNumber: property.streetNumber || property.StreetNumber || '',
+            StreetName: property.StreetName || property.streetName || '',
+            streetName: property.streetName || property.StreetName || '',
+            StreetSuffix: property.StreetSuffix || property.streetSuffix || '',
+            streetSuffix: property.streetSuffix || property.StreetSuffix || '',
+            // Include fields for buildCardFeatures
+            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
+            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
+            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
+            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
+            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
+            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
+            LivingArea: property.LivingArea || property.livingArea || property.LotSizeSquareFeet || null,
+            livingArea: property.livingArea || property.LivingArea || property.LotSizeSquareFeet || null,
+            ParkingTotal: property.ParkingTotal || property.parkingTotal || 0,
+            parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
+            // Price fields - use sold price for comparable sales
+            price: property.soldPrice || property.price || property.ListPrice,
+            ListPrice: property.soldPrice || property.ListPrice || property.price,
+            listPrice: property.soldPrice || property.listPrice || property.price,
+            soldPrice: property.soldPrice,
+            soldDate: property.soldDate,
+            daysOnMarket: property.daysOnMarket,
+            // Image - PropertyCardV5 uses imageUrl
+            imageUrl: imageUrl,
+            MediaURL: imageUrl,
+            image: imageUrl,
+            images: property.images || [],
+            // MLS fields
+            MlsStatus: 'Sold',
+            mlsStatus: 'Sold',
+            StandardStatus: 'Closed',
+            standardStatus: 'Closed',
+            source: 'mls',
+            // Additional fields
+            City: property.City || property.city || '',
+            city: property.city || property.City || '',
+            isSold: true,
+          };
+        });
+
+        setComparableSales(formattedSales);
+      } else {
+        setComparableSales([]);
+      }
+
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching comparable sales:', error);
+      setComparableSales([]);
+      setIsLoading(false);
+    }
   };
 
-  const formatDate = (date) => {
-    if (!date) return '';
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-      return date;
-    }
-    const dateObj = new Date(date);
-    return dateObj.toLocaleDateString('en-GB');
+  const itemsPerSlide = 3;
+  const totalSlides = Math.max(0, Math.ceil(comparableSales.length - itemsPerSlide) + 1);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => Math.min(prev + 1, totalSlides - 1));
   };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => Math.max(prev - 1, 0));
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
+
+  // Don't render if loading or no sales available
+  if (isLoading) {
+    return (
+      <section className="p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 similar-listings-container">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: 'rgb(41, 48, 86)' }}>
+                {title}
+              </h2>
+            </div>
+          </div>
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2 text-gray-600">Loading comparable sales...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!comparableSales || comparableSales.length === 0) {
+    return null; // Don't show section if no comparable sales
+  }
 
   return (
-    <section className="p-4 rounded-xl border-gray-200 border shadow-sm bg-white">
+    <section className="p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 similar-listings-container">
       <div className="max-w-[1280px] mx-auto">
-        <h2 className="text-xl md:text-2xl font-bold font-space-grotesk mb-5" style={{ color: '#293056' }}>
-          Comparable Sales
-        </h2>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: 'rgb(41, 48, 86)' }}>
+              {title}
+            </h2>
+          </div>
 
-        <div className="w-full h-[200px] md:h-[250px] my-4 text-center bg-gray-50 rounded-lg overflow-hidden relative flex items-center justify-center">
-          <div className="bg-gray-100 w-full h-full flex items-center justify-center">
-            <div className="bg-white bg-opacity-90 px-4 py-2 rounded-lg">
-              <span className="text-gray-700 font-medium">Map View Coming Soon</span>
+          {/* Desktop Navigation Buttons */}
+          <div className="hidden md:flex gap-2">
+            <button
+              onClick={prevSlide}
+              disabled={currentSlide === 0}
+              className="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all border-gray-400 text-gray-600 hover:border-gray-600 hover:text-gray-800 hover:bg-white disabled:border-gray-200 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+              </svg>
+            </button>
+            <button
+              onClick={nextSlide}
+              disabled={currentSlide >= totalSlides - 1}
+              className="w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all border-gray-400 text-gray-600 hover:border-gray-600 hover:text-gray-800 hover:bg-white disabled:border-gray-200 disabled:text-gray-300 disabled:cursor-not-allowed"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Horizontal Scroll */}
+        <div className="block md:hidden">
+          <div className="mobile-listings-scroll">
+            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+              {comparableSales.map((property, index) => (
+                <div key={property.listingKey || index} className="flex-shrink-0 carousel-item w-[300px]">
+                  <PropertyCardV5 property={property} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden shadow-sm ring-1 ring-gray-200 rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200 bg-white">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Address
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sold Price
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sold Date
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Days On Market
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {salesData && salesData.length > 0 ? (
-                    salesData.map((sale, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors duration-200">
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <a 
-                            href={sale.url || '#'} 
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                          >
-                            {sale.address}
-                          </a>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-gray-900 font-medium">
-                          {formatPrice(sale.sold_price)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                          {formatDate(sale.sold_date)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-gray-900">
-                          {sale.days_on_market}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                        <em>No comparable sales available</em>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+        {/* Desktop Carousel */}
+        <div className="hidden md:block relative overflow-hidden">
+          <div
+            ref={sliderRef}
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${currentSlide * 33.333}%)` }}
+          >
+            {comparableSales.map((property, index) => (
+              <div key={property.listingKey || index} className="w-full flex-shrink-0 px-2" style={{ flexBasis: '33.333%' }}>
+                <PropertyCardV5 property={property} />
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Desktop Pagination Dots */}
+        {totalSlides > 1 && (
+          <div className="hidden md:flex justify-center mt-6 gap-2">
+            {Array.from({ length: totalSlides }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-3 h-3 rounded-full transition-all ${
+                  currentSlide === index ? 'bg-gray-800' : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      <style>
+        {`
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+        `}
+      </style>
     </section>
   );
 };

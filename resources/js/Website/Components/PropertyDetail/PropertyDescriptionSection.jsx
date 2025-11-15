@@ -76,23 +76,60 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
   }, [waitingForAi, mlsId, hasLoadedAi]);
   // Format the address from the property data
   const formatAddress = () => {
-    if (!propertyData) return '408 - 155 Dalhousie Street';
-    
-    // Check for already formatted address first (from controller)
-    if (propertyData.address && typeof propertyData.address === 'string') {
-      return propertyData.address;
-    }
-    
-    // Otherwise build from individual fields
+    if (!propertyData) return 'About Unit 408, 155 Dalhousie St, Toronto';
+
+    // Helper function to abbreviate street suffix
+    const abbreviateStreetSuffix = (suffix) => {
+      if (!suffix) return '';
+      const suffixMap = {
+        'Street': 'St',
+        'Avenue': 'Ave',
+        'Road': 'Rd',
+        'Drive': 'Dr',
+        'Lane': 'Ln',
+        'Court': 'Ct',
+        'Circle': 'Cir',
+        'Boulevard': 'Blvd',
+        'Parkway': 'Pkwy',
+        'Terrace': 'Ter',
+        'Place': 'Pl',
+        'Way': 'Way',
+        'Crescent': 'Cres'
+      };
+      return suffixMap[suffix] || suffix;
+    };
+
+    // Helper function to clean city name (remove district codes like C01, W04, etc.)
+    const cleanCityName = (city) => {
+      if (!city) return '';
+      // Remove district codes (pattern: space followed by letter and 2 digits)
+      return city.replace(/\s+[CEWNS]\d{2}$/i, '').trim();
+    };
+
+    // Get address components
     const unit = propertyData.UnitNumber || propertyData.unitNumber || propertyData.ApartmentNumber || propertyData.apartmentNumber || '';
     const streetNumber = propertyData.StreetNumber || propertyData.streetNumber || '';
     const streetName = propertyData.StreetName || propertyData.streetName || '';
     const streetSuffix = propertyData.StreetSuffix || propertyData.streetSuffix || '';
-    
+    const city = cleanCityName(propertyData.City || propertyData.city || '');
+
+    // Abbreviate street suffix
+    const abbreviatedSuffix = abbreviateStreetSuffix(streetSuffix);
+
+    // Build formatted address
+    let formattedAddress = 'About ';
+
     if (unit) {
-      return `${unit} - ${streetNumber} ${streetName} ${streetSuffix}`.trim();
+      formattedAddress += `Unit ${unit}, `;
     }
-    return `${streetNumber} ${streetName} ${streetSuffix}`.trim();
+
+    formattedAddress += `${streetNumber} ${streetName} ${abbreviatedSuffix}`.trim();
+
+    if (city) {
+      formattedAddress += `, ${city}`;
+    }
+
+    return formattedAddress;
   };
 
   // Format price

@@ -280,9 +280,14 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                 
                 {/* For Sale and For Rent Buttons */}
                 <div className="flex flex-col gap-3">
-                  <a
-                    href={`/${buildingUrlSlug}/for-sale`}
-                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
+                  <button
+                    onClick={() => {
+                      const section = document.getElementById('properties-for-sale');
+                      if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group cursor-pointer"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
                       {isLoadingCounts
@@ -290,11 +295,16 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         : `${propertyCounts.for_sale || 0} for sale`
                       }
                     </span>
-                  </a>
+                  </button>
 
-                  <a
-                    href={`/${buildingUrlSlug}/for-rent`}
-                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group"
+                  <button
+                    onClick={() => {
+                      const section = document.getElementById('properties-for-rent');
+                      if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group cursor-pointer"
                   >
                     <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
                       {isLoadingCounts
@@ -302,7 +312,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         : `${propertyCounts.for_rent || 0} for rent`
                       }
                     </span>
-                  </a>
+                  </button>
                 </div>
                 
                 {/* Agent Section */}

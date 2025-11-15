@@ -279,11 +279,25 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const toggleMaintenanceFeeAmenity = (amenity) => {
         const exists = selectedMaintenanceFeeAmenities.find(a => a.id === amenity.id);
+        let newSelectedMaintenanceFeeAmenities;
+
         if (exists) {
-            setSelectedMaintenanceFeeAmenities(selectedMaintenanceFeeAmenities.filter(a => a.id !== amenity.id));
+            newSelectedMaintenanceFeeAmenities = selectedMaintenanceFeeAmenities.filter(a => a.id !== amenity.id);
         } else {
-            setSelectedMaintenanceFeeAmenities([...selectedMaintenanceFeeAmenities, amenity]);
+            newSelectedMaintenanceFeeAmenities = [...selectedMaintenanceFeeAmenities, amenity];
         }
+
+        setSelectedMaintenanceFeeAmenities(newSelectedMaintenanceFeeAmenities);
+
+        // Also update the form data to keep it in sync
+        setData('maintenance_fee_amenity_ids', newSelectedMaintenanceFeeAmenities.map(a => a.id));
+
+        console.log('Maintenance Fee Amenity toggled:', {
+            amenity: amenity.name,
+            action: exists ? 'removed' : 'added',
+            newSelectedCount: newSelectedMaintenanceFeeAmenities.length,
+            newSelectedIds: newSelectedMaintenanceFeeAmenities.map(a => a.id)
+        });
     };
 
     const handleImageUpload = async (e, imageType = 'main') => {

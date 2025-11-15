@@ -39,7 +39,7 @@ export default function MerchandiseLofts({ propertyData }) {
   useEffect(() => {
     const fetchBuildingData = async () => {
       const address = extractAddress();
-      
+
       if (!address || !address.streetNumber || !address.streetName) {
         setLoading(false);
         return;
@@ -56,25 +56,88 @@ export default function MerchandiseLofts({ propertyData }) {
         }
 
         const buildingResult = await buildingResponse.json();
-        
+
+        let fetchedBuildingData = null;
         if (buildingResult.success && buildingResult.data) {
-          setBuildingData(buildingResult.data);
+          fetchedBuildingData = buildingResult.data;
+          setBuildingData(fetchedBuildingData);
         }
 
         // Fetch MLS counts (with cache-busting timestamp)
         const timestamp = new Date().getTime();
-        const mlsResponse = await fetch(`/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}&_t=${timestamp}`);
 
-        if (!mlsResponse.ok) {
-          console.warn(`MLS count API returned ${mlsResponse.status}: ${mlsResponse.statusText}`);
-          setLoading(false);
-          return;
-        }
+        // If we have building data with street addresses, fetch counts for all addresses
+        let totalForSale = 0;
+        let totalForRent = 0;
 
-        const mlsResult = await mlsResponse.json();
-        
-        if (mlsResult.success) {
-          setMlsCounts(mlsResult.data);
+        if (fetchedBuildingData && (fetchedBuildingData.street_address_1 || fetchedBuildingData.street_address_2)) {
+          const addresses = [];
+
+          // Parse street_address_1
+          if (fetchedBuildingData.street_address_1) {
+            const match1 = fetchedBuildingData.street_address_1.match(/^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?$/i);
+            if (match1) {
+              addresses.push({ streetNumber: match1[1], streetName: match1[2].trim() });
+            }
+          }
+
+          // Parse street_address_2
+          if (fetchedBuildingData.street_address_2) {
+            const match2 = fetchedBuildingData.street_address_2.match(/^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?$/i);
+            if (match2) {
+              addresses.push({ streetNumber: match2[1], streetName: match2[2].trim() });
+            }
+          }
+
+          // If no addresses parsed, fallback to original extraction
+          if (addresses.length === 0) {
+            addresses.push({ streetNumber: address.streetNumber, streetName: address.streetName });
+          }
+
+          // Fetch counts for each address and sum them
+          const countPromises = addresses.map(async (addr) => {
+            const countUrl = `/api/buildings/count-mls-listings?street_number=${addr.streetNumber}&street_name=${encodeURIComponent(addr.streetName)}&_t=${timestamp}`;
+            try {
+              const response = await fetch(countUrl);
+              if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data) {
+                  return result.data;
+                }
+              }
+            } catch (err) {
+              console.error(`Error fetching counts for ${addr.streetNumber} ${addr.streetName}:`, err);
+            }
+            return { for_sale: 0, for_rent: 0 };
+          });
+
+          const results = await Promise.all(countPromises);
+          results.forEach(result => {
+            totalForSale += result.for_sale || 0;
+            totalForRent += result.for_rent || 0;
+          });
+
+          setMlsCounts({
+            for_sale: totalForSale,
+            for_rent: totalForRent,
+            total: totalForSale + totalForRent
+          });
+        } else {
+          // Fallback to single address query
+          const countUrl = `/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}&_t=${timestamp}`;
+          const mlsResponse = await fetch(countUrl);
+
+          if (!mlsResponse.ok) {
+            console.warn(`MLS count API returned ${mlsResponse.status}: ${mlsResponse.statusText}`);
+            setLoading(false);
+            return;
+          }
+
+          const mlsResult = await mlsResponse.json();
+
+          if (mlsResult.success) {
+            setMlsCounts(mlsResult.data);
+          }
         }
       } catch (error) {
         console.error('Error fetching building data:', error);

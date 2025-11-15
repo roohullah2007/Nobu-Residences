@@ -1091,6 +1091,180 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Get comparable sales (sold properties) for a property
+     */
+    public function getComparableSales(Request $request)
+    {
+        $listingKey = $request->input('listingKey');
+        $limit = $request->input('limit', 6);
+
+        // Get property type filters from request
+        $requestedPropertyType = $request->input('propertyType');
+        $requestedPropertySubType = $request->input('propertySubType');
+
+        try {
+            $ampreApi = new AmpreApiService();
+
+            // Get the current property to find comparable sales
+            $currentProperty = $ampreApi->getPropertyByKey($listingKey);
+
+            if (!$currentProperty) {
+                return response()->json(['properties' => []]);
+            }
+
+            // Get property attributes for similarity matching
+            $propertyType = $requestedPropertyType ?? $currentProperty['PropertyType'] ?? '';
+            $propertySubType = $requestedPropertySubType ?? $currentProperty['PropertySubType'] ?? '';
+            $bedrooms = $currentProperty['BedroomsTotal'] ?? 0;
+            $bathrooms = $currentProperty['BathroomsTotalInteger'] ?? 0;
+            $currentPrice = $currentProperty['ListPrice'] ?? 0;
+
+            // Fetch more properties to ensure we get enough with images
+            $fetchLimit = $limit * 5; // Fetch 5x more to account for properties without images
+            $ampreApi->resetFilters();
+
+            // Add property type filter - prefer subtype if available
+            if ($propertySubType) {
+                $ampreApi->addFilter('PropertySubType', $propertySubType, 'eq');
+            } elseif ($propertyType) {
+                $ampreApi->addFilter('PropertyType', $propertyType, 'eq');
+            }
+
+            // Filter by sold/closed status instead of active
+            $ampreApi->addFilter('StandardStatus', 'Closed', 'eq')
+                ->setTop($fetchLimit)
+                ->setSelect([
+                    'ListingKey',
+                    'UnparsedAddress',
+                    'City',
+                    'StateOrProvince',
+                    'PostalCode',
+                    'ListPrice',
+                    'ClosePrice',
+                    'CloseDate',
+                    'PropertyType',
+                    'PropertySubType',
+                    'BedroomsTotal',
+                    'BathroomsTotalInteger',
+                    'TransactionType',
+                    'StandardStatus',
+                    'DaysOnMarket'
+                ]);
+
+            // Filter by similar bedroom count (±1)
+            if ($bedrooms > 0) {
+                $minBeds = max(1, $bedrooms - 1);
+                $maxBeds = $bedrooms + 1;
+                $ampreApi->addFilter('BedroomsTotal', strval($minBeds), 'ge')
+                        ->addFilter('BedroomsTotal', strval($maxBeds), 'le');
+            }
+
+            // Add price range filter (within 20% of current property price)
+            if ($currentPrice > 0) {
+                $minPrice = $currentPrice * 0.8;
+                $maxPrice = $currentPrice * 1.2;
+                $ampreApi->setPriceRange(intval($minPrice), intval($maxPrice));
+            }
+
+            $comparableProperties = $ampreApi->fetchProperties();
+
+            // Filter out the current property and format the results
+            $allFormattedProperties = [];
+            foreach ($comparableProperties as $property) {
+                if ($property['ListingKey'] !== $listingKey) {
+                    $formatted = $this->formatAmprePropertyData($property);
+                    // Add sold-specific fields
+                    $formatted['soldPrice'] = $property['ClosePrice'] ?? $property['ListPrice'];
+                    $formatted['soldDate'] = $property['CloseDate'] ?? null;
+                    $formatted['daysOnMarket'] = $property['DaysOnMarket'] ?? null;
+                    $formatted['isSold'] = true;
+                    // Initialize image fields
+                    $formatted['MediaURL'] = null;
+                    $formatted['image'] = null;
+                    $formatted['images'] = [];
+                    $allFormattedProperties[] = $formatted;
+                }
+            }
+
+            // Get images for comparable properties
+            $listingKeys = array_column($allFormattedProperties, 'listingKey');
+            \Log::info('Fetching images for comparable sales:', $listingKeys);
+
+            if (!empty($listingKeys)) {
+                try {
+                    // Fetch images in batches
+                    $batchSize = 3;
+                    $imagesByKey = [];
+
+                    foreach (array_chunk($listingKeys, $batchSize) as $batch) {
+                        $batchImages = $ampreApi->getPropertiesImages($batch, 'Largest', 5);
+                        \Log::info('Comparable sales batch images for keys ' . implode(',', $batch) . ':', $batchImages);
+                        $imagesByKey = array_merge($imagesByKey, $batchImages);
+                    }
+
+                    foreach ($allFormattedProperties as &$property) {
+                        $key = $property['listingKey'];
+                        $propertyImages = $imagesByKey[$key] ?? [];
+
+                        // Add images array
+                        $property['images'] = $propertyImages;
+
+                        // Get first image URL
+                        $imageUrl = null;
+                        if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
+                            $imageUrl = $propertyImages[0]['MediaURL'];
+
+                            // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
+                            if ($imageUrl && strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
+                                $imageUrl = str_replace('https://', 'http://', $imageUrl);
+                                \Log::info("Converting AMPRE URL to HTTP: {$imageUrl}");
+                            }
+                        }
+
+                        // Process all images array too
+                        $processedImages = [];
+                        foreach ($propertyImages as $img) {
+                            if (isset($img['MediaURL'])) {
+                                $url = $img['MediaURL'];
+                                // Convert HTTPS to HTTP for AMPRE images
+                                if ($url && strpos($url, 'ampre.ca') !== false && strpos($url, 'https://') === 0) {
+                                    $url = str_replace('https://', 'http://', $url);
+                                }
+                                $processedImages[] = ['MediaURL' => $url];
+                            }
+                        }
+
+                        // Set MediaURL and image fields
+                        $property['MediaURL'] = $imageUrl;
+                        $property['image'] = $imageUrl;
+                        $property['images'] = $processedImages;
+
+                        \Log::info("Comparable sale image for {$key}: " . ($imageUrl ?: 'none'));
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Error fetching comparable property images: ' . $e->getMessage());
+                    foreach ($allFormattedProperties as &$property) {
+                        $property['images'] = [];
+                        $property['MediaURL'] = null;
+                        $property['image'] = null;
+                    }
+                }
+            }
+
+            // Return properties, limited to requested amount
+            $finalProperties = array_slice($allFormattedProperties, 0, $limit);
+
+            \Log::info('Comparable sales - Returning ' . count($finalProperties) . ' properties');
+
+            return response()->json(['properties' => $finalProperties]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to fetch comparable sales: ' . $e->getMessage());
+            return response()->json(['properties' => []]);
+        }
+    }
+
+    /**
      * Redirect old property URL to new SEO-friendly format
      */
     public function propertyDetailRedirect($listingKey)

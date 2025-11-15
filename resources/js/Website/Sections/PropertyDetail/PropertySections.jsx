@@ -91,14 +91,11 @@ export default function PropertySections({
         propertyData={propertyData}
       />
 
-      {/* Similar Listings Section - Using same MoreBuildings component for consistency */}
-      <MoreBuildings
-        title="Similar Listings"
+      {/* Comparable Sales Section - Show sold properties instead of similar listings */}
+      <ComparableSales
+        title="Comparable Sales"
         propertyData={propertyData}
       />
-      
-      {/* Comparable Sales Section - Only visible to logged-in users */}
-      {/* {auth?.user && <ComparableSales />} */}
       
       {/* Properties For Sale Section - Using Global PropertyCarousel
       <section className="py-4 bg-gray-50">

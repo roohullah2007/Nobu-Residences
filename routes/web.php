@@ -139,6 +139,7 @@ Route::prefix('api/schools')->group(function () {
 // Nearby and Similar listings API routes
 Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings']);
 Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListings']);
+Route::get('/api/comparable-sales', [WebsiteController::class, 'getComparableSales']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard', [

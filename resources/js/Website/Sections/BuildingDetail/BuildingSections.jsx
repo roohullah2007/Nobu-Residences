@@ -31,20 +31,24 @@ export default function BuildingSections({
       {/* <MerchandiseLofts /> */}
 
       {/* Properties For Sale Section - Fetch condo apartments dynamically */}
-      <MoreBuildings
-        title="Properties For Sale"
-        propertyType="Condo Apartment"
-        transactionType="For Sale"
-        buildingData={buildingData}
-      />
+      <div id="properties-for-sale">
+        <MoreBuildings
+          title="Properties For Sale"
+          propertyType="Condo Apartment"
+          transactionType="For Sale"
+          buildingData={buildingData}
+        />
+      </div>
 
       {/* Properties For Rent Section - Fetch condo apartments dynamically */}
-      <MoreBuildings
-        title="Properties For Rent"
-        propertyType="Condo Apartment"
-        transactionType="For Rent"
-        buildingData={buildingData}
-      />
+      <div id="properties-for-rent">
+        <MoreBuildings
+          title="Properties For Rent"
+          propertyType="Condo Apartment"
+          transactionType="For Rent"
+          buildingData={buildingData}
+        />
+      </div>
 
       {/* More Buildings by Developer Section - Show if developer_name exists */}
       {buildingData?.developer_name && (
