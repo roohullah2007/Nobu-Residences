@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\MLSProperty;
 use App\Services\AmpreApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -52,24 +53,10 @@ class PropertyImageController extends Controller
             $batchSize = min(count($listingKeys), 15); // Reduced for better performance
             $listingKeys = array_slice($listingKeys, 0, $batchSize);
             
-            Log::info('Fetching images for listing keys: ' . implode(', ', $listingKeys));
-            
-            // Set timeout context for API calls
-            $context = stream_context_create([
-                'http' => [
-                    'timeout' => 8 // 8 second timeout
-                ]
-            ]);
-            
-            // Fetch images for the listing keys with timeout handling
-            $imagesByKey = [];
-            try {
-                $imagesByKey = $this->ampreApi->getPropertiesImages($listingKeys);
-            } catch (\Exception $apiException) {
-                Log::warning('AMPRE API timeout or error: ' . $apiException->getMessage());
-                // Continue with empty results rather than failing completely
-                $imagesByKey = [];
-            }
+            Log::info('Fetching images from DATABASE for listing keys: ' . implode(', ', $listingKeys));
+
+            // DATABASE-ONLY: Fetch images from mls_properties table (no API calls)
+            $imagesByKey = $this->getImagesFromDatabase($listingKeys);
             
             // Format response similar to IDX-AMPRE plugin
             $formattedImages = [];
@@ -167,15 +154,8 @@ class PropertyImageController extends Controller
                 ], 400);
             }
             
-            // Fetch image for single listing with timeout
-            $images = [];
-            try {
-                $images = $this->ampreApi->getPropertiesImages([$listingKey]);
-            } catch (\Exception $apiException) {
-                Log::warning("AMPRE API timeout for listing {$listingKey}: " . $apiException->getMessage());
-                // Return empty result rather than error
-            }
-            
+            // DATABASE-ONLY: Fetch images from mls_properties table (no API call)
+            $images = $this->getImagesFromDatabase([$listingKey]);
             $propertyImages = $images[$listingKey] ?? [];
             
             if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
@@ -231,5 +211,49 @@ class PropertyImageController extends Controller
                 ]
             ])->header('Cache-Control', 'public, max-age=60'); // 1 minute cache for errors
         }
+    }
+
+    /**
+     * Get images from database for multiple properties
+     * DATABASE-ONLY: No API calls - uses images stored in mls_properties table
+     */
+    private function getImagesFromDatabase(array $listingKeys): array
+    {
+        if (empty($listingKeys)) {
+            return [];
+        }
+
+        // Single query to get all properties with their images
+        $mlsProperties = MLSProperty::whereIn('mls_id', $listingKeys)
+            ->whereNotNull('image_urls')
+            ->get()
+            ->keyBy('mls_id');
+
+        $imagesByKey = [];
+
+        foreach ($listingKeys as $listingKey) {
+            $mlsProperty = $mlsProperties->get($listingKey);
+
+            if ($mlsProperty && !empty($mlsProperty->image_urls)) {
+                // Format images in the same structure as API response
+                $images = [];
+                foreach ($mlsProperty->image_urls as $index => $url) {
+                    $images[] = [
+                        'MediaURL' => $url,
+                        'Order' => $index,
+                    ];
+                }
+                $imagesByKey[$listingKey] = $images;
+            } else {
+                $imagesByKey[$listingKey] = [];
+            }
+        }
+
+        Log::debug('Loaded images from database', [
+            'requested' => count($listingKeys),
+            'found' => $mlsProperties->count()
+        ]);
+
+        return $imagesByKey;
     }
 }

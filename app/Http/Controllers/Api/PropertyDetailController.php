@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\MLSProperty;
 use App\Services\AmpreApiService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -60,8 +61,8 @@ class PropertyDetailController extends Controller
                 'allKeys' => array_keys($property)
             ]);
             
-            // Fetch property images
-            $images = $this->ampreApi->getPropertiesImages([$listingKey]);
+            // Fetch property images from DATABASE first (no API call)
+            $images = $this->getImagesFromDatabase($listingKey);
             
             // DEBUGGING: Log the formatted data being sent to frontend
             $formattedProperty = $this->formatPropertyData($property);
@@ -539,7 +540,41 @@ class PropertyDetailController extends Controller
     }
 
     /**
-     * Add property images using the same pattern as PropertySearchController
+     * Get images from database for a single property
+     * DATABASE-ONLY: No API calls - uses images stored in mls_properties table
+     */
+    private function getImagesFromDatabase(string $listingKey): array
+    {
+        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+
+        if (!$mlsProperty || empty($mlsProperty->image_urls)) {
+            Log::debug('No images found in database for property', ['listingKey' => $listingKey]);
+            return [];
+        }
+
+        // Format as expected by formatImages method: [$listingKey => [images]]
+        $images = [];
+        foreach ($mlsProperty->image_urls as $index => $url) {
+            $images[] = [
+                'MediaURL' => $url,
+                'ShortDescription' => '',
+                'LongDescription' => '',
+                'Order' => $index,
+                'ModificationTimestamp' => null,
+            ];
+        }
+
+        Log::debug('Loaded images from database', [
+            'listingKey' => $listingKey,
+            'image_count' => count($images)
+        ]);
+
+        return [$listingKey => $images];
+    }
+
+    /**
+     * Add property images using DATABASE instead of API
+     * DATABASE-ONLY: No API calls - uses images stored in mls_properties table
      */
     private function addPropertyImages(array $properties): array
     {
@@ -554,27 +589,37 @@ class PropertyDetailController extends Controller
         }
 
         try {
-            // Fetch images in smaller batches to avoid API limits and improve accuracy
-            $batchSize = 5;
-            $imagesByKey = [];
-
-            foreach (array_chunk($listingKeys, $batchSize) as $batch) {
-                $batchImages = $this->ampreApi->getPropertiesImages($batch);
-                $imagesByKey = array_merge($imagesByKey, $batchImages);
-            }
+            // Fetch images from DATABASE - single query for all properties
+            $mlsProperties = MLSProperty::whereIn('mls_id', $listingKeys)
+                ->whereNotNull('image_urls')
+                ->get()
+                ->keyBy('mls_id');
 
             foreach ($properties as $index => $property) {
                 $listingKey = $property['ListingKey'] ?? null;
-                $propertyImages = $imagesByKey[$listingKey] ?? [];
+                $mlsProperty = $mlsProperties->get($listingKey);
 
-                // Add full Images array to property
-                $properties[$index]['Images'] = $propertyImages;
+                if ($mlsProperty && !empty($mlsProperty->image_urls)) {
+                    // Format images for property
+                    $propertyImages = array_map(function($url, $idx) {
+                        return ['MediaURL' => $url, 'Order' => $idx];
+                    }, $mlsProperty->image_urls, array_keys($mlsProperty->image_urls));
+
+                    $properties[$index]['Images'] = $propertyImages;
+                } else {
+                    $properties[$index]['Images'] = [];
+                }
             }
+
+            Log::debug('Loaded images from database for properties', [
+                'requested' => count($listingKeys),
+                'found_with_images' => $mlsProperties->count()
+            ]);
 
             return $properties;
 
         } catch (\Exception $e) {
-            Log::error('Failed to fetch property images: ' . $e->getMessage());
+            Log::error('Failed to fetch property images from database: ' . $e->getMessage());
             return $properties; // Return properties without images if fetch fails
         }
     }

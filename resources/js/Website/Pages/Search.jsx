@@ -12,6 +12,7 @@ import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
 import LoginModal from '@/Website/Global/Components/LoginModal';
+import FiltersModal from '@/Website/Components/FiltersModal';
 
 
 // Icon components
@@ -240,6 +241,7 @@ export default function EnhancedPropertySearch({
   const [activeProperty, setActiveProperty] = useState(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [propertyImages, setPropertyImages] = useState({});
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
 
   // Initialize lazy loading hook for property images
   const {
@@ -270,8 +272,17 @@ export default function EnhancedPropertySearch({
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
   };
 
+  // Track active request to prevent duplicates
+  const abortControllerRef = useRef(null);
+
   // Perform search
   const performSearch = async (params = searchFilters, resetPage = false, tabOverride = null) => {
+    // Abort any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsLoading(true);
     // Reset viewport properties when doing a new search
     setShowViewportProperties(false);
@@ -383,12 +394,29 @@ export default function EnhancedPropertySearch({
         body: JSON.stringify({
           search_params: searchParams,
           fetch_for_map: fetchForMap
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       const result = await response.json();
 
       if (result.success) {
+        // Debug logging for data source
+        console.log('🔍 SEARCH DEBUG:', {
+          page: result.data.page,
+          total: result.data.total,
+          mls_db_total: result.data.mls_db_total,
+          displayed: result.data.displayed,
+          debug: result.data.debug
+        });
+
+        // Log individual property sources
+        if (result.data.properties?.length > 0) {
+          const dbCount = result.data.properties.filter(p => p.data_source === 'mls_database').length;
+          const apiCount = result.data.properties.filter(p => p.data_source === 'mls_api').length;
+          console.log(`📊 Property sources: ${dbCount} from DB, ${apiCount} from API`);
+        }
+
         const currentTab = tabOverride || activeTab;
         if (currentTab === 'listings') {
           // Enhanced debugging for Sold/Leased properties
@@ -399,7 +427,8 @@ export default function EnhancedPropertySearch({
               StandardStatus: result.data.properties[0].StandardStatus,
               MlsStatus: result.data.properties[0].MlsStatus,
               TransactionType: result.data.properties[0].TransactionType,
-              formatted_status: result.data.properties[0].formatted_status
+              formatted_status: result.data.properties[0].formatted_status,
+              data_source: result.data.properties[0].data_source
             });
 
             // Check if we're getting the right properties
@@ -439,6 +468,11 @@ export default function EnhancedPropertySearch({
         setTotal(0);
       }
     } catch (error) {
+      // Ignore aborted requests (they're intentional when a new search starts)
+      if (error.name === 'AbortError') {
+        console.log('Previous search aborted');
+        return;
+      }
       console.error('Search error:', error);
       setProperties([]);
       setBuildings([]);
@@ -475,12 +509,10 @@ export default function EnhancedPropertySearch({
         statusFromTransaction = 'For Sale';
       }
       
-      // Default to Condo Apartment if building_id is provided
+      // Default to Condo Apartment if no property type specified
       let propertyTypes = ['Condo Apartment'];
       if (propertySubType) {
         propertyTypes = [propertySubType];
-      } else if (buildingIdFromUrl) {
-        propertyTypes = ['Condo Apartment'];
       }
 
       // Get street address from filters prop (passed from controller) or URL parameters
@@ -608,6 +640,45 @@ export default function EnhancedPropertySearch({
     if (resultsSection) {
       resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  };
+
+  // Handle filters applied from FiltersModal
+  const handleFiltersApply = (filters) => {
+    console.log('🔍 FiltersModal filters received:', filters);
+
+    // Determine if this is a Sold/Leased search (property_status) or regular For Sale/For Rent (status)
+    const isSoldOrLeased = filters.status === 'Sold' || filters.status === 'Leased';
+
+    // Build new search filters with all modal values
+    const newFilters = {
+      ...searchFilters,
+      // For Sold/Leased, set property_status and clear status; otherwise set status
+      status: isSoldOrLeased ? 'For Sale' : filters.status,
+      property_status: isSoldOrLeased ? filters.status : '',
+      // Price range
+      price_min: filters.price_min || 0,
+      price_max: filters.price_max || 10000000,
+      // Property types (array)
+      property_type: filters.property_type || [],
+      // Bedrooms & Bathrooms
+      bedrooms: filters.bedrooms || 0,
+      bathrooms: filters.bathrooms || 0,
+      // Additional filters
+      home_types: filters.home_types || [],
+      days_on_market: filters.days_on_market !== 'Any' ? filters.days_on_market : '',
+      building_age: filters.building_age !== 'Any' ? filters.building_age : '',
+      locker: filters.locker !== 'Any' ? filters.locker : '',
+      balcony: filters.balcony !== 'Any' ? filters.balcony : '',
+      amenities: filters.amenities || [],
+      keywords: filters.keywords || '',
+      page: 1 // Reset to first page when applying filters
+    };
+
+    console.log('🔍 New search filters:', newFilters);
+
+    setSearchFilters(newFilters);
+    setCurrentPage(1);
+    performSearch(newFilters, true, activeTab);
   };
 
   const handleSaveSearch = async () => {
@@ -1019,6 +1090,8 @@ export default function EnhancedPropertySearch({
                 maxPrice: searchFilters.price_max || 10000000,
                 searchType: urlParams.get('search_type') || 'global',
               }}
+              viewMode={viewType}
+              onViewModeChange={(mode) => setViewType(mode)}
               onSearch={(searchData) => {
                 setSearchFilters(prev => ({
                   ...prev,
@@ -1050,6 +1123,7 @@ export default function EnhancedPropertySearch({
                 }, true, activeTab);
               }}
               onSaveSearch={handleSaveSearch}
+              onFilterClick={() => setShowFiltersModal(true)}
             />
           </div>
 
@@ -1381,10 +1455,9 @@ export default function EnhancedPropertySearch({
                   </button>
                 </div>
                 
-                {/* Right: View Controls and Sort */}
+                {/* Right: View Toggle and Sort */}
                 <div className="flex items-center gap-4">
-                  {/* View Type Controls - Only show map/mixed for listings, not buildings */}
-                  {activeTab === 'listings' ? (
+                    {/* View Toggle Buttons - Grid/Mixed/Map with border like reference */}
                     <div className="flex items-center bg-white border border-black rounded-lg p-1">
                       <button
                         onClick={() => setViewType('grid')}
@@ -1408,20 +1481,7 @@ export default function EnhancedPropertySearch({
                         <MapIcon className="w-5 h-5" />
                       </button>
                     </div>
-                  ) : (
-                    // For buildings tab, only show grid view
-                    <div className="flex items-center bg-white border border-black rounded-lg p-1">
-                      <button
-                        className="p-2 rounded bg-[#293056] text-white"
-                        title="Grid View"
-                      >
-                        <GridIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                  )}
 
-                  {/* Sort Control */}
-                  <div className="flex items-center gap-4">
                     {/* Sort Dropdown */}
                     <div className="relative">
                       <button
@@ -1491,7 +1551,6 @@ export default function EnhancedPropertySearch({
                         </div>
                       )}
                     </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1854,6 +1913,15 @@ export default function EnhancedPropertySearch({
 
         {/* Save Search Modal */}
         </div>
+
+        {/* Filters Modal */}
+        <FiltersModal
+          isOpen={showFiltersModal}
+          onClose={() => setShowFiltersModal(false)}
+          onApply={handleFiltersApply}
+          currentFilters={searchFilters}
+          totalCount={total}
+        />
 
         {/* Login Modal */}
         <LoginModal

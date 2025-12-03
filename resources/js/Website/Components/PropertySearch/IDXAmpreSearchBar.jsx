@@ -30,7 +30,7 @@ const Home = ({ className }) => (
     </svg>
 );
 
-const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthenticated = false }) => {
+const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilterClick, isAuthenticated = false, viewMode: externalViewMode, onViewModeChange }) => {
     // Add styles for range inputs
     useEffect(() => {
         const style = document.createElement('style');
@@ -89,7 +89,22 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
     const [showFilters, setShowFilters] = useState(false);
     const [showPriceSlider, setShowPriceSlider] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false); // State for login modal
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'mixed'
+    const [viewMode, setViewModeInternal] = useState(externalViewMode || 'grid'); // 'grid' or 'mixed'
+
+    // Sync with external viewMode
+    useEffect(() => {
+        if (externalViewMode !== undefined) {
+            setViewModeInternal(externalViewMode);
+        }
+    }, [externalViewMode]);
+
+    // Handle view mode change
+    const setViewMode = (mode) => {
+        setViewModeInternal(mode);
+        if (onViewModeChange) {
+            onViewModeChange(mode);
+        }
+    };
     const locationInputRef = useRef(null);
     const autocompleteRef = useRef(null);
     const dropdownRef = useRef(null);
@@ -131,7 +146,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Load Google Maps script if needed
+    // Load Google Maps script if needed (using new Places API)
     useEffect(() => {
         const loadGoogleMapsScript = () => {
             // Check if API key exists
@@ -142,202 +157,305 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
             // Check if script is already loaded or loading
             const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-            
+
             if (window.google && window.google.maps && window.google.maps.places) {
                 // Already loaded
                 console.log('Google Maps already loaded');
                 return;
             }
-            
+
             if (existingScript) {
                 // Script exists but may still be loading
                 console.log('Google Maps script found, waiting for load...');
                 return;
             }
-            
-            // Create and load the script
+
+            // Create and load the script with the new Places API
             console.log('Loading Google Maps script for autocomplete...');
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${window.googleMapsApiKey}&libraries=places`;
+            // Use the new Places API (places library still works for PlaceAutocompleteElement)
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${window.googleMapsApiKey}&libraries=places&loading=async`;
             script.async = true;
             script.defer = true;
-            
+
             script.onload = () => {
                 console.log('Google Maps script loaded successfully');
             };
-            
+
             script.onerror = () => {
                 console.error('Failed to load Google Maps script. Please check your API key and ensure it has Places API enabled.');
             };
-            
+
             document.head.appendChild(script);
         };
 
         loadGoogleMapsScript();
     }, []);
 
-    // Initialize or destroy autocomplete based on search type
-    useEffect(() => {
-        // Clean up previous autocomplete
-        if (autocompleteRef.current && window.google && window.google.maps && window.google.maps.event) {
-            window.google.maps.event.clearInstanceListeners(locationInputRef.current);
-            autocompleteRef.current = null;
-        }
+    // State for Google Places autocomplete suggestions
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const autocompleteServiceRef = useRef(null);
+    const sessionTokenRef = useRef(null);
 
-        // Initialize autocomplete for all search types (including global)
-        // Wait a bit for Google Maps to load if needed
-        const tryInit = () => {
-            if (window.google && window.google.maps && window.google.maps.places) {
-                initAutocomplete();
-            } else {
-                setTimeout(tryInit, 500);
+    // Initialize Google Places AutocompleteService
+    useEffect(() => {
+        const initAutocompleteService = () => {
+            if (window.google?.maps?.places?.AutocompleteService) {
+                autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+                sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
             }
         };
-        tryInit();
-    }, [searchType]);
 
-    const initAutocomplete = () => {
-        if (!locationInputRef.current) return;
+        // Try to initialize immediately if Google is already loaded
+        if (window.google?.maps?.places) {
+            initAutocompleteService();
+        } else {
+            // Wait for Google Maps to load
+            const checkGoogle = setInterval(() => {
+                if (window.google?.maps?.places) {
+                    initAutocompleteService();
+                    clearInterval(checkGoogle);
+                }
+            }, 500);
 
-        // Check if Google Maps is available
-        if (!window.google || !window.google.maps || !window.google.maps.places) {
-            console.log('Google Maps not available for autocomplete');
+            // Clean up interval after 10 seconds
+            setTimeout(() => clearInterval(checkGoogle), 10000);
+        }
+    }, []);
+
+    // Fetch street address suggestions from Google Places API (only for street search type)
+    const fetchGooglePredictions = async (input) => {
+        if (!input || input.length < 2) {
+            setSuggestions([]);
+            setShowSuggestions(false);
             return;
         }
 
-        console.log(`🟢 Initializing ${searchType} autocomplete (IDX AMPRE style)`);
+        // Check if AutocompleteService is available
+        if (!autocompleteServiceRef.current) {
+            // Try to initialize it
+            if (window.google?.maps?.places?.AutocompleteService) {
+                autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+                sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+            } else {
+                console.log('Google AutocompleteService not available yet');
+                return;
+            }
+        }
 
         try {
-            let autocompleteConfig = {
-                componentRestrictions: { country: 'ca' },
-                fields: ['formatted_address', 'address_components', 'place_id', 'name'],
-                bounds: new window.google.maps.LatLngBounds(
-                    new window.google.maps.LatLng(43.5810, -79.6390), // Southwest Toronto
-                    new window.google.maps.LatLng(43.8554, -79.1168)  // Northeast Toronto
-                ),
-                strictBounds: true // Only show Toronto results
-            };
-
-            // Configure autocomplete based on search type
-            switch (searchType) {
-                case 'street':
-                    autocompleteConfig.types = ['address'];
-                    break;
-                case 'city':
-                    autocompleteConfig.types = ['(cities)'];
-                    break;
-                case 'postal':
-                    autocompleteConfig.types = ['postal_code'];
-                    break;
-                case 'global':
-                default:
-                    // For global search, show all types of addresses
-                    autocompleteConfig.types = ['address'];
-            }
-
-            // Create autocomplete instance
-            autocompleteRef.current = new window.google.maps.places.Autocomplete(
-                locationInputRef.current,
-                autocompleteConfig
-            );
-
-            // Handle place selection
-            autocompleteRef.current.addListener('place_changed', () => {
-                const place = autocompleteRef.current.getPlace();
-                console.log('Place selected:', place);
-
-                if (place && place.address_components) {
-                    let displayValue = '';
-
-                    if (searchType === 'street') {
-                        // Extract street number and street name only
-                        const streetNumber = place.address_components.find(comp =>
-                            comp.types.includes('street_number'));
-                        const streetName = place.address_components.find(comp =>
-                            comp.types.includes('route'));
-
-                        if (streetNumber && streetName) {
-                            displayValue = `${streetNumber.long_name} ${streetName.long_name}`;
-                        } else if (streetName) {
-                            displayValue = streetName.long_name;
-                        } else if (place.formatted_address) {
-                            const addressParts = place.formatted_address.split(',');
-                            displayValue = addressParts[0].trim();
-                        } else {
-                            displayValue = place.name || '';
-                        }
-                    } else if (searchType === 'city') {
-                        // Extract city name
-                        const city = place.address_components.find(comp =>
-                            comp.types.includes('locality') || comp.types.includes('administrative_area_level_1'));
-                        displayValue = city ? city.long_name : (place.name || place.formatted_address);
-                    } else if (searchType === 'postal') {
-                        // Extract postal code
-                        const postal = place.address_components.find(comp =>
-                            comp.types.includes('postal_code'));
-                        displayValue = postal ? postal.long_name : (place.name || place.formatted_address);
-                    } else if (searchType === 'global') {
-                        // For global search, show street number and street name
-                        const streetNumber = place.address_components.find(comp =>
-                            comp.types.includes('street_number'));
-                        const streetName = place.address_components.find(comp =>
-                            comp.types.includes('route'));
-
-                        if (streetNumber && streetName) {
-                            displayValue = `${streetNumber.long_name} ${streetName.long_name}`;
-                        } else if (streetName) {
-                            displayValue = streetName.long_name;
-                        } else if (place.formatted_address) {
-                            const addressParts = place.formatted_address.split(',');
-                            displayValue = addressParts[0].trim();
-                        } else {
-                            displayValue = place.name || '';
-                        }
+            autocompleteServiceRef.current.getPlacePredictions(
+                {
+                    input: input,
+                    sessionToken: sessionTokenRef.current,
+                    types: ['address'], // Only return street addresses
+                    componentRestrictions: { country: 'ca' }, // Restrict to Canada
+                },
+                (predictions, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                        const formattedSuggestions = predictions.map(prediction => ({
+                            place_id: prediction.place_id,
+                            main_text: prediction.structured_formatting?.main_text || prediction.description.split(',')[0],
+                            secondary_text: prediction.structured_formatting?.secondary_text || prediction.description.split(',').slice(1).join(','),
+                            description: prediction.description,
+                            type: 'street',
+                        }));
+                        setSuggestions(formattedSuggestions);
+                        setShowSuggestions(true);
                     } else {
-                        displayValue = place.formatted_address || place.name || '';
+                        setSuggestions([]);
+                        setShowSuggestions(false);
                     }
-
-                    console.log('Setting formatted value:', displayValue);
-                    setSearchData(prev => ({
-                        ...prev,
-                        location: displayValue
-                    }));
-
-                    // Hide autocomplete dropdown after selection
-                    const pacContainer = document.querySelector('.pac-container');
-                    if (pacContainer) {
-                        pacContainer.style.display = 'none';
-                    }
-                    
-                    // Remove focus from input to ensure dropdown stays hidden
-                    setTimeout(() => {
-                        if (locationInputRef.current) {
-                            locationInputRef.current.blur();
-                        }
-                    }, 100);
                 }
-            });
+            );
+        } catch (error) {
+            console.log('Error fetching Google suggestions:', error);
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
 
-            console.log('✅ Autocomplete initialized successfully');
-            
-            // Add custom styling to ensure autocomplete dropdown is visible
-            const pacContainer = document.querySelector('.pac-container');
-            if (pacContainer) {
-                pacContainer.style.zIndex = '9999';
-                pacContainer.style.borderRadius = '8px';
-                pacContainer.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)';
-                pacContainer.style.border = '1px solid #e5e7eb';
+    // Fetch city suggestions from the database (only for city search type)
+    const fetchCitySuggestions = async (input) => {
+        if (!input || input.length < 2) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/city-suggestions?q=${encodeURIComponent(input)}&limit=10`);
+            const data = await response.json();
+
+            if (data.suggestions && data.suggestions.length > 0) {
+                const formattedSuggestions = data.suggestions.map((item, index) => ({
+                    id: `city-${index}`,
+                    main_text: item.main_text,
+                    secondary_text: item.secondary_text + (item.listing_count ? ` (${item.listing_count} listings)` : ''),
+                    display: item.display,
+                    type: 'city',
+                }));
+                setSuggestions(formattedSuggestions);
+                setShowSuggestions(true);
+            } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
             }
         } catch (error) {
-            console.error('Error initializing autocomplete:', error);
+            console.log('Error fetching city suggestions:', error);
+            setSuggestions([]);
+            setShowSuggestions(false);
         }
+    };
+
+    // Fetch combined suggestions for global search (both street addresses and cities)
+    const fetchGlobalSuggestions = async (input) => {
+        if (!input || input.length < 2) {
+            setSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
+        // Fetch both street addresses and cities in parallel
+        const streetPromise = new Promise((resolve) => {
+            if (!autocompleteServiceRef.current) {
+                if (window.google?.maps?.places?.AutocompleteService) {
+                    autocompleteServiceRef.current = new window.google.maps.places.AutocompleteService();
+                    sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+                } else {
+                    resolve([]);
+                    return;
+                }
+            }
+
+            autocompleteServiceRef.current.getPlacePredictions(
+                {
+                    input: input,
+                    sessionToken: sessionTokenRef.current,
+                    types: ['address'],
+                    componentRestrictions: { country: 'ca' },
+                },
+                (predictions, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+                        const formattedSuggestions = predictions.slice(0, 5).map(prediction => ({
+                            place_id: prediction.place_id,
+                            main_text: prediction.structured_formatting?.main_text || prediction.description.split(',')[0],
+                            secondary_text: prediction.structured_formatting?.secondary_text || prediction.description.split(',').slice(1).join(','),
+                            description: prediction.description,
+                            type: 'street',
+                        }));
+                        resolve(formattedSuggestions);
+                    } else {
+                        resolve([]);
+                    }
+                }
+            );
+        });
+
+        const cityPromise = fetch(`/api/city-suggestions?q=${encodeURIComponent(input)}&limit=5`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.suggestions && data.suggestions.length > 0) {
+                    return data.suggestions.map((item, index) => ({
+                        id: `city-${index}`,
+                        main_text: item.main_text,
+                        secondary_text: item.secondary_text + (item.listing_count ? ` (${item.listing_count} listings)` : ''),
+                        display: item.display,
+                        type: 'city',
+                    }));
+                }
+                return [];
+            })
+            .catch(() => []);
+
+        try {
+            const [streetSuggestions, citySuggestions] = await Promise.all([streetPromise, cityPromise]);
+
+            // Combine results - interleave street and city suggestions
+            const combined = [];
+            const maxLen = Math.max(streetSuggestions.length, citySuggestions.length);
+            for (let i = 0; i < maxLen; i++) {
+                if (i < streetSuggestions.length) combined.push(streetSuggestions[i]);
+                if (i < citySuggestions.length) combined.push(citySuggestions[i]);
+            }
+
+            // Limit to 8 suggestions total
+            const limitedSuggestions = combined.slice(0, 8);
+
+            setSuggestions(limitedSuggestions);
+            setShowSuggestions(limitedSuggestions.length > 0);
+        } catch (error) {
+            console.log('Error fetching global suggestions:', error);
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
+    // Main function to fetch predictions based on search type
+    const fetchPredictions = async (input) => {
+        // Fetch suggestions for 'street', 'city', and 'global' search types
+        if (searchType === 'street') {
+            await fetchGooglePredictions(input);
+        } else if (searchType === 'city') {
+            await fetchCitySuggestions(input);
+        } else if (searchType === 'global') {
+            await fetchGlobalSuggestions(input);
+        } else {
+            // For 'postal', no autocomplete suggestions
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
+    // Handle suggestion selection - extract street number and name
+    const handleSuggestionSelect = (suggestion) => {
+        // Use main_text which contains the street address (e.g., "15 Mercer Street")
+        const displayValue = suggestion.main_text || suggestion.description?.split(',')[0] || '';
+
+        setSearchData(prev => ({
+            ...prev,
+            location: displayValue
+        }));
+
+        // Hide suggestions and blur input
+        setSuggestions([]);
+        setShowSuggestions(false);
+
+        // Reset session token for next search (per Google's billing recommendations)
+        if (window.google?.maps?.places) {
+            sessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+        }
+
+        setTimeout(() => {
+            if (locationInputRef.current) {
+                locationInputRef.current.blur();
+            }
+        }, 100);
+    };
+
+    // Debounced fetch for predictions
+    const debouncedFetch = useRef(null);
+    const handleLocationInputChange = (e) => {
+        const value = e.target.value;
+        setSearchData({ ...searchData, location: value });
+
+        // Debounce the API call
+        if (debouncedFetch.current) {
+            clearTimeout(debouncedFetch.current);
+        }
+        debouncedFetch.current = setTimeout(() => {
+            fetchPredictions(value);
+        }, 300);
     };
 
     const handleSearchTypeChange = (type) => {
         setSearchType(type);
         setShowSearchTypeDropdown(false);
-        // Clear the search input when changing type
+        // Clear the search input and suggestions when changing type
         setSearchData(prev => ({ ...prev, location: '' }));
+        setSuggestions([]);
+        setShowSuggestions(false);
     };
 
     const handleSearch = () => {
@@ -375,24 +493,20 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
-            // Hide autocomplete dropdown
-            const pacContainer = document.querySelector('.pac-container');
-            if (pacContainer) {
-                pacContainer.style.display = 'none';
-            }
-            
+            // Hide suggestions dropdown
+            setSuggestions([]);
+            setShowSuggestions(false);
+
             // Prevent form submission if inside a form
             e.preventDefault();
-            
+
             // Execute search
             handleSearch();
         } else if (e.key === 'Escape') {
-            // Hide autocomplete dropdown on Escape key
-            const pacContainer = document.querySelector('.pac-container');
-            if (pacContainer) {
-                pacContainer.style.display = 'none';
-            }
-            
+            // Hide suggestions dropdown on Escape key
+            setSuggestions([]);
+            setShowSuggestions(false);
+
             // Also blur the input
             if (locationInputRef.current) {
                 locationInputRef.current.blur();
@@ -411,13 +525,13 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
 
     return (
         <>
-            <div className="bg-gray-100 rounded-2xl px-4 py-3 overflow-x-auto overflow-y-hidden" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+            <div className="bg-gray-100 rounded-2xl px-4 py-3 overflow-visible" style={{ fontFamily: 'Work Sans, sans-serif' }}>
                 <div className="flex items-center gap-4 w-full flex-wrap lg:flex-nowrap min-w-fit">
 
                     {/* Left Group: Search, For Sale, Bed Type, Price */}
-                    <div className="flex items-center gap-3 w-full flex-wrap lg:flex-nowrap">
+                    <div className="flex items-center gap-3 w-full flex-wrap lg:flex-nowrap overflow-visible">
                         {/* Search Input with Type Selector and Search Button - 400px width */}
-                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-[400px] h-[48px] relative">
+                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-[400px] h-[48px] relative" style={{ zIndex: 100 }}>
                             {/* Search Type Dropdown Button */}
                             <div className="relative" ref={dropdownRef}>
                                 <button
@@ -463,24 +577,54 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                                 placeholder={currentSearchType.placeholder}
                                 className="flex-1 text-sm font-bold text-[#293056] focus:outline-none border-0 bg-transparent placeholder:text-[#293056] placeholder:font-bold placeholder:opacity-60 px-2"
                                 value={searchData.location}
-                                onChange={(e) => {
-                                    setSearchData({ ...searchData, location: e.target.value });
-                                    const pacContainer = document.querySelector('.pac-container');
-                                    if (pacContainer && e.target.value.length > 0) {
-                                        pacContainer.style.display = 'block';
+                                onChange={handleLocationInputChange}
+                                onFocus={() => {
+                                    if (searchData.location && searchData.location.length >= 2) {
+                                        fetchPredictions(searchData.location);
                                     }
                                 }}
-                                onFocus={() => {
-                                    if (searchData.location) {
-                                        const pacContainer = document.querySelector('.pac-container');
-                                        if (pacContainer) {
-                                            pacContainer.style.display = 'block';
-                                        }
-                                    }
+                                onBlur={() => {
+                                    // Delay hiding to allow click on suggestions
+                                    setTimeout(() => setShowSuggestions(false), 200);
                                 }}
                                 onKeyPress={handleKeyPress}
                                 data-search-type={searchType}
+                                autoComplete="off"
                             />
+
+                            {/* Custom Autocomplete Suggestions Dropdown - For Street, City, and Global search types */}
+                            {showSuggestions && suggestions.length > 0 && (searchType === 'street' || searchType === 'city' || searchType === 'global') && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden" style={{ zIndex: 99999 }}>
+                                    {suggestions.map((suggestion, index) => (
+                                        <button
+                                            key={suggestion.place_id || suggestion.id || index}
+                                            type="button"
+                                            className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 transition-colors ${
+                                                index === 0 ? '' : 'border-t border-gray-100'
+                                            }`}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault(); // Prevent blur
+                                                handleSuggestionSelect(suggestion);
+                                            }}
+                                        >
+                                            {/* Show Home icon for street addresses, MapPin for cities */}
+                                            {suggestion.type === 'city' ? (
+                                                <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                            ) : (
+                                                <Home className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {suggestion.main_text || suggestion.description?.split(',')[0] || ''}
+                                                </div>
+                                                <div className="text-xs text-gray-500 truncate">
+                                                    {suggestion.secondary_text || suggestion.description || ''}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* Search Button */}
                             <button
@@ -652,43 +796,23 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, isAuthe
                         </div>
                     </div>
 
-                    {/* Right Group: Grid/Mixed Toggle and Save Search */}
+                    {/* Right Group: Filter and Save Search */}
                     <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap lg:flex-nowrap">
-                        {/* Grid/Mixed View Toggle - 145px width, 44px height */}
-                        <div className="hidden lg:flex items-center bg-white rounded-lg overflow-hidden w-[145px] h-[44px]">
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`transition-all flex-1 h-full flex flex-col items-center justify-center gap-0.5 ${
-                                    viewMode === 'grid'
-                                        ? 'bg-black text-white hover:bg-gray-800'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50'
-                                }`}
-                            >
-                                <svg className="w-3.5 h-3.5" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                </svg>
-                                <span className="text-[9px] font-medium">Grid</span>
-                            </button>
-                            <button
-                                onClick={() => setViewMode('mixed')}
-                                className={`transition-all flex-1 h-full flex flex-col items-center justify-center gap-0.5 relative ${
-                                    viewMode === 'mixed'
-                                        ? 'bg-black text-white hover:bg-gray-800'
-                                        : 'bg-white text-gray-600 hover:bg-gray-50'
-                                }`}
-                            >
-                                <svg className="w-3.5 h-3.5" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                </svg>
-                                <span className="text-[9px] font-medium">Mixed</span>
-                            </button>
-                        </div>
+                        {/* Filter Button - styled like Save Search */}
+                        <button
+                            onClick={() => {
+                                // Trigger filter modal or action
+                                if (onFilterClick) {
+                                    onFilterClick();
+                                } else {
+                                    // Dispatch custom event to open filters modal
+                                    window.dispatchEvent(new CustomEvent('openFiltersModal'));
+                                }
+                            }}
+                            className="bg-white rounded-lg font-bold text-sm text-[#293056] hover:bg-gray-50 transition-all whitespace-nowrap flex items-center justify-center border border-gray-200 w-full lg:w-[111px] h-[48px]"
+                        >
+                            Filter
+                        </button>
 
                         {/* Save Search Button - 111px width, 48px height */}
                         <button

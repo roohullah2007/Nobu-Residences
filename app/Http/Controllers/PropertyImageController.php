@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MLSProperty;
 use App\Services\MLSIntegrationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -89,41 +90,37 @@ class PropertyImageController extends Controller
     }
 
     /**
-     * Fetch images from MLS API using the AmpreApiService directly
+     * Fetch images from DATABASE (no API calls)
+     * DATABASE-ONLY: Uses images stored in mls_properties table
      */
     private function fetchImagesFromMLS(array $listingKeys): array
     {
         $images = [];
 
         try {
-            // Get the AmpreApiService instance
-            $ampreApiService = app(\App\Services\AmpreApiService::class);
-            
-            if (!$ampreApiService) {
-                throw new \Exception('Ampre API service not available');
-            }
-
-            // Use the AmpreApiService to fetch images directly (same as plugin)
-            $mlsImages = $ampreApiService->getPropertiesImages($listingKeys);
+            // Fetch images from database - single query for all properties
+            $mlsProperties = MLSProperty::whereIn('mls_id', $listingKeys)
+                ->whereNotNull('image_urls')
+                ->get()
+                ->keyBy('mls_id');
 
             foreach ($listingKeys as $key) {
-                if (isset($mlsImages[$key]) && !empty($mlsImages[$key])) {
-                    // Get the first (primary) image (same as plugin)
-                    $primaryImage = $mlsImages[$key][0] ?? null;
-                    
-                    if ($primaryImage && isset($primaryImage['MediaURL']) && !empty($primaryImage['MediaURL'])) {
-                        $imageUrl = $primaryImage['MediaURL'];
-                        
+                $mlsProperty = $mlsProperties->get($key);
+
+                if ($mlsProperty && !empty($mlsProperty->image_urls)) {
+                    // Get the first (primary) image
+                    $imageUrl = $mlsProperty->image_urls[0] ?? null;
+
+                    if ($imageUrl) {
                         // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
                         if (strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
                             $imageUrl = str_replace('https://', 'http://', $imageUrl);
-                            Log::info('PropertyImageController - Converting AMPRE URL to HTTP: ' . $imageUrl);
                         }
-                        
+
                         $images[$key] = [
                             'image_url' => $imageUrl,
                             'is_placeholder' => false,
-                            'media_key' => $primaryImage['MediaKey'] ?? null
+                            'media_key' => null
                         ];
                     } else {
                         $images[$key] = [
@@ -139,13 +136,18 @@ class PropertyImageController extends Controller
                 }
             }
 
+            Log::debug('Loaded images from database', [
+                'requested' => count($listingKeys),
+                'found' => $mlsProperties->count()
+            ]);
+
         } catch (\Exception $e) {
-            Log::error('MLS API error in fetchImagesFromMLS', [
+            Log::error('Database error in fetchImagesFromMLS', [
                 'error' => $e->getMessage(),
                 'listing_keys' => $listingKeys
             ]);
 
-            // Return placeholders for all keys on error (same as plugin)
+            // Return placeholders for all keys on error
             foreach ($listingKeys as $key) {
                 $images[$key] = [
                     'image_url' => $this->getPlaceholderImage(),

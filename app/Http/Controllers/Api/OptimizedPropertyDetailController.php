@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use App\Services\AmpreApiService;
 use App\Models\Property;
 use App\Models\Building;
+use App\Models\MLSProperty;
 
 class OptimizedPropertyDetailController extends Controller
 {
@@ -58,12 +59,10 @@ class OptimizedPropertyDetailController extends Controller
                 'building' => null
             ];
 
-            // Fetch images if MLS property
+            // Fetch images from DATABASE (no API call)
             if (!is_numeric($listingKey)) {
-                $images = $this->ampreApiService->getPropertyImages($listingKey);
-                if ($images && isset($images['data'])) {
-                    $responseData['images'] = $images['data'];
-                }
+                $images = $this->getImagesFromDatabase($listingKey);
+                $responseData['images'] = $images;
             }
 
             // Get building data if available
@@ -213,6 +212,33 @@ class OptimizedPropertyDetailController extends Controller
                 return [];
             }
         });
+    }
+
+    /**
+     * Get images from database for a property
+     * DATABASE-ONLY: No API calls
+     */
+    private function getImagesFromDatabase(string $listingKey): array
+    {
+        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+
+        if (!$mlsProperty || empty($mlsProperty->image_urls)) {
+            return [];
+        }
+
+        // Format images for frontend
+        $images = [];
+        foreach ($mlsProperty->image_urls as $index => $url) {
+            $images[] = [
+                'url' => $url,
+                'MediaURL' => $url,
+                'caption' => '',
+                'description' => '',
+                'order' => $index,
+            ];
+        }
+
+        return $images;
     }
 
     /**

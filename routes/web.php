@@ -7,7 +7,7 @@ use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\PropertyEnquiryController;
 
 use App\Http\Controllers\Admin\AdminController;
-
+use App\Http\Controllers\Admin\MLSController;
 use App\Http\Controllers\Admin\RealEstateController;
 use App\Http\Controllers\Admin\WebsiteManagementController;
 use Illuminate\Foundation\Application;
@@ -49,11 +49,12 @@ Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // New SEO-friendly property route structure: /city/street-address/mls-id
+// listingKey can be: MLS ID (alphanumeric), DB_UUID (for backend properties)
 Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
     ->where([
         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
-        'listingKey' => '[A-Z0-9]+'
+        'listingKey' => '[A-Za-z0-9_\-]+'
     ])
     ->name('property-detail');
 
@@ -84,6 +85,8 @@ Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageContr
 Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
 Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
+Route::get('/api/address-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getAddressSuggestions']);
+Route::get('/api/city-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getCitySuggestions']);
 Route::post('/api/save-search', [\App\Http\Controllers\SavedSearchController::class, 'store'])->middleware('auth');
 Route::get('/api/saved-searches', [\App\Http\Controllers\SavedSearchController::class, 'index'])->middleware('auth');
 Route::put('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'update'])->middleware('auth');
@@ -275,6 +278,19 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::patch('/{contact}/mark-read', [\App\Http\Controllers\Admin\ContactController::class, 'markAsRead'])->name('mark-read');
         Route::delete('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'destroy'])->name('destroy');
         Route::post('/bulk-actions', [\App\Http\Controllers\Admin\ContactController::class, 'bulkActions'])->name('bulk-actions');
+    });
+
+    // MLS Properties Management routes
+    Route::prefix('mls')->name('mls.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\MLSController::class, 'index'])->name('index');
+        Route::get('/stats', [\App\Http\Controllers\Admin\MLSController::class, 'getStats'])->name('stats');
+        Route::post('/sync-full', [\App\Http\Controllers\Admin\MLSController::class, 'syncFull'])->name('sync-full');
+        Route::post('/sync-incremental', [\App\Http\Controllers\Admin\MLSController::class, 'syncIncremental'])->name('sync-incremental');
+        Route::post('/sync-property', [\App\Http\Controllers\Admin\MLSController::class, 'syncProperty'])->name('sync-property');
+        Route::post('/bulk-delete', [\App\Http\Controllers\Admin\MLSController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::post('/clear-all', [\App\Http\Controllers\Admin\MLSController::class, 'clearAll'])->name('clear-all');
+        Route::get('/{id}', [\App\Http\Controllers\Admin\MLSController::class, 'show'])->name('show');
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\MLSController::class, 'destroy'])->name('destroy');
     });
 
     // Blog Management routes

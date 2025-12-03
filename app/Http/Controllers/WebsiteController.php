@@ -1269,22 +1269,42 @@ class WebsiteController extends Controller
      */
     public function propertyDetailRedirect($listingKey)
     {
-        // Fetch basic property data to get city and address
+        // Check if it's a backend database property (DB_ prefix)
+        if (str_starts_with($listingKey, 'DB_')) {
+            $backendPropertyId = substr($listingKey, 3);
+            $property = Property::find($backendPropertyId);
+
+            if ($property) {
+                // Format city
+                $city = strtolower(trim(str_replace(' ', '-', $property->city ?? 'toronto')));
+
+                // Extract and format street address
+                $addressSlug = $this->createAddressSlug($property->address ?? $property->full_address ?? 'property');
+
+                return redirect()->route('property-detail', [
+                    'city' => $city,
+                    'address' => $addressSlug,
+                    'listingKey' => $listingKey
+                ]);
+            }
+        }
+
+        // Fetch basic property data from AMPRE API for MLS properties
         try {
             $ampreApi = app(\App\Services\AmpreApiService::class);
             $property = $ampreApi->getPropertyByKey($listingKey);
-            
+
             if ($property) {
                 // Format city - remove district codes like C08, W04, etc.
                 $city = $property['City'] ?? 'toronto';
                 $city = preg_replace('/\s*[cewns]\d{2}\b/i', '', $city); // Remove district codes
                 $city = strtolower(trim(str_replace(' ', '-', $city)));
-                
+
                 $address = $property['UnparsedAddress'] ?? '';
-                
+
                 // Extract and format street address
                 $addressSlug = $this->createAddressSlug($address);
-                
+
                 return redirect()->route('property-detail', [
                     'city' => $city,
                     'address' => $addressSlug,
@@ -1294,7 +1314,7 @@ class WebsiteController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to redirect property: ' . $e->getMessage());
         }
-        
+
         // Fallback to default redirect
         return redirect()->route('property-detail', [
             'city' => 'toronto',
@@ -1343,18 +1363,32 @@ class WebsiteController extends Controller
         $cacheKey = 'property_detail_' . $listingKey;
         $cacheTime = 300; // 5 minutes
 
-        // Check if it's a local property (numeric ID)
-        if (is_numeric($listingKey)) {
+        // Check if it's a backend database property (DB_ prefix or numeric ID)
+        $isBackendProperty = str_starts_with($listingKey, 'DB_') || is_numeric($listingKey);
+        $backendPropertyId = str_starts_with($listingKey, 'DB_') ? substr($listingKey, 3) : $listingKey;
+
+        if ($isBackendProperty) {
             $property = Property::with(['building.amenities' => function($query) {
                 $query->orderBy('name');
-            }, 'building.maintenanceFeeAmenities'])->find($listingKey);
+            }, 'building.maintenanceFeeAmenities'])->find($backendPropertyId);
             if ($property) {
                 $propertyData = $property->getDisplayData();
+                // Add images from backend property
+                $propertyImages = $property->images ?? [];
+
+                // Check if images are placeholder URLs and try to fetch real MLS images
+                if ($this->hasPlaceholderImages($propertyImages) && !empty($property->mls_number)) {
+                    $mlsImages = $this->fetchMlsImagesForBackendProperty($property->mls_number);
+                    if (!empty($mlsImages)) {
+                        $propertyImages = $mlsImages;
+                    }
+                }
+
                 // Get building data and amenities if property belongs to a building
                 if ($property->building) {
                     // Force load the amenities relationships if not loaded
                     $property->building->loadMissing(['amenities', 'maintenanceFeeAmenities']);
-                    
+
                     $amenities = $property->building->amenities->map(function($amenity) {
                         return [
                             'id' => $amenity->id,
@@ -1362,7 +1396,7 @@ class WebsiteController extends Controller
                             'icon' => $amenity->icon
                         ];
                     })->toArray();
-                    
+
                     $buildingData = [
                         'id' => $property->building->id,
                         'name' => $property->building->name,
@@ -1380,7 +1414,7 @@ class WebsiteController extends Controller
                             ];
                         })->toArray()
                     ];
-                    
+
                     \Log::info('Local property building amenities loaded:', [
                         'building_id' => $property->building->id,
                         'building_name' => $property->building->name,
@@ -1830,6 +1864,76 @@ class WebsiteController extends Controller
         }
         
         return $rooms;
+    }
+
+    /**
+     * Check if images array contains placeholder URLs
+     */
+    private function hasPlaceholderImages(array $images): bool
+    {
+        if (empty($images)) {
+            return true;
+        }
+
+        foreach ($images as $url) {
+            // Check for common placeholder image sources
+            if (strpos($url, 'unsplash.com') !== false ||
+                strpos($url, 'placeholder') !== false ||
+                strpos($url, 'picsum.photos') !== false ||
+                strpos($url, 'via.placeholder') !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Fetch real MLS images for a backend property by MLS number
+     */
+    private function fetchMlsImagesForBackendProperty(string $mlsNumber): array
+    {
+        try {
+            // First check if we have cached images in mls_properties table
+            $mlsProperty = \App\Models\MLSProperty::where('mls_id', $mlsNumber)
+                ->orWhere('mls_number', $mlsNumber)
+                ->first();
+
+            if ($mlsProperty && !empty($mlsProperty->image_urls)) {
+                \Log::info('Using cached MLS images for backend property', [
+                    'mls_number' => $mlsNumber,
+                    'image_count' => count($mlsProperty->image_urls)
+                ]);
+                return $mlsProperty->image_urls;
+            }
+
+            // If not in cache, try to fetch from AMPRE API
+            $ampreApi = app(\App\Services\AmpreApiService::class);
+            $imagesByKey = $ampreApi->getPropertiesImages([$mlsNumber]);
+            if (!empty($imagesByKey[$mlsNumber])) {
+                $images = array_map(function($img) {
+                    $url = $img['MediaURL'] ?? '';
+                    // Convert HTTPS to HTTP for AMPRE images
+                    if ($url && strpos($url, 'ampre.ca') !== false && strpos($url, 'https://') === 0) {
+                        $url = str_replace('https://', 'http://', $url);
+                    }
+                    return $url;
+                }, $imagesByKey[$mlsNumber]);
+
+                \Log::info('Fetched MLS images from API for backend property', [
+                    'mls_number' => $mlsNumber,
+                    'image_count' => count($images)
+                ]);
+                return array_filter($images);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to fetch MLS images for backend property', [
+                'mls_number' => $mlsNumber,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return [];
     }
 
     /**

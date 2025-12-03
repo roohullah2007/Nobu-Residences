@@ -138,10 +138,12 @@ class AmpreApiService
 
     /**
      * Set the fields to select.
+     * Pass empty array [] to fetch ALL fields (no $select parameter in query)
      */
-    public function setSelect(array $select = []): self
+    public function setSelect(?array $select = null): self
     {
-        $this->select = empty($select) ? config('ampre.defaults.select', []) : $select;
+        // If null, use config defaults. If empty array [], fetch all fields.
+        $this->select = $select === null ? config('ampre.defaults.select', []) : $select;
         return $this;
     }
 
@@ -180,6 +182,16 @@ class AmpreApiService
     }
 
     /**
+     * Set cache TTL (Time To Live) in seconds.
+     * Set to 0 to disable caching.
+     */
+    public function setCacheTtl(int $ttl = 300): self
+    {
+        $this->cacheTtl = $ttl;
+        return $this;
+    }
+
+    /**
      * Add custom filter expression.
      */
     public function addCustomFilter(string $filterExpression): self
@@ -213,13 +225,10 @@ class AmpreApiService
 
     /**
      * Fetch multiple properties based on current filters.
+     * If select is empty, fetches ALL available fields.
      */
     public function fetchProperties(): array
     {
-        if (empty($this->select)) {
-            throw new Exception('Select fields must be specified before fetching properties.');
-        }
-
         $queryParams = $this->buildQueryParams();
         $cacheKey = $this->generateCacheKey('properties', $queryParams);
 
@@ -231,22 +240,34 @@ class AmpreApiService
 
     /**
      * Fetch properties with count information.
+     * If select is empty, fetches ALL available fields.
+     * Note: Caching disabled for large result sets to avoid database timeout issues.
      */
     public function fetchPropertiesWithCount(): array
     {
-        if (empty($this->select)) {
-            throw new Exception('Select fields must be specified before fetching properties.');
-        }
-
         $queryParams = $this->buildQueryParams();
         $queryParams['$count'] = 'true';
-        
+
+        // For large result sets (top > 50), skip caching to avoid MySQL timeout
+        $top = $queryParams['$top'] ?? 10;
+        if ($top > 50) {
+            // Fetch directly without caching for large requests
+            $response = $this->makeRequest('GET', 'Property', $queryParams);
+            $data = $this->processResponse($response, 'fetchPropertiesWithCount');
+
+            return [
+                'properties' => $data['value'] ?? [],
+                'count' => $data['@odata.count'] ?? count($data['value'] ?? [])
+            ];
+        }
+
+        // For smaller requests, use caching
         $cacheKey = $this->generateCacheKey('properties_count', $queryParams);
 
         return Cache::remember($cacheKey, $this->cacheTtl, function () use ($queryParams) {
             $response = $this->makeRequest('GET', 'Property', $queryParams);
             $data = $this->processResponse($response, 'fetchPropertiesWithCount');
-            
+
             return [
                 'properties' => $data['value'] ?? [],
                 'count' => $data['@odata.count'] ?? count($data['value'] ?? [])
@@ -367,9 +388,13 @@ class AmpreApiService
         );
 
         $queryParams = [
-            '$select' => implode(',', $this->select),
             '$top' => $this->top,
         ];
+
+        // Only add $select if fields are specified (empty = fetch all fields)
+        if (!empty($this->select)) {
+            $queryParams['$select'] = implode(',', $this->select);
+        }
 
         if ($this->skip > 0) {
             $queryParams['$skip'] = $this->skip;
