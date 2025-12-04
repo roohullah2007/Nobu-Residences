@@ -14,9 +14,17 @@ import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDe
 export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website }) {
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  
+
   // Debug: Log the received building data
-  console.log('BuildingDetail received props:', { buildingId, buildingData });
+  console.log('[BuildingDetail] ========= BUILD v2 =========');
+  console.log('[BuildingDetail] buildingId:', buildingId);
+  console.log('[BuildingDetail] buildingData:', buildingData);
+  console.log('[BuildingDetail] buildingData?.name:', buildingData?.name);
+  console.log('[BuildingDetail] mls_properties_for_sale:', buildingData?.mls_properties_for_sale);
+  console.log('[BuildingDetail] mls_properties_for_rent:', buildingData?.mls_properties_for_rent);
+  console.log('[BuildingDetail] mls_properties_for_sale count:', buildingData?.mls_properties_for_sale?.length || 0);
+  console.log('[BuildingDetail] mls_properties_for_rent count:', buildingData?.mls_properties_for_rent?.length || 0);
+  console.log('[BuildingDetail] ========================================');
   
   // Viewing request modal state
   const [viewingModal, setViewingModal] = useState({
@@ -168,7 +176,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
   // Provide fallback building data if none provided
   const effectiveBuildingData = buildingData || {
     id: 'sample-1',
-    name: "8 Hillcrest Ave, North York",
+    name: "8 Hillcrest Ave, North York (FALLBACK)",
     subtitle: "Modern downtown living",
     description: "Experience luxury living in the heart of downtown.",
     address: "8 Hillcrest Ave",
@@ -207,6 +215,12 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
       }
     ]
   };
+
+  // DEBUG: Log effectiveBuildingData
+  console.log('[BuildingDetail] effectiveBuildingData:', effectiveBuildingData);
+  console.log('[BuildingDetail] effectiveBuildingData.name:', effectiveBuildingData?.name);
+  console.log('[BuildingDetail] effectiveBuildingData.mls_properties_for_sale:', effectiveBuildingData?.mls_properties_for_sale);
+  console.log('[BuildingDetail] effectiveBuildingData.mls_properties_for_rent:', effectiveBuildingData?.mls_properties_for_rent);
 
   // Use actual building images from backend or fallback to samples
   const buildingImages = [];

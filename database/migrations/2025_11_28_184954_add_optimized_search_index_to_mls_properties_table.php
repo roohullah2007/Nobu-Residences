@@ -21,7 +21,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Check if index already exists
+        // SQLite doesn't support SHOW INDEX or DESC in index columns
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            // Create a simpler index for SQLite
+            Schema::table('mls_properties', function (Blueprint $table) {
+                $table->index(['deleted_at', 'is_active', 'status', 'property_type', 'has_images', 'listed_date'], 'idx_mls_search_sort');
+            });
+            return;
+        }
+
+        // Check if index already exists (MySQL)
         $indexExists = DB::select("SHOW INDEX FROM mls_properties WHERE Key_name = 'idx_mls_search_sort'");
 
         if (empty($indexExists)) {

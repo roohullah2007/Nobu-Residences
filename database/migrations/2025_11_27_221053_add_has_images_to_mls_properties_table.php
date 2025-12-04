@@ -17,7 +17,13 @@ return new class extends Migration
         });
 
         // Update existing records based on image_urls content
-        DB::statement("UPDATE mls_properties SET has_images = 1 WHERE image_urls IS NOT NULL AND image_urls != '[]' AND image_urls != 'null' AND JSON_LENGTH(image_urls) > 0");
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            // SQLite-compatible version
+            DB::statement("UPDATE mls_properties SET has_images = 1 WHERE image_urls IS NOT NULL AND image_urls != '[]' AND image_urls != 'null' AND LENGTH(image_urls) > 2");
+        } else {
+            // MySQL version with JSON_LENGTH
+            DB::statement("UPDATE mls_properties SET has_images = 1 WHERE image_urls IS NOT NULL AND image_urls != '[]' AND image_urls != 'null' AND JSON_LENGTH(image_urls) > 0");
+        }
     }
 
     /**

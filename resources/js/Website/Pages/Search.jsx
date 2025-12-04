@@ -7,6 +7,7 @@ import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyProp
 import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
 import SimplePropertyMap from '@/Website/Components/SimplePropertyMap';
 import ViewportAwarePropertyMap from '@/Website/Components/ViewportAwarePropertyMap';
+import ClusteredPropertyMap from '@/Website/Components/ClusteredPropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
 import { createBuildingUrl, createSEOBuildingUrl } from '@/utils/slug';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
@@ -1565,25 +1566,39 @@ export default function EnhancedPropertySearch({
                 </div>
               </div>
             ) : viewType === 'map' ? (
-              // Full Map View with viewport-aware loading
-              <ViewportAwarePropertyMap
-                properties={activeTab === 'listings' ? mapProperties : buildings}
-                className="w-full h-[600px]"
-                onPropertyClick={(property) => {
-                  // Don't navigate directly - let the info window handle it
-                  console.log('Property clicked:', property.ListingKey || property.id);
-                }}
-                viewType="full"
-                searchFilters={searchFilters}
-                isLoading={isLoading}
-                activeTab={activeTab}
-                onViewportChange={(newViewportProperties, bounds) => {
-                  console.log(`Loaded ${newViewportProperties.length} properties for viewport`, bounds);
-                  // Replace all properties with new viewport properties
-                  setViewportProperties(newViewportProperties);
-                  setShowViewportProperties(true);
-                }}
-              />
+              // Full Map View with clustering for 500-1000+ markers
+              activeTab === 'listings' ? (
+                <ClusteredPropertyMap
+                  searchFilters={{
+                    ...searchFilters,
+                    status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status
+                  }}
+                  className="w-full h-[600px]"
+                  onPropertyClick={(coord) => {
+                    console.log('Property clicked:', coord.mls_id);
+                    // Navigate to property detail
+                    if (coord.mls_id) {
+                      window.location.href = `/property/${coord.mls_id}`;
+                    }
+                  }}
+                  onMarkerCountChange={(displayed, total) => {
+                    console.log(`Map showing ${displayed} of ${total} properties`);
+                  }}
+                />
+              ) : (
+                // Use ViewportAwarePropertyMap for buildings
+                <ViewportAwarePropertyMap
+                  properties={buildings}
+                  className="w-full h-[600px]"
+                  onPropertyClick={(property) => {
+                    console.log('Building clicked:', property.id);
+                  }}
+                  viewType="full"
+                  searchFilters={searchFilters}
+                  isLoading={isLoading}
+                  activeTab={activeTab}
+                />
+              )
             ) : viewType === 'mixed' ? (
               // Enhanced Mixed View - IDX-AMPRE style split layout with two cards per row
               <div className="flex h-[calc(100vh-300px)] min-h-[700px] bg-white rounded-lg shadow-sm border overflow-hidden" 

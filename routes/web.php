@@ -49,12 +49,13 @@ Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // New SEO-friendly property route structure: /city/street-address/mls-id
-// listingKey can be: MLS ID (alphanumeric), DB_UUID (for backend properties)
+// listingKey must be: MLS ID format (letter followed by digits like C12550852)
+// This prevents matching building slugs like "lakeshore-vista"
 Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
     ->where([
         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
-        'listingKey' => '[A-Za-z0-9_\-]+'
+        'listingKey' => '[A-Z][0-9]+' // MLS IDs start with a letter followed by numbers (e.g., C12550852)
     ])
     ->name('property-detail');
 
@@ -84,6 +85,7 @@ Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageContr
 // Property Search API routes
 Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
 Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
+Route::post('/api/map-coordinates', [\App\Http\Controllers\PropertySearchController::class, 'getMapCoordinates']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
 Route::get('/api/address-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getAddressSuggestions']);
 Route::get('/api/city-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getCitySuggestions']);

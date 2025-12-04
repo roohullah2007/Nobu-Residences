@@ -277,7 +277,7 @@ return new class extends Migration
         foreach ($schools as $school) {
             $school['created_at'] = now();
             $school['updated_at'] = now();
-            DB::table('schools')->insert($school);
+            DB::table('schools')->insertOrIgnore($school);
         }
     }
 

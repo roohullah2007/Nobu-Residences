@@ -58,108 +58,22 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
     buildingUrlSlug = '15-35-Mercer';
   }
   
-  // Fetch property counts on component mount
+  // Get property counts from pre-loaded MLS data
   useEffect(() => {
-    const fetchPropertyCounts = async () => {
-      try {
-        setIsLoadingCounts(true);
+    // Use pre-loaded MLS properties from buildingData if available
+    const saleCount = buildingData?.mls_properties_for_sale?.length || 0;
+    const rentCount = buildingData?.mls_properties_for_rent?.length || 0;
 
-        // Collect all addresses to check
-        const addressesToCheck = [];
+    console.log('[BuildingGallery] Using pre-loaded MLS counts:', {
+      for_sale: saleCount,
+      for_rent: rentCount
+    });
 
-        // Add street_address_1 if available
-        if (buildingData?.street_address_1) {
-          addressesToCheck.push(buildingData.street_address_1);
-        }
-
-        // Add street_address_2 if available
-        if (buildingData?.street_address_2) {
-          addressesToCheck.push(buildingData.street_address_2);
-        }
-
-        // Fallback to parsing main address if no street addresses specified
-        if (addressesToCheck.length === 0 && buildingData?.address) {
-          const fullAddress = buildingData.address;
-          // Split addresses by "&" or "and" to handle multiple addresses
-          const parts = fullAddress.split(/\s+(?:&|and)\s+/i).map(part => part.trim());
-          addressesToCheck.push(...parts);
-        }
-
-        console.log('Addresses to check for counts:', addressesToCheck);
-
-        let totalForSale = 0;
-        let totalForRent = 0;
-
-        // Fetch counts for each address
-        for (const addressPart of addressesToCheck) {
-          // Extract street number and name from each part
-          const match = addressPart.match(/^(\d+)\s+(.+?)(?:,|$)/);
-          if (match) {
-            const streetNumber = match[1];
-            let streetName = match[2];
-
-            // Remove trailing street type words for better matching
-            streetName = streetName.replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '').trim();
-
-            console.log(`Fetching counts for: ${streetNumber} ${streetName}`);
-
-            // Fetch counts for this specific address using the existing API
-            try {
-              const params = new URLSearchParams({
-                street_number: streetNumber,
-                street_name: streetName
-              });
-
-              const response = await fetch(`/api/buildings/count-mls-listings?${params}`, {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-              });
-
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data) {
-                  totalForSale += (result.data.for_sale || 0);
-                  totalForRent += (result.data.for_rent || 0);
-
-                  console.log(`Counts for ${streetNumber} ${streetName}:`, {
-                    for_sale: result.data.for_sale,
-                    for_rent: result.data.for_rent
-                  });
-                }
-              } else {
-                console.error(`Failed to fetch counts for ${streetNumber} ${streetName}:`, response.status);
-              }
-            } catch (err) {
-              console.error(`Error fetching counts for ${streetNumber} ${streetName}:`, err);
-            }
-          } else {
-            console.log(`Could not parse address part: "${addressPart}"`);
-          }
-        }
-
-        // Update state with total counts
-        setPropertyCounts({
-          for_sale: totalForSale,
-          for_rent: totalForRent
-        });
-
-        console.log('Total property counts:', {
-          for_sale: totalForSale,
-          for_rent: totalForRent,
-          addresses_checked: addressesToCheck.length
-        });
-
-      } catch (error) {
-        console.error('Error fetching property counts:', error);
-      } finally {
-        setIsLoadingCounts(false);
-      }
-    };
-    
-    fetchPropertyCounts();
+    setPropertyCounts({
+      for_sale: saleCount,
+      for_rent: rentCount
+    });
+    setIsLoadingCounts(false);
   }, [buildingData]);
 
   const openModal = (imageIndex = 0) => {

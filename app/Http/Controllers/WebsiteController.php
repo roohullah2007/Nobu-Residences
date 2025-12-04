@@ -169,8 +169,101 @@ class WebsiteController extends Controller
                     'max' => $properties->max('price')
                 ] : null;
 
+                // Get building display data
+                $buildingData = $building->getDisplayData();
+
+                // Fetch MLS properties matching building's street addresses
+                $mlsPropertiesForSale = [];
+                $mlsPropertiesForRent = [];
+                $streetAddresses = [];
+
+                // Parse street_address_1
+                if (!empty($building->street_address_1)) {
+                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $matches)) {
+                        $streetAddresses[] = $matches[1];
+                    }
+                }
+
+                // Parse street_address_2
+                if (!empty($building->street_address_2)) {
+                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $matches)) {
+                        $streetAddresses[] = $matches[1];
+                    }
+                }
+
+                // If we have street addresses, query MLS properties
+                if (!empty($streetAddresses)) {
+                    $mlsQuery = \DB::table('mls_properties')
+                        ->where('is_active', true)
+                        ->where('status', 'active')
+                        ->where(function($query) use ($streetAddresses) {
+                            foreach ($streetAddresses as $streetAddr) {
+                                $query->orWhereRaw('LOWER(address) LIKE ?', [strtolower($streetAddr) . '%']);
+                            }
+                        })
+                        ->select([
+                            'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
+                            'square_footage', 'property_type', 'property_sub_type', 'image_urls',
+                            'has_images', 'listed_date'
+                        ])
+                        ->orderBy('listed_date', 'desc')
+                        ->limit(50)
+                        ->get();
+
+                    // Split into For Sale and For Rent
+                    foreach ($mlsQuery as $property) {
+                        $imageUrls = json_decode($property->image_urls ?? '[]', true);
+                        $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
+
+                        $formattedProperty = [
+                            'ListingKey' => $property->mls_id,
+                            'listingKey' => $property->mls_id,
+                            'ListPrice' => (float)$property->price,
+                            'price' => (float)$property->price,
+                            'UnparsedAddress' => $property->address,
+                            'address' => $property->address,
+                            'BedroomsTotal' => (int)$property->bedrooms,
+                            'bedroomsTotal' => (int)$property->bedrooms,
+                            'bedrooms' => (int)$property->bedrooms,
+                            'BathroomsTotalInteger' => (int)$property->bathrooms,
+                            'bathroomsTotalInteger' => (int)$property->bathrooms,
+                            'bathrooms' => (int)$property->bathrooms,
+                            'AboveGradeFinishedArea' => $property->square_footage ?? 0,
+                            'BuildingAreaTotal' => $property->square_footage ?? '',
+                            'buildingAreaTotal' => $property->square_footage ?? '',
+                            'PropertySubType' => $property->property_sub_type ?? 'Condo Apartment',
+                            'propertyType' => $property->property_sub_type ?? 'Condo Apartment',
+                            'TransactionType' => $property->property_type,
+                            'transactionType' => $property->property_type === 'For Sale' ? 'Sale' : 'Rent',
+                            'isRental' => $property->property_type !== 'For Sale',
+                            'City' => $property->city ?? '',
+                            'city' => $property->city ?? '',
+                            'MediaURL' => $mediaUrl,
+                            'imageUrl' => $mediaUrl,
+                            'Images' => array_map(function($url) {
+                                return ['MediaURL' => $url];
+                            }, $imageUrls),
+                            'images' => $imageUrls,
+                            'has_images' => $property->has_images,
+                            'source' => 'mls',
+                            '_source' => 'mls_database',
+                            '_mls_property_id' => $property->id,
+                        ];
+
+                        if ($property->property_type === 'For Sale') {
+                            $mlsPropertiesForSale[] = $formattedProperty;
+                        } else {
+                            $mlsPropertiesForRent[] = $formattedProperty;
+                        }
+                    }
+                }
+
+                // Add MLS properties to building data
+                $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
+                $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
+
                 return Inertia::render('BuildingDetail', [
-                    'buildingData' => $building,
+                    'buildingData' => $buildingData,
                     'buildingId' => $building->id,
                     'properties' => $properties,
                     'availableUnits' => $availableUnits,
@@ -1998,7 +2091,7 @@ class WebsiteController extends Controller
         
         // Get building display data
         $buildingData = $building->getDisplayData();
-        
+
         // Format properties for display
         if ($building->properties) {
             $buildingData['properties'] = $building->properties->map(function($property) {
@@ -2014,7 +2107,102 @@ class WebsiteController extends Controller
                 ];
             })->toArray();
         }
-        
+
+        // Fetch MLS properties matching building's street addresses
+        $mlsPropertiesForSale = [];
+        $mlsPropertiesForRent = [];
+
+        // Extract street addresses from building
+        $streetAddresses = [];
+
+        // Parse street_address_1 (e.g., "15 Mercer St" -> "15 Mercer")
+        if (!empty($building->street_address_1)) {
+            // Extract street number and name without suffix (St, Street, Ave, etc.)
+            if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $matches)) {
+                $streetAddresses[] = $matches[1];
+            }
+        }
+
+        // Parse street_address_2 (e.g., "35 Mercer" -> "35 Mercer")
+        if (!empty($building->street_address_2)) {
+            if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $matches)) {
+                $streetAddresses[] = $matches[1];
+            }
+        }
+
+        // If we have street addresses, query MLS properties
+        if (!empty($streetAddresses)) {
+            $mlsQuery = \DB::table('mls_properties')
+                ->where('is_active', true)
+                ->where('status', 'active')
+                ->where(function($query) use ($streetAddresses) {
+                    foreach ($streetAddresses as $streetAddr) {
+                        // Match "15 Mercer" at the start of address (case insensitive)
+                        $query->orWhereRaw('LOWER(address) LIKE ?', [strtolower($streetAddr) . '%']);
+                    }
+                })
+                ->select([
+                    'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
+                    'square_footage', 'property_type', 'property_sub_type', 'image_urls',
+                    'has_images', 'listed_date'
+                ])
+                ->orderBy('listed_date', 'desc')
+                ->limit(50)
+                ->get();
+
+            // Split into For Sale and For Rent - Format same as search page API
+            foreach ($mlsQuery as $property) {
+                $imageUrls = json_decode($property->image_urls ?? '[]', true);
+                $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
+
+                // Format properties exactly like PropertySearchController::convertMLSPropertyToApiFormat
+                $formattedProperty = [
+                    'ListingKey' => $property->mls_id,
+                    'listingKey' => $property->mls_id,
+                    'ListPrice' => (float)$property->price,
+                    'price' => (float)$property->price,
+                    'UnparsedAddress' => $property->address,
+                    'address' => $property->address,
+                    'BedroomsTotal' => (int)$property->bedrooms,
+                    'bedroomsTotal' => (int)$property->bedrooms,
+                    'bedrooms' => (int)$property->bedrooms,
+                    'BathroomsTotalInteger' => (int)$property->bathrooms,
+                    'bathroomsTotalInteger' => (int)$property->bathrooms,
+                    'bathrooms' => (int)$property->bathrooms,
+                    'AboveGradeFinishedArea' => $property->square_footage ?? 0,
+                    'BuildingAreaTotal' => $property->square_footage ?? '',
+                    'buildingAreaTotal' => $property->square_footage ?? '',
+                    'PropertySubType' => $property->property_sub_type ?? 'Condo Apartment',
+                    'propertyType' => $property->property_sub_type ?? 'Condo Apartment',
+                    'TransactionType' => $property->property_type,
+                    'transactionType' => $property->property_type === 'For Sale' ? 'Sale' : 'Rent',
+                    'isRental' => $property->property_type !== 'For Sale',
+                    'City' => $property->city ?? '',
+                    'city' => $property->city ?? '',
+                    'MediaURL' => $mediaUrl,
+                    'imageUrl' => $mediaUrl,
+                    'Images' => array_map(function($url) {
+                        return ['MediaURL' => $url];
+                    }, $imageUrls),
+                    'images' => $imageUrls,
+                    'has_images' => $property->has_images,
+                    'source' => 'mls',
+                    '_source' => 'mls_database',
+                    '_mls_property_id' => $property->id,
+                ];
+
+                if ($property->property_type === 'For Sale') {
+                    $mlsPropertiesForSale[] = $formattedProperty;
+                } else {
+                    $mlsPropertiesForRent[] = $formattedProperty;
+                }
+            }
+        }
+
+        // Add MLS properties to building data
+        $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
+        $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
+
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $building->name,
             'buildingId' => $building->id,

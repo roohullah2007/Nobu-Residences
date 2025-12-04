@@ -58,7 +58,12 @@
       "Bash(do echo \"Test $i:\")",
       "Bash(do curl -s -w \"Time: %{time_total}s\\n\" \"http://127.0.0.1:8000/api/address-suggestions?q=mercer&limit=8\" -o /dev/null)",
       "Bash(do curl -s -w \"Time: %{time_total}s\\n\" \"http://127.0.0.1:8000/api/property-search\" -H \"Content-Type: application/json\" -X POST -d '{\"\"search_params\"\":{\"\"query\"\":\"\"mercer street\"\",\"\"status\"\":\"\"For Sale\"\",\"\"page\"\":1,\"\"page_size\"\":16}}' -o /dev/null)",
-      "Bash(do curl -s -w \"Time: %{time_total}s\\n\" \"http://127.0.0.1:8000/api/property-search\" -H \"Content-Type: application/json\" -X POST -d '{\"\"search_params\"\":{\"\"query\"\":\"\"15 Mercer Street\"\",\"\"status\"\":\"\"For Sale\"\",\"\"page\"\":1,\"\"page_size\"\":16}}' -o /dev/null)"
+      "Bash(do curl -s -w \"Time: %{time_total}s\\n\" \"http://127.0.0.1:8000/api/property-search\" -H \"Content-Type: application/json\" -X POST -d '{\"\"search_params\"\":{\"\"query\"\":\"\"15 Mercer Street\"\",\"\"status\"\":\"\"For Sale\"\",\"\"page\"\":1,\"\"page_size\"\":16}}' -o /dev/null)",
+      "Bash(touch:*)",
+      "Bash(mysql:*)",
+      "Bash(python3:*)",
+      "Bash(pkill:*)",
+      "Bash(lsof:*)"
     ],
     "deny": [],
     "ask": [],

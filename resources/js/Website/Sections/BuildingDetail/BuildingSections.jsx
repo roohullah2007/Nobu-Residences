@@ -11,11 +11,21 @@ import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/Prop
 import BuildingStatusTabs from './BuildingStatusTabs';
 import DeveloperBuildings from '@/Website/Components/PropertyDetail/DeveloperBuildings';
 
-export default function BuildingSections({ 
+export default function BuildingSections({
   buildingData,
   sampleSaleProperties,
-  sampleRentProperties 
+  sampleRentProperties
 }) {
+  // Debug: Log building data to see MLS properties
+  console.log('[BuildingSections] ========= DEBUG v2 =========');
+  console.log('[BuildingSections] buildingData:', buildingData);
+  console.log('[BuildingSections] buildingData keys:', buildingData ? Object.keys(buildingData) : 'NULL');
+  console.log('[BuildingSections] mls_properties_for_sale:', buildingData?.mls_properties_for_sale);
+  console.log('[BuildingSections] mls_properties_for_sale length:', buildingData?.mls_properties_for_sale?.length);
+  console.log('[BuildingSections] mls_properties_for_rent:', buildingData?.mls_properties_for_rent);
+  console.log('[BuildingSections] mls_properties_for_rent length:', buildingData?.mls_properties_for_rent?.length);
+  console.log('[BuildingSections] =============================');
+
   return (
     <div className="min-h-screen font-work-sans overflow-x-hidden flex flex-col gap-y-4">
       {/* Building Status and Navigation Tabs */}

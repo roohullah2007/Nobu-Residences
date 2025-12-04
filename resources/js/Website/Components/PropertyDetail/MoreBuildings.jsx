@@ -31,27 +31,107 @@ const MoreBuildings = ({
 
   // Fetch listings from API based on title (skip if properties are passed directly)
   useEffect(() => {
+    // DEBUG: Log all incoming props to identify issues
+    console.log(`[MoreBuildings] ========== useEffect START for "${title}" ==========`);
+    console.log(`[MoreBuildings] filterPropertyType="${filterPropertyType}"`);
+    console.log(`[MoreBuildings] filterTransactionType="${filterTransactionType}"`);
+    console.log(`[MoreBuildings] buildingData exists:`, !!buildingData);
+
+    if (buildingData) {
+      console.log(`[MoreBuildings] buildingData.name:`, buildingData.name);
+      console.log(`[MoreBuildings] buildingData.mls_properties_for_sale:`, buildingData.mls_properties_for_sale);
+      console.log(`[MoreBuildings] mls_properties_for_sale length:`, buildingData.mls_properties_for_sale?.length);
+      console.log(`[MoreBuildings] mls_properties_for_rent length:`, buildingData.mls_properties_for_rent?.length);
+    }
+
     // If properties are passed directly, no need to fetch from API
     if (propertyData?.properties && Array.isArray(propertyData.properties)) {
+      console.log('[MoreBuildings] PATH: Using properties passed directly');
       setIsLoading(false);
       return;
     }
-    
+
     // If we need to fetch buildings from backend
     if (fetchType === 'buildings') {
+      console.log('[MoreBuildings] PATH: fetchType is buildings');
       if (title === "Nearby Buildings" || title === "Similar Buildings" || title.startsWith("More Buildings by")) {
-        console.log('DeveloperBuildings - buildingData:', buildingData);
         fetchBuildings();
       }
       return;
     }
-    
+
     // If we need to fetch condo apartments (for building page)
-    if (filterPropertyType && (title === "Properties For Sale" || title === "Properties For Rent")) {
-      fetchCondoApartments();
+    // Check if this is a Properties For Sale/Rent section on building page
+    const isPropertiesSection = (title === "Properties For Sale" || title === "Properties For Rent");
+    console.log(`[MoreBuildings] isPropertiesSection:`, isPropertiesSection);
+    console.log(`[MoreBuildings] Checking buildingData:`, !!buildingData);
+
+    if (isPropertiesSection && buildingData) {
+      console.log(`[MoreBuildings] PATH: Properties section for "${title}"`);
+
+      // Check if pre-loaded MLS properties are available from backend FIRST
+      const preloadedProperties = filterTransactionType === 'For Rent'
+        ? buildingData?.mls_properties_for_rent
+        : buildingData?.mls_properties_for_sale;
+
+      console.log(`[MoreBuildings] preloadedProperties for "${filterTransactionType}":`, preloadedProperties);
+      console.log(`[MoreBuildings] preloadedProperties length:`, preloadedProperties?.length);
+
+      if (preloadedProperties && preloadedProperties.length > 0) {
+        console.log(`[MoreBuildings] SUCCESS: Using ${preloadedProperties.length} pre-loaded MLS properties`);
+        console.log(`[MoreBuildings] First preloaded property:`, preloadedProperties[0]);
+
+        // Backend already formats properties correctly - just use them directly
+        // Properties already have: listingKey, price, address, bedrooms, bathrooms, imageUrl, images, etc.
+        const formattedListings = preloadedProperties.map((property) => {
+          // Get the first image URL - check both formats
+          let imageUrl = property.imageUrl || property.MediaURL || null;
+          if (!imageUrl && property.images && Array.isArray(property.images) && property.images.length > 0) {
+            imageUrl = property.images[0];
+          }
+
+          return {
+            // Use the pre-formatted fields from backend (listingKey, not mls_id)
+            listingKey: property.listingKey || property.ListingKey || property.mls_id,
+            id: property._mls_property_id || property.id,
+            propertyType: property.propertyType || property.PropertySubType || "Condo Apartment",
+            address: property.address || property.UnparsedAddress || "Address not available",
+            city: property.city || property.City || '',
+            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
+            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
+            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
+            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
+            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
+            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
+            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
+            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
+            price: property.price || property.ListPrice || 0,
+            ListPrice: property.ListPrice || property.price || 0,
+            isRental: property.isRental || filterTransactionType === 'For Rent',
+            transactionType: property.transactionType || filterTransactionType || 'For Sale',
+            imageUrl: imageUrl,
+            images: property.images || [],
+            source: property.source || 'mls'
+          };
+        });
+
+        console.log('[MoreBuildings] Formatted listings count:', formattedListings.length);
+        console.log('[MoreBuildings] First formatted listing:', formattedListings[0]);
+        setCondoListings(formattedListings);
+        setIsLoading(false);
+        console.log(`[MoreBuildings] ========== useEffect END (success) ==========`);
+        return;
+      }
+
+      // No pre-loaded data available - show empty state (no API fallback)
+      console.log(`[MoreBuildings] WARNING: No preloaded data found for ${title}`);
+      console.log(`[MoreBuildings] Setting empty condoListings`);
+      setCondoListings([]);
+      setIsLoading(false);
+      console.log(`[MoreBuildings] ========== useEffect END (no data) ==========`);
       return;
     }
-    
+
     if (listingKey) {
       if (title === "Nearby Listings") {
         fetchNearbyListings();
@@ -63,7 +143,7 @@ const MoreBuildings = ({
     } else {
       setIsLoading(false);
     }
-  }, [listingKey, title, propertyData, filterPropertyType, filterTransactionType, fetchType]);
+  }, [listingKey, title, propertyData, filterPropertyType, filterTransactionType, fetchType, buildingData]);
   
   const fetchNearbyListings = async () => {
     setIsLoading(true);
@@ -325,158 +405,67 @@ const MoreBuildings = ({
     }
   };
 
-  // Fetch condo apartments for building page
+  // Fetch condo apartments for building page - Uses pre-loaded MLS properties from backend
   const fetchCondoApartments = async () => {
     setIsLoading(true);
+    console.log('[fetchCondoApartments] Starting...');
+    console.log('[fetchCondoApartments] filterTransactionType:', filterTransactionType);
+    console.log('[fetchCondoApartments] buildingData:', buildingData);
+
     try {
-      // Collect all addresses to check
-      const addressesToCheck = [];
+      // Use pre-loaded MLS properties from backend
+      const preloadedProperties = filterTransactionType === 'For Rent'
+        ? buildingData?.mls_properties_for_rent
+        : buildingData?.mls_properties_for_sale;
 
-      // Add street_address_1 if available
-      if (buildingData?.street_address_1) {
-        addressesToCheck.push(buildingData.street_address_1);
-      }
+      console.log('[fetchCondoApartments] preloadedProperties:', preloadedProperties);
+      console.log('[fetchCondoApartments] preloadedProperties count:', preloadedProperties?.length || 0);
 
-      // Add street_address_2 if available
-      if (buildingData?.street_address_2) {
-        addressesToCheck.push(buildingData.street_address_2);
-      }
+      if (preloadedProperties && preloadedProperties.length > 0) {
+        console.log(`[fetchCondoApartments] Using pre-loaded MLS properties (${filterTransactionType}):`, preloadedProperties.length);
 
-      // Fallback to parsing main address if no street addresses specified
-      if (addressesToCheck.length === 0 && buildingData?.address) {
-        const fullAddress = buildingData.address;
-        // Split addresses by "&" or "and" to handle multiple addresses
-        const parts = fullAddress.split(/\s+(?:&|and)\s+/i).map(part => part.trim());
-        addressesToCheck.push(...parts);
-      }
-
-      console.log('Addresses to check for properties:', addressesToCheck);
-
-      let allProperties = [];
-
-      // Fetch properties for each address
-      for (const addressPart of addressesToCheck) {
-        // Extract street number and name from each part
-        const match = addressPart.match(/^(\d+)\s+(.+?)(?:,|$)/);
-        if (match) {
-          const streetNumber = match[1];
-          let streetName = match[2];
-
-          // Remove trailing street type words for better matching
-          streetName = streetName.replace(/\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)$/i, '').trim();
-
-          console.log(`Fetching properties for: ${streetNumber} ${streetName}`);
-
-          // Prepare search parameters
-          const searchParams = {
-            search_params: {
-              property_type: ['Condo Apartment', 'Condo Apt', 'Condo'], // Include variations
-              status: filterTransactionType || 'For Sale',
-              street_number: streetNumber,
-              street_name: streetName,
-              page_size: 100, // Get all available properties
-              page: 1,
-              price_min: 0,
-              price_max: filterTransactionType === 'For Rent' ? 50000 : 10000000,
-              bedrooms: 0,
-              bathrooms: 0,
-              sort: 'newest'
-            }
-          };
-
-          console.log('Fetching condo apartments with params:', searchParams);
-
-          try {
-            const response = await fetch('/api/property-search', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-              },
-              body: JSON.stringify(searchParams)
-            });
-
-            const result = await response.json();
-            console.log(`API response for ${streetNumber} ${streetName}:`, result);
-
-            // Check for properties in the correct response structure
-            const properties = result.data?.properties || result.properties || [];
-
-            if (properties && properties.length > 0) {
-              allProperties.push(...properties);
-            }
-          } catch (err) {
-            console.error(`Error fetching properties for ${streetNumber} ${streetName}:`, err);
+        // Backend already formats properties correctly - just use them directly
+        const formattedListings = preloadedProperties.map((property) => {
+          // Get the first image URL - check both formats
+          let imageUrl = property.imageUrl || property.MediaURL || null;
+          if (!imageUrl && property.images && Array.isArray(property.images) && property.images.length > 0) {
+            imageUrl = property.images[0];
           }
-        } else {
-          console.log(`Could not parse address part: "${addressPart}"`);
-        }
-      }
 
-      console.log('Total properties found:', allProperties.length);
-
-      if (allProperties.length > 0) {
-        // Format the properties for display
-        const formattedListings = allProperties.map((property) => {
-          // Get the first image URL
-          let imageUrl = null;
-          if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-            const firstImage = property.images[0];
-            imageUrl = firstImage.MediaURL || firstImage.url || firstImage;
-          } else if (property.MediaURL) {
-            imageUrl = property.MediaURL;
-          } else if (property.imageUrl) {
-            imageUrl = property.imageUrl;
-          }
-          
           return {
-            listingKey: property.ListingKey || property.listingKey,
-            propertyType: property.PropertySubType || property.PropertyType || property.propertyType || "Condo Apartment",
-            address: property.UnparsedAddress || property.address || "Address not available",
-            // Include all necessary fields for PropertyCardV6
-            UnitNumber: property.UnitNumber || '',
-            unitNumber: property.UnitNumber || '',
-            StreetNumber: property.StreetNumber || '',
-            streetNumber: property.StreetNumber || '',
-            StreetName: property.StreetName || '',
-            streetName: property.StreetName || '',
-            StreetSuffix: property.StreetSuffix || '',
-            streetSuffix: property.StreetSuffix || '',
-            City: property.City || '',
-            city: property.City || '',
-            StateOrProvince: property.StateOrProvince || '',
-            province: property.StateOrProvince || '',
-            bedrooms: property.BedroomsTotal || 0,
-            BedroomsTotal: property.BedroomsTotal || 0,
-            bedroomsTotal: property.BedroomsTotal || 0,
-            bathrooms: property.BathroomsTotalInteger || 0,
-            BathroomsTotalInteger: property.BathroomsTotalInteger || 0,
-            bathroomsTotalInteger: property.BathroomsTotalInteger || 0,
-            LivingAreaRange: property.LivingAreaRange || '',
-            livingAreaRange: property.LivingAreaRange || '',
-            BuildingAreaTotal: property.BuildingAreaTotal || '',
-            buildingAreaTotal: property.BuildingAreaTotal || '',
-            ParkingTotal: property.ParkingTotal || 0,
-            parkingTotal: property.ParkingTotal || 0,
-            ListOfficeName: property.ListOfficeName || '',
-            listOfficeName: property.ListOfficeName || '',
-            ListPrice: property.ListPrice || 0,
-            price: property.ListPrice || 0,
-            isRental: filterTransactionType === 'For Rent',
-            transactionType: filterTransactionType || 'Sale',
+            // Use the pre-formatted fields from backend (listingKey, not mls_id)
+            listingKey: property.listingKey || property.ListingKey || property.mls_id,
+            id: property._mls_property_id || property.id,
+            propertyType: property.propertyType || property.PropertySubType || "Condo Apartment",
+            address: property.address || property.UnparsedAddress || "Address not available",
+            city: property.city || property.City || '',
+            bedrooms: property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0,
+            BedroomsTotal: property.BedroomsTotal || property.bedroomsTotal || property.bedrooms || 0,
+            bedroomsTotal: property.bedroomsTotal || property.BedroomsTotal || property.bedrooms || 0,
+            bathrooms: property.bathrooms || property.BathroomsTotalInteger || property.bathroomsTotalInteger || 0,
+            BathroomsTotalInteger: property.BathroomsTotalInteger || property.bathroomsTotalInteger || property.bathrooms || 0,
+            bathroomsTotalInteger: property.bathroomsTotalInteger || property.BathroomsTotalInteger || property.bathrooms || 0,
+            BuildingAreaTotal: property.BuildingAreaTotal || property.buildingAreaTotal || '',
+            buildingAreaTotal: property.buildingAreaTotal || property.BuildingAreaTotal || '',
+            price: property.price || property.ListPrice || 0,
+            ListPrice: property.ListPrice || property.price || 0,
+            isRental: property.isRental || filterTransactionType === 'For Rent',
+            transactionType: property.transactionType || filterTransactionType || 'For Sale',
             imageUrl: imageUrl,
             images: property.images || [],
-            source: 'mls'
+            source: property.source || 'mls'
           };
         });
 
-        console.log('Formatted condo listings:', formattedListings);
+        console.log('[fetchCondoApartments] Formatted listings:', formattedListings.length);
         setCondoListings(formattedListings);
       } else {
+        // No pre-loaded properties available
+        console.log('[fetchCondoApartments] No preloaded properties found, showing empty');
         setCondoListings([]);
       }
     } catch (error) {
-      console.error('Error fetching condo apartments:', error);
+      console.error('[fetchCondoApartments] Error:', error);
       setCondoListings([]);
     } finally {
       setIsLoading(false);
@@ -674,16 +663,55 @@ const MoreBuildings = ({
 
   // Choose data based on title and API availability or direct properties
   const buildings = (() => {
+    console.log(`[MoreBuildings CALC v3] Starting for "${title}"`);
+    console.log(`[MoreBuildings CALC v3] buildingData:`, buildingData);
+    console.log(`[MoreBuildings CALC v3] buildingData keys:`, buildingData ? Object.keys(buildingData) : 'NULL');
+    console.log(`[MoreBuildings CALC v3] filterTransactionType:`, filterTransactionType);
+    console.log(`[MoreBuildings CALC v3] mls_properties_for_sale:`, buildingData?.mls_properties_for_sale);
+    console.log(`[MoreBuildings CALC v3] mls_properties_for_rent:`, buildingData?.mls_properties_for_rent);
+
     // Check if properties are passed directly in propertyData
     if (propertyData?.properties && Array.isArray(propertyData.properties)) {
+      console.log(`[MoreBuildings CALC] Returning propertyData.properties`);
       return propertyData.properties;
     }
     // Use buildings data for Nearby/Similar/Developer Buildings
     if (title === "Nearby Buildings" || title === "Similar Buildings" || title.startsWith("More Buildings by")) {
+      console.log(`[MoreBuildings CALC] Returning buildingsData for ${title}`);
       return buildingsData;
     }
     // Use condo listings for Properties For Sale/Rent
     if (title === "Properties For Sale" || title === "Properties For Rent") {
+      console.log(`[MoreBuildings CALC] Properties section detected`);
+      console.log(`[MoreBuildings CALC] condoListings.length:`, condoListings?.length);
+
+      // If condoListings has data, use it
+      if (condoListings && condoListings.length > 0) {
+        console.log(`[MoreBuildings CALC] Returning condoListings`);
+        return condoListings;
+      }
+      // Otherwise, directly use from buildingData if available (fallback)
+      // Properties are now formatted same as search page API
+      if (buildingData) {
+        console.log(`[MoreBuildings CALC] buildingData exists, checking MLS properties`);
+        console.log(`[MoreBuildings CALC] mls_properties_for_sale:`, buildingData.mls_properties_for_sale);
+        console.log(`[MoreBuildings CALC] mls_properties_for_rent:`, buildingData.mls_properties_for_rent);
+
+        const preloadedProperties = filterTransactionType === 'For Rent'
+          ? buildingData.mls_properties_for_rent
+          : buildingData.mls_properties_for_sale;
+
+        console.log(`[MoreBuildings CALC] preloadedProperties for ${filterTransactionType}:`, preloadedProperties);
+
+        if (preloadedProperties && preloadedProperties.length > 0) {
+          console.log(`[MoreBuildings CALC] SUCCESS: Returning ${preloadedProperties.length} preloaded properties`);
+          // Properties are already formatted by backend - just return them directly
+          return preloadedProperties;
+        }
+      } else {
+        console.log(`[MoreBuildings CALC] buildingData is NULL/undefined!`);
+      }
+      console.log(`[MoreBuildings CALC] Falling back to condoListings (empty)`);
       return condoListings;
     }
     // Otherwise use API data based on title
@@ -719,6 +747,16 @@ const MoreBuildings = ({
   // Check if this should be displayed as a grid (for Properties For Sale/Rent on building page)
   const isGridLayout = (title === "Properties For Sale" || title === "Properties For Rent") && buildingData;
 
+  // DEBUG: Log what we're about to render
+  console.log(`[MoreBuildings RENDER] title="${title}"`);
+  console.log(`[MoreBuildings RENDER] buildings.length=${buildings.length}`);
+  console.log(`[MoreBuildings RENDER] isGridLayout=${isGridLayout}`);
+  console.log(`[MoreBuildings RENDER] isLoading=${isLoading}`);
+  console.log(`[MoreBuildings RENDER] buildingData exists:`, !!buildingData);
+  if (buildings.length > 0) {
+    console.log(`[MoreBuildings RENDER] First building:`, buildings[0]);
+  }
+
   return (
     <section className={`p-3 rounded-xl border-gray-200 border shadow-sm bg-gray-50 ${
       title === "Nearby Listings" ? 'nearby-listings-container' :
@@ -729,11 +767,21 @@ const MoreBuildings = ({
           <div className="flex items-center gap-3">
             <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
             {/* Show count bubble for Properties For Sale/Rent on building page */}
-            {isGridLayout && buildings.length > 0 && (
-              <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold bg-[#293056] text-white rounded-full">
-                {buildings.length}
-              </span>
-            )}
+            {isGridLayout && (() => {
+              // Get count from buildings or fallback to preloaded data
+              let count = buildings.length;
+              if (count === 0 && buildingData) {
+                const preloaded = title === "Properties For Rent"
+                  ? buildingData.mls_properties_for_rent
+                  : buildingData.mls_properties_for_sale;
+                count = preloaded?.length || 0;
+              }
+              return count > 0 ? (
+                <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold bg-[#293056] text-white rounded-full">
+                  {count}
+                </span>
+              ) : null;
+            })()}
           </div>
           
           {/* Navigation Arrows - Desktop Only (hide for grid layout) */}
@@ -770,61 +818,103 @@ const MoreBuildings = ({
           )}
         </div>
 
-        {/* Loading State */}
-        {isLoading && (
+        {/* Loading State - Don't show if we already have buildings data */}
+        {isLoading && buildings.length === 0 && (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#293056]"></div>
           </div>
         )}
-        
-        {/* No Data State */}
+
+        {/* No Data State - Only show if not loading AND no buildings AND no preloaded data */}
         {!isLoading && buildings.length === 0 && (
-          <div className="flex flex-col justify-center items-center py-12 text-center">
-            <div className="text-xl font-bold text-gray-700 mb-2">
-              {title.startsWith("More Buildings by") ? "No buildings found" : "No listings available"}
-            </div>
-            <div className="text-gray-500">
-              {title.startsWith("More Buildings by")
-                ? `No other buildings by ${buildingData?.developer_name || 'this developer'} are currently available in our database.`
-                : "No listings available at the moment"}
-            </div>
-          </div>
+          (() => {
+            // For Properties sections, check if buildingData has MLS properties
+            const hasPreloadedSale = buildingData?.mls_properties_for_sale?.length > 0;
+            const hasPreloadedRent = buildingData?.mls_properties_for_rent?.length > 0;
+
+            console.log(`[MoreBuildings NO DATA] title="${title}", hasPreloadedSale=${hasPreloadedSale}, hasPreloadedRent=${hasPreloadedRent}`);
+            console.log(`[MoreBuildings NO DATA] buildingData keys:`, buildingData ? Object.keys(buildingData) : 'NULL');
+
+            if (title === "Properties For Sale" && hasPreloadedSale) return null;
+            if (title === "Properties For Rent" && hasPreloadedRent) return null;
+
+            return (
+              <div className="flex flex-col justify-center items-center py-12 text-center">
+                <div className="text-xl font-bold text-gray-700 mb-2">
+                  {title.startsWith("More Buildings by") ? "No buildings found" : "No listings available"}
+                </div>
+                <div className="text-gray-500">
+                  {title.startsWith("More Buildings by")
+                    ? `No other buildings by ${buildingData?.developer_name || 'this developer'} are currently available in our database.`
+                    : "No listings available at the moment"}
+                </div>
+              </div>
+            );
+          })()
         )}
         
         {/* Grid Layout for Properties For Sale/Rent on Building Page */}
-        {!isLoading && buildings.length > 0 && isGridLayout && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(showAllListings ? buildings : buildings.slice(0, 6)).map((building) => (
-              <div key={building.listingKey || building.id} className="flex justify-center">
-                <PropertyCardV5
-                  property={building}
-                  size="grid"
-                  onClick={() => {
-                    if (building.source === 'building' && building.id) {
-                      window.location.href = createBuildingUrl(building.name || building.address, building.id);
-                    } else if (building.listingKey) {
-                      window.location.href = `/property/${building.listingKey}`;
-                    }
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+        {(() => {
+          // Use buildings if populated, otherwise fall back to preloaded data directly
+          let displayProperties = buildings;
 
-          {/* Show All Button - Only show if there are more than 6 listings and not showing all */}
-          {buildings.length > 6 && !showAllListings && (
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={() => setShowAllListings(true)}
-                className="px-6 py-3 bg-[#293056] text-white font-work-sans font-semibold rounded-lg hover:bg-[#1f2442] transition-colors duration-200"
-              >
-                Show All Listings ({buildings.length})
-              </button>
-            </div>
-          )}
-        </>
-        )}
+          console.log(`[MoreBuildings GRID] title="${title}", isGridLayout=${isGridLayout}`);
+          console.log(`[MoreBuildings GRID] buildings.length=${buildings.length}`);
+          console.log(`[MoreBuildings GRID] buildingData exists:`, !!buildingData);
+
+          if (buildings.length === 0 && isGridLayout && buildingData) {
+            console.log(`[MoreBuildings GRID] Checking preloaded...`);
+            console.log(`[MoreBuildings GRID] mls_properties_for_sale:`, buildingData.mls_properties_for_sale);
+            console.log(`[MoreBuildings GRID] mls_properties_for_rent:`, buildingData.mls_properties_for_rent);
+
+            const preloaded = title === "Properties For Rent"
+              ? buildingData.mls_properties_for_rent
+              : buildingData.mls_properties_for_sale;
+            if (preloaded && preloaded.length > 0) {
+              displayProperties = preloaded;
+              console.log(`[MoreBuildings GRID FALLBACK] Using preloaded data: ${displayProperties.length} items`);
+            }
+          }
+
+          console.log(`[MoreBuildings GRID] Final displayProperties.length=${displayProperties.length}`);
+
+          if (displayProperties.length > 0 && isGridLayout) {
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(showAllListings ? displayProperties : displayProperties.slice(0, 6)).map((building) => (
+                    <div key={building.listingKey || building.ListingKey || building.id} className="flex justify-center">
+                      <PropertyCardV5
+                        property={building}
+                        size="grid"
+                        onClick={() => {
+                          if (building.source === 'building' && building.id) {
+                            window.location.href = createBuildingUrl(building.name || building.address, building.id);
+                          } else if (building.listingKey || building.ListingKey) {
+                            window.location.href = `/property/${building.listingKey || building.ListingKey}`;
+                          }
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Show All Button - Only show if there are more than 6 listings and not showing all */}
+                {displayProperties.length > 6 && !showAllListings && (
+                  <div className="flex justify-center mt-6">
+                    <button
+                      onClick={() => setShowAllListings(true)}
+                      className="px-6 py-3 bg-[#293056] text-white font-work-sans font-semibold rounded-lg hover:bg-[#1f2442] transition-colors duration-200"
+                    >
+                      Show All Listings ({displayProperties.length})
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          }
+          return null;
+        })()}
 
         {/* Mobile: Horizontal Scrollable Row (for carousel layouts) */}
         {!isLoading && buildings.length > 0 && !isGridLayout && (

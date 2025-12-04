@@ -33,7 +33,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/buildings-search',
             'api/schools/*',
             'api/buildings/upload-image',
-            'api/buildings/delete-image'
+            'api/buildings/delete-image',
+            'api/map-coordinates'
         ]);
     })
     ->withSchedule(function ($schedule): void {

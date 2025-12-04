@@ -18,7 +18,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add FULLTEXT index for search fields
+        // SQLite doesn't support FULLTEXT indexes - skip for SQLite
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
+        // Add FULLTEXT index for search fields (MySQL)
         DB::statement('
             CREATE FULLTEXT INDEX idx_mls_fulltext_search
             ON mls_properties (address, city, postal_code)

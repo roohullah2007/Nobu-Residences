@@ -21,11 +21,13 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Add foreign key to blogs table
-        Schema::table('blogs', function (Blueprint $table) {
-            $table->unsignedBigInteger('category_id')->nullable()->after('category');
-            $table->foreign('category_id')->references('id')->on('blog_categories')->onDelete('set null');
-        });
+        // Add foreign key to blogs table if it exists
+        if (Schema::hasTable('blogs')) {
+            Schema::table('blogs', function (Blueprint $table) {
+                $table->unsignedBigInteger('category_id')->nullable()->after('category');
+                $table->foreign('category_id')->references('id')->on('blog_categories')->onDelete('set null');
+            });
+        }
     }
 
     /**
@@ -33,10 +35,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('blogs', function (Blueprint $table) {
-            $table->dropForeign(['category_id']);
-            $table->dropColumn('category_id');
-        });
+        if (Schema::hasTable('blogs') && Schema::hasColumn('blogs', 'category_id')) {
+            Schema::table('blogs', function (Blueprint $table) {
+                $table->dropForeign(['category_id']);
+                $table->dropColumn('category_id');
+            });
+        }
 
         Schema::dropIfExists('blog_categories');
     }

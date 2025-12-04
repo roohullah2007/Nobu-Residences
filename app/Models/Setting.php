@@ -89,6 +89,15 @@ class Setting extends Model
      */
     public static function get(string $key, $default = null)
     {
+        // Check if database table exists to prevent errors during migrations
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+                return $default;
+            }
+        } catch (\Exception $e) {
+            return $default;
+        }
+
         return Cache::remember('setting_' . $key, 3600, function () use ($key, $default) {
             $setting = static::where('key', $key)->first();
             return $setting ? $setting->value : $default;

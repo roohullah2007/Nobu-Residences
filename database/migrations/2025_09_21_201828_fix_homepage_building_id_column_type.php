@@ -12,7 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Use raw SQL to alter the column type
+        // SQLite doesn't support ALTER COLUMN, so we skip this for SQLite
+        // The column is already created as string in a previous migration
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
+        // Use raw SQL to alter the column type (MySQL)
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // Try to drop the foreign key constraint if it exists
@@ -36,7 +42,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Use raw SQL to revert the column type
+        // SQLite doesn't support ALTER COLUMN
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
+        // Use raw SQL to revert the column type (MySQL)
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // Drop the foreign key constraint

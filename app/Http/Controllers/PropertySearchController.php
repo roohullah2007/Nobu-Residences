@@ -2750,4 +2750,131 @@ class PropertySearchController extends Controller
             return response()->json(['suggestions' => [], 'error' => $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Get map coordinates for clustering - returns up to 1000 lightweight property markers
+     * Optimized for map performance with minimal data transfer
+     */
+    public function getMapCoordinates(Request $request)
+    {
+        try {
+            $this->cleanOutputBuffer();
+
+            $searchParams = $request->input('search_params', []);
+            $viewportBounds = $searchParams['viewport_bounds'] ?? null;
+            $zoomLevel = (int)($searchParams['zoom_level'] ?? 10);
+
+            // Build base query for MLS properties with coordinates
+            $query = MLSProperty::query()
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->where('latitude', '!=', 0)
+                ->where('longitude', '!=', 0)
+                ->where('is_active', true)
+                ->whereNull('deleted_at');
+
+            // Apply status filter
+            $status = $searchParams['status'] ?? 'For Sale';
+            if ($status === 'For Sale') {
+                $query->where('property_type', 'For Sale');
+            } elseif (in_array($status, ['For Lease', 'For Rent'])) {
+                $query->where('property_type', 'For Rent');
+            }
+
+            // Apply viewport bounds if provided - this is the key filter
+            // When user zooms out, viewport is larger = more properties shown
+            // When user zooms in, viewport is smaller = fewer properties but more detail
+            if ($viewportBounds && isset($viewportBounds['north'], $viewportBounds['south'], $viewportBounds['east'], $viewportBounds['west'])) {
+                $query->whereBetween('latitude', [$viewportBounds['south'], $viewportBounds['north']])
+                      ->whereBetween('longitude', [$viewportBounds['west'], $viewportBounds['east']]);
+            }
+
+            // Apply price filters
+            if (!empty($searchParams['price_min']) && $searchParams['price_min'] > 0) {
+                $query->where('price', '>=', $searchParams['price_min']);
+            }
+            if (!empty($searchParams['price_max']) && $searchParams['price_max'] > 0 && $searchParams['price_max'] < 50000000) {
+                $query->where('price', '<=', $searchParams['price_max']);
+            }
+
+            // Apply bedroom filter
+            if (!empty($searchParams['bedrooms']) && $searchParams['bedrooms'] > 0) {
+                $query->where('bedrooms', '>=', $searchParams['bedrooms']);
+            }
+
+            // Apply bathroom filter
+            if (!empty($searchParams['bathrooms']) && $searchParams['bathrooms'] > 0) {
+                $query->where('bathrooms', '>=', $searchParams['bathrooms']);
+            }
+
+            // Apply property type filter
+            if (!empty($searchParams['property_type']) && is_array($searchParams['property_type'])) {
+                $query->whereIn('property_sub_type', $searchParams['property_type']);
+            }
+
+            // Get total count in viewport
+            $totalCount = $query->count();
+
+            // Dynamic limit based on viewport - show ALL properties in the viewport
+            // The frontend MarkerClusterer will handle grouping them into clusters
+            // Max limit prevents browser from crashing with too many markers
+            $maxLimit = 2000; // Maximum markers the browser can handle efficiently
+
+            // Calculate limit - show all properties up to max
+            $limit = min($totalCount, $maxLimit);
+
+            // Fetch lightweight coordinate data
+            // All properties in viewport will be shown - clustering handles the display
+            $coordinates = $query
+                ->orderByRaw('has_images DESC, listed_date DESC')
+                ->limit($limit)
+                ->select([
+                    'id',
+                    'mls_id',
+                    'latitude',
+                    'longitude',
+                    'price',
+                    'address',
+                    'city',
+                    'bedrooms',
+                    'bathrooms',
+                    'property_sub_type',
+                    'has_images'
+                ])
+                ->get()
+                ->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'mls_id' => $property->mls_id,
+                        'lat' => (float)$property->latitude,
+                        'lng' => (float)$property->longitude,
+                        'price' => (int)$property->price,
+                        'address' => $property->address,
+                        'city' => $property->city,
+                        'beds' => $property->bedrooms,
+                        'baths' => $property->bathrooms,
+                        'type' => $property->property_sub_type,
+                        'hasImage' => (bool)$property->has_images
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'coordinates' => $coordinates,
+                    'total' => $totalCount,
+                    'displayed' => $coordinates->count(),
+                    'zoom_level' => $zoomLevel,
+                    'has_more' => $totalCount > $coordinates->count()
+                ]
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Map coordinates error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch map coordinates: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
