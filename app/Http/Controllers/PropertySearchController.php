@@ -332,29 +332,45 @@ class PropertySearchController extends Controller
     {
         $startTime = microtime(true);
 
+        // Check if searching for Sold/Leased properties
+        $propertyStatus = $params['property_status'] ?? '';
+        $isSoldOrLeased = !empty($propertyStatus) && in_array(strtolower($propertyStatus), ['sold', 'leased']);
+
         // When doing location searches, use FULLTEXT index (don't force other index)
         // For non-location searches, use optimized scope for faster COUNT queries
         $hasLocationQuery = !empty($params['query']);
 
         if ($hasLocationQuery) {
             // Use regular query - MySQL will choose FULLTEXT index automatically
-            $query = MLSProperty::where('is_active', true);
+            $query = MLSProperty::query();
+            // For active properties, filter by is_active; for sold/leased, don't filter
+            if (!$isSoldOrLeased) {
+                $query->where('is_active', true);
+            }
         } else {
             // Use optimized search scope to force use of idx_mls_search_sort index
             // This improves COUNT query performance from ~2400ms to ~6ms
-            $query = MLSProperty::optimizedSearch()->where('is_active', true);
+            if ($isSoldOrLeased) {
+                // For sold/leased, use regular query without is_active filter
+                $query = MLSProperty::query();
+            } else {
+                $query = MLSProperty::optimizedSearch()->where('is_active', true);
+            }
         }
 
         // Apply status/transaction type filter
         $status = $params['status'] ?? 'For Sale';
-        $propertyStatus = $params['property_status'] ?? '';
 
         if (!empty($propertyStatus)) {
-            // Sold/Leased filtering
+            // Sold/Leased filtering - search properties with sold/leased status
             if (strtolower($propertyStatus) === 'sold') {
                 $query->where('status', 'sold');
+                // Also filter by sale properties
+                $query->where('property_type', 'For Sale');
             } elseif (strtolower($propertyStatus) === 'leased') {
                 $query->whereIn('status', ['leased', 'rented']);
+                // Also filter by rental properties
+                $query->where('property_type', 'For Rent');
             }
         } else {
             // Active listings filtering
@@ -498,25 +514,37 @@ class PropertySearchController extends Controller
      */
     private function getMLSDatabaseCount(array $params): int
     {
+        // Check if searching for Sold/Leased properties
+        $propertyStatus = $params['property_status'] ?? '';
+        $isSoldOrLeased = !empty($propertyStatus) && in_array(strtolower($propertyStatus), ['sold', 'leased']);
+
         // When doing location searches, use FULLTEXT index (don't force other index)
         $hasLocationQuery = !empty($params['query']);
 
         if ($hasLocationQuery) {
-            $query = MLSProperty::where('is_active', true);
+            $query = MLSProperty::query();
+            if (!$isSoldOrLeased) {
+                $query->where('is_active', true);
+            }
         } else {
             // Use optimized search scope to force use of idx_mls_search_optimized index
-            $query = MLSProperty::optimizedSearch()->where('is_active', true);
+            if ($isSoldOrLeased) {
+                $query = MLSProperty::query();
+            } else {
+                $query = MLSProperty::optimizedSearch()->where('is_active', true);
+            }
         }
 
         // Apply status/transaction type filter
         $status = $params['status'] ?? 'For Sale';
-        $propertyStatus = $params['property_status'] ?? '';
 
         if (!empty($propertyStatus)) {
             if (strtolower($propertyStatus) === 'sold') {
                 $query->where('status', 'sold');
+                $query->where('property_type', 'For Sale');
             } elseif (strtolower($propertyStatus) === 'leased') {
                 $query->whereIn('status', ['leased', 'rented']);
+                $query->where('property_type', 'For Rent');
             }
         } else {
             $query->where('status', 'active');
@@ -2598,7 +2626,17 @@ class PropertySearchController extends Controller
         unset($params['viewport_bounds']);
         
         $sanitized = array_merge($defaults, $params);
-        
+
+        // Map listing_type to status if provided (frontend sends 'sale'/'rent', backend expects 'For Sale'/'For Rent')
+        if (isset($params['listing_type'])) {
+            $listingType = strtolower($params['listing_type']);
+            if ($listingType === 'sale') {
+                $sanitized['status'] = 'For Sale';
+            } elseif (in_array($listingType, ['rent', 'lease'])) {
+                $sanitized['status'] = 'For Rent';
+            }
+        }
+
         // Sanitize numeric values
         $sanitized['page'] = max(1, (int)$sanitized['page']);
         $sanitized['page_size'] = max(1, min(50, (int)$sanitized['page_size']));

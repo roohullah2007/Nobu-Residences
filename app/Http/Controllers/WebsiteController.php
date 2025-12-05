@@ -176,6 +176,7 @@ class WebsiteController extends Controller
                 $mlsPropertiesForSale = [];
                 $mlsPropertiesForRent = [];
                 $streetAddresses = [];
+                $streetName = null;
 
                 // Parse street_address_1
                 if (!empty($building->street_address_1)) {
@@ -191,7 +192,25 @@ class WebsiteController extends Controller
                     }
                 }
 
+                // If no street addresses found from street_address_1/2, try parsing the main address field
+                if (empty($streetAddresses) && !empty($building->address)) {
+                    $addressParts = array_map('trim', explode(',', $building->address));
+                    foreach ($addressParts as $part) {
+                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', $part, $matches)) {
+                            $streetAddresses[] = $matches[1];
+                        }
+                    }
+                }
+
+                // Extract just the street name for broader matching (fallback)
+                if (!empty($building->address)) {
+                    if (preg_match('/^\d+\s+([A-Za-z]+)/i', $building->address, $matches)) {
+                        $streetName = $matches[1];
+                    }
+                }
+
                 // If we have street addresses, query MLS properties
+                $mlsQuery = null;
                 if (!empty($streetAddresses)) {
                     $mlsQuery = \DB::table('mls_properties')
                         ->where('is_active', true)
@@ -209,8 +228,26 @@ class WebsiteController extends Controller
                         ->orderBy('listed_date', 'desc')
                         ->limit(50)
                         ->get();
+                }
 
-                    // Split into For Sale and For Rent
+                // If no results from exact address match, try broader street name matching
+                if ((!$mlsQuery || $mlsQuery->isEmpty()) && !empty($streetName)) {
+                    $mlsQuery = \DB::table('mls_properties')
+                        ->where('is_active', true)
+                        ->where('status', 'active')
+                        ->whereRaw('LOWER(address) LIKE ?', ['%' . strtolower($streetName) . '%'])
+                        ->select([
+                            'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
+                            'square_footage', 'property_type', 'property_sub_type', 'image_urls',
+                            'has_images', 'listed_date'
+                        ])
+                        ->orderBy('listed_date', 'desc')
+                        ->limit(50)
+                        ->get();
+                }
+
+                // Split into For Sale and For Rent
+                if ($mlsQuery && !$mlsQuery->isEmpty()) {
                     foreach ($mlsQuery as $property) {
                         $imageUrls = json_decode($property->image_urls ?? '[]', true);
                         $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
@@ -2112,8 +2149,9 @@ class WebsiteController extends Controller
         $mlsPropertiesForSale = [];
         $mlsPropertiesForRent = [];
 
-        // Extract street addresses from building
+        // Extract street addresses and street name from building
         $streetAddresses = [];
+        $streetName = null;
 
         // Parse street_address_1 (e.g., "15 Mercer St" -> "15 Mercer")
         if (!empty($building->street_address_1)) {
@@ -2130,7 +2168,30 @@ class WebsiteController extends Controller
             }
         }
 
+        // If no street addresses found from street_address_1/2, try parsing the main address field
+        // This handles buildings like "155 Dalhousie Street" that don't have separate street_address fields
+        if (empty($streetAddresses) && !empty($building->address)) {
+            // Try to extract all street addresses from comma-separated address
+            // e.g., "155 Dalhousie Street" -> "155 Dalhousie"
+            // e.g., "15 Mercer St, 35 Mercer" -> "15 Mercer" and "35 Mercer"
+            $addressParts = array_map('trim', explode(',', $building->address));
+            foreach ($addressParts as $part) {
+                if (preg_match('/^(\d+\s+[A-Za-z]+)/i', $part, $matches)) {
+                    $streetAddresses[] = $matches[1];
+                }
+            }
+        }
+
+        // Extract just the street name for broader matching (fallback)
+        // e.g., "77 Bloor Street West" -> "Bloor"
+        if (!empty($building->address)) {
+            if (preg_match('/^\d+\s+([A-Za-z]+)/i', $building->address, $matches)) {
+                $streetName = $matches[1];
+            }
+        }
+
         // If we have street addresses, query MLS properties
+        $mlsQuery = null;
         if (!empty($streetAddresses)) {
             $mlsQuery = \DB::table('mls_properties')
                 ->where('is_active', true)
@@ -2149,8 +2210,26 @@ class WebsiteController extends Controller
                 ->orderBy('listed_date', 'desc')
                 ->limit(50)
                 ->get();
+        }
 
-            // Split into For Sale and For Rent - Format same as search page API
+        // If no results from exact address match, try broader street name matching
+        if ((!$mlsQuery || $mlsQuery->isEmpty()) && !empty($streetName)) {
+            $mlsQuery = \DB::table('mls_properties')
+                ->where('is_active', true)
+                ->where('status', 'active')
+                ->whereRaw('LOWER(address) LIKE ?', ['%' . strtolower($streetName) . '%'])
+                ->select([
+                    'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
+                    'square_footage', 'property_type', 'property_sub_type', 'image_urls',
+                    'has_images', 'listed_date'
+                ])
+                ->orderBy('listed_date', 'desc')
+                ->limit(50)
+                ->get();
+        }
+
+        // Split into For Sale and For Rent - Format same as search page API
+        if ($mlsQuery && !$mlsQuery->isEmpty()) {
             foreach ($mlsQuery as $property) {
                 $imageUrls = json_decode($property->image_urls ?? '[]', true);
                 $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;

@@ -216,30 +216,49 @@ const PropertyCardV5 = ({
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
             {property.source === 'building' ? (property.name || 'Building') : formattedPrice}
           </div>
-          
+
           {/* Property Details - Compact layout without excessive spacing */}
           <div className="flex flex-col items-start gap-2 w-full">
             {/* Address */}
             <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056] line-clamp-2`}>
               {displayAddress}
             </div>
-            
-            {/* Features or Building Stats - Only show if exists */}
-            {(features || (property.source === 'building' && (property.total_units || property.total_floors))) && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
-                {property.source === 'building' 
-                  ? `${property.total_units || 0} Units | ${property.total_floors || 0} Floors`
-                  : features}
+
+            {/* Developer/Builder Name for Buildings */}
+            {property.source === 'building' && property.developer && (
+              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600`}>
+                <span className="text-gray-500">By</span>&nbsp;<span className="text-[#293056] font-medium">{property.developer}</span>
               </div>
             )}
-            
-            {/* Brokerage Name - Only show if exists */}
-            {brokerageName && (
+
+            {/* Features or Building Stats - Only show if exists */}
+            {property.source === 'building' ? (
+              /* Building Stats - Units, Floors, Year Built */
+              (property.totalUnits || property.floors || property.sqft) && (
+                <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
+                  {[
+                    property.totalUnits ? `${property.totalUnits} Units` : null,
+                    property.floors ? `${property.floors} Floors` : null,
+                    property.sqft ? property.sqft : null
+                  ].filter(Boolean).join(' | ')}
+                </div>
+              )
+            ) : (
+              /* Property Features - Beds, Baths, etc */
+              features && (
+                <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
+                  {features}
+                </div>
+              )
+            )}
+
+            {/* Brokerage Name - Only show for properties, not buildings */}
+            {property.source !== 'building' && brokerageName && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
                 {brokerageName}
               </div>
             )}
-            
+
             {/* MLS Number - Hide for buildings, only show if exists */}
             {property.source !== 'building' && property.listingKey && (
               <div className="flex items-center justify-start w-full min-h-8">

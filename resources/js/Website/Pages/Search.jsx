@@ -569,16 +569,29 @@ export default function EnhancedPropertySearch({
     const url = new URL(window.location);
     url.searchParams.set('page', 1);
     window.history.pushState({}, '', url);
-    
-    const newFilters = {
+
+    let newFilters = {
       ...searchFilters,
       [field]: value,
       page: 1
     };
-    
+
+    // Handle Sold/Leased status - set property_status for these
+    if (field === 'status') {
+      if (value === 'Sold' || value === 'Leased') {
+        newFilters.property_status = value;
+        // Keep the underlying status for filtering (Sold = For Sale properties, Leased = For Rent properties)
+        newFilters.status = value === 'Sold' ? 'For Sale' : 'For Rent';
+      } else {
+        // Clear property_status for regular For Sale/For Rent searches
+        newFilters.property_status = '';
+        newFilters.status = value;
+      }
+    }
+
     setSearchFilters(newFilters);
     setCurrentPage(1);
-    
+
     // Perform search with new filters
     performSearch(newFilters, false, activeTab);
   };
@@ -864,7 +877,7 @@ export default function EnhancedPropertySearch({
       images: building.images || [],
       isImageLoading: false,
       // Additional building-specific data
-      developer: building.developer?.name || null,
+      developer: building.developer?.name || building.developer_name || null,
       totalUnits: building.total_units,
       floors: building.floors,
       status: building.status,
@@ -918,7 +931,7 @@ export default function EnhancedPropertySearch({
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <div className="relative bg-white rounded-lg">
                   <select
-                    value={searchFilters.status}
+                    value={searchFilters.property_status || searchFilters.status}
                     onChange={(e) => handleFilterChange('status', e.target.value)}
                     className="px-3 py-2 pr-8 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none whitespace-nowrap appearance-none"
                     style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -1094,25 +1107,20 @@ export default function EnhancedPropertySearch({
               viewMode={viewType}
               onViewModeChange={(mode) => setViewType(mode)}
               onSearch={(searchData) => {
-                setSearchFilters(prev => ({
-                  ...prev,
-                  query: searchData.location,
-                  status: searchData.propertyStatus || searchData.propertyType, // Use property_status if set, otherwise property_type
-                  property_status: searchData.propertyStatus || '', // New field for Sold/Leased
-                  property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
-                  bedrooms: parseInt(searchData.bedrooms) || 0,
-                  bathrooms: parseInt(searchData.bathrooms) || 0,
-                  price_min: searchData.minPrice,
-                  price_max: searchData.maxPrice,
-                  search_type: searchData.searchType || 'street',
-                  sort: searchData.sortBy || 'newest',
-                  page: 1
-                }));
-                performSearch({
+                // Check for property_status (underscore) from IDXAmpreSearchBar
+                const soldOrLeasedStatus = searchData.property_status || '';
+                const isSoldOrLeased = soldOrLeasedStatus === 'Sold' || soldOrLeasedStatus === 'Leased';
+
+                // For Sold/Leased, keep the original transaction type for backend filtering
+                const effectiveStatus = isSoldOrLeased
+                  ? (soldOrLeasedStatus === 'Sold' ? 'For Sale' : 'For Rent')
+                  : searchData.propertyType;
+
+                const newFilters = {
                   ...searchFilters,
                   query: searchData.location,
-                  status: searchData.propertyStatus || searchData.propertyType, // Use property_status if set, otherwise property_type
-                  property_status: searchData.propertyStatus || '', // New field for Sold/Leased
+                  status: effectiveStatus,
+                  property_status: soldOrLeasedStatus, // Sold or Leased
                   property_type: searchData.propertySubType ? [searchData.propertySubType] : [],
                   bedrooms: parseInt(searchData.bedrooms) || 0,
                   bathrooms: parseInt(searchData.bathrooms) || 0,
@@ -1121,7 +1129,10 @@ export default function EnhancedPropertySearch({
                   search_type: searchData.searchType || 'street',
                   sort: searchData.sortBy || 'newest',
                   page: 1
-                }, true, activeTab);
+                };
+
+                setSearchFilters(newFilters);
+                performSearch(newFilters, true, activeTab);
               }}
               onSaveSearch={handleSaveSearch}
               onFilterClick={() => setShowFiltersModal(true)}
@@ -1165,7 +1176,7 @@ export default function EnhancedPropertySearch({
                   {/* Status Dropdown */}
                   <div className="flex items-center bg-white rounded-lg w-[99px] h-10 relative">
                     <select
-                      value={searchFilters.status}
+                      value={searchFilters.property_status || searchFilters.status}
                       onChange={(e) => handleFilterChange('status', e.target.value)}
                       className="w-full h-full px-3 font-work-sans font-bold text-sm text-[#293056] bg-transparent border-none outline-none appearance-none cursor-pointer"
                       style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}

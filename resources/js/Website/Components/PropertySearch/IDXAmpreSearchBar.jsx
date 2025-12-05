@@ -459,9 +459,22 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
     };
 
     const handleSearch = () => {
+        // Check if Sold or Leased is selected in propertyType dropdown
+        const isSoldOrLeased = searchData.propertyType === 'Sold' || searchData.propertyType === 'Leased';
+
         if (onSearch) {
             // If parent provided onSearch callback, use it
-            onSearch({ ...searchData, searchType, viewMode });
+            // Pass property_status for Sold/Leased searches
+            const searchPayload = {
+                ...searchData,
+                searchType,
+                viewMode,
+                // If Sold/Leased selected, pass it as property_status
+                property_status: isSoldOrLeased ? searchData.propertyType : '',
+                // Keep propertyType for active listings only
+                propertyType: isSoldOrLeased ? 'For Sale' : searchData.propertyType
+            };
+            onSearch(searchPayload);
         } else {
             // Default behavior - navigate to search page with params
             const params = new URLSearchParams();
@@ -471,13 +484,17 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                 params.append('search_type', searchType);
             }
 
-            // When Sold or Leased is selected, it takes precedence
-            if (searchData.propertyStatus) {
+            // When Sold or Leased is selected from dropdown, pass as property_status
+            if (isSoldOrLeased) {
+                params.append('property_status', searchData.propertyType);
+                // Set status based on Sold=For Sale, Leased=For Rent
+                params.append('status', searchData.propertyType === 'Sold' ? 'For Sale' : 'For Rent');
+            } else if (searchData.propertyStatus) {
+                // Legacy: propertyStatus field support
                 params.append('property_status', searchData.propertyStatus);
-                // Don't include property_type when searching for Sold/Leased
             } else if (searchData.propertyType) {
                 // Only include property_type when no status is selected
-                params.append('property_type', searchData.propertyType);
+                params.append('status', searchData.propertyType);
             }
 
             if (searchData.propertySubType && searchData.propertySubType !== 'All') params.append('property_sub_type', searchData.propertySubType);
@@ -645,6 +662,8 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                             >
                                 <option value="For Sale">For Sale</option>
                                 <option value="For Rent">For Rent</option>
+                                <option value="Sold">Sold</option>
+                                <option value="Leased">Leased</option>
                             </select>
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                                 <ChevronDown className="w-3.5 h-3.5 text-[#293056]" strokeWidth="2.5" />

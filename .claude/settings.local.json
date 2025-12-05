@@ -63,7 +63,13 @@
       "Bash(mysql:*)",
       "Bash(python3:*)",
       "Bash(pkill:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(for:*)",
+      "Bash(do echo 'Checking $(basename $file):' if grep -qi \"error\\|exception\\|fatal\" $file)",
+      "Bash(then echo '  ⚠ Found potential errors in page' grep -i \"error\\|exception\\|fatal\" $file)",
+      "Bash(ls:*)",
+      "Bash(echo 'Checking SSR build...' grep -o mls_properties_for_sale bootstrap/ssr/assets/*.js)",
+      "Bash(do echo '=== Testing: $slug ===' curl -s http://127.0.0.1:8000/building/$slug)"
     ],
     "deny": [],
     "ask": [],

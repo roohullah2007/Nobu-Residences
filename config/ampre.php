@@ -70,26 +70,23 @@ return [
             'ListOfficeName',
             'StandardStatus',
             'ListingContractDate', // ADDED: For Days on Market calculation
-            'OnMarketDate', // ADDED: Alternative listing date field
-            'OriginalOnMarketTimestamp', // ADDED: Original market timestamp
-            'ModificationTimestamp', // ADDED: Fallback for Days on Market
-            'ListDate', // ADDED: Alternative date field
-            'OriginalListPrice', // ADDED: Original listing price
-            'CloseDate', // ADDED: For sold properties
-            'DaysOnMarket', // ADDED: Existing field if available
-            'CumulativeDaysOnMarket', // ADDED: Total days including off-market periods
-            'MlsStatus', // ADDED: Alternative status field
-            'UnitNumber', // ADDED: For address formatting
-            'StreetNumber', // ADDED: For address formatting
-            'StreetName', // ADDED: For address formatting
-            'PublicRemarks', // ADDED: For property description
-            'AboveGradeFinishedArea', // ADDED: For area calculation
-            'LivingArea', // ADDED: Alternative area field
-            'LivingAreaRange', // ADDED: Area range
-            'BuildingAreaTotal', // ADDED: Building area
-            'ParkingSpaces', // ADDED: Parking information
-            'ParkingTotal', // ADDED: Total parking
-            'BathroomsFull' // ADDED: Full bathrooms count
+            // 'OnMarketDate', // REMOVED: Not available in this API
+            // 'OriginalOnMarketTimestamp', // REMOVED: Not available in this API
+            'ModificationTimestamp', // For sync timestamps
+            'OriginalListPrice', // Original listing price
+            'CloseDate', // For sold properties
+            'DaysOnMarket', // Days on market field
+            'MlsStatus', // Alternative status field
+            'UnitNumber', // For address formatting
+            'StreetNumber', // For address formatting
+            'StreetName', // For address formatting
+            'PublicRemarks', // For property description
+            'LivingAreaRange', // Area range
+            'BuildingAreaTotal', // Building area
+            'ParkingSpaces', // Parking information
+            'ParkingTotal', // Total parking
+            'PropertyType', // Property type
+            'ListingContractDate' // Contract date
         ],
         'image_size' => 'Largest',
         'image_limit' => 250,

@@ -18,6 +18,7 @@ class SyncMLSListings extends Command
                             {--batch=100 : Batch size for processing}
                             {--mls-ids=* : Specific MLS IDs to sync}
                             {--incremental : Only sync listings modified since last sync (RECOMMENDED)}
+                            {--all-statuses : Include Sold/Leased properties (not just Active)}
                             {--stats : Show sync statistics only}';
 
     /**
@@ -91,8 +92,10 @@ class SyncMLSListings extends Command
     {
         $limit = (int) $this->option('limit');
         $batchSize = (int) $this->option('batch');
+        $allStatuses = $this->option('all-statuses');
 
-        $this->line("Syncing up to {$limit} listings in batches of {$batchSize}...");
+        $statusInfo = $allStatuses ? ' (including Sold/Leased)' : ' (Active only)';
+        $this->line("Syncing up to {$limit} listings in batches of {$batchSize}{$statusInfo}...");
 
         $progressBar = $this->output->createProgressBar($limit);
         $progressBar->setFormat(' %current%/%max% [%bar%] %percent:3s%% %message%');
@@ -102,6 +105,7 @@ class SyncMLSListings extends Command
         $result = $this->syncService->syncAllListings([
             'limit' => $limit,
             'batch_size' => $batchSize,
+            'all_statuses' => $allStatuses,
         ]);
 
         $progressBar->setMessage('Complete!');
@@ -214,9 +218,11 @@ class SyncMLSListings extends Command
                 ['Total properties', number_format($stats['total_properties'])],
                 ['Active properties', number_format($stats['active_properties'])],
                 ['Inactive properties', number_format($stats['inactive_properties'])],
+                ['Sold properties', number_format($stats['sold_properties'] ?? 0)],
+                ['Leased properties', number_format($stats['leased_properties'] ?? 0)],
                 ['Failed syncs', number_format($stats['failed_syncs'])],
-                ['For Sale', number_format($stats['for_sale'])],
-                ['For Rent', number_format($stats['for_rent'])],
+                ['For Sale (active)', number_format($stats['for_sale'])],
+                ['For Rent (active)', number_format($stats['for_rent'])],
                 ['Need sync (>24h old)', number_format($stats['needs_sync'])],
                 ['Last sync', $stats['last_sync'] ? $stats['last_sync']->diffForHumans() : 'Never'],
             ]

@@ -903,7 +903,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                         className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
                                                     >
                                                         <img
-                                                            src={amenity.icon || '/storage/amenity-icons/amenity-default.svg'}
+                                                            src={amenity.icon || '/assets/svgs/amenity-default.svg'}
                                                             alt={amenity.name}
                                                             className="w-4 h-4 object-contain"
                                                         />
@@ -951,7 +951,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                         }`}
                                                     >
                                                         <img
-                                                            src={amenity.icon || '/storage/amenity-icons/amenity-default.svg'}
+                                                            src={amenity.icon || '/assets/svgs/amenity-default.svg'}
                                                             alt={amenity.name}
                                                             className="w-5 h-5 object-contain"
                                                         />

@@ -254,11 +254,12 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
 
           {/* Building Header with Share and Favorite buttons */}
           <div className="mb-7">
-            <PropertyHeader 
+            <PropertyHeader
               data={effectiveBuildingData}
               isFavorited={isFavorited}
               onToggleFavorite={handleToggleFavorite}
               type="building"
+              auth={auth}
             />
           </div>
 

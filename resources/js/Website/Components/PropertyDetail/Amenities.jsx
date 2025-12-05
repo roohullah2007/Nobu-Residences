@@ -3,30 +3,30 @@ import React from 'react';
 const Amenities = ({ buildingData, propertyData }) => {
   // Default amenity icon mapping
   const amenityIcons = {
-    'Concierge': '/storage/amenity-icons/concierge.svg',
-    'Party Room': '/storage/amenity-icons/party-room.svg',
-    'Meeting Room': '/storage/amenity-icons/meeting-room.svg',
-    'Security Guard': '/storage/amenity-icons/security-guard.svg',
-    'Gym': '/storage/amenity-icons/gym.svg',
-    'Fitness Center': '/storage/amenity-icons/gym.svg',
-    'Visitor Parking': '/storage/amenity-icons/visitor-parking.svg',
-    'Parking Garage': '/storage/amenity-icons/parking-garage.svg',
-    'Guest Suites': '/storage/amenity-icons/bed.svg',
-    'Pet Restriction': '/storage/amenity-icons/pet-restriction.svg',
-    'BBQ Permitted': '/storage/amenity-icons/bbq-permitted.svg',
-    'Outdoor Pool': '/storage/amenity-icons/outdoor-pool.svg',
-    'Pool': '/storage/amenity-icons/outdoor-pool.svg',
-    'Media Room': '/storage/amenity-icons/media-room.svg',
-    'Rooftop Deck': '/storage/amenity-icons/rooftop-deck.svg',
-    'Security System': '/storage/amenity-icons/security.svg',
-    'Sauna': '/storage/amenity-icons/sauna.svg',
-    'Hot Tub': '/storage/amenity-icons/shower.svg',
-    'Playground': '/storage/amenity-icons/party-room.svg',
-    'Tennis Court': '/storage/amenity-icons/gym.svg',
-    'Basketball Court': '/storage/amenity-icons/gym.svg',
-    'Library': '/storage/amenity-icons/meeting-room.svg',
-    'Storage': '/storage/amenity-icons/parking-garage.svg',
-    'Lounge': '/storage/amenity-icons/party-room.svg'
+    'Concierge': '/assets/svgs/concierge.svg',
+    'Party Room': '/assets/svgs/party-horn.svg',
+    'Meeting Room': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
+    'Security Guard': '/assets/svgs/police-security-policeman.svg',
+    'Gym': '/assets/svgs/gym.svg',
+    'Fitness Center': '/assets/svgs/gym.svg',
+    'Visitor Parking': '/assets/svgs/parking.svg',
+    'Parking Garage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
+    'Guest Suites': '/assets/svgs/bed.svg',
+    'Pet Restriction': '/assets/svgs/pets.svg',
+    'BBQ Permitted': '/assets/svgs/bbq-permitted.svg',
+    'Outdoor Pool': '/assets/svgs/pool-ladder.svg',
+    'Pool': '/assets/svgs/pool-ladder.svg',
+    'Media Room': '/assets/svgs/media-room.svg',
+    'Rooftop Deck': '/assets/svgs/deck-chair-under-the-sun.svg',
+    'Security System': '/assets/svgs/security.svg',
+    'Sauna': '/assets/svgs/amenity-default.svg',
+    'Hot Tub': '/assets/svgs/shower.svg',
+    'Playground': '/assets/svgs/party-horn.svg',
+    'Tennis Court': '/assets/svgs/gym.svg',
+    'Basketball Court': '/assets/svgs/gym.svg',
+    'Library': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
+    'Storage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
+    'Lounge': '/assets/svgs/party-horn.svg'
   };
 
   // Use buildingData directly or fallback to propertyData
@@ -48,15 +48,15 @@ const Amenities = ({ buildingData, propertyData }) => {
       // Use icon from database or map to local icon
       let iconPath = amenity.icon;
 
-      // If icon is from storage, use it directly
-      if (iconPath && (iconPath.startsWith('/storage') || iconPath.startsWith('http'))) {
+      // If icon is from assets or http, use it directly
+      if (iconPath && (iconPath.startsWith('/assets') || iconPath.startsWith('http'))) {
         // Use as is
       } else if (amenityIcons[amenity.name]) {
         // Fallback to mapped icon
         iconPath = amenityIcons[amenity.name];
       } else {
         // Default icon
-        iconPath = '/storage/amenity-icons/amenity-default.svg';
+        iconPath = '/assets/svgs/amenity-default.svg';
       }
 
       return {
@@ -80,7 +80,7 @@ const Amenities = ({ buildingData, propertyData }) => {
   const includedAmenities = Array.isArray(maintenanceFeeAmenities)
     ? maintenanceFeeAmenities.map(amenity => ({
         name: amenity.name,
-        iconPath: amenity.icon || '/storage/amenity-icons/amenity-default.svg',
+        iconPath: amenity.icon || '/assets/svgs/amenity-default.svg',
         included: true
       }))
     : [];
@@ -124,7 +124,7 @@ const Amenities = ({ buildingData, propertyData }) => {
                   alt={amenity.name}
                   className="w-5 h-5 flex-shrink-0"
                   onError={(e) => {
-                    e.target.src = '/storage/amenity-icons/amenity-default.svg';
+                    e.target.src = '/assets/svgs/amenity-default.svg';
                   }}
                 />
                 <span className="font-red-hat font-semibold text-sm leading-6 text-[#545454] truncate">

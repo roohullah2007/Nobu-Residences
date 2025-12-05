@@ -510,6 +510,7 @@ class BuildingController extends Controller
                         'id' => $building->developer->id,
                         'name' => $building->developer->name,
                     ] : null,
+                    'developer_name' => $building->developer_name ?? ($building->developer ? $building->developer->name : null),
                     'latitude' => $building->latitude,
                     'longitude' => $building->longitude,
                 ];

@@ -224,7 +224,7 @@ const FiltersModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-[200]">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[90vh] flex flex-col font-['Work_Sans']">
 
         {/* Modal Header */}
