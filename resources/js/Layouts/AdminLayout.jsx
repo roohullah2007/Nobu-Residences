@@ -205,7 +205,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                         className="fixed inset-0 bg-black/50"
                         onClick={() => setSidebarOpen(false)}
                     />
-                    <div className="fixed inset-y-0 left-0 w-72 bg-[#0f172a] overflow-y-auto">
+                    <div className="fixed inset-y-0 left-0 w-[85vw] max-w-72 bg-[#0f172a] overflow-y-auto">
                         <div className="flex items-center justify-between h-16 px-6 border-b border-[#1e293b]">
                             <span className="text-lg font-semibold text-white">Nobu Admin</span>
                             <button

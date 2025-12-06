@@ -69,7 +69,8 @@
       "Bash(then echo '  ⚠ Found potential errors in page' grep -i \"error\\|exception\\|fatal\" $file)",
       "Bash(ls:*)",
       "Bash(echo 'Checking SSR build...' grep -o mls_properties_for_sale bootstrap/ssr/assets/*.js)",
-      "Bash(do echo '=== Testing: $slug ===' curl -s http://127.0.0.1:8000/building/$slug)"
+      "Bash(do echo '=== Testing: $slug ===' curl -s http://127.0.0.1:8000/building/$slug)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": [],

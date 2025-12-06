@@ -154,14 +154,11 @@ export default function Navbar({ auth = {}, website = {} }) {
 
                 {/* Mobile Navigation Menu */}
                 {mobileMenuOpen && (
-                    <div 
-                        className="md:hidden absolute bg-white rounded-2xl shadow-lg py-4 px-6 z-50"
+                    <div
+                        className="md:hidden absolute bg-white rounded-2xl shadow-lg py-4 px-6 z-50 left-4 right-4 top-20"
                         style={{
-                            width: '350px',
-                            height: '363px',
-                            top: '277px',
-                            left: '40px',
-                            gap: '24px'
+                            maxWidth: 'calc(100vw - 32px)',
+                            minHeight: 'auto'
                         }}
                     >
                         <div className="flex flex-col space-y-4">
