@@ -7,7 +7,7 @@ export default function MainLayout({ children, siteName, siteUrl, year, website,
             {/* Consistent header across all pages - same as homepage */}
             {!hideHeader && (
                 blueHeader ? (
-                    <div className="bg-[#293056] w-screen h-[85px] md:h-[120px] relative">
+                    <div className="bg-[#293056] w-screen h-[85px] md:h-[120px] relative flex items-center">
                         <Navbar auth={auth} website={website} />
                     </div>
                 ) : (

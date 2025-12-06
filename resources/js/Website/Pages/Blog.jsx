@@ -52,10 +52,9 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
 
             {/* Hero Section */}
             <section
-                className="relative bg-cover bg-center bg-no-repeat flex items-center pt-20 md:pt-32"
+                className="relative bg-cover bg-center bg-no-repeat flex items-center pt-20 md:pt-32 h-[280px] md:h-[441px]"
                 style={{
-                    backgroundImage: 'url(/assets/building.jpg)',
-                    height: '441px'
+                    backgroundImage: 'url(/assets/building.jpg)'
                 }}
             >
                 {/* Gradient Overlay - same as homepage */}

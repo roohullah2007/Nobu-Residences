@@ -264,20 +264,20 @@ const BuildingStatusTabs = ({ building }) => {
   return (
     <div className="w-full max-w-[1280px] mx-auto py-0" data-building-status-tabs>
       {/* Building Status Navigation */}
-      <div className="flex flex-col items-start gap-6 w-full relative z-10">
-        {/* Status Labels Section */}
-        <div className="flex flex-row items-start gap-[22px] h-10 flex-wrap">
+      <div className="flex flex-col items-start gap-3 md:gap-6 w-full relative z-10">
+        {/* Status Labels Section - Scrollable on mobile */}
+        <div className="flex flex-row items-center gap-2 md:gap-[22px] w-full overflow-x-auto scrollbar-hide pb-2 md:pb-0 md:flex-wrap">
           {/* Building Status Badge */}
-          <div className="flex items-center px-2 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap px-2">
+          <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
+            <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
               {building?.status || 'Available'} Building
             </span>
           </div>
 
           {/* Construction Date Badge */}
           {building?.year_built && (
-            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
-              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+            <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
+              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
                 Built in {building.year_built}
               </span>
             </div>
@@ -285,8 +285,8 @@ const BuildingStatusTabs = ({ building }) => {
 
           {/* Units Available Badge */}
           {building?.total_units && (
-            <div className="flex items-center px-3 gap-2 min-w-fit h-10 bg-[#293056] rounded-xl">
-              <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap">
+            <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
+              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
                 {building.total_units} Total Units
               </span>
             </div>

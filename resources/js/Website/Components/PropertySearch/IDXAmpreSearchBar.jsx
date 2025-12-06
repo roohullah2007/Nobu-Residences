@@ -548,7 +548,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                     {/* Left Group: Search, For Sale, Bed Type, Price */}
                     <div className="flex items-center gap-3 w-full flex-wrap lg:flex-nowrap overflow-visible">
                         {/* Search Input with Type Selector and Search Button - 400px width */}
-                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-[400px] h-[48px] relative" style={{ zIndex: 100 }}>
+                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-[400px] h-[48px] relative">
                             {/* Search Type Dropdown Button */}
                             <div className="relative" ref={dropdownRef}>
                                 <button
@@ -785,7 +785,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                     viewBox="0 0 21 20"
                                     fill="none"
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="absolute flex-shrink-0 pointer-events-none z-30 transition-all"
+                                    className="absolute flex-shrink-0 pointer-events-none transition-all"
                                     style={{
                                         left: `calc(${(searchData.minPrice / 10000000) * 100}% - 9px)`
                                     }}
@@ -802,7 +802,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                     viewBox="0 0 21 20"
                                     fill="none"
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="absolute flex-shrink-0 pointer-events-none z-30 transition-all"
+                                    className="absolute flex-shrink-0 pointer-events-none transition-all"
                                     style={{
                                         left: `calc(${(searchData.maxPrice / 10000000) * 100}% - 9px)`
                                     }}

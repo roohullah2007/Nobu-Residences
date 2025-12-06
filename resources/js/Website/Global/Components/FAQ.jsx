@@ -72,7 +72,7 @@ const FAQ = ({
 
   // FAQ Content
   const FAQContent = () => (
-    <div className={`mx-auto max-w-[1280px] ${className}`}>
+    <div className={`mx-auto max-w-[1280px] px-4 md:px-0 ${className}`}>
       <div className="md:my-4 my-3 mx-auto">
         {/* FAQ Title */}
         <div className="flex items-center gap-2 md:mb-3 mb-2.5">

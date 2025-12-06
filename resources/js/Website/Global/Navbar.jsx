@@ -36,25 +36,20 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
     }, [mobileMenuOpen]);
 
     return (
-        <header className="absolute top-0 left-0 right-0 w-full flex items-center justify-center z-20">
-            <div className="mx-auto px-4 py-4 md:py-8 w-full max-w-[1280px] sm:px-6 md:px-0">
+        <header className="absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20">
+            <div className="mx-auto px-3 py-0 md:py-8 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center">
                 {/* Mobile Navbar */}
-                <div className="flex md:hidden justify-between items-center px-4 py-2 bg-white rounded-xl">
+                <div className="flex md:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full">
                     {/* Logo */}
-                    <Link href="/" className="flex items-center cursor-pointer mt-1">
+                    <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
                             <img
                                 src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
-                                style={{
-                                    width: '200px',
-                                    height: '50px',
-                                    maxWidth: '200px'
-                                }}
-                                className="object-contain"
+                                className="object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]"
                             />
                         ) : (
-                            <div className="font-space-grotesk font-bold text-black">
+                            <div className="font-space-grotesk font-bold text-black text-sm">
                                 {website?.name || 'X HOUSES'}
                             </div>
                         )}
@@ -83,9 +78,9 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                 </div>
                 
                 {/* Desktop Navbar */}
-                <div className="hidden md:flex h-16 bg-white rounded-xl items-center justify-between px-6">
+                <div className="hidden md:flex w-full h-16 bg-white rounded-xl items-center justify-between px-6">
                     {/* Logo and Brand */}
-                    <Link href="/" className="flex items-center cursor-pointer mt-1">
+                    <Link href="/" className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
                             <img
                                 src={website.logo_url}
@@ -250,7 +245,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
 
             {/* Mobile Navigation Menu Overlay */}
             {mobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-50">
+                <div className="md:hidden fixed inset-0 z-[200]">
                     {/* Backdrop */}
                     <div 
                         className="absolute inset-0 bg-black/20 backdrop-blur-sm"

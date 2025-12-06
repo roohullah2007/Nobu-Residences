@@ -120,7 +120,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
     <>
       {/* Main Container */}
       <div className="max-w-[1280px] mx-auto px-0 py-0">
-        <div className="flex flex-col lg:flex-row gap-0 lg:gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 md:gap-5 lg:gap-6">
           {/* Single Image Section - Flexible width */}
           <div className="flex-1 order-1 lg:order-none">
             {/* Single Large Image with click to open modal */}
@@ -147,7 +147,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
           </div>
 
           {/* Building Details Card - Fixed width */}
-          <div className="w-full lg:w-[306px] h-auto lg:h-[645px] bg-gray-50 border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
+          <div className="w-full lg:w-[306px] h-auto lg:h-[645px] bg-gray-50 border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-6 lg:gap-8 mb-[30px] md:mb-0">
                 {/* Building Name Section */}

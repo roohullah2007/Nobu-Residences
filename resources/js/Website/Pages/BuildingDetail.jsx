@@ -253,7 +253,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
         <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
 
           {/* Building Header with Share and Favorite buttons */}
-          <div className="mb-7">
+          <div className="mb-4 md:mb-7">
             <PropertyHeader
               data={effectiveBuildingData}
               isFavorited={isFavorited}
@@ -264,7 +264,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
           </div>
 
           {/* Building Gallery with Details Card - Single image with modal */}
-          <div className="mb-7">
+          <div className="mb-4 md:mb-7">
             <BuildingGallery 
               buildingImages={buildingImages}
               buildingData={effectiveBuildingData}

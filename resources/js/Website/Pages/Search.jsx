@@ -1426,71 +1426,71 @@ export default function EnhancedPropertySearch({
                   : 'Buildings'}
               </h1>
               
-              {/* Navigation and Controls */}
-              <div className="flex items-center justify-between">
-                {/* Left: Listing and Buildings Tabs */}
-                <div className="flex items-center">
+              {/* Navigation and Controls - Responsive */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                {/* Left: Listing and Buildings Tabs - Scrollable on mobile */}
+                <div className="flex items-center overflow-x-auto scrollbar-hide">
                   {/* Listing Tab */}
                   <button
                     onClick={() => handleTabChange('listings')}
-                    className={`flex flex-row justify-center items-center px-[10px] py-[10px] gap-[10px] w-[168px] h-[50px] ${
-                      activeTab === 'listings' ? 'border-b border-[#252B37]' : ''
-                    } box-border`}
+                    className={`flex flex-row justify-center items-center px-2 md:px-[10px] py-[10px] gap-1 md:gap-[10px] min-w-fit md:w-[168px] h-[40px] md:h-[50px] ${
+                      activeTab === 'listings' ? 'border-b-2 border-[#252B37]' : ''
+                    } box-border flex-shrink-0`}
                   >
-                    <span className={`w-[148px] h-[30px] font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center gap-2 tracking-[-0.03em] ${
+                    <span className={`font-red-hat-display font-bold text-base md:text-[20px] leading-[24px] md:leading-[30px] flex items-center gap-1 md:gap-2 tracking-[-0.03em] whitespace-nowrap ${
                       activeTab === 'listings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
                       Listings {total > 0 && activeTab === 'listings' && (
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-sm font-bold text-white bg-[#293056] rounded-full min-w-[28px]">
+                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold text-white bg-[#293056] rounded-full min-w-[24px] md:min-w-[28px]">
                           {total.toLocaleString()}
                         </span>
                       )}
                     </span>
                   </button>
-                  
+
                   {/* Buildings Tab */}
                   <button
                     onClick={() => handleTabChange('buildings')}
-                    className={`flex flex-row justify-center items-center px-[10px] py-[10px] gap-[10px] w-[120px] h-[50px] ${
-                      activeTab === 'buildings' ? 'border-b border-[#252B37]' : ''
-                    }`}
+                    className={`flex flex-row justify-center items-center px-2 md:px-[10px] py-[10px] gap-1 md:gap-[10px] min-w-fit md:w-[120px] h-[40px] md:h-[50px] ${
+                      activeTab === 'buildings' ? 'border-b-2 border-[#252B37]' : ''
+                    } flex-shrink-0`}
                   >
-                    <span className={`font-red-hat-display font-bold text-[20px] leading-[30px] flex items-center gap-2 tracking-[-0.03em] ${
+                    <span className={`font-red-hat-display font-bold text-base md:text-[20px] leading-[24px] md:leading-[30px] flex items-center gap-1 md:gap-2 tracking-[-0.03em] whitespace-nowrap ${
                       activeTab === 'buildings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
                       Buildings {total > 0 && activeTab === 'buildings' && (
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 text-sm font-bold text-white bg-[#293056] rounded-full min-w-[28px]">
+                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold text-white bg-[#293056] rounded-full min-w-[24px] md:min-w-[28px]">
                           {total.toLocaleString()}
                         </span>
                       )}
                     </span>
                   </button>
                 </div>
-                
-                {/* Right: View Toggle and Sort */}
-                <div className="flex items-center gap-4">
+
+                {/* Right: View Toggle and Sort - Responsive */}
+                <div className="flex items-center gap-2 md:gap-4 justify-between md:justify-end">
                     {/* View Toggle Buttons - Grid/Mixed/Map with border like reference */}
-                    <div className="flex items-center bg-white border border-black rounded-lg p-1">
+                    <div className="flex items-center bg-white border border-black rounded-lg p-0.5 md:p-1">
                       <button
                         onClick={() => setViewType('grid')}
-                        className={`p-2 rounded ${viewType === 'grid' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'grid' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         title="Grid View"
                       >
-                        <GridIcon className="w-5 h-5" />
+                        <GridIcon className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                       <button
                         onClick={() => setViewType('mixed')}
-                        className={`p-2 rounded ${viewType === 'mixed' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'mixed' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         title="Mixed View"
                       >
-                        <MixedIcon className="w-5 h-5" />
+                        <MixedIcon className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                       <button
                         onClick={() => setViewType('map')}
-                        className={`p-2 rounded ${viewType === 'map' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'map' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         title="Map View"
                       >
-                        <MapIcon className="w-5 h-5" />
+                        <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     </div>
 
@@ -1499,16 +1499,16 @@ export default function EnhancedPropertySearch({
                       <button
                         type="button"
                         onClick={() => setShowSortDropdown(!showSortDropdown)}
-                        className="flex flex-row justify-center items-center px-4 py-2 gap-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 bg-white transition-colors"
+                        className="flex flex-row justify-center items-center px-2 md:px-4 py-1.5 md:py-2 gap-1 md:gap-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 bg-white transition-colors"
                       >
-                        <span className="font-work-sans font-medium text-base leading-[25px] flex items-center text-center tracking-[-0.03em] text-black">
+                        <span className="font-work-sans font-medium text-sm md:text-base leading-[20px] md:leading-[25px] flex items-center text-center tracking-[-0.03em] text-black">
                           Sort
                         </span>
-                        <div className="w-4 h-4">
-                          <ChevronDownIcon className="w-4 h-4 text-black" />
+                        <div className="w-3 h-3 md:w-4 md:h-4">
+                          <ChevronDownIcon className="w-3 h-3 md:w-4 md:h-4 text-black" />
                         </div>
                       </button>
-                      
+
                       {/* Sort Dropdown Menu */}
                       {showSortDropdown && (
                         <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-300 rounded-lg shadow-xl z-50">
@@ -1612,22 +1612,23 @@ export default function EnhancedPropertySearch({
               )
             ) : viewType === 'mixed' ? (
               // Enhanced Mixed View - IDX-AMPRE style split layout with two cards per row
-              <div className="flex h-[calc(100vh-300px)] min-h-[700px] bg-white rounded-lg shadow-sm border overflow-hidden" 
+              // On mobile: Show only listings (no map). On desktop: Show listings + map side by side
+              <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-300px)] md:min-h-[700px] bg-white rounded-lg shadow-sm border overflow-hidden"
                    style={{ fontFamily: "'Work Sans', sans-serif" }}>
                 {/* Left side - Property Cards with enhanced scrolling - IDX-AMPRE style */}
-                <div className="flex-1 flex flex-col border-r border-gray-200">
+                <div className="flex-1 flex flex-col md:border-r border-gray-200">
                   {/* Properties section header - IDX-AMPRE style */}
-                  <div className="flex-shrink-0 px-6 py-4 bg-white border-b border-gray-200">
+                  <div className="flex-shrink-0 px-4 md:px-6 py-3 md:py-4 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg text-gray-900">
-                        {activeTab === 'listings' ? 
-                          (showViewportProperties && viewportProperties.length > 0 ? 'Area Properties' : 'Properties for Sale') : 
+                      <h3 className="font-bold text-base md:text-lg text-gray-900">
+                        {activeTab === 'listings' ?
+                          (showViewportProperties && viewportProperties.length > 0 ? 'Area Properties' : 'Properties for Sale') :
                           'Buildings'}
                       </h3>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-600">
-                          {activeTab === 'listings' ? 
-                            (showViewportProperties && viewportProperties.length > 0 ? viewportProperties.length : properties.length) : 
+                        <span className="text-xs md:text-sm font-medium text-gray-600">
+                          {activeTab === 'listings' ?
+                            (showViewportProperties && viewportProperties.length > 0 ? viewportProperties.length : properties.length) :
                             buildings.length} results
                         </span>
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1636,7 +1637,7 @@ export default function EnhancedPropertySearch({
                   </div>
                   
                   {/* Scrollable cards area - IDX-AMPRE style with two cards per row */}
-                  <div className="flex-1 overflow-y-auto p-4 mixed-view-scroll">
+                  <div className="flex-1 overflow-y-auto p-2 md:p-4 mixed-view-scroll">
                     {isLoading ? (
                       // Loader for mixed view left panel
                       <div className="flex items-center justify-center h-full">
@@ -1733,7 +1734,8 @@ export default function EnhancedPropertySearch({
                 </div>
                 
                 {/* Right side - Enhanced Map with viewport loading - IDX-AMPRE style */}
-                <div className="flex-shrink-0 flex flex-col bg-gray-50" style={{ width: '600px' }}>
+                {/* Hidden on mobile, visible on desktop with flexible width */}
+                <div className="hidden md:flex flex-shrink-0 flex-col bg-gray-50 w-[40%] lg:w-[50%] max-w-[600px]">
                   <ViewportAwarePropertyMap
                     properties={activeTab === 'listings' ? mapProperties : buildings}
                     className="w-full h-full"

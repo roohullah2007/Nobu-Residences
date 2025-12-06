@@ -30,6 +30,13 @@ const PropertyCardV5 = ({
   className = '' 
 }) => {
   
+  // Determine if property is rental based on multiple fields
+  const isRentalProperty = property.isRental ||
+    property.TransactionType === 'For Lease' ||
+    property.TransactionType === 'For Rent' ||
+    property.transactionType === 'For Lease' ||
+    property.transactionType === 'For Rent';
+
   // Format price function (same as CardV1)
   const formatPrice = (price, isRental = false) => {
     if (!price || price <= 0) return 'Price on request';
@@ -44,10 +51,11 @@ const PropertyCardV5 = ({
   };
 
   // Check if we have real MLS data vs dummy data (same as CardV1)
-  const isRealMLSData = property.source === 'mls' || 
+  const isRealMLSData = property.source === 'mls' ||
                        (property.listingKey && property.listingKey.length > 10);
 
-  const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
+  // Always format price with rental check, ignore pre-formatted price to ensure /mo is added
+  const formattedPrice = formatPrice(property.price || property.ListPrice, isRentalProperty);
   const displayAddress = formatCardAddress(property);
   const features = buildCardFeatures(property);
   const brokerageName = getBrokerageName(property);
