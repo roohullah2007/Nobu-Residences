@@ -104,9 +104,8 @@ class BlogController extends Controller
 
     public function show(Blog $blog)
     {
-        return Inertia::render('Admin/Blog/Show', [
-            'blog' => $blog
-        ]);
+        // Redirect to index since the Index page handles viewing via the public blog page
+        return redirect()->route('admin.blog.index');
     }
 
     public function edit(Blog $blog)

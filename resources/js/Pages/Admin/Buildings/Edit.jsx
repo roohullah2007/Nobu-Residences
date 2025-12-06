@@ -7,6 +7,17 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 
+// Helper function to create building slug
+const createBuildingSlug = (name, id) => {
+    if (!name) return id;
+    const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${slug}-${id}`;
+};
+
 export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [] }) {
     // Debug logging
     console.log('=== BuildingsEdit Component Loaded ===');
@@ -251,7 +262,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         console.log('Final form data being sent:', formData);
         console.log('Amenities in form data:', formData.amenity_ids);
         
-        put(route('admin.buildings.update', building.id), formData);
+        put(route('admin.buildings.update', createBuildingSlug(building.name, building.id)), formData);
     };
 
     const toggleAmenity = (amenity) => {

@@ -4,6 +4,17 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 
+// Helper function to create building slug
+const createBuildingSlug = (name, id) => {
+    if (!name) return id;
+    const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${slug}-${id}`;
+};
+
 export default function BuildingsShow({ auth, building }) {
     const getStatusBadge = (status) => {
         if (!status) {
@@ -58,7 +69,7 @@ export default function BuildingsShow({ auth, building }) {
                             Back to List
                         </SecondaryButton>
                     </Link>
-                    <Link href={route('admin.buildings.edit', building.id)} className="inline-block">
+                    <Link href={route('admin.buildings.edit', createBuildingSlug(building.name, building.id))} className="inline-block">
                         <PrimaryButton>
                             Edit Building
                         </PrimaryButton>

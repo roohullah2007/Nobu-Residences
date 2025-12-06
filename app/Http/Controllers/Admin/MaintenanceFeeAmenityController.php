@@ -46,14 +46,11 @@ class MaintenanceFeeAmenityController extends Controller
 
     /**
      * Show the form for creating a new resource.
+     * Note: The Index page handles creation via modal, so redirect there
      */
     public function create()
     {
-        $categories = MaintenanceFeeAmenity::distinct()->pluck('category')->filter();
-
-        return Inertia::render('Admin/MaintenanceFeeAmenities/Create', [
-            'categories' => $categories
-        ]);
+        return redirect()->route('admin.maintenance-fee-amenities.index');
     }
 
     /**
@@ -90,25 +87,20 @@ class MaintenanceFeeAmenityController extends Controller
 
     /**
      * Display the specified resource.
+     * Note: The Index page handles viewing via modal, so redirect there
      */
     public function show(MaintenanceFeeAmenity $maintenanceFeeAmenity)
     {
-        return Inertia::render('Admin/MaintenanceFeeAmenities/Show', [
-            'amenity' => $maintenanceFeeAmenity
-        ]);
+        return redirect()->route('admin.maintenance-fee-amenities.index');
     }
 
     /**
      * Show the form for editing the specified resource.
+     * Note: The Index page handles editing via modal, so redirect there
      */
     public function edit(MaintenanceFeeAmenity $maintenanceFeeAmenity)
     {
-        $categories = MaintenanceFeeAmenity::distinct()->pluck('category')->filter();
-
-        return Inertia::render('Admin/MaintenanceFeeAmenities/Edit', [
-            'amenity' => $maintenanceFeeAmenity,
-            'categories' => $categories
-        ]);
+        return redirect()->route('admin.maintenance-fee-amenities.index');
     }
 
     /**

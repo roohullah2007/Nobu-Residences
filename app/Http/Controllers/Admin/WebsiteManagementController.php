@@ -568,7 +568,7 @@ class WebsiteManagementController extends Controller
                 'content' => $content
             ]);
 
-            return redirect()->route('admin.websites.home-page.edit', $website->id)
+            return redirect()->route('admin.websites.edit-home-page', $website->id)
                 ->with('success', 'Home page updated successfully!');
 
         } catch (\Exception $e) {

@@ -68,11 +68,8 @@ class BlogCategoryController extends Controller
      */
     public function show(BlogCategory $blogCategory)
     {
-        $blogCategory->load('blogs');
-
-        return Inertia::render('Admin/BlogCategories/Show', [
-            'category' => $blogCategory
-        ]);
+        // Redirect to index since the Index page handles viewing via modal or direct editing
+        return redirect()->route('admin.blog-categories.index');
     }
 
     /**

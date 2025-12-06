@@ -24,10 +24,11 @@ class DeveloperController extends Controller
 
     /**
      * Show the form for creating a new resource.
+     * Note: The Index page handles creation via modal, so redirect there
      */
     public function create()
     {
-        return Inertia::render('Admin/Developers/Create');
+        return redirect()->route('admin.developers.index');
     }
 
     /**
@@ -56,24 +57,20 @@ class DeveloperController extends Controller
 
     /**
      * Display the specified resource.
+     * Note: The Index page handles viewing via modal, so redirect there
      */
     public function show(Developer $developer)
     {
-        $developer->load('buildings');
-        
-        return Inertia::render('Admin/Developers/Show', [
-            'developer' => $developer
-        ]);
+        return redirect()->route('admin.developers.index');
     }
 
     /**
      * Show the form for editing the specified resource.
+     * Note: The Index page handles editing via modal, so redirect there
      */
     public function edit(Developer $developer)
     {
-        return Inertia::render('Admin/Developers/Edit', [
-            'developer' => $developer
-        ]);
+        return redirect()->route('admin.developers.index');
     }
 
     /**

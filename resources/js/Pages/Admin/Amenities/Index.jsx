@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
-import InputError from '@/Components/InputError';
 
 export default function AmenitiesIndex({ auth, amenities }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -24,7 +19,6 @@ export default function AmenitiesIndex({ auth, amenities }) {
         const file = e.target.files[0];
         if (file) {
             setData('icon_file', file);
-            // Create preview
             const reader = new FileReader();
             reader.onloadend = () => {
                 setIconPreview(reader.result);
@@ -50,7 +44,6 @@ export default function AmenitiesIndex({ auth, amenities }) {
                 setIconPreview(null);
             },
             onError: (errors) => {
-                console.error('Error creating amenity:', errors);
                 setFormErrors(errors);
             }
         });
@@ -75,7 +68,7 @@ export default function AmenitiesIndex({ auth, amenities }) {
                 setIconPreview(null);
             },
             onError: (errors) => {
-                console.error('Error updating amenity:', errors);
+                setFormErrors(errors);
             }
         });
     };
@@ -107,35 +100,59 @@ export default function AmenitiesIndex({ auth, amenities }) {
         return amenity.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
+    const totalAmenities = (amenities.data || amenities).length;
+
     return (
-        <AdminLayout title="Amenities Management">
-            <Head title="Amenities Management" />
+        <AdminLayout title="Amenities">
+            <Head title="Amenities" />
 
-            <div className="sm:flex sm:items-center">
-                <div className="sm:flex-auto">
-                    <h1 className="text-base font-semibold leading-6 text-gray-900">Amenities Management</h1>
-                    <p className="mt-2 text-sm text-gray-700">
-                        Manage building amenities and their icons.
-                    </p>
-                </div>
-                <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-                    <PrimaryButton onClick={openCreateModal}>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-semibold text-[#0f172a]">Amenities</h1>
+                        <p className="text-sm text-[#64748b] mt-1">
+                            Manage building amenities and icons
+                        </p>
+                    </div>
+                    <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center px-4 py-2.5 bg-[#0f172a] text-white text-sm font-medium rounded-lg hover:bg-[#1e293b] transition-colors"
+                    >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
                         Add Amenity
-                    </PrimaryButton>
+                    </button>
                 </div>
-            </div>
 
-            <div className="mt-8">
+                {/* Stats */}
+                <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-semibold text-[#0f172a]">{totalAmenities}</p>
+                            <p className="text-sm text-[#64748b]">Total Amenities</p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Search */}
-                <div className="bg-white shadow rounded-lg p-6 mb-6">
-                    <div className="max-w-md">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search Amenities
-                        </label>
+                <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    <div className="relative max-w-md">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-4 w-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                         <input
                             type="text"
-                            placeholder="Search by name..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Search amenities..."
+                            className="w-full pl-9 pr-4 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -143,14 +160,14 @@ export default function AmenitiesIndex({ auth, amenities }) {
                 </div>
 
                 {/* Amenities Grid */}
-                <div className="bg-white shadow rounded-lg">
-                    <div className="p-6">
+                <div className="bg-white rounded-lg border border-[#e2e8f0]">
+                    <div className="p-4">
                         {filteredAmenities.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {filteredAmenities.map((amenity) => (
                                     <div
                                         key={amenity.id}
-                                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                                        className="border border-[#e2e8f0] rounded-lg p-4 hover:bg-[#f8fafc] transition-colors"
                                     >
                                         <div className="flex items-center gap-3 mb-3">
                                             {amenity.icon ? (
@@ -160,24 +177,26 @@ export default function AmenitiesIndex({ auth, amenities }) {
                                                     className="w-8 h-8 object-contain"
                                                 />
                                             ) : (
-                                                <div className="w-8 h-8 bg-gray-200 rounded flex items-center justify-center">
-                                                    <span className="text-gray-400 text-xs">🏢</span>
+                                                <div className="w-8 h-8 bg-[#f1f5f9] rounded flex items-center justify-center">
+                                                    <svg className="w-4 h-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+                                                    </svg>
                                                 </div>
                                             )}
-                                            <h3 className="font-medium text-gray-900">
+                                            <h3 className="text-sm font-medium text-[#0f172a]">
                                                 {amenity.name}
                                             </h3>
                                         </div>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => openEditModal(amenity)}
-                                                className="flex-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                                                className="flex-1 px-3 py-1.5 text-xs font-medium text-[#64748b] bg-[#f1f5f9] rounded-md hover:bg-[#e2e8f0] transition-colors"
                                             >
                                                 Edit
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(amenity.id, amenity.name)}
-                                                className="flex-1 px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm"
+                                                className="flex-1 px-3 py-1.5 text-xs font-medium text-[#dc2626] bg-[#fef2f2] rounded-md hover:bg-[#fee2e2] transition-colors"
                                             >
                                                 Delete
                                             </button>
@@ -186,9 +205,14 @@ export default function AmenitiesIndex({ auth, amenities }) {
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-8">
-                                <span className="text-4xl mb-4 block">🏢</span>
-                                <p className="text-gray-500">No amenities found</p>
+                            <div className="text-center py-12">
+                                <div className="w-12 h-12 rounded-lg bg-[#f1f5f9] flex items-center justify-center mx-auto mb-3">
+                                    <svg className="w-6 h-6 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+                                    </svg>
+                                </div>
+                                <p className="text-sm font-medium text-[#0f172a]">No amenities found</p>
+                                <p className="text-xs text-[#94a3b8] mt-1">Add your first amenity to get started</p>
                             </div>
                         )}
                     </div>
@@ -197,38 +221,40 @@ export default function AmenitiesIndex({ auth, amenities }) {
 
             {/* Create Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                        <h2 className="text-lg font-semibold mb-4">Create New Amenity</h2>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                        <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Create Amenity</h2>
                         <form onSubmit={handleCreate}>
                             <div className="space-y-4">
                                 <div>
-                                    <InputLabel htmlFor="name" value="Amenity Name *" />
-                                    <TextInput
-                                        id="name"
+                                    <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                                        Name <span className="text-[#dc2626]">*</span>
+                                    </label>
+                                    <input
                                         type="text"
-                                        className="mt-1 block w-full"
+                                        className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
                                         required
                                     />
-                                    <InputError message={errors.name || formErrors.name} className="mt-2" />
+                                    {(errors.name || formErrors.name) && (
+                                        <p className="text-xs text-[#dc2626] mt-1">{errors.name || formErrors.name}</p>
+                                    )}
                                 </div>
 
                                 <div>
-                                    <InputLabel htmlFor="icon_file" value="Icon Image (SVG, PNG, JPG)" />
+                                    <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                                        Icon (SVG, PNG, JPG)
+                                    </label>
                                     <input
-                                        id="icon_file"
                                         type="file"
-                                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+                                        className="w-full text-sm text-[#64748b] border border-[#e2e8f0] rounded-lg cursor-pointer file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-[#f1f5f9] file:text-[#0f172a] file:font-medium hover:file:bg-[#e2e8f0]"
                                         accept="image/svg+xml,image/png,image/jpeg,image/jpg,image/webp,.svg"
                                         onChange={handleIconChange}
                                     />
-                                    <InputError message={errors.icon_file || formErrors.icon_file} className="mt-2" />
-
                                     {iconPreview && (
-                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                            <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                                        <div className="mt-3 p-3 bg-[#f8fafc] rounded-lg">
+                                            <p className="text-xs text-[#64748b] mb-2">Preview:</p>
                                             <img
                                                 src={iconPreview}
                                                 alt="Icon preview"
@@ -240,16 +266,24 @@ export default function AmenitiesIndex({ auth, amenities }) {
                             </div>
 
                             <div className="mt-6 flex gap-3 justify-end">
-                                <SecondaryButton type="button" onClick={() => {
-                                    setShowCreateModal(false);
-                                    setIconPreview(null);
-                                    reset();
-                                }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowCreateModal(false);
+                                        setIconPreview(null);
+                                        reset();
+                                    }}
+                                    className="px-4 py-2 text-sm font-medium text-[#64748b] bg-[#f1f5f9] rounded-lg hover:bg-[#e2e8f0] transition-colors"
+                                >
                                     Cancel
-                                </SecondaryButton>
-                                <PrimaryButton type="submit" disabled={processing}>
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+                                >
                                     {processing ? 'Creating...' : 'Create'}
-                                </PrimaryButton>
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -258,38 +292,37 @@ export default function AmenitiesIndex({ auth, amenities }) {
 
             {/* Edit Modal */}
             {showEditModal && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full">
-                        <h2 className="text-lg font-semibold mb-4">Edit Amenity</h2>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                        <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Edit Amenity</h2>
                         <form onSubmit={handleEdit}>
                             <div className="space-y-4">
                                 <div>
-                                    <InputLabel htmlFor="edit-name" value="Amenity Name *" />
-                                    <TextInput
-                                        id="edit-name"
+                                    <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                                        Name <span className="text-[#dc2626]">*</span>
+                                    </label>
+                                    <input
                                         type="text"
-                                        className="mt-1 block w-full"
+                                        className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
                                         required
                                     />
-                                    <InputError message={errors.name || formErrors.name} className="mt-2" />
                                 </div>
 
                                 <div>
-                                    <InputLabel htmlFor="edit-icon_file" value="Icon Image (SVG, PNG, JPG)" />
+                                    <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                                        Icon (SVG, PNG, JPG)
+                                    </label>
                                     <input
-                                        id="edit-icon_file"
                                         type="file"
-                                        className="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+                                        className="w-full text-sm text-[#64748b] border border-[#e2e8f0] rounded-lg cursor-pointer file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-[#f1f5f9] file:text-[#0f172a] file:font-medium hover:file:bg-[#e2e8f0]"
                                         accept="image/svg+xml,image/png,image/jpeg,image/jpg,image/webp,.svg"
                                         onChange={handleIconChange}
                                     />
-                                    <InputError message={errors.icon_file || formErrors.icon_file} className="mt-2" />
-
                                     {iconPreview && (
-                                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                                            <p className="text-sm text-gray-600 mb-2">Current/Preview:</p>
+                                        <div className="mt-3 p-3 bg-[#f8fafc] rounded-lg">
+                                            <p className="text-xs text-[#64748b] mb-2">Current/Preview:</p>
                                             <img
                                                 src={iconPreview}
                                                 alt="Icon preview"
@@ -301,17 +334,25 @@ export default function AmenitiesIndex({ auth, amenities }) {
                             </div>
 
                             <div className="mt-6 flex gap-3 justify-end">
-                                <SecondaryButton type="button" onClick={() => {
-                                    setShowEditModal(false);
-                                    setEditingAmenity(null);
-                                    setIconPreview(null);
-                                    reset();
-                                }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowEditModal(false);
+                                        setEditingAmenity(null);
+                                        setIconPreview(null);
+                                        reset();
+                                    }}
+                                    className="px-4 py-2 text-sm font-medium text-[#64748b] bg-[#f1f5f9] rounded-lg hover:bg-[#e2e8f0] transition-colors"
+                                >
                                     Cancel
-                                </SecondaryButton>
-                                <PrimaryButton type="submit" disabled={processing}>
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+                                >
                                     {processing ? 'Saving...' : 'Save'}
-                                </PrimaryButton>
+                                </button>
                             </div>
                         </form>
                     </div>

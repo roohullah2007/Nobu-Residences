@@ -673,8 +673,22 @@ class MLSSyncService
             ->orderBy('last_synced_at', 'desc')
             ->first();
 
+        // Count properties with images (image_urls is not null and not empty array)
+        $withImages = MLSProperty::whereNotNull('image_urls')
+            ->whereRaw("JSON_LENGTH(image_urls) > 0")
+            ->count();
+
+        // Count properties with geocoding (valid lat/lng)
+        $withGeocoding = MLSProperty::whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->where('latitude', '!=', 0)
+            ->where('longitude', '!=', 0)
+            ->count();
+
+        $totalProperties = MLSProperty::count();
+
         return [
-            'total_properties' => MLSProperty::count(),
+            'total_properties' => $totalProperties,
             'active_properties' => MLSProperty::active()->count(),
             'inactive_properties' => MLSProperty::where('is_active', false)->count(),
             'sold_properties' => MLSProperty::where('status', 'sold')->count(),
@@ -682,6 +696,10 @@ class MLSSyncService
             'failed_syncs' => MLSProperty::where('sync_failed', true)->count(),
             'for_sale' => MLSProperty::active()->propertyType('For Sale')->count(),
             'for_rent' => MLSProperty::active()->propertyType('For Rent')->count(),
+            'with_images' => $withImages,
+            'without_images' => $totalProperties - $withImages,
+            'with_geocoding' => $withGeocoding,
+            'without_geocoding' => $totalProperties - $withGeocoding,
             'last_sync' => $lastSync ? $lastSync->last_synced_at : null,
             'needs_sync' => MLSProperty::active()
                 ->where(function($query) {

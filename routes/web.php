@@ -273,15 +273,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/api/store', [WebsiteManagementController::class, 'storeIconAjax'])->name('api.store');
     });
     
-    // Contact Form Management routes
-    Route::prefix('contacts')->name('contacts.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Admin\ContactController::class, 'index'])->name('index');
-        Route::get('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'show'])->name('show');
-        Route::patch('/{contact}/mark-read', [\App\Http\Controllers\Admin\ContactController::class, 'markAsRead'])->name('mark-read');
-        Route::delete('/{contact}', [\App\Http\Controllers\Admin\ContactController::class, 'destroy'])->name('destroy');
-        Route::post('/bulk-actions', [\App\Http\Controllers\Admin\ContactController::class, 'bulkActions'])->name('bulk-actions');
-    });
-
     // MLS Properties Management routes
     Route::prefix('mls')->name('mls.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\MLSController::class, 'index'])->name('index');
