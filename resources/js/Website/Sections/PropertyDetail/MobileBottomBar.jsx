@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Phone, Calendar, Close } from '@/Website/Components/Icons';
 
 export default function MobileBottomBar() {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,9 +39,10 @@ export default function MobileBottomBar() {
       {/* Mobile Request Viewing Button - Fixed at bottom */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={() => setShowRequestModal(true)}
-            className="flex-1 bg-black text-white py-3 px-4 rounded-full font-work-sans font-bold text-sm flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+            className="flex-1 py-3 px-4 rounded-full font-work-sans font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+            style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
           >
             <Calendar className="w-4 h-4" />
             Request a viewing
@@ -128,7 +136,8 @@ export default function MobileBottomBar() {
                 
                 <button
                   type="submit"
-                  className="w-full bg-black text-white py-3 px-4 rounded-md font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                  className="w-full py-3 px-4 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                 >
                   Request Viewing
                 </button>

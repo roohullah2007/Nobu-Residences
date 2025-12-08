@@ -2,13 +2,23 @@ import { Link } from '@inertiajs/react';
 import React, { useState } from 'react';
 import Navbar from '@/Website/Global/Navbar';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
+import { usePage } from '@inertiajs/react';
 
 export default function SchoolHeroSection({ auth, siteName = 'X Houses', website }) {
     const [showContactModal, setShowContactModal] = useState(false);
-    const brandColors = website?.brand_colors || {
+    const { globalWebsite, website: pageWebsite } = usePage().props;
+    const currentWebsite = website || pageWebsite || globalWebsite;
+
+    const brandColors = currentWebsite?.brand_colors || {
         primary: '#912018',
-        secondary: '#293056'
+        secondary: '#293056',
+        button_secondary_bg: '#912018',
+        button_secondary_text: '#FFFFFF'
     };
+
+    // Get button colors with fallbacks
+    const buttonSecondaryBg = brandColors.button_secondary_bg || '#912018';
+    const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
 
     return (
         <div className="relative bg-cover bg-center bg-no-repeat font-work-sans min-h-screen md:h-[895px]" style={{
@@ -73,43 +83,54 @@ export default function SchoolHeroSection({ auth, siteName = 'X Houses', website
                                     {/* Agent Header */}
                                     <div className="flex flex-row items-center p-0 gap-3 sm:gap-4 w-full">
                                         {/* Avatar */}
-                                        <div
-                                            className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 border-2 border-[#293056] rounded-full bg-cover bg-center"
-                                            style={{
-                                                backgroundImage: `url('${website?.agent_info?.profile_image || website?.contact_info?.agent?.image || '/assets/school/jatin-gill.png'}')`
-                                            }}
-                                        />
+                                        {(website?.agent_info?.profile_image || website?.contact_info?.agent?.image) && (
+                                            <div
+                                                className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 border-2 border-[#293056] rounded-full bg-cover bg-center"
+                                                style={{
+                                                    backgroundImage: `url('${website?.agent_info?.profile_image || website?.contact_info?.agent?.image}')`
+                                                }}
+                                            />
+                                        )}
 
                                         {/* Agent Info */}
                                         <div className="flex flex-col items-start p-0 flex-1 min-w-0">
                                             {/* Name */}
-                                            <div className="w-full font-space-grotesk font-bold text-sm sm:text-base leading-5 sm:leading-[26px] flex items-center tracking-wider uppercase text-[#293056] truncate">
-                                                {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'JATIN GILL').toUpperCase()}
-                                            </div>
+                                            {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name) && (
+                                                <div className="w-full font-space-grotesk font-bold text-sm sm:text-base leading-5 sm:leading-[26px] flex items-center tracking-wider uppercase text-[#293056] truncate">
+                                                    {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name).toUpperCase()}
+                                                </div>
+                                            )}
 
                                             {/* Title */}
-                                            <div className="w-full font-work-sans font-bold text-xs sm:text-sm leading-5 sm:leading-6 flex items-center tracking-wider text-[#7E2410] truncate">
-                                                {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || 'Property Manager'}
-                                            </div>
+                                            {(website?.agent_info?.agent_title || website?.contact_info?.agent?.title) && (
+                                                <div className="w-full font-work-sans font-bold text-xs sm:text-sm leading-5 sm:leading-6 flex items-center tracking-wider text-[#7E2410] truncate">
+                                                    {website?.agent_info?.agent_title || website?.contact_info?.agent?.title}
+                                                </div>
+                                            )}
 
                                             {/* Company */}
-                                            <div className="w-full font-work-sans font-medium text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056] truncate">
-                                                {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Property.ca Inc, Brokerage'}
-                                            </div>
+                                            {(website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage) && (
+                                                <div className="w-full font-work-sans font-medium text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056] truncate">
+                                                    {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage}
+                                                </div>
+                                            )}
 
                                             {/* Phone */}
-                                            <div className="w-full font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056]">
-                                                {website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}
-                                            </div>
+                                            {(website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone) && (
+                                                <div className="w-full font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-[25px] flex items-center tracking-wider text-[#293056]">
+                                                    {website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Contact Button */}
                                     <button
                                         onClick={() => setShowContactModal(true)}
-                                        className="flex justify-center items-center w-full h-10 sm:h-12 bg-[#7E2410] rounded-full hover:bg-[#6B1F0E] transition-colors duration-200"
+                                        className="flex justify-center items-center w-full h-10 sm:h-12 rounded-full hover:opacity-90 transition-all duration-200"
+                                        style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
                                     >
-                                        <span className="font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-6 tracking-wider text-white whitespace-nowrap">
+                                        <span className="font-work-sans font-bold text-sm sm:text-base leading-5 sm:leading-6 tracking-wider whitespace-nowrap">
                                             Contact agent
                                         </span>
                                     </button>
@@ -138,8 +159,11 @@ export default function SchoolHeroSection({ auth, siteName = 'X Houses', website
                             </p>
                             
                             {/* Rating Button */}
-                            <button className="flex justify-center items-center w-full sm:w-[203px] h-12 sm:h-16 bg-[#912018] rounded-full hover:bg-[#7A1614] transition-colors duration-200">
-                                <span className="font-work-sans font-bold text-base sm:text-lg leading-6 sm:leading-7 tracking-wider text-white whitespace-nowrap">
+                            <button
+                                className="flex justify-center items-center w-full sm:w-[203px] h-12 sm:h-16 rounded-full hover:opacity-90 transition-all duration-200"
+                                style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
+                            >
+                                <span className="font-work-sans font-bold text-base sm:text-lg leading-6 sm:leading-7 tracking-wider whitespace-nowrap">
                                     Rating: 8.5/10
                                 </span>
                             </button>

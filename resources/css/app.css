@@ -128,14 +128,11 @@ select::-ms-expand {
     display: none;
 }
 
-/* Remove focus borders and rings from all inputs */
+/* Remove default browser outline on focus - borders are handled per-component */
 input:focus,
 select:focus,
 textarea:focus {
     outline: none !important;
-    border: none !important;
-    box-shadow: none !important;
-    ring: none !important;
 }
 
 /* Remove Tailwind's default focus ring */

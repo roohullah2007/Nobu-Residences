@@ -1,35 +1,211 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import { createSEOBuildingUrl } from '@/utils/slug';
-import { 
-  formatCardAddress, 
-  buildCardFeatures, 
-  getBrokerageName 
+import {
+  formatCardAddress,
+  buildCardFeatures,
+  getBrokerageName
 } from '@/utils/propertyFormatters';
+import { usePage } from '@inertiajs/react';
 
 /**
  * PropertyCardV5 - Enhanced for Search Page with IDX-AMPRE Style
- * 
+ *
  * Features:
  * - 4 cards per row in grid view
  * - IDX-AMPRE style loading and animations
  * - Enhanced image loading with fallbacks
  * - Interactive hover effects
- * - Compare and Request buttons
- * 
+ * - Heart button for favourites
+ *
  * @param {Object} property - Property data object
  * @param {string} size - Card size ('default', 'mobile') - default: 'default'
  * @param {Function} onClick - Optional click handler
  * @param {string} className - Additional CSS classes
+ * @param {boolean} showFavouriteButton - Whether to show favourite button (default: true)
+ * @param {Function} onFavouriteChange - Optional callback when favourite status changes
  */
-const PropertyCardV5 = ({ 
-  property, 
+const PropertyCardV5 = ({
+  property,
   size = 'default',
   onClick,
-  className = '' 
+  className = '',
+  showFavouriteButton = true,
+  onFavouriteChange
 }) => {
-  
+  const { auth } = usePage().props;
+  const [isFavourited, setIsFavourited] = useState(false);
+  const [isLoadingFavourite, setIsLoadingFavourite] = useState(false);
+
+  const listingKey = property?.listingKey || property?.ListingKey || property?.id;
+  const isAuthenticated = auth?.user ? true : false;
+
+  // Check favourite status on mount
+  useEffect(() => {
+    if (isAuthenticated && listingKey && showFavouriteButton && property.source !== 'building') {
+      checkFavouriteStatus();
+    }
+  }, [isAuthenticated, listingKey]);
+
+  const checkFavouriteStatus = async () => {
+    if (!listingKey) return;
+
+    try {
+      const response = await fetch('/api/favourites/properties/check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          property_listing_key: listingKey
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsFavourited(data.is_favourited || false);
+      }
+    } catch (error) {
+      console.error('Error checking favourite status:', error);
+    }
+  };
+
+  const toggleFavourite = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      // Redirect to login
+      window.location.href = '/login';
+      return;
+    }
+
+    if (!listingKey || isLoadingFavourite) return;
+
+    setIsLoadingFavourite(true);
+
+    try {
+      // Prepare property data for storage
+      const propertyData = {
+        listingKey: listingKey,
+        ListingKey: listingKey,
+        id: listingKey,
+        MediaURL: property?.MediaURL || property?.imageUrl,
+        imageUrl: property?.imageUrl || property?.MediaURL,
+        images: property?.images || property?.Images || [],
+        ListPrice: property?.price || property?.ListPrice,
+        price: property?.price || property?.ListPrice,
+        address: property?.address || property?.Address || property?.UnparsedAddress,
+        StreetNumber: property?.StreetNumber,
+        StreetName: property?.StreetName,
+        StreetSuffix: property?.StreetSuffix,
+        UnitNumber: property?.UnitNumber,
+        City: property?.city || property?.City,
+        StateOrProvince: property?.province || property?.StateOrProvince || 'ON',
+        PostalCode: property?.PostalCode,
+        PropertyType: property?.propertyType || property?.PropertyType,
+        PropertySubType: property?.PropertySubType || property?.propertyType,
+        TransactionType: property?.TransactionType || 'For Sale',
+        StandardStatus: property?.StandardStatus || 'Active',
+        MlsStatus: property?.MlsStatus,
+        BedroomsTotal: property?.bedrooms || property?.BedroomsTotal,
+        BathroomsTotalInteger: property?.bathrooms || property?.BathroomsTotalInteger,
+        LivingAreaRange: property?.area || property?.LivingAreaRange,
+        ...property
+      };
+
+      const response = await fetch('/api/favourites/properties/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({
+          property_listing_key: listingKey,
+          property_data: propertyData,
+          property_address: propertyData.address,
+          property_price: propertyData.price,
+          property_type: propertyData.PropertySubType || propertyData.PropertyType,
+          property_city: propertyData.City,
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsFavourited(data.is_favourited);
+
+        // Show notification
+        showFavouriteNotification(data.message, data.action);
+
+        // Call callback if provided
+        if (onFavouriteChange) {
+          onFavouriteChange(data.is_favourited, listingKey);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favourite:', error);
+    } finally {
+      setIsLoadingFavourite(false);
+    }
+  };
+
+  const showFavouriteNotification = (message, action) => {
+    const notification = document.createElement('div');
+    const isAdded = action === 'added';
+
+    notification.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>${isAdded ? '❤️' : '💔'}</span>
+        <span>${message}</span>
+      </div>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${isAdded ? '#DC2626' : '#6B7280'};
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    if (!document.getElementById('favourite-notification-styles')) {
+      const style = document.createElement('style');
+      style.id = 'favourite-notification-styles';
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  };
+
   // Determine if property is rental based on multiple fields
   const isRentalProperty = property.isRental ||
     property.TransactionType === 'For Lease' ||
@@ -60,8 +236,8 @@ const PropertyCardV5 = ({
   const features = buildCardFeatures(property);
   const brokerageName = getBrokerageName(property);
   // Use building URL for buildings, property URL for properties
-  const detailsUrl = property.source === 'building' 
-    ? createSEOBuildingUrl(property) 
+  const detailsUrl = property.source === 'building'
+    ? createSEOBuildingUrl(property)
     : generatePropertyUrl(property);
 
   // Count the number of content sections to determine if we need minimum height
@@ -117,8 +293,8 @@ const PropertyCardV5 = ({
 
   return (
     <div className={`flex flex-col ${config.container} bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group ${className} relative`}>
-      <a 
-        href={detailsUrl} 
+      <a
+        href={detailsUrl}
         className="flex flex-col h-full text-inherit no-underline"
         onClick={handleClick}
       >
@@ -135,7 +311,7 @@ const PropertyCardV5 = ({
             priority="normal"
             data-listing-key={property.listingKey}
           />
-          
+
           {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
           {property.source !== 'building' && (
             <div className="absolute inset-2 flex flex-col justify-between">
@@ -209,15 +385,44 @@ const PropertyCardV5 = ({
                   {property.PropertySubType || property.propertyType || 'Residential'}
                 </span>
               </div>
-              
-              {/* Request button removed - keeping empty div for layout consistency */}
+
+              {/* Bottom row - Heart button */}
               <div className="flex justify-end items-center gap-2.5 h-8">
-                {/* Request and Compare buttons removed as requested */}
+                {showFavouriteButton && property.source !== 'building' && (
+                  <button
+                    onClick={toggleFavourite}
+                    disabled={isLoadingFavourite}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 ${
+                      isFavourited
+                        ? 'bg-red-500 hover:bg-red-600'
+                        : 'bg-white/90 hover:bg-white backdrop-blur-sm'
+                    } ${isLoadingFavourite ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={isFavourited ? 'Remove from favourites' : 'Add to favourites'}
+                  >
+                    {isLoadingFavourite ? (
+                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <svg
+                        className={`w-5 h-5 transition-colors ${isFavourited ? 'text-white' : 'text-red-500'}`}
+                        fill={isFavourited ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}
         </div>
-        
+
         {/* Card Content - Dynamic layout based on content amount */}
         <div className={`flex flex-col flex-grow items-start ${config.content} box-border`}>
           {/* Building Name or Price - Conditional display */}

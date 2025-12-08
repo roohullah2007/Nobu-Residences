@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 
-const MoreBuildings = ({ agentName = "Jatin Gill", buildings = null }) => {
+const MoreBuildings = ({ agentName = "", buildings = null, website = null }) => {
+  // Get agent name from website settings if not provided directly
+  const displayAgentName = agentName || website?.agent_info?.agent_name || website?.contact_info?.agent?.name || '';
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Sample buildings data
@@ -186,7 +188,7 @@ const MoreBuildings = ({ agentName = "Jatin Gill", buildings = null }) => {
       {/* Section Header */}
       <div className="mb-6">
         <h2 className="font-red-hat text-2xl font-bold text-[#293056] tracking-tight">
-          More Buildings by {agentName}
+          {displayAgentName ? `More Buildings by ${displayAgentName}` : 'More Buildings'}
         </h2>
       </div>
       

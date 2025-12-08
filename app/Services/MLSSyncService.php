@@ -42,6 +42,7 @@ class MLSSyncService
             $batchSize = $options['batch_size'] ?? 100;
             $resumable = $options['resumable'] ?? true;
             $allStatuses = $options['all_statuses'] ?? false;
+            $soldLeasedOnly = $options['sold_leased_only'] ?? false;
 
             $syncState = $this->getSyncState();
 
@@ -64,6 +65,7 @@ class MLSSyncService
                 'batch_size' => $batchSize,
                 'resumable' => $resumable,
                 'all_statuses' => $allStatuses,
+                'sold_leased_only' => $soldLeasedOnly,
                 'starting_offset' => $resumable ? $syncState->current_batch_offset : 0
             ]);
 
@@ -82,7 +84,7 @@ class MLSSyncService
             // Process in batches
             for ($skip = $startOffset; $skip < $endOffset; $skip += $batchSize) {
                 try {
-                    $batchResult = $this->syncBatch($skip, $batchSize, $allStatuses);
+                    $batchResult = $this->syncBatch($skip, $batchSize, $allStatuses, $soldLeasedOnly);
 
                     $synced += $batchResult['synced'];
                     $updated += $batchResult['updated'];
@@ -397,7 +399,7 @@ class MLSSyncService
                 $existing = MLSProperty::where('mls_id', $listingKey)->first();
                 $hadStatusChange = false;
 
-                if ($existing && $existing->status !== $this->mapStatus($mlsData['StandardStatus'] ?? 'Active', $mlsData['TransactionType'] ?? null)) {
+                if ($existing && $existing->status !== $this->mapStatus($mlsData['StandardStatus'] ?? 'Active', $mlsData['TransactionType'] ?? null, $mlsData['MlsStatus'] ?? null)) {
                     $hadStatusChange = true;
                     $statusChanged++;
                 }
@@ -433,7 +435,7 @@ class MLSSyncService
     /**
      * Sync a batch of listings
      */
-    private function syncBatch(int $skip, int $batchSize, bool $allStatuses = false): array
+    private function syncBatch(int $skip, int $batchSize, bool $allStatuses = false, bool $soldLeasedOnly = false): array
     {
         // Configure API request - fetch COMPLETE listing object (all fields)
         // Store everything in mls_data JSON column, extract key fields for indexing
@@ -442,8 +444,10 @@ class MLSSyncService
         $this->ampreApi->setCacheTtl(0); // Disable caching to avoid max_allowed_packet errors
 
         // DEFAULT FILTERS: GTA Condo Apartments
-        // If allStatuses is true, include Sold/Leased properties; otherwise only Active
-        if ($allStatuses) {
+        // Priority: soldLeasedOnly > allStatuses > Active only
+        if ($soldLeasedOnly) {
+            $this->applyGTACondoFiltersSoldLeased();
+        } elseif ($allStatuses) {
             $this->applyGTACondoFiltersAllStatuses();
         } else {
             $this->applyGTACondoFilters();
@@ -525,7 +529,7 @@ class MLSSyncService
             'country' => $mlsData['Country'] ?? 'Canada',
             'property_type' => $this->mapTransactionType($mlsData['TransactionType'] ?? null),
             'property_sub_type' => $mlsData['PropertySubType'] ?? null,
-            'status' => $this->mapStatus($mlsData['StandardStatus'] ?? 'Active', $mlsData['TransactionType'] ?? null),
+            'status' => $this->mapStatus($mlsData['StandardStatus'] ?? 'Active', $mlsData['TransactionType'] ?? null, $mlsData['MlsStatus'] ?? null),
             'price' => $mlsData['ListPrice'] ?? null,
             'bedrooms' => $mlsData['BedroomsTotal'] ?? null,
             'bathrooms' => $mlsData['BathroomsTotalInteger'] ?? null,
@@ -538,8 +542,9 @@ class MLSSyncService
             'last_synced_at' => now(),
             'mls_data' => $mlsData,
             'image_urls' => $imageUrls,
-            // is_active: true for Active listings, false for Sold/Leased/Expired
-            'is_active' => strtolower($mlsData['StandardStatus'] ?? 'Active') === 'active',
+            // is_active: true for Active listings, false for Sold/Leased
+            // Check MlsStatus first (Sold/Leased = not active), then StandardStatus
+            'is_active' => $this->isActiveProperty($mlsData),
             'sync_failed' => false,
             'sync_error' => null,
         ];
@@ -599,7 +604,8 @@ class MLSSyncService
     }
 
     /**
-     * Deactivate listings that haven't been synced recently
+     * Delete listings that haven't been synced recently
+     * We no longer use "inactive" status - old listings are simply removed
      */
     private function deactivateOldListings(int $hoursOld = 48): int
     {
@@ -610,10 +616,7 @@ class MLSSyncService
                 $query->whereNull('last_synced_at')
                       ->orWhere('last_synced_at', '<', $cutoffTime);
             })
-            ->update([
-                'is_active' => false,
-                'status' => 'inactive'
-            ]);
+            ->delete();
     }
 
     /**
@@ -690,7 +693,6 @@ class MLSSyncService
         return [
             'total_properties' => $totalProperties,
             'active_properties' => MLSProperty::active()->count(),
-            'inactive_properties' => MLSProperty::where('is_active', false)->count(),
             'sold_properties' => MLSProperty::where('status', 'sold')->count(),
             'leased_properties' => MLSProperty::where('status', 'leased')->count(),
             'failed_syncs' => MLSProperty::where('sync_failed', true)->count(),
@@ -733,16 +735,33 @@ class MLSSyncService
 
     /**
      * Map MLS status to our status
-     * @param string|null $mlsStatus The StandardStatus from MLS (Active, Closed, Expired, etc.)
+     * Uses MlsStatus field (TRREB-specific) for accurate status detection
+     *
+     * @param string|null $standardStatus The StandardStatus from MLS (Active, Closed, Expired, etc.)
      * @param string|null $transactionType The TransactionType from MLS (For Sale, For Lease)
+     * @param string|null $mlsStatus The MlsStatus from MLS (Sold, Leased, New, Price Change, etc.)
      */
-    private function mapStatus(?string $mlsStatus, ?string $transactionType = null): string
+    private function mapStatus(?string $standardStatus, ?string $transactionType = null, ?string $mlsStatus = null): string
     {
-        if (!$mlsStatus) {
+        // First check MlsStatus field - most accurate for Sold/Leased
+        if ($mlsStatus) {
+            $mlsStatusLower = strtolower($mlsStatus);
+
+            // Direct mapping from MlsStatus
+            if ($mlsStatusLower === 'sold') {
+                return 'sold';
+            }
+            if ($mlsStatusLower === 'leased') {
+                return 'leased';
+            }
+        }
+
+        // Fallback to StandardStatus
+        if (!$standardStatus) {
             return 'active';
         }
 
-        $status = strtolower($mlsStatus);
+        $status = strtolower($standardStatus);
         $txType = strtolower($transactionType ?? '');
 
         // Handle 'Closed' status - determine if Sold or Leased based on transaction type
@@ -754,13 +773,36 @@ class MLSSyncService
             return 'sold';
         }
 
+        // We only keep: active, sold, leased
+        // Expired/withdrawn/cancelled listings will be deleted during sync cleanup
         return match ($status) {
             'active' => 'active',
             'sold' => 'sold',
             'leased' => 'leased',
-            'expired', 'withdrawn', 'cancelled' => 'inactive',
             default => 'active'
         };
+    }
+
+    /**
+     * Determine if a property is active (for sale/rent) vs closed (sold/leased)
+     * Uses MlsStatus field for accurate detection
+     *
+     * @param array $mlsData The MLS data array
+     * @return bool True if active, false if sold/leased
+     */
+    private function isActiveProperty(array $mlsData): bool
+    {
+        $mlsStatus = strtolower($mlsData['MlsStatus'] ?? '');
+
+        // Sold or Leased = not active
+        if ($mlsStatus === 'sold' || $mlsStatus === 'leased') {
+            return false;
+        }
+
+        // Check StandardStatus as fallback
+        $standardStatus = strtolower($mlsData['StandardStatus'] ?? 'active');
+
+        return $standardStatus === 'active';
     }
 
     /**
@@ -817,16 +859,20 @@ class MLSSyncService
     }
 
     /**
-     * Apply GTA Condo Apartment filters - ALL STATUSES
-     * Used for incremental sync to detect status changes (Active → Sold/Leased/Expired)
-     * Does NOT filter by Active status - picks up all property updates
+     * Apply GTA Condo Apartment filters - SOLD AND LEASED ONLY
+     * Used to sync sold and leased properties using MlsStatus field
+     * Filters: MlsStatus IN ('Sold', 'Leased')
      */
-    private function applyGTACondoFiltersAllStatuses(): void
+    private function applyGTACondoFiltersSoldLeased(): void
     {
         // Filter 1: Only Condo Apartments
         $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
 
-        // Filter 2: GTA Cities (NO status filter - will sync ALL statuses)
+        // Filter 2: Only Sold OR Leased using MlsStatus field
+        // MlsStatus = 'Sold' for sold properties, 'Leased' for leased properties
+        $this->ampreApi->addCustomFilter("(MlsStatus eq 'Sold' or MlsStatus eq 'Leased')");
+
+        // Filter 3: GTA Cities
         $gtaCities = [
             'Toronto', 'Mississauga', 'Brampton', 'Caledon',
             'Markham', 'Vaughan', 'Richmond Hill', 'Aurora',
@@ -844,9 +890,50 @@ class MLSSyncService
         $cityFilter = '(' . implode(' or ', $cityConditions) . ')';
         $this->ampreApi->addCustomFilter($cityFilter);
 
-        Log::info('Applied GTA Condo filters - ALL STATUSES (incremental sync)', [
+        Log::info('Applied GTA Condo filters - SOLD/LEASED ONLY', [
             'property_type' => 'Condo Apartment',
-            'status' => 'All (Active, Sold, Leased, Expired)',
+            'mls_status' => "Sold, Leased",
+            'cities' => count($gtaCities)
+        ]);
+    }
+
+    /**
+     * Apply GTA Condo Apartment filters - ALL RELEVANT STATUSES
+     * Used for incremental sync to detect status changes
+     * Includes: Active (For Sale/Rent), Sold, Leased
+     * Excludes: Terminated, Expired, Suspended, Cancelled
+     */
+    private function applyGTACondoFiltersAllStatuses(): void
+    {
+        // Filter 1: Only Condo Apartments
+        $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
+
+        // Filter 2: Only relevant statuses (Active + Sold + Leased)
+        // StandardStatus = 'Active' for active listings
+        // MlsStatus = 'Sold' or 'Leased' for closed deals
+        $this->ampreApi->addCustomFilter("(StandardStatus eq 'Active' or MlsStatus eq 'Sold' or MlsStatus eq 'Leased')");
+
+        // Filter 3: GTA Cities
+        $gtaCities = [
+            'Toronto', 'Mississauga', 'Brampton', 'Caledon',
+            'Markham', 'Vaughan', 'Richmond Hill', 'Aurora',
+            'Newmarket', 'King', 'Whitchurch-Stouffville', 'Georgina',
+            'Oshawa', 'Whitby', 'Ajax', 'Pickering', 'Clarington',
+            'Uxbridge', 'Scugog', 'Brock',
+            'Oakville', 'Burlington', 'Milton', 'Halton Hills'
+        ];
+
+        // Build OR condition for cities using contains
+        $cityConditions = array_map(function($city) {
+            return "contains(City,'{$city}')";
+        }, $gtaCities);
+
+        $cityFilter = '(' . implode(' or ', $cityConditions) . ')';
+        $this->ampreApi->addCustomFilter($cityFilter);
+
+        Log::info('Applied GTA Condo filters - ACTIVE + SOLD + LEASED', [
+            'property_type' => 'Condo Apartment',
+            'status' => 'Active, Sold, Leased (excludes Terminated, Expired, Suspended)',
             'cities' => count($gtaCities)
         ]);
     }

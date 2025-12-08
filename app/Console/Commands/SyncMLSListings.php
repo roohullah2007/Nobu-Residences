@@ -18,7 +18,8 @@ class SyncMLSListings extends Command
                             {--batch=100 : Batch size for processing}
                             {--mls-ids=* : Specific MLS IDs to sync}
                             {--incremental : Only sync listings modified since last sync (RECOMMENDED)}
-                            {--all-statuses : Include Sold/Leased properties (not just Active)}
+                            {--all-statuses : Include Active + Sold + Leased (excludes Terminated/Expired)}
+                            {--sold-leased : Sync ONLY Sold and Leased properties}
                             {--stats : Show sync statistics only}';
 
     /**
@@ -93,8 +94,11 @@ class SyncMLSListings extends Command
         $limit = (int) $this->option('limit');
         $batchSize = (int) $this->option('batch');
         $allStatuses = $this->option('all-statuses');
+        $soldLeasedOnly = $this->option('sold-leased');
 
-        $statusInfo = $allStatuses ? ' (including Sold/Leased)' : ' (Active only)';
+        $statusInfo = $soldLeasedOnly
+            ? ' (Sold/Leased ONLY)'
+            : ($allStatuses ? ' (Active + Sold + Leased)' : ' (Active only)');
         $this->line("Syncing up to {$limit} listings in batches of {$batchSize}{$statusInfo}...");
 
         $progressBar = $this->output->createProgressBar($limit);
@@ -106,6 +110,7 @@ class SyncMLSListings extends Command
             'limit' => $limit,
             'batch_size' => $batchSize,
             'all_statuses' => $allStatuses,
+            'sold_leased_only' => $soldLeasedOnly,
         ]);
 
         $progressBar->setMessage('Complete!');
@@ -217,7 +222,6 @@ class SyncMLSListings extends Command
             [
                 ['Total properties', number_format($stats['total_properties'])],
                 ['Active properties', number_format($stats['active_properties'])],
-                ['Inactive properties', number_format($stats['inactive_properties'])],
                 ['Sold properties', number_format($stats['sold_properties'] ?? 0)],
                 ['Leased properties', number_format($stats['leased_properties'] ?? 0)],
                 ['Failed syncs', number_format($stats['failed_syncs'])],

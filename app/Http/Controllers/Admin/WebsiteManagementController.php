@@ -57,18 +57,62 @@ class WebsiteManagementController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        // Parse nested keys from FormData (e.g., 'brand_colors.primary')
+        $data = $request->all();
+
+        // Convert string booleans to actual booleans
+        foreach (['is_default', 'is_active'] as $field) {
+            if (isset($data[$field])) {
+                $data[$field] = filter_var($data[$field], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        // Handle nested keys from FormData (e.g., 'brand_colors.primary')
+        $nestedData = [];
+        foreach ($data as $key => $value) {
+            if (strpos($key, '.') !== false) {
+                $keys = explode('.', $key);
+                $current = &$nestedData;
+                foreach ($keys as $index => $k) {
+                    if ($index === count($keys) - 1) {
+                        $current[$k] = $value;
+                    } else {
+                        if (!isset($current[$k])) {
+                            $current[$k] = [];
+                        }
+                        $current = &$current[$k];
+                    }
+                }
+                unset($data[$key]);
+            }
+        }
+
+        // Merge nested data back
+        foreach ($nestedData as $key => $value) {
+            if (!isset($data[$key])) {
+                $data[$key] = [];
+            }
+            $data[$key] = array_merge(is_array($data[$key]) ? $data[$key] : [], $value);
+        }
+
+        // Merge the parsed data back into the request
+        $request->merge($data);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:websites',
             'domain' => 'nullable|string|max:255',
             'is_default' => 'boolean',
+            'is_active' => 'boolean',
+            'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
             'logo_url' => 'nullable|string|max:255',
+            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg|max:1024',
+            'favicon_url' => 'nullable|string|max:255',
             'brand_colors' => 'nullable|array',
             'fonts' => 'nullable|array',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
-            'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
             'agent_name' => 'nullable|string|max:255',
             'agent_title' => 'nullable|string|max:255',
@@ -86,6 +130,39 @@ class WebsiteManagementController extends Controller
             Website::where('is_default', true)->update(['is_default' => false]);
         }
 
+        // Handle logo file upload
+        if ($request->hasFile('logo_file')) {
+            $logoFile = $request->file('logo_file');
+            $logoFileName = 'logo_' . uniqid() . '_' . time() . '.' . $logoFile->getClientOriginalExtension();
+
+            // Store in public/assets directory
+            $assetsPath = public_path('assets');
+            if (!file_exists($assetsPath)) {
+                mkdir($assetsPath, 0755, true);
+            }
+            $logoFile->move($assetsPath, $logoFileName);
+
+            $validated['logo'] = '/assets/' . $logoFileName;
+            $validated['logo_url'] = '/assets/' . $logoFileName;
+        }
+        unset($validated['logo_file']);
+
+        // Handle favicon file upload
+        if ($request->hasFile('favicon_file')) {
+            $faviconFile = $request->file('favicon_file');
+            $faviconFileName = 'favicon_' . uniqid() . '_' . time() . '.' . $faviconFile->getClientOriginalExtension();
+
+            // Store in public/assets directory
+            $assetsPath = public_path('assets');
+            if (!file_exists($assetsPath)) {
+                mkdir($assetsPath, 0755, true);
+            }
+            $faviconFile->move($assetsPath, $faviconFileName);
+
+            $validated['favicon_url'] = '/assets/' . $faviconFileName;
+        }
+        unset($validated['favicon_file']);
+
         // Remove agent fields from validated array as they're handled separately
         $agentData = [
             'agent_name' => $validated['agent_name'] ?? null,
@@ -98,8 +175,27 @@ class WebsiteManagementController extends Controller
 
         $website = Website::create($validated);
 
-        // Create agent info if provided
-        if ($agentData['agent_name'] || $agentData['agent_title'] || $agentData['agent_phone'] || $agentData['brokerage']) {
+        // Handle agent profile image upload
+        $agentImagePath = null;
+        if ($request->hasFile('agent_profile_image')) {
+            $agentImageFile = $request->file('agent_profile_image');
+
+            // Ensure storage directory exists
+            if (!Storage::disk('public')->exists('agents')) {
+                Storage::disk('public')->makeDirectory('agents');
+            }
+
+            // Generate unique filename for agent image
+            $agentImageFileName = uniqid() . '_' . time() . '.' . $agentImageFile->getClientOriginalExtension();
+
+            // Store the file with specific filename
+            $agentImagePath = $agentImageFile->storeAs('agents', $agentImageFileName, 'public');
+            $agentData['profile_image'] = Storage::url($agentImagePath);
+        }
+
+        // Create agent info if any agent data is provided
+        if ($agentData['agent_name'] || $agentData['agent_title'] || $agentData['agent_phone'] ||
+            $agentData['brokerage'] || isset($agentData['profile_image'])) {
             AgentInfo::create([
                 'website_id' => $website->id,
                 ...$agentData
@@ -144,35 +240,21 @@ class WebsiteManagementController extends Controller
      */
     public function update(Request $request, Website $website)
     {
-        // Log all incoming requests
-        \Log::info('Update method called at ' . date('Y-m-d H:i:s'), [
-            'website_id' => $website->id,
-            'has_logo_file' => $request->hasFile('logo_file'),
-            'all_files' => array_keys($request->allFiles()),
-            'request_method' => $request->method(),
-            'is_multipart' => strpos($request->header('Content-Type'), 'multipart/form-data') !== false,
-        ]);
-
-        // Test if file is being received
-        if ($request->hasFile('logo_file')) {
-            \Log::info('Logo file received!', [
-                'name' => $request->file('logo_file')->getClientOriginalName(),
-                'size' => $request->file('logo_file')->getSize()
-            ]);
-        } else {
-            \Log::warning('No logo file in request', [
-                'all_files' => array_keys($request->allFiles()),
-                'has_logo_file' => $request->hasFile('logo_file'),
-                'request_keys' => array_keys($request->all())
-            ]);
-        }
         // Parse JSON strings for nested objects if they come from FormData
         $data = $request->all();
 
         // Convert string booleans to actual booleans
-        foreach (['is_default', 'is_active'] as $field) {
+        foreach (['is_default', 'is_active', 'use_building_as_homepage'] as $field) {
             if (isset($data[$field])) {
                 $data[$field] = filter_var($data[$field], FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        // Convert empty strings to null for nullable fields
+        $nullableFields = ['homepage_building_id', 'domain', 'logo_url', 'favicon_url', 'meta_title', 'meta_description', 'meta_keywords', 'description'];
+        foreach ($nullableFields as $field) {
+            if (isset($data[$field]) && $data[$field] === '') {
+                $data[$field] = null;
             }
         }
 
@@ -183,9 +265,18 @@ class WebsiteManagementController extends Controller
             }
         }
 
-        // Handle nested keys from FormData (e.g., 'brand_colors.primary')
+        // Handle nested keys from FormData
+        // FormData converts dots to underscores, so we need to handle both formats:
+        // - 'brand_colors.primary' (dot notation - original)
+        // - 'brand_colors_primary' (underscore notation - from FormData)
         $nestedData = [];
+        $keysToRemove = [];
+
+        // Define the nested field prefixes we need to handle
+        $nestedPrefixes = ['brand_colors', 'contact_info', 'social_media', 'fonts', 'business_hours'];
+
         foreach ($data as $key => $value) {
+            // Check for dot notation first
             if (strpos($key, '.') !== false) {
                 $keys = explode('.', $key);
                 $current = &$nestedData;
@@ -199,16 +290,35 @@ class WebsiteManagementController extends Controller
                         $current = &$current[$k];
                     }
                 }
-                unset($data[$key]);
+                $keysToRemove[] = $key;
+            } else {
+                // Check for underscore notation (FormData converts dots to underscores)
+                foreach ($nestedPrefixes as $prefix) {
+                    if (strpos($key, $prefix . '_') === 0 && $key !== $prefix) {
+                        // Extract the nested key (e.g., 'brand_colors_primary' -> 'primary')
+                        $nestedKey = substr($key, strlen($prefix) + 1);
+                        if (!isset($nestedData[$prefix])) {
+                            $nestedData[$prefix] = [];
+                        }
+                        $nestedData[$prefix][$nestedKey] = $value;
+                        $keysToRemove[] = $key;
+                        break;
+                    }
+                }
             }
         }
 
-        // Merge nested data back
+        // Remove dot-notation keys from data
+        foreach ($keysToRemove as $key) {
+            unset($data[$key]);
+        }
+
+        // Merge nested data back into main data array
         foreach ($nestedData as $key => $value) {
-            if (!isset($data[$key])) {
+            if (!isset($data[$key]) || !is_array($data[$key])) {
                 $data[$key] = [];
             }
-            $data[$key] = array_merge(is_array($data[$key]) ? $data[$key] : [], $value);
+            $data[$key] = array_merge($data[$key], $value);
         }
 
         // Merge the parsed data back into the request
@@ -225,12 +335,13 @@ class WebsiteManagementController extends Controller
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
             'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',
+            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg|max:1024',
+            'favicon_url' => 'nullable|string|max:255',
             'brand_colors' => 'nullable|array',
             'fonts' => 'nullable|array',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string|max:500',
             'meta_keywords' => 'nullable|string|max:255',
-            'favicon_url' => 'nullable|string|max:255',
             'contact_info' => 'nullable|array',
             'agent_name' => 'nullable|string|max:255',
             'agent_title' => 'nullable|string|max:255',
@@ -282,10 +393,43 @@ class WebsiteManagementController extends Controller
             // Update both logo and logo_url with the assets path
             $validated['logo'] = '/assets/' . $logoFileName;
             $validated['logo_url'] = '/assets/' . $logoFileName;
-
-            // Remove logo_file from validated array as it's not a database field
-            unset($validated['logo_file']);
         }
+        // Remove logo_file from validated array as it's not a database field
+        unset($validated['logo_file']);
+
+        // Handle favicon file upload
+        if ($request->hasFile('favicon_file')) {
+            $faviconFile = $request->file('favicon_file');
+
+            // Delete old favicon if it exists in assets
+            $oldFaviconPath = $website->favicon_url;
+            if ($oldFaviconPath && strpos($oldFaviconPath, '/assets/') === 0) {
+                $publicPath = public_path(ltrim($oldFaviconPath, '/'));
+                if (file_exists($publicPath) && is_file($publicPath)) {
+                    // Don't delete default favicon.ico
+                    if (basename($publicPath) !== 'favicon.ico') {
+                        unlink($publicPath);
+                    }
+                }
+            }
+
+            // Generate unique filename
+            $faviconFileName = 'favicon_' . uniqid() . '_' . time() . '.' . $faviconFile->getClientOriginalExtension();
+
+            // Store in public/assets directory
+            $assetsPath = public_path('assets');
+            if (!file_exists($assetsPath)) {
+                mkdir($assetsPath, 0755, true);
+            }
+
+            // Move the uploaded file to assets directory
+            $faviconFile->move($assetsPath, $faviconFileName);
+
+            // Update favicon_url with the assets path
+            $validated['favicon_url'] = '/assets/' . $faviconFileName;
+        }
+        // Remove favicon_file from validated array as it's not a database field
+        unset($validated['favicon_file']);
 
         // Handle agent information separately
         $agentData = [
@@ -343,9 +487,6 @@ class WebsiteManagementController extends Controller
         // Update the website
         $website->update($validated);
 
-        // Reload the website to get fresh data with all relationships
-        $website->refresh();
-
         // Return Inertia redirect to edit page to stay on same page
         return redirect()->route('admin.websites.edit', $website->id)
             ->with('success', 'Website updated successfully!');
@@ -365,6 +506,52 @@ class WebsiteManagementController extends Controller
 
         return redirect()->route('admin.websites.index')
             ->with('success', 'Website deleted successfully!');
+    }
+
+    /**
+     * Duplicate a website
+     */
+    public function duplicate(Website $website): RedirectResponse
+    {
+        try {
+            // Generate a unique slug
+            $baseSlug = $website->slug . '-copy';
+            $slug = $baseSlug;
+            $counter = 1;
+            while (Website::where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . $counter;
+                $counter++;
+            }
+
+            // Create the duplicate website
+            $newWebsite = $website->replicate();
+            $newWebsite->name = $website->name . ' (Copy)';
+            $newWebsite->slug = $slug;
+            $newWebsite->domain = null; // Clear domain for the copy
+            $newWebsite->is_default = false; // Never duplicate as default
+            $newWebsite->save();
+
+            // Duplicate agent info if exists
+            if ($website->agentInfo) {
+                $newAgentInfo = $website->agentInfo->replicate();
+                $newAgentInfo->website_id = $newWebsite->id;
+                $newAgentInfo->save();
+            }
+
+            // Duplicate pages
+            foreach ($website->pages as $page) {
+                $newPage = $page->replicate();
+                $newPage->website_id = $newWebsite->id;
+                $newPage->save();
+            }
+
+            return redirect()->route('admin.websites.edit', $newWebsite)
+                ->with('success', 'Website duplicated successfully! You can now customize the copy.');
+        } catch (\Exception $e) {
+            \Log::error('Website duplication failed: ' . $e->getMessage());
+            return redirect()->back()
+                ->withErrors(['error' => 'Failed to duplicate website: ' . $e->getMessage()]);
+        }
     }
 
     /**

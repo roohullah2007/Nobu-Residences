@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 
 const TourSection = ({ propertyData = null }) => {
   const [selectedDateIndex, setSelectedDateIndex] = useState(2);
@@ -11,6 +12,15 @@ const TourSection = ({ propertyData = null }) => {
     phone: '',
     message: ''
   });
+
+  // Get brand colors from page props
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
   // Get property data or use defaults
   const getPropertyInfo = () => {
@@ -178,19 +188,31 @@ const TourSection = ({ propertyData = null }) => {
             {/* Property Buttons */}
             <div className="flex flex-row items-end gap-2 w-full h-10">
               <div className="flex flex-col items-center w-[160px] h-10">
-                <button className="flex flex-col justify-center items-center w-full h-10 border border-[#293056] rounded-full bg-transparent cursor-pointer transition-all duration-300 hover:bg-[rgba(41,48,86,0.05)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0">
+                <button
+                  className="flex flex-col justify-center items-center w-full h-10 border rounded-full bg-transparent cursor-pointer transition-all duration-300 hover:bg-[rgba(41,48,86,0.05)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                  style={{ borderColor: buttonQuaternaryText }}
+                >
                   <div className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 w-full h-10">
-                    <span className="font-work-sans font-bold text-sm leading-5 tracking-tight text-[#293056]">
+                    <span
+                      className="font-work-sans font-bold text-sm leading-5 tracking-tight"
+                      style={{ color: buttonQuaternaryText }}
+                    >
                       {property.forRent} for rent
                     </span>
                   </div>
                 </button>
               </div>
-              
+
               <div className="flex flex-col items-center w-[182px] h-10 flex-1">
-                <button className="flex flex-col justify-center items-center w-full h-10 border border-[#293056] rounded-full bg-transparent cursor-pointer transition-all duration-300 hover:bg-[rgba(41,48,86,0.05)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0">
+                <button
+                  className="flex flex-col justify-center items-center w-full h-10 border rounded-full bg-transparent cursor-pointer transition-all duration-300 hover:bg-[rgba(41,48,86,0.05)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                  style={{ borderColor: buttonQuaternaryText }}
+                >
                   <div className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 w-full h-10">
-                    <span className="font-work-sans font-bold text-sm leading-5 tracking-tight text-[#293056]">
+                    <span
+                      className="font-work-sans font-bold text-sm leading-5 tracking-tight"
+                      style={{ color: buttonQuaternaryText }}
+                    >
                       {property.forSale} for sale
                     </span>
                   </div>
@@ -285,13 +307,17 @@ const TourSection = ({ propertyData = null }) => {
               
               {/* Desktop Tour Buttons */}
               <div className="flex flex-col justify-between gap-3 w-full mt-6">
-                <button 
+                <button
                   onClick={handleRequestTour}
-                  className="px-6 py-2.5 gap-2 w-[223px] h-11 bg-black rounded-full border-none font-work-sans font-extrabold text-base leading-6 text-center text-white cursor-pointer transition-all duration-300 hover:bg-gray-800 hover:-translate-y-0.5"
+                  className="px-6 py-2.5 gap-2 w-[223px] h-11 rounded-full border-none font-work-sans font-extrabold text-base leading-6 text-center cursor-pointer transition-all duration-300 hover:opacity-90 hover:-translate-y-0.5"
+                  style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                 >
                   Request a tour
                 </button>
-                <button className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 w-[223px] h-11 border border-[#293056] rounded-full bg-transparent font-work-sans font-extrabold text-base leading-6 text-center text-[#293056] cursor-pointer transition-all duration-300 hover:bg-gray-50">
+                <button
+                  className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 w-[223px] h-11 border rounded-full bg-transparent font-work-sans font-extrabold text-base leading-6 text-center cursor-pointer transition-all duration-300 hover:bg-gray-50"
+                  style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
+                >
                   Ask a question
                 </button>
               </div>
@@ -302,13 +328,17 @@ const TourSection = ({ propertyData = null }) => {
       
       {/* Mobile Tour Buttons */}
       <div className="flex lg:hidden flex-row justify-between gap-3 w-full mt-6">
-        <button 
+        <button
           onClick={handleRequestTour}
-          className="px-6 py-2.5 gap-2 flex-1 h-11 bg-black rounded-full border-none font-work-sans font-extrabold text-base leading-6 text-center text-white cursor-pointer transition-all duration-300 hover:bg-gray-800"
+          className="px-6 py-2.5 gap-2 flex-1 h-11 rounded-full border-none font-work-sans font-extrabold text-base leading-6 text-center cursor-pointer transition-all duration-300 hover:opacity-90"
+          style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
         >
           Request a tour
         </button>
-        <button className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 flex-1 h-11 border border-[#293056] rounded-full bg-transparent font-work-sans font-extrabold text-base leading-6 text-center text-[#293056] cursor-pointer transition-all duration-300 hover:bg-gray-50">
+        <button
+          className="flex flex-row justify-center items-center px-6 py-2.5 gap-2 flex-1 h-11 border rounded-full bg-transparent font-work-sans font-extrabold text-base leading-6 text-center cursor-pointer transition-all duration-300 hover:bg-gray-50"
+          style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
+        >
           Ask a question
         </button>
       </div>
@@ -396,7 +426,8 @@ const TourSection = ({ propertyData = null }) => {
                 
                 <button
                   type="submit"
-                  className="w-full bg-black text-white py-3 px-4 rounded-md font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                  className="w-full py-3 px-4 rounded-md font-semibold hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-opacity"
+                  style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                 >
                   Confirm Tour Request
                 </button>

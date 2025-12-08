@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import Navbar from '@/Website/Global/Navbar';
 
 // Custom SVG Icons to replace lucide-react
@@ -38,6 +38,13 @@ export default function PropertyCarousel({ auth }) {
   const [currentRentalSlide, setCurrentRentalSlide] = useState(0);
   const carouselRef = useRef(null);
   const rentalCarouselRef = useRef(null);
+
+  // Get brand colors
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite || {};
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
   // Sample property data for "For Sale" - matching the reference images exactly
   const saleProperties = [
@@ -314,9 +321,12 @@ export default function PropertyCarousel({ auth }) {
             
             {/* View All Button - Exact styling from original */}
             <div className="flex justify-center mt-8">
-              <button className="flex flex-col justify-center items-center p-0 gap-2 w-[132px] h-16 bg-black rounded-full transition-all duration-200 hover:bg-gray-800 hover:-translate-y-1 hover:shadow-lg">
+              <button
+                className="flex flex-col justify-center items-center p-0 gap-2 w-[132px] h-16 rounded-full transition-all duration-200 hover:opacity-90 hover:-translate-y-1 hover:shadow-lg"
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
+              >
                 <div className="flex justify-center items-center py-2.5 px-8 gap-2 w-[132px] h-16">
-                  <span className="w-[68px] h-7 font-work-sans font-bold text-lg leading-7 flex items-center text-center tracking-tight text-white">
+                  <span className="w-[68px] h-7 font-work-sans font-bold text-lg leading-7 flex items-center text-center tracking-tight">
                     View all
                   </span>
                 </div>
@@ -379,9 +389,12 @@ export default function PropertyCarousel({ auth }) {
             
             {/* View All Button */}
             <div className="flex justify-center mt-8">
-              <button className="flex flex-col justify-center items-center p-0 gap-2 w-[132px] h-16 bg-black rounded-full transition-all duration-200 hover:bg-gray-800 hover:-translate-y-1 hover:shadow-lg">
+              <button
+                className="flex flex-col justify-center items-center p-0 gap-2 w-[132px] h-16 rounded-full transition-all duration-200 hover:opacity-90 hover:-translate-y-1 hover:shadow-lg"
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
+              >
                 <div className="flex justify-center items-center py-2.5 px-8 gap-2 w-[132px] h-16">
-                  <span className="w-[68px] h-7 font-work-sans font-bold text-lg leading-7 flex items-center text-center tracking-tight text-white">
+                  <span className="w-[68px] h-7 font-work-sans font-bold text-lg leading-7 flex items-center text-center tracking-tight">
                     View all
                   </span>
                 </div>

@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import UserFavouritesTab from '@/Website/Components/UserFavouritesTab';
 import SavedSearchesTab from '@/Website/Components/SavedSearchesTab';
 
 export default function UserDashboard({ auth, siteName, siteUrl, year, website }) {
+  const { globalWebsite } = usePage().props;
+  const effectiveWebsite = website || globalWebsite;
+
+  const brandColors = effectiveWebsite?.brand_colors || {
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [activeTab, setActiveTab] = useState('saved');
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [savedSearchesCount, setSavedSearchesCount] = useState(0);
@@ -125,9 +136,10 @@ export default function UserDashboard({ auth, siteName, siteUrl, year, website }
                 onClick={() => setActiveTab(tab.id)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'border-[#293056] text-[#293056]'
+                    ? ''
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } transition-colors`}
+                style={activeTab === tab.id ? { borderColor: buttonPrimaryBg, color: buttonPrimaryBg } : {}}
               >
                 {tab.label}
                 {tab.count !== null && tab.count > 0 && (
@@ -249,7 +261,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year, website }
                 </div>
 
                 <div className="flex space-x-4">
-                  <button className="px-4 py-2 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors">
+                  <button className="px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-all" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                     Save Changes
                   </button>
                   <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">

@@ -36,12 +36,14 @@ class MLSImageSyncService
             $batchSize = $options['batch_size'] ?? 50; // How many properties to process per batch
             $skipExisting = $options['skip_existing'] ?? true; // Skip properties that already have images
             $onlyActive = $options['only_active'] ?? true; // Only sync active properties
+            $soldLeasedOnly = $options['sold_leased_only'] ?? false; // Only sync Sold/Leased properties
 
             Log::info('Starting MLS image sync', [
                 'limit' => $limit,
                 'batch_size' => $batchSize,
                 'skip_existing' => $skipExisting,
-                'only_active' => $onlyActive
+                'only_active' => $onlyActive,
+                'sold_leased_only' => $soldLeasedOnly
             ]);
 
             $updated = 0;
@@ -52,7 +54,11 @@ class MLSImageSyncService
             // Build query for properties that need image updates
             $query = MLSProperty::query();
 
-            if ($onlyActive) {
+            // Filter by property status
+            if ($soldLeasedOnly) {
+                // Only Sold and Leased properties
+                $query->whereIn('status', ['sold', 'leased']);
+            } elseif ($onlyActive) {
                 $query->active();
             }
 

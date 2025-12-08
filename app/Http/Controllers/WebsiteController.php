@@ -19,10 +19,64 @@ use Illuminate\Foundation\Application;
 class WebsiteController extends Controller
 {
     /**
-     * Get the current website (default for now, can be extended for multi-domain)
+     * Get the current website based on domain or query parameter
+     *
+     * Priority:
+     * 1. ?website={slug} query parameter (for preview/testing)
+     * 2. Domain matching
+     * 3. Default active website
      */
     private function getCurrentWebsite()
     {
+        $website = null;
+
+        // Priority 1: Check for ?website={slug} query parameter
+        $websiteSlug = request()->query('website');
+        if ($websiteSlug) {
+            $website = Website::with('agentInfo')
+                ->where('slug', $websiteSlug)
+                ->where('is_active', true)
+                ->first();
+
+            if ($website) {
+                return $website;
+            }
+        }
+
+        // Priority 2: Check for domain match
+        $host = request()->getHost();
+
+        // Remove 'www.' if present
+        $host = preg_replace('/^www\./i', '', $host);
+
+        // Skip domain matching for localhost/dev environments
+        $skipDomains = ['localhost', '127.0.0.1', 'local'];
+        $isLocalDev = in_array($host, $skipDomains) ||
+                      str_ends_with($host, '.test') ||
+                      str_ends_with($host, '.local');
+
+        if (!$isLocalDev) {
+            $website = Website::with('agentInfo')
+                ->where('domain', $host)
+                ->where('is_active', true)
+                ->first();
+
+            if ($website) {
+                return $website;
+            }
+
+            // Also try with www prefix
+            $website = Website::with('agentInfo')
+                ->where('domain', 'www.' . $host)
+                ->where('is_active', true)
+                ->first();
+
+            if ($website) {
+                return $website;
+            }
+        }
+
+        // Priority 3: Fall back to default website
         return Website::with('agentInfo')->default()->active()->first() ?? Website::with('agentInfo')->first();
     }
 
@@ -1647,6 +1701,9 @@ class WebsiteController extends Controller
                                     'name' => $building->name,
                                     'slug' => $building->slug,
                                     'address' => $building->address,
+                                    'city' => $building->city,
+                                    'neighbourhood' => $building->neighbourhood,
+                                    'sub_neighbourhood' => $building->sub_neighbourhood,
                                     'main_image' => $building->main_image,
                                     'units_for_sale' => $building->units_for_sale,
                                     'units_for_rent' => $building->units_for_rent,
@@ -1659,7 +1716,7 @@ class WebsiteController extends Controller
                                         ];
                                     })->toArray()
                                 ];
-                                
+
                                 \Log::info('MLS property matched to building', [
                                     'listing_key' => $listingKey,
                                     'building_name' => $building->name,
@@ -1713,6 +1770,9 @@ class WebsiteController extends Controller
                                     'name' => $building->name,
                                     'slug' => $building->slug,
                                     'address' => $building->address,
+                                    'city' => $building->city,
+                                    'neighbourhood' => $building->neighbourhood,
+                                    'sub_neighbourhood' => $building->sub_neighbourhood,
                                     'main_image' => $building->main_image,
                                     'units_for_sale' => $building->units_for_sale,
                                     'units_for_rent' => $building->units_for_rent,

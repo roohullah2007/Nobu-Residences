@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import PropertyRooms from './PropertyRooms';
 import MortgageCalculator from './MortgageCalculator';
 import NearbySchools from './NearbySchools';
 import Amenities from './Amenities';
 
 const PropertyStatusTabs = () => {
+  const { globalWebsite, website } = usePage().props;
+  const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [activeTab, setActiveTab] = useState('overview');
 
   const propertyData = {
@@ -127,8 +133,8 @@ const PropertyStatusTabs = () => {
         {/* Status Labels Section */}
         <div className="flex flex-row items-start gap-[22px] h-10">
           {/* Days on Market Badge */}
-          <div className="flex items-center px-2 gap-2 w-[138px] h-10 bg-[#293056] rounded-xl">
-            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight text-white whitespace-nowrap overflow-hidden text-ellipsis w-[122px]">
+          <div className="flex items-center px-2 gap-2 w-[138px] h-10 rounded-xl" style={{ backgroundColor: buttonPrimaryBg }}>
+            <span className="font-work-sans font-bold text-sm leading-6 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis w-[122px]" style={{ color: buttonPrimaryText }}>
               {propertyData.daysOnMarket} Days on Market
             </span>
           </div>

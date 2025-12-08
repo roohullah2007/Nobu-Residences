@@ -1,7 +1,14 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 import TourScheduling from './TourScheduling';
 
 const PropertySidebar = ({ propertyData, agentInfo }) => {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   return (
     <div className="w-full space-y-2">
       {/* Property Details Card */}
@@ -49,9 +56,9 @@ const PropertySidebar = ({ propertyData, agentInfo }) => {
           </div>
           
           {/* Call us Button */}
-          <div className="bg-black rounded-full h-14 flex items-center justify-center w-full mt-6">
+          <div className="rounded-full h-14 flex items-center justify-center w-full mt-6 transition-opacity hover:opacity-90" style={{ backgroundColor: buttonTertiaryBg }}>
             <button className="w-full h-full flex items-center justify-center">
-              <span className="font-work-sans font-extrabold text-base text-white">
+              <span className="font-work-sans font-extrabold text-base" style={{ color: buttonTertiaryText }}>
                 Call us
               </span>
             </button>

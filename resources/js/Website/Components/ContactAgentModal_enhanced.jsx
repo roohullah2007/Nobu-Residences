@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
     const [contactMethod, setContactMethod] = useState('form'); // 'form', 'phone', 'email'
@@ -16,6 +16,15 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
     const [errors, setErrors] = useState({});
     const [emailCopied, setEmailCopied] = useState(false);
     const [phoneCopied, setPhoneCopied] = useState(false);
+
+    // Get brand colors
+    const { globalWebsite, website } = usePage().props;
+    const currentWebsite = website || globalWebsite || {};
+    const brandColors = currentWebsite?.brand_colors || {};
+    const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+    const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
+    const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
 
     // Agent contact info from backend website settings or agentData
     const agentPhone = agentData?.phone || websiteSettings?.website?.contact_info?.agent?.phone || websiteSettings?.website?.contact_info?.phone || '+1 (647) 555-0123';
@@ -309,11 +318,12 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800 disabled:opacity-70 transition-colors"
+                                    className="w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:opacity-90 disabled:opacity-70 transition-opacity"
+                                    style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                                 >
                                     {isSubmitting ? (
                                         <div className="flex items-center justify-center">
-                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 mr-2" style={{ borderBottomColor: buttonTertiaryText }}></div>
                                             Sending Question...
                                         </div>
                                     ) : (
@@ -375,7 +385,8 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                                     <div className="flex gap-2 justify-center">
                                         <button
                                             onClick={handleEmailClick}
-                                            className="px-6 py-2 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors flex items-center gap-2"
+                                            className="px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-colors flex items-center gap-2"
+                                            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

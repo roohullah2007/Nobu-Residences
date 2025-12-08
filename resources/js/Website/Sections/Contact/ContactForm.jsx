@@ -39,7 +39,19 @@ export default function ContactForm({ website }) {
     }, 1000);
   };
 
-  const primaryColor = website?.brand_colors?.primary || '#912018';
+  const brandColors = website?.brand_colors || {
+    primary: '#912018',
+    secondary: '#1d957d',
+    accent: '#F5F8FF',
+    text: '#000000',
+    background: '#FFFFFF',
+    button_primary_bg: '#912018',
+    button_primary_text: '#FFFFFF'
+  };
+
+  // Get button colors with fallbacks
+  const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
 
   if (submitStatus === 'success') {
     return (
@@ -50,15 +62,16 @@ export default function ContactForm({ website }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
-          <h3 className="font-space-grotesk font-bold text-xl text-[#293056] mb-4">
+          <h3 className="font-space-grotesk font-bold text-xl mb-4" style={{ color: brandColors.primary }}>
             Message Sent Successfully!
           </h3>
           <p className="font-work-sans text-gray-600 mb-6">
             Thank you for contacting us. We'll get back to you within 24 hours.
           </p>
-          <button 
+          <button
             onClick={() => setSubmitStatus(null)}
-            className="px-6 py-3 bg-[#293056] text-white rounded-full font-work-sans font-medium hover:bg-opacity-90 transition-colors"
+            className="px-6 py-3 rounded-full font-work-sans font-medium hover:opacity-90 transition-colors"
+            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
           >
             Send Another Message
           </button>
@@ -69,7 +82,7 @@ export default function ContactForm({ website }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8">
-      <h2 className="font-space-grotesk font-bold text-2xl text-[#293056] mb-6">
+      <h2 className="font-space-grotesk font-bold text-2xl mb-6" style={{ color: brandColors.primary }}>
         Send us a Message
       </h2>
       
@@ -182,8 +195,8 @@ export default function ContactForm({ website }) {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full py-4 text-white rounded-full font-work-sans font-bold text-lg transition-all duration-300 disabled:opacity-70"
-          style={{ backgroundColor: primaryColor }}
+          className="w-full py-4 rounded-full font-work-sans font-bold text-lg transition-all duration-300 disabled:opacity-70 hover:opacity-90"
+          style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
         >
           {isSubmitting ? (
             <div className="flex items-center justify-center">

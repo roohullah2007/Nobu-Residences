@@ -70,7 +70,12 @@
       "Bash(ls:*)",
       "Bash(echo 'Checking SSR build...' grep -o mls_properties_for_sale bootstrap/ssr/assets/*.js)",
       "Bash(do echo '=== Testing: $slug ===' curl -s http://127.0.0.1:8000/building/$slug)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(do echo \"=== Batch $i ===\" php artisan mls:sync-images --limit=8000 --batch-size=200 --skip-existing)",
+      "mcp__ide__getDiagnostics",
+      "Bash(truncate:*)",
+      "Bash(echo:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": [],

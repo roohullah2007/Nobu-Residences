@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { usePage } from '@inertiajs/react';
 
 export default function AboutSection({ website, pageContent, availableIcons }) {
     const [activeTab, setActiveTab] = useState('Overview');
-    
+
     // Contact form state
     const [formData, setFormData] = useState({
         name: '',
@@ -11,13 +12,20 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
         phone: '',
         categories: []
     });
-    
+
     const [formErrors, setFormErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [submitError, setSubmitError] = useState('');
-    
+
     const tabs = ['Overview', 'Key Facts', 'Amenities', 'Highlights', 'Contact'];
+
+    // Get brand colors
+    const { globalWebsite } = usePage().props;
+    const currentWebsite = website || globalWebsite || {};
+    const brandColors = currentWebsite?.brand_colors || {};
+    const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+    const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
     
     // Get about section content with fallbacks to default
     const aboutContent = pageContent?.about || {};
@@ -384,79 +392,91 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                 {/* Profile Section */}
                                                 <div className="flex flex-row items-center gap-4 w-full md:w-[226px] h-auto md:h-20 flex-none">
                                                     {/* Avatar */}
-                                                    <div className="w-16 h-16 md:w-20 md:h-20 flex-none relative">
-                                                        <div className="absolute inset-0 bg-gray-300 border border-[#293056] rounded-full flex items-center justify-center">
-                                                            <img 
-                                                                src="/assets/jatin-gill.png" 
-                                                                alt={website?.contact_info?.agent?.name || "Jatin Gill"}
-                                                                className="w-full h-full object-cover rounded-full"
-                                                                onError={(e) => {
-                                                                    e.target.style.display = 'none';
-                                                                    e.target.nextElementSibling.style.display = 'flex';
-                                                                }}
-                                                            />
-                                                            <div className="absolute inset-0 bg-gray-300 rounded-full flex items-center justify-center hidden">
-                                                                <span className="font-work-sans font-medium text-sm md:text-base leading-6 text-[#1C1463]">
-                                                                    {(website?.contact_info?.agent?.name || "Jatin Gill").split(' ').map(n => n[0]).join('')}
-                                                                </span>
+                                                    {(website?.agent_info?.profile_image || website?.contact_info?.agent?.image) && (
+                                                        <div className="w-16 h-16 md:w-20 md:h-20 flex-none relative">
+                                                            <div className="absolute inset-0 bg-gray-300 border border-[#293056] rounded-full flex items-center justify-center">
+                                                                <img
+                                                                    src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image}
+                                                                    alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || "Agent"}
+                                                                    className="w-full h-full object-cover rounded-full"
+                                                                    onError={(e) => {
+                                                                        e.target.style.display = 'none';
+                                                                        if (e.target.nextElementSibling) e.target.nextElementSibling.style.display = 'flex';
+                                                                    }}
+                                                                />
+                                                                <div className="absolute inset-0 bg-gray-300 rounded-full flex items-center justify-center hidden">
+                                                                    <span className="font-work-sans font-medium text-sm md:text-base leading-6 text-[#1C1463]">
+                                                                        {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name || "").split(' ').map(n => n[0]).join('')}
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                    
+                                                    )}
+
                                                     {/* Name & Title */}
                                                     <div className="flex flex-col items-start w-full md:w-[130px] flex-none">
-                                                        <h5 className="w-full md:w-[130px] h-auto md:h-[26px] font-space-grotesk font-bold text-sm md:text-base leading-[26px] flex items-center tracking-[-0.03em] uppercase text-[#293056] flex-none">
-                                                            {website?.contact_info?.agent?.name || "Jatin Gill"}
-                                                        </h5>
-                                                        <p className="w-full md:w-[130px] h-auto md:h-[25px] font-work-sans font-normal text-sm md:text-base leading-[25px] flex items-center text-center tracking-[-0.03em] text-[#293056] flex-none">
-                                                            {website?.contact_info?.agent?.title || "Property Manager"}
-                                                        </p>
+                                                        {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name) && (
+                                                            <h5 className="w-full md:w-[130px] h-auto md:h-[26px] font-space-grotesk font-bold text-sm md:text-base leading-[26px] flex items-center tracking-[-0.03em] uppercase text-[#293056] flex-none">
+                                                                {website?.agent_info?.agent_name || website?.contact_info?.agent?.name}
+                                                            </h5>
+                                                        )}
+                                                        {(website?.agent_info?.agent_title || website?.contact_info?.agent?.title) && (
+                                                            <p className="w-full md:w-[130px] h-auto md:h-[25px] font-work-sans font-normal text-sm md:text-base leading-[25px] flex items-center text-center tracking-[-0.03em] text-[#293056] flex-none">
+                                                                {website?.agent_info?.agent_title || website?.contact_info?.agent?.title}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 
                                                 {/* Contact Details */}
                                                 <div className="flex flex-col justify-center items-start gap-3 md:gap-4 w-full md:w-[226px] h-auto md:h-36 flex-none">
                                                     {/* Email */}
-                                                    <div className="flex flex-row items-center gap-1 w-full md:w-[226px] flex-none">
-                                                        <div className="w-8 h-8 flex-none relative">
-                                                            <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
-                                                            {renderIcon('email', 'contact', 
-                                                                '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.6665 2.66675H13.3332C14.0665 2.66675 14.6665 3.26675 14.6665 4.00008V12.0001C14.6665 12.7334 14.0665 13.3334 13.3332 13.3334H2.6665C1.93317 13.3334 1.33317 12.7334 1.33317 12.0001V4.00008C1.33317 3.26675 1.93317 2.66675 2.6665 2.66675Z" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.6665 4L7.99984 8.66667L1.33317 4" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>',
-                                                                "absolute w-4 h-4 left-2 top-2"
-                                                            )}
+                                                    {website?.contact_info?.email && (
+                                                        <div className="flex flex-row items-center gap-1 w-full md:w-[226px] flex-none">
+                                                            <div className="w-8 h-8 flex-none relative">
+                                                                <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
+                                                                {renderIcon('email', 'contact',
+                                                                    '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.6665 2.66675H13.3332C14.0665 2.66675 14.6665 3.26675 14.6665 4.00008V12.0001C14.6665 12.7334 14.0665 13.3334 13.3332 13.3334H2.6665C1.93317 13.3334 1.33317 12.7334 1.33317 12.0001V4.00008C1.33317 3.26675 1.93317 2.66675 2.6665 2.66675Z" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M14.6665 4L7.99984 8.66667L1.33317 4" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>',
+                                                                    "absolute w-4 h-4 left-2 top-2"
+                                                                )}
+                                                            </div>
+                                                            <span className="w-full md:w-[149px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
+                                                                {website?.contact_info?.email}
+                                                            </span>
                                                         </div>
-                                                        <span className="w-full md:w-[149px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
-                                                            {website?.contact_info?.email || "Contact@domain.com"}
-                                                        </span>
-                                                    </div>
-                                                    
+                                                    )}
+
                                                     {/* Phone */}
-                                                    <div className="flex flex-row items-center gap-1 w-full md:w-[226px] flex-none">
-                                                        <div className="w-8 h-8 flex-none relative">
-                                                            <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
-                                                            {renderIcon('phone', 'contact',
-                                                                '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.6665 11.2801V13.2801C14.6665 13.7801 14.2665 14.1801 13.7665 14.1801C6.39984 14.1801 1.33317 9.11341 1.33317 1.74675C1.33317 1.24675 1.73317 0.846748 2.23317 0.846748H4.23317C4.73317 0.846748 5.13317 1.24675 5.13317 1.74675V3.74675L3.1665 5.71341C4.83317 9.04675 7.4665 11.6801 10.7998 13.3467L12.7665 11.3801H14.6665V11.2801Z" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>',
-                                                                "absolute w-4 h-4 left-2 top-2"
-                                                            )}
+                                                    {(website?.agent_info?.agent_phone || website?.contact_info?.phone) && (
+                                                        <div className="flex flex-row items-center gap-1 w-full md:w-[226px] flex-none">
+                                                            <div className="w-8 h-8 flex-none relative">
+                                                                <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
+                                                                {renderIcon('phone', 'contact',
+                                                                    '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.6665 11.2801V13.2801C14.6665 13.7801 14.2665 14.1801 13.7665 14.1801C6.39984 14.1801 1.33317 9.11341 1.33317 1.74675C1.33317 1.24675 1.73317 0.846748 2.23317 0.846748H4.23317C4.73317 0.846748 5.13317 1.24675 5.13317 1.74675V3.74675L3.1665 5.71341C4.83317 9.04675 7.4665 11.6801 10.7998 13.3467L12.7665 11.3801H14.6665V11.2801Z" stroke="#293056" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>',
+                                                                    "absolute w-4 h-4 left-2 top-2"
+                                                                )}
+                                                            </div>
+                                                            <span className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
+                                                                {website?.agent_info?.agent_phone || website?.contact_info?.phone}
+                                                            </span>
                                                         </div>
-                                                        <span className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
-                                                            {website?.contact_info?.phone || "+1 437 998 1795"}
-                                                        </span>
-                                                    </div>
-                                                    
+                                                    )}
+
                                                     {/* Address */}
-                                                    <div className="flex flex-row items-start gap-1 w-full md:w-[226px] flex-none">
-                                                        <div className="w-8 h-8 flex-none relative">
-                                                            <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
-                                                            {renderIcon('address', 'contact',
-                                                                '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8.66675C9.10457 8.66675 10 7.77132 10 6.66675C10 5.56218 9.10457 4.66675 8 4.66675C6.89543 4.66675 6 5.56218 6 6.66675C6 7.77132 6.89543 8.66675 8 8.66675Z" stroke="#141B34" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 1.33341C6.67392 1.33341 5.40215 1.86008 4.46447 2.79775C3.52678 3.73543 3 5.0072 3 6.33341C3 9.33341 8 14.6667 8 14.6667C8 14.6667 13 9.33341 13 6.33341C13 5.0072 12.4732 3.73543 11.5355 2.79775C10.5979 1.86008 9.32608 1.33341 8 1.33341Z" stroke="#141B34" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>',
-                                                                "absolute w-4 h-4 left-2 top-2"
-                                                            )}
+                                                    {website?.contact_info?.address && (
+                                                        <div className="flex flex-row items-start gap-1 w-full md:w-[226px] flex-none">
+                                                            <div className="w-8 h-8 flex-none relative">
+                                                                <div className="absolute w-8 h-8 left-0 top-0 bg-gray-100 rounded-full"></div>
+                                                                {renderIcon('address', 'contact',
+                                                                    '<svg className="absolute w-4 h-4 left-2 top-2" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 8.66675C9.10457 8.66675 10 7.77132 10 6.66675C10 5.56218 9.10457 4.66675 8 4.66675C6.89543 4.66675 6 5.56218 6 6.66675C6 7.77132 6.89543 8.66675 8 8.66675Z" stroke="#141B34" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 1.33341C6.67392 1.33341 5.40215 1.86008 4.46447 2.79775C3.52678 3.73543 3 5.0072 3 6.33341C3 9.33341 8 14.6667 8 14.6667C8 14.6667 13 9.33341 13 6.33341C13 5.0072 12.4732 3.73543 11.5355 2.79775C10.5979 1.86008 9.32608 1.33341 8 1.33341Z" stroke="#141B34" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/></svg>',
+                                                                    "absolute w-4 h-4 left-2 top-2"
+                                                                )}
+                                                            </div>
+                                                            <span className="w-full md:w-[190px] h-auto md:h-12 font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 tracking-[-0.03em] text-[#293056] flex-grow">
+                                                                {website?.contact_info?.address}
+                                                            </span>
                                                         </div>
-                                                        <span className="w-full md:w-[190px] h-auto md:h-12 font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 tracking-[-0.03em] text-[#293056] flex-grow">
-                                                            {website?.contact_info?.address || "Building No.88, Toronto CA, Ontario, Toronto"}
-                                                        </span>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -602,11 +622,12 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                 <button
                                                     type="submit"
                                                     disabled={isSubmitting}
-                                                    className={`flex justify-center items-center w-full md:w-[226px] h-10 mt-2 mb-4 rounded-[100px] transition-all ${
-                                                        isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 cursor-pointer'
+                                                    className={`flex justify-center items-center w-full md:w-[226px] h-10 mt-2 mb-4 rounded-[100px] transition-all hover:opacity-90 ${
+                                                        isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                                                     }`}
+                                                    style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                                                 >
-                                                    <span className="font-work-sans font-bold text-sm leading-6 text-white py-2">
+                                                    <span className="font-work-sans font-bold text-sm leading-6 py-2">
                                                         {isSubmitting ? 'Sending...' : 'Submit'}
                                                     </span>
                                                 </button>

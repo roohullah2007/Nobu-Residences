@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 
 const TourSchedulingComponent = ({ website, propertyData }) => {
+  const { globalWebsite } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
@@ -439,9 +446,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
             </div>
 
             {/* Action Buttons */}
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
-              className="w-full bg-black text-white py-2.5 px-4 rounded-lg mb-4 font-medium border-none cursor-pointer hover:bg-gray-800"
+              className="w-full py-2.5 px-4 rounded-lg mb-4 font-medium border-none cursor-pointer transition-opacity hover:opacity-90"
+              style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
             >
               Request A Tour
             </button>
@@ -460,16 +468,26 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
             {/* Agent Info Section */}
             <div className="mt-6 pt-6 border-t border-gray-200 w-full">
               <div className="flex items-center mb-4">
-                <img
-                  src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || "/assets/jatin-gill.png"}
-                  alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || "Agent"}
-                  className="w-14 h-14 rounded-full mr-4 object-cover flex-shrink-0"
-                />
+                {(website?.agent_info?.profile_image || website?.contact_info?.agent?.image) && (
+                  <img
+                    src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image}
+                    alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || "Agent"}
+                    className="w-14 h-14 rounded-full mr-4 object-cover flex-shrink-0"
+                  />
+                )}
                 <div className="text-left">
-                  <h3 className="font-bold mb-1 text-left" style={{ color: '#293056' }}>{website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'Jatin Gill'}</h3>
-                  <p className="text-gray-500 text-sm text-left">{website?.agent_info?.agent_title || website?.contact_info?.agent?.title || 'Property Manager'}</p>
-                  <p className="text-gray-500 text-sm text-left">{website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Nobu Residences'}</p>
-                  <p className="text-gray-700 text-sm font-semibold text-left">{website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}</p>
+                  {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name) && (
+                    <h3 className="font-bold mb-1 text-left" style={{ color: '#293056' }}>{website?.agent_info?.agent_name || website?.contact_info?.agent?.name}</h3>
+                  )}
+                  {(website?.agent_info?.agent_title || website?.contact_info?.agent?.title) && (
+                    <p className="text-gray-500 text-sm text-left">{website?.agent_info?.agent_title || website?.contact_info?.agent?.title}</p>
+                  )}
+                  {(website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage) && (
+                    <p className="text-gray-500 text-sm text-left">{website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage}</p>
+                  )}
+                  {(website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone) && (
+                    <p className="text-gray-700 text-sm font-semibold text-left">{website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -568,9 +586,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-colors ${
-                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
+                className={`w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-opacity ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
                 }`}
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
@@ -670,7 +689,8 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
 
               <button
                 type="submit"
-                className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800"
+                className="w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-opacity hover:opacity-90"
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
               >
                 Send Question
               </button>

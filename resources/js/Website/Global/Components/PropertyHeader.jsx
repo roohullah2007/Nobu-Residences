@@ -1,18 +1,27 @@
 import React, { useState } from 'react';
 import { Heart, Share, FacebookIcon, TwitterIcon, EmailIcon, LinkIcon } from '@/Website/Components/Icons';
 import usePropertyFavourite from '@/hooks/usePropertyFavourite';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 
-export default function PropertyHeader({ 
-  data, 
+export default function PropertyHeader({
+  data,
   auth,
   type = 'property' // 'property' or 'building'
 }) {
   const [showShareDropdown, setShowShareDropdown] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  
+
   // Use the favourite hook instead of local state
   const { isFavourited, toggleFavourite, isLoading: favouriteLoading, isAuthenticated } = usePropertyFavourite(data, auth);
+
+  // Get brand colors from page props
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
 
   const handleShare = (platform) => {
     const currentUrl = window.location.href;
@@ -198,6 +207,47 @@ export default function PropertyHeader({
     return data?.subtitle || '';
   };
 
+  // Get location breadcrumb for buildings only
+  // For buildings: use building's own data
+  const getLocationBreadcrumb = () => {
+    // Only show location breadcrumb on building details page
+    if (type !== 'building') return null;
+
+    const parts = [];
+
+    // For buildings, use the building's own data
+    const locationSource = data;
+
+    // If no location source, return null
+    if (!locationSource) return null;
+
+    // Add sub_neighbourhood first (e.g., King West)
+    if (locationSource?.sub_neighbourhood) {
+      parts.push({
+        label: locationSource.sub_neighbourhood,
+        type: 'sub_neighbourhood'
+      });
+    }
+
+    // Add neighbourhood (e.g., Downtown)
+    if (locationSource?.neighbourhood) {
+      parts.push({
+        label: locationSource.neighbourhood,
+        type: 'neighbourhood'
+      });
+    }
+
+    // Add city (e.g., Toronto)
+    if (locationSource?.city) {
+      parts.push({
+        label: locationSource.city,
+        type: 'city'
+      });
+    }
+
+    return parts.length > 0 ? parts : null;
+  };
+
   const getPriceDisplay = () => {
     if (type === 'building') {
       return null; // Buildings don't show price in header
@@ -215,9 +265,35 @@ export default function PropertyHeader({
           <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-5">
             {/* Property/Building Info */}
             <div className="flex-1 pr-5">
-              <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] text-[#293056] tracking-tight mb-3">
+              <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0">
                 {getTitle()}
               </h1>
+              {/* Location Breadcrumb for Buildings and Properties with Buildings */}
+              {getLocationBreadcrumb() && (
+                <h2 className="font-work-sans text-lg text-[#293056] mb-2">
+                  <span>
+                    {getLocationBreadcrumb().map((part, index) => (
+                      <span key={part.type}>
+                        {part.type === 'city' ? (
+                          // Only city is clickable - goes to search page
+                          <Link
+                            href={`/search?query=${encodeURIComponent(part.label)}`}
+                            className="underline hover:text-[#1f2441] transition-colors"
+                          >
+                            {part.label}
+                          </Link>
+                        ) : (
+                          // Neighbourhood and sub_neighbourhood are not clickable
+                          <span className="underline">{part.label}</span>
+                        )}
+                        {index < getLocationBreadcrumb().length - 1 && (
+                          <span className="text-gray-400">, </span>
+                        )}
+                      </span>
+                    ))}
+                  </span>
+                </h2>
+              )}
               <div className="font-work-sans font-medium text-lg leading-[27px] text-[#293056] tracking-tight underline">
                 {getSubtitle()}
               </div>
@@ -340,13 +416,15 @@ export default function PropertyHeader({
             <div className="flex flex-col gap-3">
               <Link
                 href="/register"
-                className="w-full py-3 px-4 bg-[#293056] text-white rounded-lg font-medium text-center hover:bg-[#1f2441] transition-colors"
+                className="w-full py-3 px-4 rounded-lg font-medium text-center hover:opacity-90 transition-all"
+                style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
               >
                 Create Free Account
               </Link>
               <Link
                 href="/login"
-                className="w-full py-3 px-4 border border-[#293056] text-[#293056] rounded-lg font-medium text-center hover:bg-gray-50 transition-colors"
+                className="w-full py-3 px-4 border rounded-lg font-medium text-center hover:bg-gray-50 transition-colors"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               >
                 Sign In
               </Link>

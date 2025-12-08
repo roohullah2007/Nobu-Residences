@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 
 export default function TabbedContactSection({ auth, website, pageContent }) {
+    const { globalWebsite } = usePage().props;
+    const currentWebsite = website || globalWebsite;
+    const brandColors = currentWebsite?.brand_colors || {};
+
+    const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+    const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
     const [activeTab, setActiveTab] = useState('overview');
 
     // Dynamic tabs from pageContent or default
@@ -14,14 +21,15 @@ export default function TabbedContactSection({ auth, website, pageContent }) {
     
     const tabs = pageContent?.tabs || defaultTabs;
 
-    // Dynamic contact info from website data
+    // Dynamic contact info from website data - prioritize agent_info table
     const contactInfo = {
-        name: website?.contact_info?.agent?.name || website?.agent?.name || 'Jatin Gill',
-        title: website?.contact_info?.agent?.title || website?.agent?.title || 'Property Manager',
-        email: website?.contact_info?.email || website?.email || 'contact@noburesidences.com',
-        phone: website?.contact_info?.phone || website?.phone || '+1 437 998 1795',
-        address: website?.contact_info?.address || website?.address || 'Building No.88, Toronto CA, Ontario, Toronto',
-        image: website?.contact_info?.agent?.image || website?.agent?.image || '/assets/jatin-gill.png'
+        name: website?.agent_info?.agent_name || website?.contact_info?.agent?.name || '',
+        title: website?.agent_info?.agent_title || website?.contact_info?.agent?.title || '',
+        email: website?.contact_info?.email || '',
+        phone: website?.agent_info?.agent_phone || website?.contact_info?.phone || '',
+        address: website?.contact_info?.address || '',
+        image: website?.agent_info?.profile_image || website?.contact_info?.agent?.image || '',
+        brokerage: website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || ''
     };
 
     // Dynamic content from pageContent
@@ -494,22 +502,23 @@ export default function TabbedContactSection({ auth, website, pageContent }) {
                         )}
                     </div>
                     
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         onClick={handleSubmit}
                         disabled={isSubmitting}
-                        className="flex flex-col justify-center items-center gap-2 w-full h-auto bg-black rounded-[100px] flex-none mx-auto hover:bg-gray-800 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="flex flex-col justify-center items-center gap-2 w-full h-auto rounded-[100px] flex-none mx-auto transition-opacity hover:opacity-90 disabled:opacity-70 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: buttonTertiaryBg }}
                     >
                         <div className="flex flex-row justify-center items-center py-2 md:py-2.5 px-4 md:px-6 gap-2 w-full h-auto flex-none">
                             {isSubmitting ? (
                                 <div className="flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    <span className="font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] text-white flex-none">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 mr-2" style={{ borderColor: buttonTertiaryText }}></div>
+                                    <span className="font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] flex-none" style={{ color: buttonTertiaryText }}>
                                         {pageContent?.contactForm?.submitButton?.loadingText || "Submitting..."}
                                     </span>
                                 </div>
                             ) : (
-                                <span className="w-auto h-auto font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] text-white flex-none">
+                                <span className="w-auto h-auto font-work-sans font-bold text-sm leading-6 flex items-center text-center tracking-[-0.03em] flex-none" style={{ color: buttonTertiaryText }}>
                                     {pageContent?.contactForm?.submitButton?.text || "Submit"}
                                 </span>
                             )}

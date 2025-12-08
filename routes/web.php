@@ -84,6 +84,7 @@ Route::post('/api/property-image', [\App\Http\Controllers\Api\PropertyImageContr
 
 // Property Search API routes
 Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchController::class, 'search']);
+Route::post('/api/property-search-count', [\App\Http\Controllers\PropertySearchController::class, 'searchCount']);
 Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
 Route::post('/api/map-coordinates', [\App\Http\Controllers\PropertySearchController::class, 'getMapCoordinates']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
@@ -147,30 +148,119 @@ Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListin
 Route::get('/api/comparable-sales', [WebsiteController::class, 'getComparableSales']);
 
 Route::get('/dashboard', function () {
+    // Get website settings for consistent header/footer
+    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
+        ?? \App\Models\Website::with('agentInfo')->first();
+
+    $websiteData = null;
+    if ($website) {
+        $websiteData = [
+            'id' => $website->id,
+            'name' => $website->name,
+            'slug' => $website->slug,
+            'logo_url' => $website->logo_url,
+            'logo_width' => $website->logo_width,
+            'logo_height' => $website->logo_height,
+            'brand_colors' => $website->getBrandColors(),
+            'fonts' => $website->fonts,
+            'meta_title' => $website->meta_title,
+            'meta_description' => $website->meta_description,
+            'favicon_url' => $website->favicon_url,
+            'contact_info' => $website->getContactInfo(),
+            'social_media' => $website->getSocialMedia(),
+            'agent_info' => $website->agentInfo,
+        ];
+    }
+
     return Inertia::render('Dashboard', [
         'auth' => [
             'user' => auth()->user()
-        ]
+        ],
+        'website' => $websiteData,
+        'siteName' => $website?->name ?? 'Nobu Residences',
+        'siteUrl' => $website?->domain ?? config('app.url'),
+        'year' => date('Y'),
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-// User Dashboard Route - For regular website users
+// User Dashboard Route - Redirects to main dashboard
 Route::get('/user/dashboard', function () {
-    return Inertia::render('Website/Pages/UserDashboard', [
-        'siteName' => 'X Houses',
-        'siteUrl' => config('app.url'),
-        'year' => date('Y')
-    ]);
+    return redirect()->route('dashboard');
 })->middleware(['auth', 'verified'])->name('user.dashboard');
 
 // User Favourites Route
 Route::get('/user/favourites', function () {
+    // Get website settings for consistent header/footer
+    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
+        ?? \App\Models\Website::with('agentInfo')->first();
+
+    $websiteData = null;
+    if ($website) {
+        $websiteData = [
+            'id' => $website->id,
+            'name' => $website->name,
+            'slug' => $website->slug,
+            'logo_url' => $website->logo_url,
+            'logo_width' => $website->logo_width,
+            'logo_height' => $website->logo_height,
+            'brand_colors' => $website->getBrandColors(),
+            'fonts' => $website->fonts,
+            'meta_title' => $website->meta_title,
+            'meta_description' => $website->meta_description,
+            'favicon_url' => $website->favicon_url,
+            'contact_info' => $website->getContactInfo(),
+            'social_media' => $website->getSocialMedia(),
+            'agent_info' => $website->agentInfo,
+        ];
+    }
+
     return Inertia::render('Website/Pages/UserFavourites', [
-        'siteName' => 'X Houses',
-        'siteUrl' => config('app.url'),
-        'year' => date('Y')
+        'auth' => [
+            'user' => auth()->user()
+        ],
+        'website' => $websiteData,
+        'siteName' => $website?->name ?? 'Nobu Residences',
+        'siteUrl' => $website?->domain ?? config('app.url'),
+        'year' => date('Y'),
     ]);
 })->middleware(['auth', 'verified'])->name('user.favourites');
+
+// User Alerts Route
+Route::get('/user/alerts', function () {
+    // Get website settings for consistent header/footer
+    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
+        ?? \App\Models\Website::with('agentInfo')->first();
+
+    $websiteData = null;
+    if ($website) {
+        $websiteData = [
+            'id' => $website->id,
+            'name' => $website->name,
+            'slug' => $website->slug,
+            'logo_url' => $website->logo_url,
+            'logo_width' => $website->logo_width,
+            'logo_height' => $website->logo_height,
+            'brand_colors' => $website->getBrandColors(),
+            'fonts' => $website->fonts,
+            'meta_title' => $website->meta_title,
+            'meta_description' => $website->meta_description,
+            'favicon_url' => $website->favicon_url,
+            'contact_info' => $website->getContactInfo(),
+            'social_media' => $website->getSocialMedia(),
+            'agent_info' => $website->agentInfo,
+        ];
+    }
+
+    return Inertia::render('Website/Pages/UserAlerts', [
+        'auth' => [
+            'user' => auth()->user()
+        ],
+        'website' => $websiteData,
+        'siteName' => $website?->name ?? 'Nobu Residences',
+        'siteUrl' => $website?->domain ?? config('app.url'),
+        'year' => date('Y'),
+    ]);
+})->middleware(['auth', 'verified'])->name('user.alerts');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -246,6 +336,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
         Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');
         Route::delete('/{website}', [WebsiteManagementController::class, 'destroy'])->name('destroy');
+        Route::post('/{website}/duplicate', [WebsiteManagementController::class, 'duplicate'])->name('duplicate');
         Route::get('/{website}/edit-home-page', [WebsiteManagementController::class, 'editHomePage'])->name('edit-home-page');
         Route::put('/{website}/update-home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('update-home-page');
         Route::get('/{website}/pages', [WebsiteManagementController::class, 'pages'])->name('pages');

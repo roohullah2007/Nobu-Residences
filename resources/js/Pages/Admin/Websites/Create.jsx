@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -7,68 +7,64 @@ import TextInput from '@/Components/TextInput';
 import { useState } from 'react';
 
 export default function Create({ auth }) {
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         slug: '',
         domain: '',
         is_default: false,
+        is_active: true,
+        // File uploads
+        logo_file: null,
+        favicon_file: null,
+        agent_profile_image: null,
+        // Text URLs (fallback if no file uploaded)
         logo_url: '',
+        favicon_url: '',
         meta_title: '',
         meta_description: '',
         meta_keywords: '',
-        favicon_url: '',
         description: '',
         timezone: 'America/Toronto',
-        background_image: '',
-        brand_colors: {
-            primary: '#912018',
-            secondary: '#293056',
-            accent: '#F5F8FF',
-            text: '#000000',
-            background: '#FFFFFF',
-            success: '#10B981',
-            warning: '#F59E0B',
-            error: '#EF4444',
-        },
-        contact_info: {
-            phone: '',
-            email: '',
-            address: '',
-            website: '',
-            business_hours: '',
-            agent: {
-                name: '',
-                title: '',
-                photo: '',
-                phone: '',
-                email: ''
-            }
-        },
-        social_media: {
-            facebook: '',
-            instagram: '',
-            twitter: '',
-            linkedin: '',
-            youtube: '',
-            tiktok: ''
-        },
-        footer_info: {
-            about_text: '',
-            copyright_text: '',
-            privacy_policy_url: '',
-            terms_of_service_url: '',
-            additional_links: [
-                { name: '', url: '' }
-            ]
-        }
+        // Brand colors as flat keys for proper FormData handling
+        'brand_colors.primary': '#912018',
+        'brand_colors.secondary': '#293056',
+        'brand_colors.accent': '#F5F8FF',
+        'brand_colors.text': '#000000',
+        'brand_colors.background': '#FFFFFF',
+        // Contact info as flat keys
+        'contact_info.phone': '',
+        'contact_info.email': '',
+        'contact_info.address': '',
+        // Agent info (separate table)
+        agent_name: '',
+        agent_title: '',
+        agent_phone: '',
+        brokerage: '',
+        // Social media as flat keys
+        'social_media.facebook': '',
+        'social_media.instagram': '',
+        'social_media.twitter': '',
+        'social_media.linkedin': '',
     });
 
-    const [backgroundImagePreview, setBackgroundImagePreview] = useState('');
+    const [logoPreview, setLogoPreview] = useState('');
+    const [faviconPreview, setFaviconPreview] = useState('');
     const [agentPhotoPreview, setAgentPhotoPreview] = useState('');
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('admin.websites.store'));
+
+        // Use router.post with forceFormData for file uploads
+        router.post(route('admin.websites.store'), data, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                // Will redirect to show page on success
+            },
+            onError: (errors) => {
+                console.error('Form errors:', errors);
+            }
+        });
     };
 
     // Auto-generate slug from name
@@ -81,15 +77,27 @@ export default function Create({ auth }) {
         setData('slug', slug);
     };
 
-    // Handle background image upload
-    const handleBackgroundImageUpload = (e) => {
+    // Handle logo file upload
+    const handleLogoUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
+            setData('logo_file', file);
             const reader = new FileReader();
             reader.onload = (e) => {
-                const result = e.target.result;
-                setBackgroundImagePreview(result);
-                setData('background_image', result);
+                setLogoPreview(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Handle favicon file upload
+    const handleFaviconUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setData('favicon_file', file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setFaviconPreview(e.target.result);
             };
             reader.readAsDataURL(file);
         }
@@ -99,40 +107,13 @@ export default function Create({ auth }) {
     const handleAgentPhotoUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
+            setData('agent_profile_image', file);
             const reader = new FileReader();
             reader.onload = (e) => {
-                const result = e.target.result;
-                setAgentPhotoPreview(result);
-                setData('contact_info', {
-                    ...data.contact_info,
-                    agent: {
-                        ...data.contact_info.agent,
-                        photo: result
-                    }
-                });
+                setAgentPhotoPreview(e.target.result);
             };
             reader.readAsDataURL(file);
         }
-    };
-
-    // Add new footer link
-    const addFooterLink = () => {
-        setData('footer_info', {
-            ...data.footer_info,
-            additional_links: [
-                ...data.footer_info.additional_links,
-                { name: '', url: '' }
-            ]
-        });
-    };
-
-    // Remove footer link
-    const removeFooterLink = (index) => {
-        const newLinks = data.footer_info.additional_links.filter((_, i) => i !== index);
-        setData('footer_info', {
-            ...data.footer_info,
-            additional_links: newLinks
-        });
     };
 
     return (
@@ -241,112 +222,131 @@ export default function Create({ auth }) {
                                 </div>
                             </div>
 
-                            {/* Assets */}
+                            {/* Logo & Branding */}
                             <div className="bg-gray-50 rounded-lg p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Assets</h3>
+                                <h3 className="text-lg font-medium text-gray-900 mb-4">Logo & Branding</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Logo Upload */}
                                     <div>
-                                        <InputLabel htmlFor="logo_url" value="Logo URL" />
-                                        <TextInput
-                                            id="logo_url"
-                                            type="url"
-                                            name="logo_url"
-                                            value={data.logo_url}
-                                            className="mt-1 block w-full"
-                                            onChange={(e) => setData('logo_url', e.target.value)}
-                                            placeholder="https://example.com/logo.png"
-                                        />
-                                        <InputError message={errors.logo_url} className="mt-2" />
-                                    </div>
-
-                                    <div>
-                                        <InputLabel htmlFor="favicon_url" value="Favicon URL" />
-                                        <TextInput
-                                            id="favicon_url"
-                                            type="url"
-                                            name="favicon_url"
-                                            value={data.favicon_url}
-                                            className="mt-1 block w-full"
-                                            onChange={(e) => setData('favicon_url', e.target.value)}
-                                            placeholder="https://example.com/favicon.ico"
-                                        />
-                                        <InputError message={errors.favicon_url} className="mt-2" />
-                                    </div>
-
-                                    <div className="md:col-span-2">
-                                        <InputLabel htmlFor="background_image" value="Background Image" />
-                                        
-                                        {/* URL Input Option */}
-                                        <div className="mt-1 mb-4">
-                                            <TextInput
-                                                id="background_image_url"
-                                                type="url"
-                                                value={data.background_image && data.background_image.startsWith('http') ? data.background_image : ''}
-                                                className="block w-full"
-                                                onChange={(e) => {
-                                                    setData('background_image', e.target.value);
-                                                    setBackgroundImagePreview(e.target.value);
-                                                }}
-                                                placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                                            />
-                                            <p className="mt-1 text-sm text-gray-500">Or upload a file below</p>
-                                        </div>
-                                        
-                                        {/* File Upload Option */}
-                                        <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
-                                            <div className="space-y-1 text-center">
-                                                {backgroundImagePreview ? (
-                                                    <div className="mb-4">
-                                                        <img 
-                                                            src={backgroundImagePreview} 
-                                                            alt="Background preview" 
-                                                            className="mx-auto h-32 w-auto rounded-lg shadow-md"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setBackgroundImagePreview('');
-                                                                setData('background_image', '');
-                                                            }}
-                                                            className="mt-2 text-sm text-red-600 hover:text-red-800"
-                                                        >
-                                                            Remove Image
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
-                                                )}
-                                                <div className="flex text-sm text-gray-600">
-                                                    <label htmlFor="background_image" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                                                        <span className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md hover:bg-indigo-50">
-                                                            📁 Choose File
-                                                        </span>
-                                                        <input 
-                                                            id="background_image" 
-                                                            name="background_image" 
-                                                            type="file" 
-                                                            className="sr-only" 
-                                                            accept="image/*" 
-                                                            onChange={handleBackgroundImageUpload} 
-                                                        />
-                                                    </label>
-                                                    <p className="pl-1 self-center">or drag and drop</p>
+                                        <InputLabel htmlFor="logo_file" value="Logo" />
+                                        <div className="mt-2 flex items-center space-x-4">
+                                            {logoPreview && (
+                                                <div className="flex-shrink-0">
+                                                    <img
+                                                        src={logoPreview}
+                                                        alt="Logo preview"
+                                                        className="h-16 w-auto object-contain border border-gray-200 rounded p-1 bg-white"
+                                                    />
                                                 </div>
-                                                <p className="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                                                
-                                                {/* Alternative Upload Button */}
-                                                <div className="mt-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => document.getElementById('background_image').click()}
-                                                        className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                                                    >
-                                                        Upload Background Image
-                                                    </button>
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex justify-center px-4 py-4 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                                                    <div className="text-center">
+                                                        <svg className="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                        <label htmlFor="logo_file" className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                                            <span>Upload Logo</span>
+                                                            <input
+                                                                id="logo_file"
+                                                                name="logo_file"
+                                                                type="file"
+                                                                className="sr-only"
+                                                                accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                                                                onChange={handleLogoUpload}
+                                                            />
+                                                        </label>
+                                                        <p className="text-xs text-gray-500 mt-1">PNG, JPG, SVG up to 2MB</p>
+                                                    </div>
                                                 </div>
                                             </div>
+                                        </div>
+                                        {logoPreview && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setLogoPreview('');
+                                                    setData('logo_file', null);
+                                                }}
+                                                className="mt-2 text-sm text-red-600 hover:text-red-800"
+                                            >
+                                                Remove Logo
+                                            </button>
+                                        )}
+                                        <InputError message={errors.logo_file} className="mt-2" />
+
+                                        {/* Optional: URL fallback */}
+                                        <div className="mt-3">
+                                            <p className="text-xs text-gray-500 mb-1">Or enter logo URL:</p>
+                                            <TextInput
+                                                type="url"
+                                                value={data.logo_url}
+                                                className="block w-full text-sm"
+                                                onChange={(e) => setData('logo_url', e.target.value)}
+                                                placeholder="https://example.com/logo.png"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Favicon Upload */}
+                                    <div>
+                                        <InputLabel htmlFor="favicon_file" value="Favicon" />
+                                        <div className="mt-2 flex items-center space-x-4">
+                                            {faviconPreview && (
+                                                <div className="flex-shrink-0">
+                                                    <img
+                                                        src={faviconPreview}
+                                                        alt="Favicon preview"
+                                                        className="h-10 w-10 object-contain border border-gray-200 rounded p-1 bg-white"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex justify-center px-4 py-4 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                                                    <div className="text-center">
+                                                        <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                        <label htmlFor="favicon_file" className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                                            <span>Upload Favicon</span>
+                                                            <input
+                                                                id="favicon_file"
+                                                                name="favicon_file"
+                                                                type="file"
+                                                                className="sr-only"
+                                                                accept="image/png,image/jpeg,image/x-icon,image/ico,image/svg+xml"
+                                                                onChange={handleFaviconUpload}
+                                                            />
+                                                        </label>
+                                                        <p className="text-xs text-gray-500 mt-1">ICO, PNG, SVG up to 1MB</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {faviconPreview && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setFaviconPreview('');
+                                                    setData('favicon_file', null);
+                                                }}
+                                                className="mt-2 text-sm text-red-600 hover:text-red-800"
+                                            >
+                                                Remove Favicon
+                                            </button>
+                                        )}
+                                        <InputError message={errors.favicon_file} className="mt-2" />
+
+                                        {/* Optional: URL fallback */}
+                                        <div className="mt-3">
+                                            <p className="text-xs text-gray-500 mb-1">Or enter favicon URL:</p>
+                                            <TextInput
+                                                type="url"
+                                                value={data.favicon_url}
+                                                className="block w-full text-sm"
+                                                onChange={(e) => setData('favicon_url', e.target.value)}
+                                                placeholder="https://example.com/favicon.ico"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -355,37 +355,29 @@ export default function Create({ auth }) {
                             {/* Brand Colors */}
                             <div className="bg-gray-50 rounded-lg p-6">
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Brand Colors</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {Object.entries(data.brand_colors).map(([key, color]) => (
-                                        <div key={key}>
-                                            <InputLabel 
-                                                htmlFor={`color_${key}`} 
-                                                value={key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')} 
-                                            />
-                                            <div className="mt-1 flex items-center space-x-2">
-                                                <div className="flex-shrink-0">
-                                                    <input
-                                                    id={`color_${key}`}
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                    {[
+                                        { key: 'brand_colors.primary', label: 'Primary', desc: 'Main brand color' },
+                                        { key: 'brand_colors.secondary', label: 'Secondary', desc: 'Supporting color' },
+                                        { key: 'brand_colors.accent', label: 'Accent', desc: 'Highlight color' },
+                                        { key: 'brand_colors.text', label: 'Text', desc: 'Text color' },
+                                        { key: 'brand_colors.background', label: 'Background', desc: 'Background color' },
+                                    ].map((color) => (
+                                        <div key={color.key} className="text-center">
+                                            <InputLabel htmlFor={color.key} value={color.label} />
+                                            <div className="mt-1">
+                                                <input
+                                                    id={color.key}
                                                     type="color"
-                                                    value={color}
-                                                    onChange={(e) => setData('brand_colors', {
-                                                    ...data.brand_colors,
-                                                    [key]: e.target.value
-                                                    })}
-                                                    className="w-10 h-12 border border-gray-300 rounded cursor-pointer block"
-                                                    />
-                                                </div>
-                                                <TextInput
-                                                    type="text"
-                                                    value={color}
-                                                    onChange={(e) => setData('brand_colors', {
-                                                        ...data.brand_colors,
-                                                        [key]: e.target.value
-                                                    })}
-                                                    className="flex-1"
-                                                    placeholder="#000000"
+                                                    value={data[color.key]}
+                                                    onChange={(e) => setData(color.key, e.target.value)}
+                                                    className="h-12 w-full rounded-md border border-gray-300 cursor-pointer"
                                                 />
+                                                <div className="mt-1 text-xs text-gray-500 text-center">
+                                                    {data[color.key]}
+                                                </div>
                                             </div>
+                                            <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -400,12 +392,9 @@ export default function Create({ auth }) {
                                         <TextInput
                                             id="contact_phone"
                                             type="tel"
-                                            value={data.contact_info.phone}
+                                            value={data['contact_info.phone']}
                                             className="mt-1 block w-full"
-                                            onChange={(e) => setData('contact_info', {
-                                                ...data.contact_info,
-                                                phone: e.target.value
-                                            })}
+                                            onChange={(e) => setData('contact_info.phone', e.target.value)}
                                             placeholder="+1 (555) 123-4567"
                                         />
                                     </div>
@@ -415,129 +404,84 @@ export default function Create({ auth }) {
                                         <TextInput
                                             id="contact_email"
                                             type="email"
-                                            value={data.contact_info.email}
+                                            value={data['contact_info.email']}
                                             className="mt-1 block w-full"
-                                            onChange={(e) => setData('contact_info', {
-                                                ...data.contact_info,
-                                                email: e.target.value
-                                            })}
+                                            onChange={(e) => setData('contact_info.email', e.target.value)}
                                             placeholder="contact@example.com"
                                         />
                                     </div>
 
-                                    <div>
-                                        <InputLabel htmlFor="contact_website" value="Website URL" />
-                                        <TextInput
-                                            id="contact_website"
-                                            type="url"
-                                            value={data.contact_info.website}
-                                            className="mt-1 block w-full"
-                                            onChange={(e) => setData('contact_info', {
-                                                ...data.contact_info,
-                                                website: e.target.value
-                                            })}
-                                            placeholder="https://example.com"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <InputLabel htmlFor="business_hours" value="Business Hours" />
-                                        <TextInput
-                                            id="business_hours"
-                                            type="text"
-                                            value={data.contact_info.business_hours}
-                                            className="mt-1 block w-full"
-                                            onChange={(e) => setData('contact_info', {
-                                                ...data.contact_info,
-                                                business_hours: e.target.value
-                                            })}
-                                            placeholder="Mon-Fri 9AM-6PM"
+                                    <div className="md:col-span-2">
+                                        <InputLabel htmlFor="contact_address" value="Address" />
+                                        <textarea
+                                            id="contact_address"
+                                            value={data['contact_info.address']}
+                                            onChange={(e) => setData('contact_info.address', e.target.value)}
+                                            rows={2}
+                                            className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                            placeholder="123 Main St, City, Province, Country"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="mt-6">
-                                    <InputLabel htmlFor="contact_address" value="Address" />
-                                    <textarea
-                                        id="contact_address"
-                                        value={data.contact_info.address}
-                                        onChange={(e) => setData('contact_info', {
-                                            ...data.contact_info,
-                                            address: e.target.value
-                                        })}
-                                        rows={2}
-                                        className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                        placeholder="123 Main St, City, Province, Country"
-                                    />
-                                </div>
-
-                                {/* Property Manager */}
-                                <div className="mt-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-4">Property Manager</h4>
+                                {/* Property Manager/Agent */}
+                                <div className="mt-6 border-t pt-6">
+                                    <h4 className="text-md font-semibold text-gray-800 mb-4">Property Manager / Agent</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Agent Photo Upload */}
                                         <div className="md:col-span-2">
-                                            <InputLabel htmlFor="agent_photo" value="Property Manager Photo" />
-                                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400 transition-colors">
-                                                <div className="space-y-1 text-center">
-                                                    {agentPhotoPreview ? (
-                                                        <div className="mb-4">
-                                                            <img 
-                                                                src={agentPhotoPreview} 
-                                                                alt="Agent photo preview" 
-                                                                className="mx-auto h-24 w-24 rounded-full object-cover shadow-md"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setAgentPhotoPreview('');
-                                                                    setData('contact_info', {
-                                                                        ...data.contact_info,
-                                                                        agent: {
-                                                                            ...data.contact_info.agent,
-                                                                            photo: ''
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className="mt-2 text-sm text-red-600 hover:text-red-800"
-                                                            >
-                                                                Remove Photo
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                        </svg>
-                                                    )}
-                                                    <div className="flex text-sm text-gray-600">
-                                                        <label htmlFor="agent_photo" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
-                                                            <span className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md hover:bg-indigo-50">
-                                                                📁 Choose Photo
-                                                            </span>
-                                                            <input 
-                                                                id="agent_photo" 
-                                                                name="agent_photo" 
-                                                                type="file" 
-                                                                className="sr-only" 
-                                                                accept="image/*" 
-                                                                onChange={handleAgentPhotoUpload} 
-                                                            />
-                                                        </label>
-                                                        <p className="pl-1 self-center">or drag and drop</p>
-                                                    </div>
-                                                    <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
-                                                    
-                                                    {/* Alternative Upload Button */}
-                                                    <div className="mt-3">
+                                            <InputLabel htmlFor="agent_profile_image" value="Profile Photo" />
+                                            <div className="mt-2 flex items-start space-x-6">
+                                                {agentPhotoPreview && (
+                                                    <div className="flex-shrink-0 relative">
+                                                        <img
+                                                            src={agentPhotoPreview}
+                                                            alt="Agent Profile"
+                                                            className="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
+                                                        />
                                                         <button
                                                             type="button"
-                                                            onClick={() => document.getElementById('agent_photo').click()}
-                                                            className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 focus:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                                            onClick={() => {
+                                                                setAgentPhotoPreview('');
+                                                                setData('agent_profile_image', null);
+                                                            }}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
+                                                            title="Remove image"
                                                         >
-                                                            Upload Photo
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
                                                         </button>
+                                                    </div>
+                                                )}
+                                                <div className="flex-1">
+                                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                                                        <div className="space-y-1 text-center">
+                                                            {!agentPhotoPreview && (
+                                                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                                </svg>
+                                                            )}
+                                                            <div className="flex text-sm text-gray-600">
+                                                                <label htmlFor="agent_profile_image" className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                                                    <span>{agentPhotoPreview ? 'Change photo' : 'Upload photo'}</span>
+                                                                    <input
+                                                                        id="agent_profile_image"
+                                                                        name="agent_profile_image"
+                                                                        type="file"
+                                                                        className="sr-only"
+                                                                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                                                                        onChange={handleAgentPhotoUpload}
+                                                                    />
+                                                                </label>
+                                                                <p className="pl-1">or drag and drop</p>
+                                                            </div>
+                                                            <p className="text-xs text-gray-500">PNG, JPG up to 2MB</p>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
+                                            <InputError message={errors.agent_profile_image} className="mt-2" />
                                         </div>
 
                                         <div>
@@ -545,17 +489,12 @@ export default function Create({ auth }) {
                                             <TextInput
                                                 id="agent_name"
                                                 type="text"
-                                                value={data.contact_info.agent.name}
+                                                value={data.agent_name}
                                                 className="mt-1 block w-full"
-                                                onChange={(e) => setData('contact_info', {
-                                                    ...data.contact_info,
-                                                    agent: {
-                                                        ...data.contact_info.agent,
-                                                        name: e.target.value
-                                                    }
-                                                })}
+                                                onChange={(e) => setData('agent_name', e.target.value)}
                                                 placeholder="John Doe"
                                             />
+                                            <InputError message={errors.agent_name} className="mt-2" />
                                         </div>
 
                                         <div>
@@ -563,53 +502,38 @@ export default function Create({ auth }) {
                                             <TextInput
                                                 id="agent_title"
                                                 type="text"
-                                                value={data.contact_info.agent.title}
+                                                value={data.agent_title}
                                                 className="mt-1 block w-full"
-                                                onChange={(e) => setData('contact_info', {
-                                                    ...data.contact_info,
-                                                    agent: {
-                                                        ...data.contact_info.agent,
-                                                        title: e.target.value
-                                                    }
-                                                })}
-                                                placeholder="Property Manager"
+                                                onChange={(e) => setData('agent_title', e.target.value)}
+                                                placeholder="Senior Real Estate Agent"
                                             />
+                                            <InputError message={errors.agent_title} className="mt-2" />
                                         </div>
 
                                         <div>
-                                            <InputLabel htmlFor="agent_phone" value="Direct Phone" />
+                                            <InputLabel htmlFor="agent_phone" value="Agent Phone" />
                                             <TextInput
                                                 id="agent_phone"
                                                 type="tel"
-                                                value={data.contact_info.agent.phone}
+                                                value={data.agent_phone}
                                                 className="mt-1 block w-full"
-                                                onChange={(e) => setData('contact_info', {
-                                                    ...data.contact_info,
-                                                    agent: {
-                                                        ...data.contact_info.agent,
-                                                        phone: e.target.value
-                                                    }
-                                                })}
+                                                onChange={(e) => setData('agent_phone', e.target.value)}
                                                 placeholder="+1 (555) 987-6543"
                                             />
+                                            <InputError message={errors.agent_phone} className="mt-2" />
                                         </div>
 
                                         <div>
-                                            <InputLabel htmlFor="agent_email" value="Direct Email" />
+                                            <InputLabel htmlFor="brokerage" value="Brokerage" />
                                             <TextInput
-                                                id="agent_email"
-                                                type="email"
-                                                value={data.contact_info.agent.email}
+                                                id="brokerage"
+                                                type="text"
+                                                value={data.brokerage}
                                                 className="mt-1 block w-full"
-                                                onChange={(e) => setData('contact_info', {
-                                                    ...data.contact_info,
-                                                    agent: {
-                                                        ...data.contact_info.agent,
-                                                        email: e.target.value
-                                                    }
-                                                })}
-                                                placeholder="john@example.com"
+                                                onChange={(e) => setData('brokerage', e.target.value)}
+                                                placeholder="Keller Williams Realty"
                                             />
+                                            <InputError message={errors.brokerage} className="mt-2" />
                                         </div>
                                     </div>
                                 </div>
@@ -619,151 +543,52 @@ export default function Create({ auth }) {
                             <div className="bg-gray-50 rounded-lg p-6">
                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {Object.entries(data.social_media).map(([platform, url]) => (
-                                        <div key={platform}>
-                                            <InputLabel 
-                                                htmlFor={`social_${platform}`} 
-                                                value={`${platform.charAt(0).toUpperCase() + platform.slice(1)} URL`} 
-                                            />
-                                            <TextInput
-                                                id={`social_${platform}`}
-                                                type="url"
-                                                value={url}
-                                                className="mt-1 block w-full"
-                                                onChange={(e) => setData('social_media', {
-                                                    ...data.social_media,
-                                                    [platform]: e.target.value
-                                                })}
-                                                placeholder={`https://${platform}.com/yourpage`}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Footer Information */}
-                            <div className="bg-gray-50 rounded-lg p-6">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Footer Information</h3>
-                                <div className="space-y-6">
                                     <div>
-                                        <InputLabel htmlFor="about_text" value="About Text" />
-                                        <textarea
-                                            id="about_text"
-                                            value={data.footer_info.about_text}
-                                            onChange={(e) => setData('footer_info', {
-                                                ...data.footer_info,
-                                                about_text: e.target.value
-                                            })}
-                                            rows={3}
-                                            className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                            placeholder="Brief description about your company or property..."
+                                        <InputLabel htmlFor="social_facebook" value="Facebook URL" />
+                                        <TextInput
+                                            id="social_facebook"
+                                            type="url"
+                                            value={data['social_media.facebook']}
+                                            className="mt-1 block w-full"
+                                            onChange={(e) => setData('social_media.facebook', e.target.value)}
+                                            placeholder="https://facebook.com/yourpage"
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <InputLabel htmlFor="copyright_text" value="Copyright Text" />
-                                            <TextInput
-                                                id="copyright_text"
-                                                type="text"
-                                                value={data.footer_info.copyright_text}
-                                                className="mt-1 block w-full"
-                                                onChange={(e) => setData('footer_info', {
-                                                    ...data.footer_info,
-                                                    copyright_text: e.target.value
-                                                })}
-                                                placeholder="© 2024 Your Company Name. All rights reserved."
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <InputLabel htmlFor="privacy_policy_url" value="Privacy Policy URL" />
-                                            <TextInput
-                                                id="privacy_policy_url"
-                                                type="url"
-                                                value={data.footer_info.privacy_policy_url}
-                                                className="mt-1 block w-full"
-                                                onChange={(e) => setData('footer_info', {
-                                                    ...data.footer_info,
-                                                    privacy_policy_url: e.target.value
-                                                })}
-                                                placeholder="https://example.com/privacy"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <InputLabel htmlFor="terms_of_service_url" value="Terms of Service URL" />
-                                            <TextInput
-                                                id="terms_of_service_url"
-                                                type="url"
-                                                value={data.footer_info.terms_of_service_url}
-                                                className="mt-1 block w-full"
-                                                onChange={(e) => setData('footer_info', {
-                                                    ...data.footer_info,
-                                                    terms_of_service_url: e.target.value
-                                                })}
-                                                placeholder="https://example.com/terms"
-                                            />
-                                        </div>
+                                    <div>
+                                        <InputLabel htmlFor="social_instagram" value="Instagram URL" />
+                                        <TextInput
+                                            id="social_instagram"
+                                            type="url"
+                                            value={data['social_media.instagram']}
+                                            className="mt-1 block w-full"
+                                            onChange={(e) => setData('social_media.instagram', e.target.value)}
+                                            placeholder="https://instagram.com/youraccount"
+                                        />
                                     </div>
 
-                                    {/* Additional Footer Links */}
                                     <div>
-                                        <div className="flex justify-between items-center mb-4">
-                                            <InputLabel value="Additional Footer Links" />
-                                            <button
-                                                type="button"
-                                                onClick={addFooterLink}
-                                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
-                                            >
-                                                + Add Link
-                                            </button>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {data.footer_info.additional_links.map((link, index) => (
-                                                <div key={index} className="flex gap-4 p-4 bg-white rounded border">
-                                                    <div className="flex-1">
-                                                        <TextInput
-                                                            type="text"
-                                                            value={link.name}
-                                                            className="block w-full"
-                                                            onChange={(e) => {
-                                                                const newLinks = [...data.footer_info.additional_links];
-                                                                newLinks[index].name = e.target.value;
-                                                                setData('footer_info', {
-                                                                    ...data.footer_info,
-                                                                    additional_links: newLinks
-                                                                });
-                                                            }}
-                                                            placeholder="Link Name"
-                                                        />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <TextInput
-                                                            type="url"
-                                                            value={link.url}
-                                                            className="block w-full"
-                                                            onChange={(e) => {
-                                                                const newLinks = [...data.footer_info.additional_links];
-                                                                newLinks[index].url = e.target.value;
-                                                                setData('footer_info', {
-                                                                    ...data.footer_info,
-                                                                    additional_links: newLinks
-                                                                });
-                                                            }}
-                                                            placeholder="https://example.com"
-                                                        />
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeFooterLink(index)}
-                                                        className="px-3 py-2 text-red-600 hover:text-red-800"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <InputLabel htmlFor="social_twitter" value="Twitter URL" />
+                                        <TextInput
+                                            id="social_twitter"
+                                            type="url"
+                                            value={data['social_media.twitter']}
+                                            className="mt-1 block w-full"
+                                            onChange={(e) => setData('social_media.twitter', e.target.value)}
+                                            placeholder="https://twitter.com/youraccount"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <InputLabel htmlFor="social_linkedin" value="LinkedIn URL" />
+                                        <TextInput
+                                            id="social_linkedin"
+                                            type="url"
+                                            value={data['social_media.linkedin']}
+                                            className="mt-1 block w-full"
+                                            onChange={(e) => setData('social_media.linkedin', e.target.value)}
+                                            placeholder="https://linkedin.com/company/yourcompany"
+                                        />
                                     </div>
                                 </div>
                             </div>

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import Navbar from '@/Website/Global/Navbar';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
 import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
-import SimplePropertyMap from '@/Website/Components/SimplePropertyMap';
 import ViewportAwarePropertyMap from '@/Website/Components/ViewportAwarePropertyMap';
 import ClusteredPropertyMap from '@/Website/Components/ClusteredPropertyMap';
 import usePropertyImageLazyLoad from '@/hooks/usePropertyImageLazyLoad';
@@ -70,7 +69,7 @@ const SaveIcon = ({ className }) => (
 );
 
 // Save Search Modal Component
-const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters }) => {
+const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters, buttonPrimaryBg, buttonPrimaryText, buttonQuaternaryBg, buttonQuaternaryText }) => {
   const [searchName, setSearchName] = useState('');
   const [emailAlerts, setEmailAlerts] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -135,14 +134,16 @@ const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters }) => {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            className="flex-1 px-4 py-2 border rounded-md hover:opacity-80 transition-all"
+            style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isLoading}
-            className="flex-1 px-4 py-2 bg-[#293056] text-white rounded-md hover:bg-[#1e2142] disabled:opacity-50"
+            className="flex-1 px-4 py-2 rounded-md hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
           >
             {isLoading ? 'Saving...' : 'Save Search'}
           </button>
@@ -163,6 +164,30 @@ export default function EnhancedPropertySearch({
 }) {
   // Debug: Log the filters being passed from WebsiteController
   console.log('🔍 Search page filters from controller:', filters);
+
+  const { globalWebsite } = usePage().props;
+  const currentWebsite = globalWebsite || website || {};
+  const brandColors = currentWebsite?.brand_colors || {
+    primary: '#912018',
+    secondary: '#1d957d',
+    accent: '#F5F8FF',
+    text: '#000000',
+    background: '#FFFFFF',
+    button_primary_bg: '#912018',
+    button_primary_text: '#FFFFFF',
+    button_quaternary_bg: '#FFFFFF',
+    button_quaternary_text: '#293056',
+    button_tertiary_bg: '#000000',
+    button_tertiary_text: '#FFFFFF'
+  };
+
+  // Extract button colors
+  const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
 
   // State for login modal
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -233,9 +258,6 @@ export default function EnhancedPropertySearch({
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [buildings, setBuildings] = useState([]);
-  const [mapProperties, setMapProperties] = useState([]); // Properties for map display (32 on initial load)
-  const [viewportProperties, setViewportProperties] = useState([]); // Properties from map viewport
-  const [showViewportProperties, setShowViewportProperties] = useState(false); // Toggle between search results and viewport properties
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -285,9 +307,6 @@ export default function EnhancedPropertySearch({
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
-    // Reset viewport properties when doing a new search
-    setShowViewportProperties(false);
-    setViewportProperties([]);
 
     // Update URL with search params
     const url = new URL(window.location);
@@ -383,9 +402,6 @@ export default function EnhancedPropertySearch({
         });
       }
 
-      // Add fetch_for_map flag when on page 1 for properties
-      const fetchForMap = currentTab === 'listings' && searchParams.page === 1;
-
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -393,8 +409,7 @@ export default function EnhancedPropertySearch({
           'X-CSRF-TOKEN': getCsrfToken()
         },
         body: JSON.stringify({
-          search_params: searchParams,
-          fetch_for_map: fetchForMap
+          search_params: searchParams
         }),
         signal: abortControllerRef.current.signal
       });
@@ -443,21 +458,10 @@ export default function EnhancedPropertySearch({
           }
           setProperties(result.data.properties || []);
           setBuildings([]);
-
-          // Handle map properties
-          if (result.data.map_properties) {
-            // Page 1: Set 32 properties (2 pages) for map
-            console.log('🗺️ Loading 32 properties for map display (pages 1 & 2)');
-            setMapProperties(result.data.map_properties);
-          } else {
-            // Other pages: Set only current page properties for map
-            console.log(`🗺️ Loading ${result.data.properties?.length || 0} properties for map display (page ${result.data.page})`);
-            setMapProperties(result.data.properties || []);
-          }
+          // Note: Map in mixed view now uses ClusteredPropertyMap which fetches its own coordinates
         } else {
           setBuildings(result.data.buildings || []);
           setProperties([]);
-          setMapProperties([]); // Clear map properties for buildings tab
         }
         setTotal(result.data.total || 0);
         setCurrentPage(result.data.page || 1);
@@ -918,12 +922,13 @@ export default function EnhancedPropertySearch({
                     className="w-full font-work-sans font-bold text-sm text-[#1C1463] bg-transparent border-none outline-none focus:ring-0 focus:border-none placeholder:font-bold placeholder:text-[#1C1463]"
                   />
                 </div>
-                <button 
+                <button
                   onClick={handleSearch}
                   disabled={isLoading}
-                  className="bg-black p-3 rounded-xl disabled:opacity-50"
+                  className="p-3 rounded-xl disabled:opacity-50 hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                 >
-                  <SearchIcon className="w-[18px] h-[19px] text-white" />
+                  <SearchIcon className="w-[18px] h-[19px]" />
                 </button>
               </div>
               
@@ -976,15 +981,17 @@ export default function EnhancedPropertySearch({
                     placeholder="Min price"
                     value={searchFilters.price_min || ''}
                     onChange={(e) => handleFilterChange('price_min', parseInt(e.target.value) || 0)}
-                    className="flex-1 bg-white px-3 py-2 rounded-lg text-xs font-work-sans text-black border border-[#293056] outline-none"
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-work-sans border outline-none"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                   />
-                  <span className="text-[#293056] text-xs font-work-sans py-2">to</span>
+                  <span className="text-xs font-work-sans py-2" style={{ color: buttonQuaternaryText }}>to</span>
                   <input
                     type="number"
                     placeholder="Max price"
                     value={searchFilters.price_max || ''}
                     onChange={(e) => handleFilterChange('price_max', parseInt(e.target.value) || 0)}
-                    className="flex-1 bg-white px-3 py-2 rounded-lg text-xs font-work-sans text-black border border-[#293056] outline-none"
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-work-sans border outline-none"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                   />
                 </div>
                 
@@ -1003,11 +1010,13 @@ export default function EnhancedPropertySearch({
                   ></div>
                   
                   {/* Min thumb - LEFT handle for minimum price (draggable) */}
-                  <div 
-                    className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
+                  <div
+                    className="absolute top-[0.95px] w-[20px] h-[19px] border rounded-full cursor-pointer flex items-center justify-center"
                     style={{
                       left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`,
-                      zIndex: 25
+                      zIndex: 25,
+                      backgroundColor: buttonQuaternaryBg,
+                      borderColor: buttonQuaternaryText
                     }}
                     onTouchStart={(e) => {
                       e.preventDefault();
@@ -1035,52 +1044,55 @@ export default function EnhancedPropertySearch({
                       document.addEventListener('touchend', handleRelease);
                     }}
                   >
-                    <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
+                    <div className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: buttonQuaternaryText }}></div>
                   </div>
-                  
+
                   {/* Max thumb - RIGHT handle for maximum price (draggable) */}
-                  <div 
-                    className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
+                  <div
+                    className="absolute top-0 w-[20px] h-[19px] border rounded-full cursor-pointer flex items-center justify-center"
                     style={{
                       left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`,
-                      zIndex: 25
+                      zIndex: 25,
+                      backgroundColor: buttonQuaternaryBg,
+                      borderColor: buttonQuaternaryText
                     }}
                     onTouchStart={(e) => {
                       e.preventDefault();
                       const slider = e.currentTarget.parentElement;
                       const rect = slider.getBoundingClientRect();
                       const touch = e.touches[0];
-                      
+
                       const handleDrag = (event) => {
                         const currentTouch = event.touches[0];
                         const percentage = Math.max(0, Math.min(100, ((currentTouch.clientX - rect.left) / rect.width) * 100));
                         const value = Math.round((percentage / 100) * 10000000 / 50000) * 50000;
                         const minValue = searchFilters.price_min || 0;
-                        
+
                         if (value > minValue) {
                           handleFilterChange('price_max', value);
                         }
                       };
-                      
+
                       const handleRelease = () => {
                         document.removeEventListener('touchmove', handleDrag);
                         document.removeEventListener('touchend', handleRelease);
                       };
-                      
+
                       document.addEventListener('touchmove', handleDrag);
                       document.addEventListener('touchend', handleRelease);
                     }}
                   >
-                    <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
+                    <div className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: buttonQuaternaryText }}></div>
                   </div>
                 </div>
               </div>
               
               {/* Mobile Save Search */}
               <div className="flex gap-2 mt-4">
-                <button 
+                <button
                   onClick={handleSaveSearch}
-                  className="flex-1 bg-white px-4 py-2 rounded-lg font-work-sans font-bold text-sm text-[#293056] flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-2 rounded-lg font-work-sans font-bold text-sm flex items-center justify-center gap-2 hover:opacity-80 transition-all"
+                  style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText }}
                 >
                   <SaveIcon className="w-4 h-4" />
                   Save search
@@ -1094,6 +1106,7 @@ export default function EnhancedPropertySearch({
           <div className="my-6">
             <IDXAmpreSearchBar
               isAuthenticated={!!auth?.user}
+              autoSearch={true}
               initialValues={{
                 location: searchFilters.query || '',
                 propertyType: searchFilters.status || 'For Sale',
@@ -1163,12 +1176,13 @@ export default function EnhancedPropertySearch({
                           className="w-full font-work-sans font-bold text-sm text-[#1C1463] bg-transparent border-none outline-none focus:ring-0 focus:border-none placeholder-[#1C1463] placeholder:font-bold"
                         />
                       </div>
-                      <button 
+                      <button
                         onClick={handleSearch}
                         disabled={isLoading}
-                        className="flex items-center justify-center w-10 h-10 bg-black rounded-xl mr-1 disabled:opacity-50"
+                        className="flex items-center justify-center w-10 h-10 rounded-xl mr-1 disabled:opacity-50 hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                       >
-                        <SearchIcon className="w-6 h-6 text-white" />
+                        <SearchIcon className="w-6 h-6" />
                       </button>
                     </div>
                   </div>
@@ -1217,25 +1231,27 @@ export default function EnhancedPropertySearch({
                   {/* Price Range */}
                   <div className="flex flex-col w-[286px]">
                     <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center justify-center bg-white border border-[#293056] rounded-lg w-[99px] h-[27px]">
+                      <div className="flex items-center justify-center border rounded-lg w-[99px] h-[27px]" style={{ backgroundColor: buttonQuaternaryBg, borderColor: buttonQuaternaryText }}>
                         <input
                           type="number"
                           placeholder="0"
                           value={searchFilters.price_min || ''}
                           onChange={(e) => handleFilterChange('price_min', parseInt(e.target.value) || 0)}
-                          className="w-full text-center font-work-sans text-xs text-black bg-transparent border-none outline-none placeholder:text-black"
+                          className="w-full text-center font-work-sans text-xs bg-transparent border-none outline-none"
+                          style={{ color: buttonQuaternaryText }}
                         />
                       </div>
-                      
-                      <span className="font-work-sans text-xs text-[#293056] mx-3">to</span>
-                      
-                      <div className="flex items-center justify-center bg-white border border-[#293056] rounded-lg w-[99px] h-[27px]">
+
+                      <span className="font-work-sans text-xs mx-3" style={{ color: buttonQuaternaryText }}>to</span>
+
+                      <div className="flex items-center justify-center border rounded-lg w-[99px] h-[27px]" style={{ backgroundColor: buttonQuaternaryBg, borderColor: buttonQuaternaryText }}>
                         <input
                           type="number"
                           placeholder="No max"
                           value={searchFilters.price_max || ''}
                           onChange={(e) => handleFilterChange('price_max', parseInt(e.target.value) || 0)}
-                          className="w-full text-center font-work-sans text-xs text-black bg-transparent border-none outline-none placeholder:text-black"
+                          className="w-full text-center font-work-sans text-xs bg-transparent border-none outline-none"
+                          style={{ color: buttonQuaternaryText }}
                         />
                       </div>
                     </div>
@@ -1300,12 +1316,14 @@ export default function EnhancedPropertySearch({
                       </div>
                       
                       {/* Min thumb - LEFT handle for minimum price (draggable) */}
-                      <div 
-                        className="absolute top-[0.95px] w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
+                      <div
+                        className="absolute top-[0.95px] w-[20px] h-[19px] border rounded-full cursor-pointer flex items-center justify-center"
                         style={{
                           left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_min || 0) / 10000000 * 100))}% - 10px)`,
                           zIndex: 25,
-                          pointerEvents: 'auto'
+                          pointerEvents: 'auto',
+                          backgroundColor: buttonQuaternaryBg,
+                          borderColor: buttonQuaternaryText
                         }}
                         onMouseDown={(e) => {
                           e.preventDefault();
@@ -1342,16 +1360,18 @@ export default function EnhancedPropertySearch({
                           e.currentTarget.dispatchEvent(mouseEvent);
                         }}
                       >
-                        <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
+                        <div className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: buttonQuaternaryText }}></div>
                       </div>
-                      
+
                       {/* Max thumb - RIGHT handle for maximum price (draggable) */}
-                      <div 
-                        className="absolute top-0 w-[20px] h-[19px] bg-white border border-[#293056] rounded-full cursor-pointer flex items-center justify-center"
+                      <div
+                        className="absolute top-0 w-[20px] h-[19px] border rounded-full cursor-pointer flex items-center justify-center"
                         style={{
                           left: `calc(${Math.max(0, Math.min(100, (searchFilters.price_max || 10000000) / 10000000 * 100))}% - 10px)`,
                           zIndex: 25,
-                          pointerEvents: 'auto'
+                          pointerEvents: 'auto',
+                          backgroundColor: buttonQuaternaryBg,
+                          borderColor: buttonQuaternaryText
                         }}
                         onMouseDown={(e) => {
                           e.preventDefault();
@@ -1388,7 +1408,7 @@ export default function EnhancedPropertySearch({
                           e.currentTarget.dispatchEvent(mouseEvent);
                         }}
                       >
-                        <div className="w-[7px] h-[7px] bg-[#293056] rounded-full"></div>
+                        <div className="w-[7px] h-[7px] rounded-full" style={{ backgroundColor: buttonQuaternaryText }}></div>
                       </div>
                     </div>
                   </div>
@@ -1396,12 +1416,13 @@ export default function EnhancedPropertySearch({
 
                 {/* Right Side - Save Search */}
                 <div className="flex items-center gap-2">
-                  <button 
+                  <button
                     onClick={handleSaveSearch}
-                    className="flex items-center justify-center bg-white rounded-lg px-4 py-2 w-[120px] h-12 hover:bg-gray-50 transition-colors whitespace-nowrap gap-2"
+                    className="flex items-center justify-center rounded-lg px-4 py-2 w-[120px] h-12 hover:opacity-80 transition-all whitespace-nowrap gap-2"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText }}
                   >
-                    <SaveIcon className="w-4 h-4 text-[#293056]" />
-                    <span className="font-work-sans font-bold text-sm text-[#293056]">Save search</span>
+                    <SaveIcon className="w-4 h-4" />
+                    <span className="font-work-sans font-bold text-sm">Save search</span>
                   </button>
                 </div>
               </div>
@@ -1441,7 +1462,7 @@ export default function EnhancedPropertySearch({
                       activeTab === 'listings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
                       Listings {total > 0 && activeTab === 'listings' && (
-                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold text-white bg-[#293056] rounded-full min-w-[24px] md:min-w-[28px]">
+                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold rounded-full min-w-[24px] md:min-w-[28px]" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                           {total.toLocaleString()}
                         </span>
                       )}
@@ -1459,7 +1480,7 @@ export default function EnhancedPropertySearch({
                       activeTab === 'buildings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
                       Buildings {total > 0 && activeTab === 'buildings' && (
-                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold text-white bg-[#293056] rounded-full min-w-[24px] md:min-w-[28px]">
+                        <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold rounded-full min-w-[24px] md:min-w-[28px]" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                           {total.toLocaleString()}
                         </span>
                       )}
@@ -1473,21 +1494,24 @@ export default function EnhancedPropertySearch({
                     <div className="flex items-center bg-white border border-black rounded-lg p-0.5 md:p-1">
                       <button
                         onClick={() => setViewType('grid')}
-                        className={`p-1.5 md:p-2 rounded ${viewType === 'grid' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'grid' ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        style={viewType === 'grid' ? { backgroundColor: buttonPrimaryBg } : {}}
                         title="Grid View"
                       >
                         <GridIcon className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                       <button
                         onClick={() => setViewType('mixed')}
-                        className={`p-1.5 md:p-2 rounded ${viewType === 'mixed' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'mixed' ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        style={viewType === 'mixed' ? { backgroundColor: buttonPrimaryBg } : {}}
                         title="Mixed View"
                       >
                         <MixedIcon className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                       <button
                         onClick={() => setViewType('map')}
-                        className={`p-1.5 md:p-2 rounded ${viewType === 'map' ? 'bg-[#293056] text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1.5 md:p-2 rounded ${viewType === 'map' ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        style={viewType === 'map' ? { backgroundColor: buttonPrimaryBg } : {}}
                         title="Map View"
                       >
                         <MapIcon className="w-4 h-4 md:w-5 md:h-5" />
@@ -1519,8 +1543,9 @@ export default function EnhancedPropertySearch({
                               performSearch({ ...searchFilters, sort: 'newest' }, false, activeTab);
                             }}
                             className={`w-full px-4 py-2 text-left hover:bg-gray-100 rounded-t-lg ${
-                              searchFilters.sort === 'newest' ? 'bg-[#912018] text-white' : ''
+                              searchFilters.sort === 'newest' ? 'text-white' : ''
                             }`}
+                            style={searchFilters.sort === 'newest' ? { backgroundColor: brandColors.primary } : {}}
                           >
                             Newest First
                           </button>
@@ -1531,8 +1556,9 @@ export default function EnhancedPropertySearch({
                               performSearch({ ...searchFilters, sort: 'price-high' }, false, activeTab);
                             }}
                             className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
-                              searchFilters.sort === 'price-high' ? 'bg-[#912018] text-white' : ''
+                              searchFilters.sort === 'price-high' ? 'text-white' : ''
                             }`}
+                            style={searchFilters.sort === 'price-high' ? { backgroundColor: brandColors.primary } : {}}
                           >
                             Price: High to Low
                           </button>
@@ -1543,8 +1569,9 @@ export default function EnhancedPropertySearch({
                               performSearch({ ...searchFilters, sort: 'price-low' }, false, activeTab);
                             }}
                             className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
-                              searchFilters.sort === 'price-low' ? 'bg-[#912018] text-white' : ''
+                              searchFilters.sort === 'price-low' ? 'text-white' : ''
                             }`}
+                            style={searchFilters.sort === 'price-low' ? { backgroundColor: brandColors.primary } : {}}
                           >
                             Price: Low to High
                           </button>
@@ -1555,8 +1582,9 @@ export default function EnhancedPropertySearch({
                               performSearch({ ...searchFilters, sort: 'bedrooms' }, false, activeTab);
                             }}
                             className={`w-full px-4 py-2 text-left hover:bg-gray-100 rounded-b-lg ${
-                              searchFilters.sort === 'bedrooms' ? 'bg-[#912018] text-white' : ''
+                              searchFilters.sort === 'bedrooms' ? 'text-white' : ''
                             }`}
+                            style={searchFilters.sort === 'bedrooms' ? { backgroundColor: brandColors.primary } : {}}
                           >
                             Bedrooms: Most First
                           </button>
@@ -1621,21 +1649,17 @@ export default function EnhancedPropertySearch({
                   <div className="flex-shrink-0 px-4 md:px-6 py-3 md:py-4 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-base md:text-lg text-gray-900">
-                        {activeTab === 'listings' ?
-                          (showViewportProperties && viewportProperties.length > 0 ? 'Area Properties' : 'Properties for Sale') :
-                          'Buildings'}
+                        {activeTab === 'listings' ? 'Properties' : 'Buildings'}
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="text-xs md:text-sm font-medium text-gray-600">
-                          {activeTab === 'listings' ?
-                            (showViewportProperties && viewportProperties.length > 0 ? viewportProperties.length : properties.length) :
-                            buildings.length} results
+                          {activeTab === 'listings' ? properties.length : buildings.length} results
                         </span>
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Scrollable cards area - IDX-AMPRE style with two cards per row */}
                   <div className="flex-1 overflow-y-auto p-2 md:p-4 mixed-view-scroll">
                     {isLoading ? (
@@ -1647,10 +1671,10 @@ export default function EnhancedPropertySearch({
                         </div>
                       </div>
                     ) : activeTab === 'listings' ? (
-                      // Show viewport properties if available, otherwise show search results
-                      (showViewportProperties && viewportProperties.length > 0 ? viewportProperties : properties).length > 0 ? (
+                      // Show search results in the left panel
+                      properties.length > 0 ? (
                         <div className="idx-ampre-mixed-grid">
-                          {(showViewportProperties && viewportProperties.length > 0 ? viewportProperties : properties).map((property) => {
+                          {properties.map((property) => {
                             const formattedProperty = formatPropertyForCard(property);
                             // Use PropertyCardV5 directly if we already have an image
                             if (formattedProperty.imageUrl) {
@@ -1733,27 +1757,43 @@ export default function EnhancedPropertySearch({
                   </div>
                 </div>
                 
-                {/* Right side - Enhanced Map with viewport loading - IDX-AMPRE style */}
+                {/* Right side - Clustered Map showing ALL matching properties */}
                 {/* Hidden on mobile, visible on desktop with flexible width */}
                 <div className="hidden md:flex flex-shrink-0 flex-col bg-gray-50 w-[40%] lg:w-[50%] max-w-[600px]">
-                  <ViewportAwarePropertyMap
-                    properties={activeTab === 'listings' ? mapProperties : buildings}
-                    className="w-full h-full"
-                    onPropertyClick={(property) => {
-                      // Don't navigate directly - let the info window handle it
-                      console.log('Property clicked:', property.ListingKey);
-                    }}
-                    viewType="mixed"
-                    searchFilters={searchFilters}
-                    isLoading={isLoading}
-                    activeTab={activeTab}
-                    onViewportChange={(newViewportProperties, bounds) => {
-                      console.log(`Loaded ${newViewportProperties.length} properties for viewport`, bounds);
-                      // Replace all properties with new viewport properties in the left grid
-                      setViewportProperties(newViewportProperties);
-                      setShowViewportProperties(true);
-                    }}
-                  />
+                  {activeTab === 'listings' ? (
+                    // Use ClusteredPropertyMap for listings - shows ALL matching properties as clusters
+                    <ClusteredPropertyMap
+                      searchFilters={{
+                        ...searchFilters,
+                        status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status
+                      }}
+                      className="w-full h-full"
+                      onPropertyClick={(coord) => {
+                        console.log('Property clicked:', coord.mls_id);
+                        // Navigate to property detail
+                        if (coord.mls_id) {
+                          window.location.href = `/property/${coord.mls_id}`;
+                        }
+                      }}
+                      onMarkerCountChange={(displayed, total) => {
+                        console.log(`Mixed view map showing ${displayed} of ${total} properties`);
+                      }}
+                      initialZoom={12}
+                    />
+                  ) : (
+                    // Keep ViewportAwarePropertyMap for buildings tab
+                    <ViewportAwarePropertyMap
+                      properties={buildings}
+                      className="w-full h-full"
+                      onPropertyClick={(property) => {
+                        console.log('Building clicked:', property.id);
+                      }}
+                      viewType="mixed"
+                      searchFilters={searchFilters}
+                      isLoading={isLoading}
+                      activeTab={activeTab}
+                    />
+                  )}
                 </div>
               </div>
             ) : (
@@ -1955,6 +1995,7 @@ export default function EnhancedPropertySearch({
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
+          website={website}
         />
       </MainLayout>
   );

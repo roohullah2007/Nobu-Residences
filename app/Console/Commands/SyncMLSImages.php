@@ -18,6 +18,7 @@ class SyncMLSImages extends Command
                             {--batch-size=50 : Number of properties to process per batch}
                             {--skip-existing : Skip properties that already have images}
                             {--only-active : Only sync active properties}
+                            {--sold-leased : Only sync Sold and Leased properties}
                             {--mls-ids=* : Specific MLS IDs to sync images for}
                             {--stats : Show image statistics only}';
 
@@ -92,6 +93,7 @@ class SyncMLSImages extends Command
         $batchSize = (int) $this->option('batch-size');
         $skipExisting = $this->option('skip-existing') ?? true;
         $onlyActive = $this->option('only-active') ?? true;
+        $soldLeasedOnly = $this->option('sold-leased') ?? false;
 
         $this->line("Syncing images for properties...");
         if ($limit) {
@@ -99,7 +101,11 @@ class SyncMLSImages extends Command
         }
         $this->line("Batch size: {$batchSize}");
         $this->line("Skip existing: " . ($skipExisting ? 'Yes' : 'No'));
-        $this->line("Only active: " . ($onlyActive ? 'Yes' : 'No'));
+        if ($soldLeasedOnly) {
+            $this->line("Filter: Sold & Leased properties ONLY");
+        } else {
+            $this->line("Only active: " . ($onlyActive ? 'Yes' : 'No'));
+        }
         $this->newLine();
 
         // Create progress bar
@@ -112,7 +118,8 @@ class SyncMLSImages extends Command
             'limit' => $limit,
             'batch_size' => $batchSize,
             'skip_existing' => $skipExisting,
-            'only_active' => $onlyActive,
+            'only_active' => $soldLeasedOnly ? false : $onlyActive,
+            'sold_leased_only' => $soldLeasedOnly,
         ]);
 
         $progressBar->setMessage('Complete!');

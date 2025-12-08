@@ -21,7 +21,18 @@ const MoreBuildings = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showAllListings, setShowAllListings] = useState(false);
   
-  const { listingKey, auth } = usePage().props;
+  const { listingKey, auth, globalWebsite, website } = usePage().props;
+
+  // Get brand colors for button styling
+  const currentWebsite = globalWebsite || website || {};
+  const brandColors = currentWebsite?.brand_colors || {
+    primary: '#912018',
+    secondary: '#293056',
+    button_primary_bg: '#912018',
+    button_primary_text: '#FFFFFF'
+  };
+  const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
   
   // Get property type and subtype from propertyData
   const propertyType = propertyData?.propertyType || null;
@@ -777,7 +788,7 @@ const MoreBuildings = ({
                 count = preloaded?.length || 0;
               }
               return count > 0 ? (
-                <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold bg-[#293056] text-white rounded-full">
+                <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold rounded-full" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                   {count}
                 </span>
               ) : null;
@@ -904,7 +915,8 @@ const MoreBuildings = ({
                   <div className="flex justify-center mt-6">
                     <button
                       onClick={() => setShowAllListings(true)}
-                      className="px-6 py-3 bg-[#293056] text-white font-work-sans font-semibold rounded-lg hover:bg-[#1f2442] transition-colors duration-200"
+                      className="px-6 py-3 font-work-sans font-semibold rounded-lg hover:opacity-90 transition-colors duration-200"
+                      style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                     >
                       Show All Listings ({displayProperties.length})
                     </button>

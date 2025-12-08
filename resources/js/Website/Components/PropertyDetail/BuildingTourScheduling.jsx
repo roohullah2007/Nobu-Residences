@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 
 const BuildingTourScheduling = ({ website, buildingData }) => {
+  const { globalWebsite, website: pageWebsite } = usePage().props;
+  const currentWebsite = pageWebsite || globalWebsite || website;
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
   const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
   const [selectedTime, setSelectedTime] = useState('afternoon');
@@ -452,9 +458,10 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
             </div>
 
             {/* Action Buttons */}
-            <button 
+            <button
               onClick={() => setIsModalOpen(true)}
-              className="w-full bg-black text-white py-2.5 px-4 rounded-lg mb-4 font-medium border-none cursor-pointer hover:bg-gray-800"
+              className="w-full py-2.5 px-4 rounded-lg mb-4 font-medium border-none cursor-pointer hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
             >
               Request Building Tour
             </button>
@@ -566,9 +573,10 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-colors ${
-                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
+                className={`w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-opacity ${
+                  isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
                 }`}
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center">
@@ -662,7 +670,8 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
 
               <button
                 type="submit"
-                className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:bg-gray-800"
+                className="w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
               >
                 Send Question
               </button>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { usePage } from '@inertiajs/react';
 
 // Inject styles for hiding range slider thumbs
 const injectSliderStyles = () => {
@@ -42,6 +43,20 @@ const FiltersModal = ({
   currentFilters = {},
   totalCount = 0
 }) => {
+  // Get brand colors for button styling
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = globalWebsite || website || {};
+  const brandColors = currentWebsite?.brand_colors || {
+    button_quaternary_bg: '#FFFFFF',
+    button_quaternary_text: '#293056',
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   // Filter states
   const [status, setStatus] = useState(currentFilters.status || 'For Sale');
   const [priceMin, setPriceMin] = useState(currentFilters.price_min || '');
@@ -60,10 +75,124 @@ const FiltersModal = ({
   const [amenities, setAmenities] = useState([]);
   const [keywords, setKeywords] = useState('');
 
+  // Dynamic count states
+  const [previewCount, setPreviewCount] = useState(totalCount);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
+  const countTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
   // Inject slider styles on mount
   useEffect(() => {
     injectSliderStyles();
   }, []);
+
+  // Fetch count from API based on current filter values
+  const fetchPreviewCount = useCallback(async (filterState) => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
+    setIsLoadingCount(true);
+
+    try {
+      // Build search params matching the format expected by the API
+      const isSoldOrLeased = filterState.status === 'Sold' || filterState.status === 'Leased';
+
+      const searchParams = {
+        status: isSoldOrLeased ? 'For Sale' : filterState.status,
+        property_status: isSoldOrLeased ? filterState.status : '',
+        price_min: filterState.priceMinSlider || 0,
+        price_max: filterState.priceMaxSlider || 10000000,
+        property_type: filterState.propertyTypes || [],
+        bedrooms: filterState.bedrooms === 'Any' ? 0 :
+                  filterState.bedrooms === 'Studio' ? 0 :
+                  parseInt(String(filterState.bedrooms).replace('+', '')) || 0,
+        bathrooms: filterState.bathrooms === 'Any' ? 0 :
+                   parseInt(String(filterState.bathrooms).replace('+', '')) || 0,
+        query: currentFilters.query || '', // Keep the current search query
+        page: 1,
+        page_size: 16
+      };
+
+      const response = await fetch('/api/property-search-count', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        body: JSON.stringify({ search_params: searchParams }),
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch count');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setPreviewCount(data.count);
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching preview count:', error);
+        // Keep the last known count on error
+      }
+    } finally {
+      setIsLoadingCount(false);
+    }
+  }, [currentFilters.query]);
+
+  // Debounced count fetch when any filter changes
+  const triggerCountFetch = useCallback((filterState) => {
+    // Clear any pending timeout
+    if (countTimeoutRef.current) {
+      clearTimeout(countTimeoutRef.current);
+    }
+
+    // Debounce the API call by 300ms
+    countTimeoutRef.current = setTimeout(() => {
+      fetchPreviewCount(filterState);
+    }, 300);
+  }, [fetchPreviewCount]);
+
+  // Trigger count fetch whenever filter values change
+  useEffect(() => {
+    if (isOpen) {
+      triggerCountFetch({
+        status,
+        priceMinSlider,
+        priceMaxSlider,
+        propertyTypes,
+        bedrooms,
+        bathrooms
+      });
+    }
+  }, [isOpen, status, priceMinSlider, priceMaxSlider, propertyTypes, bedrooms, bathrooms, triggerCountFetch]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (countTimeoutRef.current) {
+        clearTimeout(countTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Reset preview count when modal opens with initial totalCount
+  useEffect(() => {
+    if (isOpen) {
+      setPreviewCount(totalCount);
+    }
+  }, [isOpen, totalCount]);
 
   // Update states when currentFilters change or modal opens
   useEffect(() => {
@@ -252,9 +381,10 @@ const FiltersModal = ({
                 onClick={() => setStatus(s)}
                 className={`flex-1 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all ${
                   status === s
-                    ? 'bg-[#293056] text-white'
-                    : 'bg-transparent text-[#293056] hover:bg-gray-200'
+                    ? ''
+                    : 'bg-transparent hover:bg-gray-200'
                 }`}
+                style={status === s ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
               >
                 {s === 'For Rent' ? 'For rent' : s}
               </button>
@@ -270,7 +400,8 @@ const FiltersModal = ({
                 placeholder="No min"
                 value={priceMin}
                 onChange={(e) => handlePriceMinChange(e.target.value)}
-                className="flex-1 h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] placeholder:text-[#293056] focus:outline-none"
+                className="flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
               <span className="font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056]">to</span>
               <input
@@ -278,7 +409,8 @@ const FiltersModal = ({
                 placeholder="No max"
                 value={priceMax}
                 onChange={(e) => handlePriceMaxChange(e.target.value)}
-                className="flex-1 h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] placeholder:text-[#293056] focus:outline-none"
+                className="flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
             </div>
 
@@ -289,14 +421,15 @@ const FiltersModal = ({
 
               {/* Active Track (between min and max) */}
               <div
-                className="absolute h-[1.61px] bg-[#293056] rounded-full pointer-events-none"
+                className="absolute h-[1.61px] rounded-full pointer-events-none"
                 style={{
                   left: `${(priceMinSlider / 10000000) * 100}%`,
-                  right: `${100 - (priceMaxSlider / 10000000) * 100}%`
+                  right: `${100 - (priceMaxSlider / 10000000) * 100}%`,
+                  backgroundColor: buttonPrimaryBg
                 }}
               ></div>
 
-              {/* Min Range Input */}
+              {/* Min Range Input - pointer-events only on left half */}
               <input
                 type="range"
                 min="0"
@@ -306,12 +439,12 @@ const FiltersModal = ({
                 onChange={(e) => handleSliderMinChange(parseInt(e.target.value))}
                 className="filters-modal-slider absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
                 style={{
-                  zIndex: 4,
+                  zIndex: priceMinSlider > priceMaxSlider - 500000 ? 5 : 3,
                   pointerEvents: 'auto'
                 }}
               />
 
-              {/* Max Range Input */}
+              {/* Max Range Input - higher z-index so it's accessible on the right side */}
               <input
                 type="range"
                 min="0"
@@ -321,17 +454,18 @@ const FiltersModal = ({
                 onChange={(e) => handleSliderMaxChange(parseInt(e.target.value))}
                 className="filters-modal-slider absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
                 style={{
-                  zIndex: 3,
+                  zIndex: 4,
                   pointerEvents: 'auto'
                 }}
               />
 
               {/* Left Handle SVG - Draggable */}
               <div
-                className="absolute flex-shrink-0 z-30 cursor-grab active:cursor-grabbing"
+                className="absolute flex-shrink-0 cursor-grab active:cursor-grabbing"
                 style={{
                   left: `calc(${(priceMinSlider / 10000000) * 100}% - 9px)`,
-                  touchAction: 'none'
+                  touchAction: 'none',
+                  zIndex: 50
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -392,10 +526,11 @@ const FiltersModal = ({
 
               {/* Right Handle SVG - Draggable */}
               <div
-                className="absolute flex-shrink-0 z-30 cursor-grab active:cursor-grabbing"
+                className="absolute flex-shrink-0 cursor-grab active:cursor-grabbing"
                 style={{
                   left: `calc(${(priceMaxSlider / 10000000) * 100}% - 9px)`,
-                  touchAction: 'none'
+                  touchAction: 'none',
+                  zIndex: 51
                 }}
                 onMouseDown={(e) => {
                   e.preventDefault();
@@ -466,9 +601,10 @@ const FiltersModal = ({
                   onClick={() => togglePropertyType(type)}
                   className={`px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     propertyTypes.includes(type)
-                      ? 'bg-[#293056] text-white'
-                      : 'bg-[#E9EAEB] text-[#293056] hover:bg-[#d1d3d6]'
+                      ? ''
+                      : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
                   }`}
+                  style={propertyTypes.includes(type) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
                 >
                   {type}
                 </button>
@@ -486,9 +622,10 @@ const FiltersModal = ({
                   onClick={() => setBedrooms(bed)}
                   className={`min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     bedrooms === bed
-                      ? 'bg-[#293056] text-white'
-                      : 'bg-[#E9EAEB] text-[#293056] hover:bg-[#d1d3d6]'
+                      ? ''
+                      : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
                   }`}
+                  style={bedrooms === bed ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
                 >
                   {bed === 'Any' || bed === 'Studio' ? bed : `${bed}BD`}
                 </button>
@@ -506,9 +643,10 @@ const FiltersModal = ({
                   onClick={() => setBathrooms(bath)}
                   className={`min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     bathrooms === bath
-                      ? 'bg-[#293056] text-white'
-                      : 'bg-[#E9EAEB] text-[#293056] hover:bg-[#d1d3d6]'
+                      ? ''
+                      : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
                   }`}
+                  style={bathrooms === bath ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
                 >
                   {bath}
                 </button>
@@ -526,9 +664,10 @@ const FiltersModal = ({
                   onClick={() => toggleHomeType(type)}
                   className={`px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     homeTypes.includes(type)
-                      ? 'bg-[#293056] text-white'
-                      : 'bg-[#E9EAEB] text-[#293056] hover:bg-[#d1d3d6]'
+                      ? ''
+                      : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
                   }`}
+                  style={homeTypes.includes(type) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
                 >
                   {type}
                 </button>
@@ -543,7 +682,8 @@ const FiltersModal = ({
               <select
                 value={daysOnMarket}
                 onChange={(e) => setDaysOnMarket(e.target.value)}
-                className="w-full h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] appearance-none cursor-pointer focus:outline-none pr-10"
+                className="w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               >
                 <option>Any</option>
                 <option>1 day</option>
@@ -567,7 +707,8 @@ const FiltersModal = ({
               <select
                 value={buildingAge}
                 onChange={(e) => setBuildingAge(e.target.value)}
-                className="w-full h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] appearance-none cursor-pointer focus:outline-none pr-10"
+                className="w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               >
                 <option>Any</option>
                 <option>New Construction</option>
@@ -592,7 +733,8 @@ const FiltersModal = ({
                 <select
                   value={locker}
                   onChange={(e) => setLocker(e.target.value)}
-                  className="w-full h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] appearance-none cursor-pointer focus:outline-none pr-10"
+                  className="w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10"
+                  style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                 >
                   <option value="Any">Locker (Any)</option>
                   <option value="Yes">Locker Included</option>
@@ -608,7 +750,8 @@ const FiltersModal = ({
                 <select
                   value={balcony}
                   onChange={(e) => setBalcony(e.target.value)}
-                  className="w-full h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] appearance-none cursor-pointer focus:outline-none pr-10"
+                  className="w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10"
+                  style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                 >
                   <option value="Any">Balcony (Any)</option>
                   <option value="Yes">Balcony Included</option>
@@ -633,9 +776,10 @@ const FiltersModal = ({
                   onClick={() => toggleAmenity(amenity)}
                   className={`px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     amenities.includes(amenity)
-                      ? 'bg-[#293056] text-white'
-                      : 'bg-[#E9EAEB] text-[#293056] hover:bg-[#d1d3d6]'
+                      ? ''
+                      : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
                   }`}
+                  style={amenities.includes(amenity) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg }}
                 >
                   {amenity}
                 </button>
@@ -656,7 +800,8 @@ const FiltersModal = ({
                 placeholder="Keywords"
                 value={keywords}
                 onChange={(e) => setKeywords(e.target.value)}
-                className="w-full h-11 pr-4 pl-10 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] placeholder:text-[#293056] placeholder:opacity-60 focus:outline-none"
+                className="w-full h-11 pr-4 pl-10 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] placeholder:opacity-60 focus:outline-none"
+                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
             </div>
           </div>
@@ -667,22 +812,35 @@ const FiltersModal = ({
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
           <button
             onClick={handleReset}
-            className="h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] hover:bg-gray-200 transition-all cursor-pointer"
+            className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer"
+            style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
           >
             Reset filters
           </button>
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="h-11 px-4 bg-white border border-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] hover:bg-gray-200 transition-all cursor-pointer"
+              className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer"
+              style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
             >
               Cancel
             </button>
             <button
               onClick={handleApply}
-              className="h-11 px-4 bg-[#293056] rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] text-white hover:bg-[#1a1b4b] transition-all cursor-pointer border-none"
+              className="h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none min-w-[140px] flex items-center justify-center gap-2"
+              style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
             >
-              See {totalCount > 0 ? totalCount.toLocaleString() : ''} properties
+              {isLoadingCount ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Loading...</span>
+                </>
+              ) : (
+                `See ${previewCount > 0 ? previewCount.toLocaleString() : ''} properties`
+              )}
             </button>
           </div>
         </div>

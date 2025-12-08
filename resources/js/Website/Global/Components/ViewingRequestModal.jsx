@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 
 /**
  * Global Viewing Request Modal
  * Can be used throughout the application for requesting property viewings
  */
 const ViewingRequestModal = ({ isOpen, onClose, property }) => {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -255,7 +262,8 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-[#293056] text-white py-3 px-4 rounded-md font-semibold hover:bg-[#1e2142] focus:outline-none focus:ring-2 focus:ring-[#293056] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
             >
               {isSubmitting ? 'Submitting...' : 'Request Viewing'}
             </button>

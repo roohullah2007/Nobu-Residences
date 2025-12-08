@@ -61,8 +61,22 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
     
     const brandColors = website?.brand_colors || {
         primary: '#912018',
-        secondary: '#293056'
+        secondary: '#1d957d',
+        accent: '#F5F8FF',
+        text: '#000000',
+        background: '#FFFFFF',
+        // Extended button colors with fallbacks
+        button_primary_bg: '#912018',
+        button_primary_text: '#FFFFFF',
+        button_secondary_bg: '#FFFFFF',
+        button_secondary_text: '#000000'
     };
+
+    // Get specific button colors (fallback to defaults)
+    const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
+    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+    const buttonSecondaryBg = brandColors.button_secondary_bg || '#FFFFFF';
+    const buttonSecondaryText = brandColors.button_secondary_text || '#000000';
     return (
         <div className="relative bg-cover bg-center bg-no-repeat font-work-sans h-[696px]" style={{
             backgroundImage: `url('${backgroundImage}')`
@@ -101,13 +115,10 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
                                 <Link
                                     key={index}
                                     href={button.url}
-                                    className={`inline-flex items-center justify-center transition-colors shadow-lg font-work-sans font-bold text-sm md:text-lg leading-7 -tracking-wider text-center w-[314.5px] h-16 rounded-full px-8 py-2.5 ${
-                                        button.style === 'primary'
-                                            ? 'text-white hover:opacity-90'
-                                            : 'bg-white text-gray-900 hover:bg-gray-100'
-                                    }`}
+                                    className="inline-flex items-center justify-center transition-colors shadow-lg font-work-sans font-bold text-sm md:text-lg leading-7 -tracking-wider text-center w-[314.5px] h-16 rounded-full px-8 py-2.5 hover:opacity-90"
                                     style={{
-                                        backgroundColor: button.style === 'primary' ? brandColors.primary : undefined
+                                        backgroundColor: button.style === 'primary' ? buttonPrimaryBg : buttonSecondaryBg,
+                                        color: button.style === 'primary' ? buttonPrimaryText : buttonSecondaryText
                                     }}
                                 >
                                     {button.text}

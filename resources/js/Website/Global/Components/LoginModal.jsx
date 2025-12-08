@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
-const LoginModal = ({ isOpen, onClose }) => {
+const LoginModal = ({ isOpen, onClose, website = {} }) => {
   const [activeTab, setActiveTab] = useState('register');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -16,6 +16,20 @@ const LoginModal = ({ isOpen, onClose }) => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+
+  const brandColors = website?.brand_colors || {
+    primary: '#912018',
+    secondary: '#1d957d',
+    accent: '#F5F8FF',
+    text: '#000000',
+    background: '#FFFFFF',
+    button_primary_bg: '#912018',
+    button_primary_text: '#FFFFFF'
+  };
+
+  // Get button colors with fallbacks
+  const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
 
   // Reset form when modal opens/closes or tab changes
   useEffect(() => {
@@ -237,8 +251,8 @@ const LoginModal = ({ isOpen, onClose }) => {
         <div className="p-6">
           {/* Modal Header */}
           <div className="text-center mb-6">
-            <h2 className="text-2xl font-space-grotesk font-bold text-[#293056] mb-2">
-              {showForgotPassword ? 'Reset Password' : 'Welcome to X Houses'}
+            <h2 className="text-2xl font-space-grotesk font-bold mb-2" style={{ color: brandColors.primary }}>
+              {showForgotPassword ? 'Reset Password' : `Welcome to ${website?.name || 'Our Site'}`}
             </h2>
             <p className="text-gray-600 text-sm">
               {showForgotPassword
@@ -257,7 +271,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('login')}
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'login'
-                    ? 'bg-white text-[#293056] shadow-sm'
+                    ? 'bg-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -267,7 +281,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                 onClick={() => setActiveTab('register')}
                 className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
                   activeTab === 'register'
-                    ? 'bg-white text-[#293056] shadow-sm'
+                    ? 'bg-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -299,7 +313,8 @@ const LoginModal = ({ isOpen, onClose }) => {
                       setForgotPasswordSuccess(false);
                       setForgotPasswordEmail('');
                     }}
-                    className="text-[#293056] hover:text-[#1e2142] font-medium"
+                    className="font-medium hover:opacity-80"
+                    style={{ color: brandColors.primary }}
                   >
                     ← Back to Sign In
                   </button>
@@ -320,9 +335,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                           setErrors(prev => ({ ...prev, email: null }));
                         }
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                        errors.email ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="Enter your email"
                     />
                     {errors.email && (
@@ -333,7 +346,8 @@ const LoginModal = ({ isOpen, onClose }) => {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full bg-[#293056] text-white py-2.5 px-4 rounded-lg font-medium hover:bg-[#1e2142] focus:outline-none focus:ring-2 focus:ring-[#293056] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-2.5 px-4 rounded-lg font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center">
@@ -349,7 +363,8 @@ const LoginModal = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(false)}
-                      className="text-sm text-[#293056] hover:text-[#1e2142] transition-colors"
+                      className="text-sm hover:opacity-80 transition-colors"
+                      style={{ color: brandColors.primary }}
                     >
                       ← Back to Sign In
                     </button>
@@ -376,9 +391,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                        errors.name ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="Enter your full name"
                     />
                     {errors.name && (
@@ -397,9 +410,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                        errors.phone ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="Enter your phone number"
                     />
                     {errors.phone && (
@@ -419,9 +430,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter your email"
                   />
                   {errors.email && (
@@ -442,9 +451,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                        errors.password ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="Enter your password"
                     />
                     {errors.password && (
@@ -463,9 +470,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                        errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="Confirm your password"
                     />
                     {errors.confirmPassword && (
@@ -490,9 +495,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter your email"
                   />
                   {errors.email && (
@@ -511,9 +514,7 @@ const LoginModal = ({ isOpen, onClose }) => {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent ${
-                      errors.password ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter your password"
                   />
                   {errors.password && (
@@ -527,7 +528,8 @@ const LoginModal = ({ isOpen, onClose }) => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#293056] text-white py-2.5 px-4 rounded-lg font-medium hover:bg-[#1e2142] focus:outline-none focus:ring-2 focus:ring-[#293056] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 rounded-lg font-medium hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -566,7 +568,8 @@ const LoginModal = ({ isOpen, onClose }) => {
             <div className="text-center mt-4">
               <button
                 type="button"
-                className="text-sm text-[#293056] hover:text-[#1e2142] transition-colors"
+                className="text-sm hover:opacity-80 transition-colors"
+                style={{ color: brandColors.primary }}
                 onClick={() => setShowForgotPassword(true)}
               >
                 Forgot your password?

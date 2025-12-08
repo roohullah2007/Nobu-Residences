@@ -1,6 +1,13 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 
 const TourSection = () => {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   return (
     <section className="py-8 bg-white">
       <div className="max-w-[1280px] mx-auto px-4">
@@ -10,7 +17,10 @@ const TourSection = () => {
             Interested in seeing this property? Schedule a virtual or in-person tour.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="flex-1 bg-black text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-800 transition-colors">
+            <button
+              className="flex-1 py-3 px-6 rounded-lg font-semibold transition-opacity hover:opacity-90"
+              style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
+            >
               Schedule Virtual Tour
             </button>
             <button className="flex-1 border border-gray-300 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-50 transition-colors">

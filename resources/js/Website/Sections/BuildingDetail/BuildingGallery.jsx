@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
+import { usePage } from '@inertiajs/react';
 
 // Building Gallery Component with single image and modal
 const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, onToggleFavorite, auth }) => {
@@ -9,6 +10,20 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
   const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [showContactModal, setShowContactModal] = useState(false);
+
+  // Get brand colors for button styling
+  const { globalWebsite } = usePage().props;
+  const currentWebsite = globalWebsite || website || {};
+  const brandColors = currentWebsite?.brand_colors || {
+    button_quaternary_bg: '#FFFFFF',
+    button_quaternary_text: '#293056',
+    button_secondary_bg: '#912018',
+    button_secondary_text: '#FFFFFF'
+  };
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
+  const buttonSecondaryBg = brandColors.button_secondary_bg || '#912018';
+  const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
   
   // Debug: Log building data
   console.log('BuildingGallery received buildingData:', buildingData);
@@ -201,9 +216,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group cursor-pointer"
+                    className="w-full h-12 rounded-lg border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                   >
-                    <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
+                    <span className="font-work-sans font-medium text-base">
                       {isLoadingCounts
                         ? 'Loading...'
                         : `${propertyCounts.for_sale || 0} for sale`
@@ -218,9 +234,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="w-full h-12 rounded-lg border border-[#293056] flex items-center justify-center hover:bg-[#293056] hover:text-white transition-colors group cursor-pointer"
+                    className="w-full h-12 rounded-lg border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                   >
-                    <span className="font-work-sans font-medium text-base text-[#293056] group-hover:text-white">
+                    <span className="font-work-sans font-medium text-base">
                       {isLoadingCounts
                         ? 'Loading...'
                         : `${propertyCounts.for_rent || 0} for rent`
@@ -234,31 +251,31 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   <div className="flex items-center justify-between gap-4">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
                       <img
-                        src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || buildingData?.agent_image || "/assets/school/jatin-gill.png"}
+                        src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || buildingData?.agent_image || ''}
                         alt={website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || "Agent"}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="text-left">
                       <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
-                        {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || 'Jatin Gill'}
+                        {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || ''}
                       </h3>
                       <p className="font-work-sans font-medium text-sm text-[#535862]">
-                        {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title || 'Property Manager'}
+                        {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title || ''}
                       </p>
                       <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
+                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || ''}
                       </p>
                     </div>
                   </div>
                 </div>
               {/* Contact Agent Button */}
-              <div className="rounded-full h-12 flex items-center justify-center w-full" style={{ backgroundColor: 'rgb(126 36 16)' }}>
-                <button 
+              <div className="rounded-full h-12 flex items-center justify-center w-full" style={{ backgroundColor: buttonSecondaryBg }}>
+                <button
                   onClick={() => setShowContactModal(true)}
                   className="w-full h-full flex items-center justify-center"
                 >
-                  <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
+                  <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonSecondaryText }}>
                     Contact Agent
                   </span>
                 </button>

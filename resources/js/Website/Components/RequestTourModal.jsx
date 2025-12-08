@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 
 const RequestTourModal = ({ isOpen, onClose, property }) => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,20 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get website and brand colors
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
+
+  // Get button colors with fallbacks
+  const buttonSecondaryBg = brandColors.button_secondary_bg || '#912018';
+  const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
 
   // Cleanup effect to ensure scrolling is re-enabled
   useEffect(() => {
@@ -157,7 +172,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                   placeholder="John Doe"
                 />
               </div>
@@ -174,7 +190,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                   placeholder="john@example.com"
                 />
               </div>
@@ -191,7 +208,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                   placeholder="(555) 123-4567"
                 />
               </div>
@@ -208,7 +226,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   value={formData.preferredDate}
                   onChange={handleInputChange}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                 />
               </div>
 
@@ -222,7 +241,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   name="preferredTime"
                   value={formData.preferredTime}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                 >
                   <option value="">Select a time</option>
                   <option value="morning">Morning (9 AM - 12 PM)</option>
@@ -242,7 +262,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
                   value={formData.message}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#912018] focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                  style={{ '--tw-ring-color': buttonSecondaryBg }}
                   placeholder="Any specific questions or requirements?"
                 />
               </div>
@@ -254,7 +275,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+              className="flex-1 px-4 py-2 border rounded-lg hover:opacity-80 transition-all"
+              style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
             >
               Cancel
             </button>
@@ -262,7 +284,8 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               type="submit"
               form="tour-request-form"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-[#912018] text-white rounded-lg hover:bg-[#7a1815] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
             >
               {isSubmitting ? 'Submitting...' : 'Request Tour'}
             </button>

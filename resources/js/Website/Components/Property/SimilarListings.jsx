@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 
 const SimilarListings = ({ currentProperty = null, similarProperties = null }) => {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Sample similar properties data
@@ -425,9 +431,10 @@ const SimilarListings = ({ currentProperty = null, similarProperties = null }) =
       
       {/* View All Button */}
       <div className="flex justify-center mt-8">
-        <a 
+        <a
           href="/properties"
-          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 bg-black rounded-full text-white font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 rounded-full font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
         >
           View all
         </a>

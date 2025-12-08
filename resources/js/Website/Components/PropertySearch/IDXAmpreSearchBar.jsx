@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import LoginModal from '@/Website/Global/Components/LoginModal';
 
 // Icon components
@@ -30,7 +30,27 @@ const Home = ({ className }) => (
     </svg>
 );
 
-const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilterClick, isAuthenticated = false, viewMode: externalViewMode, onViewModeChange }) => {
+const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilterClick, isAuthenticated = false, viewMode: externalViewMode, onViewModeChange, autoSearch = false }) => {
+    const { props } = usePage();
+    const website = props.globalWebsite || props.website || {};
+    const brandColors = website?.brand_colors || {
+        primary: '#912018',
+        secondary: '#1d957d',
+        accent: '#F5F8FF',
+        text: '#000000',
+        background: '#FFFFFF',
+        button_primary_bg: '#912018',
+        button_primary_text: '#FFFFFF',
+        button_secondary_bg: '#1d957d',
+        button_secondary_text: '#FFFFFF'
+    };
+
+    // Get button colors with fallbacks
+    const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
+    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+    const buttonSecondaryBg = brandColors.button_secondary_bg || brandColors.secondary;
+    const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
+
     // Add styles for range inputs
     useEffect(() => {
         const style = document.createElement('style');
@@ -109,6 +129,41 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
     const autocompleteRef = useRef(null);
     const dropdownRef = useRef(null);
     const priceSliderRef = useRef(null);
+    const priceChangeTimeoutRef = useRef(null);
+
+    // Auto-search helper - triggers search when autoSearch is enabled
+    const triggerAutoSearch = (updatedData) => {
+        if (autoSearch && onSearch) {
+            const isSoldOrLeased = updatedData.propertyType === 'Sold' || updatedData.propertyType === 'Leased';
+            const searchPayload = {
+                ...updatedData,
+                searchType,
+                viewMode,
+                property_status: isSoldOrLeased ? updatedData.propertyType : '',
+                propertyType: isSoldOrLeased ? 'For Sale' : updatedData.propertyType
+            };
+            onSearch(searchPayload);
+        }
+    };
+
+    // Debounced auto-search for price changes (500ms delay)
+    const triggerDebouncedAutoSearch = (updatedData) => {
+        if (priceChangeTimeoutRef.current) {
+            clearTimeout(priceChangeTimeoutRef.current);
+        }
+        priceChangeTimeoutRef.current = setTimeout(() => {
+            triggerAutoSearch(updatedData);
+        }, 500);
+    };
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (priceChangeTimeoutRef.current) {
+                clearTimeout(priceChangeTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Update searchData when initialValues.location changes
     useEffect(() => {
@@ -573,7 +628,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                                     index === searchTypes.length - 1 ? 'rounded-b-xl' : ''
                                                 }`}
                                                 style={{
-                                                    backgroundColor: searchType === type.value ? '#912018' : 'transparent'
+                                                    backgroundColor: searchType === type.value ? brandColors.primary : 'transparent'
                                                 }}
                                             >
                                                 {type.icon}
@@ -646,7 +701,8 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                             {/* Search Button */}
                             <button
                                 onClick={handleSearch}
-                                className="bg-black text-white rounded-lg p-2.5 hover:bg-gray-800 transition-all flex items-center justify-center ml-2"
+                                className="rounded-lg p-2.5 hover:opacity-90 transition-all flex items-center justify-center ml-2"
+                                style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                             >
                                 <Search className="w-4 h-4" />
                             </button>
@@ -657,7 +713,12 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                             <select
                                 className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
                                 value={searchData.propertyType}
-                                onChange={(e) => setSearchData({ ...searchData, propertyType: e.target.value })}
+                                onChange={(e) => {
+                                    const updatedData = { ...searchData, propertyType: e.target.value };
+                                    setSearchData(updatedData);
+                                    // Trigger auto-search immediately when dropdown changes
+                                    triggerAutoSearch(updatedData);
+                                }}
                                 disabled={!!searchData.propertyStatus}
                             >
                                 <option value="For Sale">For Sale</option>
@@ -675,7 +736,12 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                             <select
                                 className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
                                 value={searchData.bedrooms}
-                                onChange={(e) => setSearchData({ ...searchData, bedrooms: e.target.value })}
+                                onChange={(e) => {
+                                    const updatedData = { ...searchData, bedrooms: e.target.value };
+                                    setSearchData(updatedData);
+                                    // Trigger auto-search immediately when dropdown changes
+                                    triggerAutoSearch(updatedData);
+                                }}
                             >
                                 <option value="">Bed type</option>
                                 <option value="1">1 Bedroom</option>
@@ -699,7 +765,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         value={searchData.minPrice > 0 ? `$${searchData.minPrice.toLocaleString()}` : '0'}
                                         onChange={(e) => {
                                             const value = e.target.value.replace(/[$,]/g, '');
-                                            setSearchData({ ...searchData, minPrice: parseInt(value) || 0 });
+                                            const updatedData = { ...searchData, minPrice: parseInt(value) || 0 };
+                                            setSearchData(updatedData);
+                                            // Trigger debounced auto-search for price changes
+                                            triggerDebouncedAutoSearch(updatedData);
                                         }}
                                         className="w-full text-xs text-[#293056] font-medium text-center focus:outline-none border-0 bg-transparent"
                                         placeholder="0"
@@ -716,7 +785,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         value={searchData.maxPrice >= 10000000 ? '$37,000,000' : `$${searchData.maxPrice.toLocaleString()}`}
                                         onChange={(e) => {
                                             const value = e.target.value.replace(/[$,]/g, '');
-                                            setSearchData({ ...searchData, maxPrice: parseInt(value) || 10000000 });
+                                            const updatedData = { ...searchData, maxPrice: parseInt(value) || 10000000 };
+                                            setSearchData(updatedData);
+                                            // Trigger debounced auto-search for price changes
+                                            triggerDebouncedAutoSearch(updatedData);
                                         }}
                                         className="w-full text-xs text-[#293056] font-medium text-center focus:outline-none border-0 bg-transparent"
                                         placeholder="Max"
@@ -749,7 +821,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         const value = parseInt(e.target.value);
                                         // Always update, but ensure it doesn't exceed max - 50000
                                         const newMin = Math.min(value, searchData.maxPrice - 50000);
-                                        setSearchData({ ...searchData, minPrice: newMin });
+                                        const updatedData = { ...searchData, minPrice: newMin };
+                                        setSearchData(updatedData);
+                                        // Trigger debounced auto-search for slider changes
+                                        triggerDebouncedAutoSearch(updatedData);
                                     }}
                                     className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
                                     style={{
@@ -769,7 +844,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         const value = parseInt(e.target.value);
                                         // Always update, but ensure it doesn't go below min + 50000
                                         const newMax = Math.max(value, searchData.minPrice + 50000);
-                                        setSearchData({ ...searchData, maxPrice: newMax });
+                                        const updatedData = { ...searchData, maxPrice: newMax };
+                                        setSearchData(updatedData);
+                                        // Trigger debounced auto-search for slider changes
+                                        triggerDebouncedAutoSearch(updatedData);
                                     }}
                                     className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
                                     style={{
@@ -853,9 +931,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
             </div>
             
             {/* Login Modal */}
-            <LoginModal 
-                isOpen={showLoginModal} 
-                onClose={() => setShowLoginModal(false)} 
+            <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                website={website}
             />
         </>
     );

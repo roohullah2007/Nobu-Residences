@@ -1,9 +1,21 @@
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function Edit({ auth }) {
-    const { website, title, buildings } = usePage().props;
+    const { website, title, buildings, flash } = usePage().props;
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+
+    // Auto-hide toast after 3 seconds
+    useEffect(() => {
+        if (showSuccessToast) {
+            const timer = setTimeout(() => {
+                setShowSuccessToast(false);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showSuccessToast]);
 
     // Check for both snake_case and camelCase (Laravel typically sends as snake_case)
     const agentInfo = website?.agent_info || website?.agentInfo;
@@ -15,6 +27,7 @@ export default function Edit({ auth }) {
     }
 
     const [logoPreview, setLogoPreview] = React.useState(website?.logo || website?.logo_url || '');
+    const [faviconPreview, setFaviconPreview] = React.useState(website?.favicon_url || '');
     const [agentImagePreview, setAgentImagePreview] = React.useState(initialAgentImage);
 
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -26,19 +39,37 @@ export default function Edit({ auth }) {
         homepage_building_id: website?.homepage_building_id || null,
         use_building_as_homepage: website?.use_building_as_homepage || false,
         logo_url: website?.logo_url || '',
-        logo_file: null, // New field for file upload
+        logo_file: null, // For logo file upload
+        favicon_url: website?.favicon_url || '',
+        favicon_file: null, // For favicon file upload
         meta_title: website?.meta_title || '',
         meta_description: website?.meta_description || '',
         meta_keywords: website?.meta_keywords || '',
-        favicon_url: website?.favicon_url || '',
         description: website?.description || '',
         timezone: website?.timezone || 'America/Toronto',
-        // Brand colors
+        // Brand colors - Core
         'brand_colors.primary': website?.brand_colors?.primary || '#912018',
-        'brand_colors.secondary': website?.brand_colors?.secondary || '#293056',
         'brand_colors.accent': website?.brand_colors?.accent || '#F5F8FF',
         'brand_colors.text': website?.brand_colors?.text || '#000000',
         'brand_colors.background': website?.brand_colors?.background || '#FFFFFF',
+        // Button colors - Primary (Blue buttons - Available Building, Sign Up/Log In)
+        'brand_colors.button_primary_bg': website?.brand_colors?.button_primary_bg || '#293056',
+        'brand_colors.button_primary_text': website?.brand_colors?.button_primary_text || '#FFFFFF',
+        // Button colors - Secondary (Red/Brown buttons - Contact Agent, Show All Listings)
+        'brand_colors.button_secondary_bg': website?.brand_colors?.button_secondary_bg || '#912018',
+        'brand_colors.button_secondary_text': website?.brand_colors?.button_secondary_text || '#FFFFFF',
+        // Button colors - Tertiary (Black buttons - Request Building Tour)
+        'brand_colors.button_tertiary_bg': website?.brand_colors?.button_tertiary_bg || '#000000',
+        'brand_colors.button_tertiary_text': website?.brand_colors?.button_tertiary_text || '#FFFFFF',
+        // Button colors - Quaternary (White/Light buttons - outline buttons)
+        'brand_colors.button_quaternary_bg': website?.brand_colors?.button_quaternary_bg || '#FFFFFF',
+        'brand_colors.button_quaternary_text': website?.brand_colors?.button_quaternary_text || '#293056',
+        // Footer colors
+        'brand_colors.footer_bg': website?.brand_colors?.footer_bg || '#1a1a2e',
+        'brand_colors.footer_text': website?.brand_colors?.footer_text || '#FFFFFF',
+        // Link colors
+        'brand_colors.link_color': website?.brand_colors?.link_color || '#912018',
+        'brand_colors.link_hover': website?.brand_colors?.link_hover || '#6d1812',
         // Contact info
         'contact_info.phone': website?.contact_info?.phone || '',
         'contact_info.email': website?.contact_info?.email || '',
@@ -59,9 +90,6 @@ export default function Edit({ auth }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        console.log('Submitting form with data:', data);
-        console.log('Logo file:', data.logo_file);
-
         // Transform data for submission
         const transformedData = {
             ...data,
@@ -73,10 +101,13 @@ export default function Edit({ auth }) {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
-                console.log('Update successful');
                 // Reset file inputs after successful upload
                 setData('logo_file', null);
                 setData('agent_profile_image', null);
+                setData('favicon_file', null);
+                // Show success toast
+                setSuccessMessage('Website settings saved successfully!');
+                setShowSuccessToast(true);
             },
             onError: (errors) => {
                 console.error('Form errors:', errors);
@@ -100,6 +131,38 @@ export default function Edit({ auth }) {
     return (
         <AdminLayout title={title}>
             <Head title={title} />
+
+            {/* Success Toast Notification */}
+            {showSuccessToast && (
+                <>
+                <style>{`
+                    @keyframes fadeInSlide {
+                        from { opacity: 0; transform: translateX(20px); }
+                        to { opacity: 1; transform: translateX(0); }
+                    }
+                `}</style>
+                <div className="fixed top-4 right-4 z-50" style={{ animation: 'fadeInSlide 0.3s ease-out' }}>
+                    <div className="bg-green-50 border border-green-200 rounded-lg shadow-lg p-4 flex items-center space-x-3">
+                        <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-green-800">{successMessage}</p>
+                        </div>
+                        <button
+                            onClick={() => setShowSuccessToast(false)}
+                            className="flex-shrink-0 text-green-500 hover:text-green-700"
+                        >
+                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                </>
+            )}
 
             <div className="space-y-6">
                 {/* Header */}
@@ -167,14 +230,28 @@ export default function Edit({ auth }) {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Domain</label>
                                     <input
                                         type="text"
                                         value={data.domain}
                                         onChange={(e) => setData('domain', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="example.com"
+                                        placeholder="yourdomain.com"
                                     />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Enter your custom domain (without http/https). DNS must be configured to point to this server.
+                                    </p>
+                                    {data.slug && (
+                                        <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                                            <p className="text-xs text-blue-700">
+                                                <strong>Preview URL:</strong>{' '}
+                                                <code className="bg-blue-100 px-1 rounded">?website={data.slug}</code>
+                                            </p>
+                                            <p className="text-xs text-blue-600 mt-1">
+                                                Use this query parameter to preview this website without connecting a domain.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -417,16 +494,22 @@ export default function Edit({ auth }) {
                                     </div>
                                 </div>
 
-                                {/* Brand Colors */}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-3">Brand Colors</label>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                {/* Core Brand Colors */}
+                                <div className="border-b border-gray-200 pb-6">
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        <span className="flex items-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                                            </svg>
+                                            Core Brand Colors
+                                        </span>
+                                    </label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         {[
                                             { key: 'brand_colors.primary', label: 'Primary', desc: 'Main brand color' },
-                                            { key: 'brand_colors.secondary', label: 'Secondary', desc: 'Supporting color' },
                                             { key: 'brand_colors.accent', label: 'Accent', desc: 'Highlight color' },
                                             { key: 'brand_colors.text', label: 'Text', desc: 'Text color' },
-                                            { key: 'brand_colors.background', label: 'Background', desc: 'Background color' },
+                                            { key: 'brand_colors.background', label: 'Background', desc: 'Page background' },
                                         ].map((color) => (
                                             <div key={color.key} className="text-center">
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">{color.label}</label>
@@ -444,6 +527,183 @@ export default function Edit({ auth }) {
                                                 <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
                                             </div>
                                         ))}
+                                    </div>
+                                </div>
+
+                                {/* Button Colors */}
+                                <div className="border-b border-gray-200 pb-6 pt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        <span className="flex items-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                                            </svg>
+                                            Button Colors
+                                        </span>
+                                    </label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {[
+                                            { key: 'brand_colors.button_primary_bg', label: 'Primary BG', desc: 'Blue buttons' },
+                                            { key: 'brand_colors.button_primary_text', label: 'Primary Text', desc: 'Primary text' },
+                                            { key: 'brand_colors.button_secondary_bg', label: 'Secondary BG', desc: 'Red/Brown buttons' },
+                                            { key: 'brand_colors.button_secondary_text', label: 'Secondary Text', desc: 'Secondary text' },
+                                            { key: 'brand_colors.button_tertiary_bg', label: 'Tertiary BG', desc: 'Black buttons' },
+                                            { key: 'brand_colors.button_tertiary_text', label: 'Tertiary Text', desc: 'Tertiary text' },
+                                            { key: 'brand_colors.button_quaternary_bg', label: 'Quaternary BG', desc: 'White buttons' },
+                                            { key: 'brand_colors.button_quaternary_text', label: 'Quaternary Text', desc: 'Quaternary text' },
+                                        ].map((color) => (
+                                            <div key={color.key} className="text-center">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">{color.label}</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="color"
+                                                        value={data[color.key]}
+                                                        onChange={(e) => setData(color.key, e.target.value)}
+                                                        className="h-12 w-full rounded-md border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <div className="mt-1 text-xs text-gray-500 text-center">
+                                                        {data[color.key]}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Button Preview */}
+                                    <div className="mt-4 flex flex-wrap gap-3">
+                                        <button
+                                            type="button"
+                                            className="px-5 py-2 rounded-lg font-medium transition-opacity hover:opacity-80 text-sm"
+                                            style={{
+                                                backgroundColor: data['brand_colors.button_primary_bg'],
+                                                color: data['brand_colors.button_primary_text']
+                                            }}
+                                        >
+                                            Available Building
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="px-5 py-2 rounded-lg font-medium transition-opacity hover:opacity-80 text-sm"
+                                            style={{
+                                                backgroundColor: data['brand_colors.button_secondary_bg'],
+                                                color: data['brand_colors.button_secondary_text']
+                                            }}
+                                        >
+                                            Contact Agent
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="px-5 py-2 rounded-lg font-medium transition-opacity hover:opacity-80 text-sm"
+                                            style={{
+                                                backgroundColor: data['brand_colors.button_tertiary_bg'],
+                                                color: data['brand_colors.button_tertiary_text']
+                                            }}
+                                        >
+                                            Request Tour
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="px-5 py-2 rounded-lg font-medium transition-opacity hover:opacity-80 text-sm border"
+                                            style={{
+                                                backgroundColor: data['brand_colors.button_quaternary_bg'],
+                                                color: data['brand_colors.button_quaternary_text'],
+                                                borderColor: data['brand_colors.button_quaternary_text']
+                                            }}
+                                        >
+                                            View Details
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Footer Colors */}
+                                <div className="border-b border-gray-200 pb-6 pt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        <span className="flex items-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                            </svg>
+                                            Footer Colors
+                                        </span>
+                                    </label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {[
+                                            { key: 'brand_colors.footer_bg', label: 'Footer Background', desc: 'Footer section background' },
+                                            { key: 'brand_colors.footer_text', label: 'Footer Text', desc: 'Footer text color' },
+                                        ].map((color) => (
+                                            <div key={color.key} className="text-center">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">{color.label}</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="color"
+                                                        value={data[color.key]}
+                                                        onChange={(e) => setData(color.key, e.target.value)}
+                                                        className="h-12 w-full rounded-md border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <div className="mt-1 text-xs text-gray-500 text-center">
+                                                        {data[color.key]}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Footer Preview */}
+                                    <div className="mt-4 p-4 rounded-lg" style={{ backgroundColor: data['brand_colors.footer_bg'] }}>
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-medium" style={{ color: data['brand_colors.footer_text'] }}>Footer Preview</span>
+                                            <div className="flex gap-4">
+                                                <span style={{ color: data['brand_colors.footer_text'] }}>Privacy</span>
+                                                <span style={{ color: data['brand_colors.footer_text'] }}>Terms</span>
+                                                <span style={{ color: data['brand_colors.footer_text'] }}>Contact</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Link Colors */}
+                                <div className="pt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        <span className="flex items-center gap-2">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                            </svg>
+                                            Link Colors
+                                        </span>
+                                    </label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {[
+                                            { key: 'brand_colors.link_color', label: 'Link Color', desc: 'Default link color' },
+                                            { key: 'brand_colors.link_hover', label: 'Link Hover', desc: 'Link hover color' },
+                                        ].map((color) => (
+                                            <div key={color.key} className="text-center">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">{color.label}</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="color"
+                                                        value={data[color.key]}
+                                                        onChange={(e) => setData(color.key, e.target.value)}
+                                                        className="h-12 w-full rounded-md border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <div className="mt-1 text-xs text-gray-500 text-center">
+                                                        {data[color.key]}
+                                                    </div>
+                                                </div>
+                                                <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Link Preview */}
+                                    <div className="mt-4">
+                                        <span className="mr-2">Preview:</span>
+                                        <a
+                                            href="#"
+                                            onClick={(e) => e.preventDefault()}
+                                            className="underline transition-colors"
+                                            style={{ color: data['brand_colors.link_color'] }}
+                                            onMouseEnter={(e) => e.target.style.color = data['brand_colors.link_hover']}
+                                            onMouseLeave={(e) => e.target.style.color = data['brand_colors.link_color']}
+                                        >
+                                            Sample Link (hover me)
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -502,6 +762,83 @@ export default function Edit({ auth }) {
                                         placeholder="keyword1, keyword2, keyword3"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Favicon</label>
+                                    <div className="space-y-3">
+                                        {/* Current/Preview Favicon */}
+                                        <div className="flex items-center gap-4">
+                                            {(faviconPreview || data.favicon_url) && (
+                                                <div className="flex-shrink-0">
+                                                    <img
+                                                        src={faviconPreview || data.favicon_url}
+                                                        alt="Favicon preview"
+                                                        className="h-10 w-10 object-contain border border-gray-200 rounded p-1 bg-white"
+                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex justify-center px-4 py-3 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
+                                                    <div className="text-center">
+                                                        <label htmlFor="favicon-upload" className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500">
+                                                            <span>{faviconPreview || data.favicon_url ? 'Change Favicon' : 'Upload Favicon'}</span>
+                                                            <input
+                                                                id="favicon-upload"
+                                                                type="file"
+                                                                accept="image/png,image/jpeg,image/x-icon,image/ico,image/svg+xml"
+                                                                className="sr-only"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files[0];
+                                                                    if (file) {
+                                                                        setData('favicon_file', file);
+                                                                        const reader = new FileReader();
+                                                                        reader.onload = (e) => {
+                                                                            setFaviconPreview(e.target.result);
+                                                                        };
+                                                                        reader.readAsDataURL(file);
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </label>
+                                                        <p className="text-xs text-gray-500 mt-1">ICO, PNG, SVG up to 1MB</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {(faviconPreview || data.favicon_url) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFaviconPreview('');
+                                                        setData('favicon_url', '');
+                                                        setData('favicon_file', null);
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700"
+                                                    title="Remove favicon"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                        </div>
+                                        {/* URL fallback */}
+                                        <div>
+                                            <p className="text-xs text-gray-500 mb-1">Or enter favicon URL:</p>
+                                            <input
+                                                type="text"
+                                                value={data.favicon_url}
+                                                onChange={(e) => {
+                                                    setData('favicon_url', e.target.value);
+                                                    setFaviconPreview(e.target.value);
+                                                }}
+                                                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                placeholder="/favicon.ico or https://example.com/favicon.png"
+                                            />
+                                        </div>
+                                    </div>
+                                    {errors.favicon_file && <p className="text-red-500 text-xs mt-1">{errors.favicon_file}</p>}
                                 </div>
 
                             </div>

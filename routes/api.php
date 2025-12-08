@@ -12,6 +12,7 @@ use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\Api\TourRequestController;
 use App\Http\Controllers\Api\AgentInfoController;
 use App\Http\Controllers\Api\PropertyAiController;
+use App\Http\Controllers\Api\AlertHistoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +47,12 @@ Route::prefix('saved-searches')->group(function () {
     Route::post('/', [SavedSearchController::class, 'store']);
     Route::delete('/{id}', [SavedSearchController::class, 'destroy']);
     Route::get('/{id}/run', [SavedSearchController::class, 'run']);
+});
+
+// Alert History API Routes
+Route::prefix('alerts')->group(function () {
+    Route::get('/', [AlertHistoryController::class, 'index']);
+    Route::get('/{id}', [AlertHistoryController::class, 'show']);
 });
 
 // Property Image API Routes with Enhanced Error Handling

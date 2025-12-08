@@ -79,42 +79,66 @@ class Website extends Model
     }
 
     /**
-     * Get default brand colors
+     * Get brand colors with default values
+     * Default brand colors for Nobu Residences theme
      */
     public function getBrandColors(): array
     {
-        return $this->brand_colors ?? [
+        // Default brand colors for new websites
+        $defaults = [
             'primary' => '#912018',
             'secondary' => '#293056',
             'accent' => '#F5F8FF',
             'text' => '#000000',
             'background' => '#FFFFFF',
         ];
+
+        if (!$this->brand_colors) {
+            return $defaults;
+        }
+
+        return array_merge($defaults, $this->brand_colors);
     }
 
     /**
-     * Get default contact information
+     * Get contact information (no hardcoded fallbacks)
+     * Returns what's saved in the database
      */
     public function getContactInfo(): array
     {
-        return $this->contact_info ?? [
-            'phone' => '+1 437 998 1795',
-            'email' => 'contact@noburesidences.com',
-            'address' => 'Building No.88, Toronto CA, Ontario, Toronto',
+        // Return saved contact info or empty defaults (no hardcoded values)
+        $defaults = [
+            'phone' => '',
+            'email' => '',
+            'address' => '',
         ];
+
+        if (!$this->contact_info) {
+            return $defaults;
+        }
+
+        return array_merge($defaults, $this->contact_info);
     }
 
     /**
-     * Get default social media links
+     * Get social media links (no hardcoded fallbacks)
+     * Returns what's saved in the database
      */
     public function getSocialMedia(): array
     {
-        return $this->social_media ?? [
+        // Return saved social media or empty defaults (no hardcoded values)
+        $defaults = [
             'facebook' => '',
             'instagram' => '',
             'twitter' => '',
             'linkedin' => '',
         ];
+
+        if (!$this->social_media) {
+            return $defaults;
+        }
+
+        return array_merge($defaults, $this->social_media);
     }
 
     /**

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import UserFavouritesTab from '@/Website/Components/UserFavouritesTab';
 import SavedSearchesTab from '@/Website/Components/SavedSearchesTab';
@@ -8,6 +8,13 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
   const [activeTab, setActiveTab] = useState('saved');
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [savedSearchesCount, setSavedSearchesCount] = useState(0);
+
+  // Get brand colors for button styling
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite || {};
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
 
   useEffect(() => {
     // Fetch favorites count
@@ -249,7 +256,10 @@ export default function UserDashboard({ auth, siteName, siteUrl, year }) {
                 </div>
 
                 <div className="flex space-x-4">
-                  <button className="px-4 py-2 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors">
+                  <button
+                    className="px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-colors"
+                    style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+                  >
                     Save Changes
                   </button>
                   <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">

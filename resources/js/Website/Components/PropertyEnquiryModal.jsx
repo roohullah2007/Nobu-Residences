@@ -1,7 +1,14 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, auth }) {
+    const { globalWebsite, website } = usePage().props;
+    const currentWebsite = website || globalWebsite;
+    const brandColors = currentWebsite?.brand_colors || {};
+
+    const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+    const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
+
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
         email: auth?.user?.email || '',
@@ -261,11 +268,12 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full py-3 bg-[#293056] text-white rounded-full font-work-sans font-bold text-base hover:bg-opacity-90 transition-all duration-300 disabled:opacity-70"
+                            className="w-full py-3 rounded-full font-work-sans font-bold text-base transition-opacity hover:opacity-90 disabled:opacity-70"
+                            style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                         >
                             {isSubmitting ? (
                                 <div className="flex items-center justify-center">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 mr-2" style={{ borderColor: buttonTertiaryText }}></div>
                                     Sending Enquiry...
                                 </div>
                             ) : (

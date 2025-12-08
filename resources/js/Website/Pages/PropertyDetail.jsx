@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
@@ -13,6 +13,17 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData, aiDescription: initialAiDescription }) {
+  const { globalWebsite } = usePage().props;
+  const effectiveWebsite = website || globalWebsite;
+
+  const brandColors = effectiveWebsite?.brand_colors || {
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [propertyData, setPropertyData] = useState(initialPropertyData);
   const [buildingData, setBuildingData] = useState(initialBuildingData);
   const [aiDescription, setAiDescription] = useState(initialAiDescription);
@@ -248,8 +259,11 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     Rooms: []
   });
 
-  // Use formatted data or fallback
-  const displayData = propertyData || getSamplePropertyData();
+  // Use formatted data or fallback, include building data for location breadcrumb
+  const displayData = {
+    ...(propertyData || getSamplePropertyData()),
+    building: buildingData  // Include building data for PropertyHeader location breadcrumb
+  };
 
   if (isLoading) {
     return (
@@ -318,7 +332,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                       </p>
                       <button
                         onClick={() => setLoginModalOpen(true)}
-                        className="w-full bg-[#293056] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                        className="w-full py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
+                        style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                       >
                         Sign Up / Log In
                       </button>

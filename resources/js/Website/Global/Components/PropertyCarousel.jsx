@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import PropertyCard from '@/Website/Components/Property/PropertyCard';
+import { usePage } from '@inertiajs/react';
 
 /**
  * PropertyCarousel - Reusable carousel component for property cards
- * 
+ *
  * A responsive property carousel with favourite functionality.
  * Handles desktop (3 cards), tablet (2 cards), and mobile (horizontal scroll) layouts.
- * 
+ *
  * @param {Array} properties - Array of property objects
  * @param {Object} auth - Auth object from Inertia
  * @param {string} title - Section title
@@ -15,8 +16,8 @@ import PropertyCard from '@/Website/Components/Property/PropertyCard';
  * @param {Function} onCardClick - Optional click handler for cards
  * @param {string} className - Additional CSS classes
  */
-const PropertyCarousel = ({ 
-  properties = [], 
+const PropertyCarousel = ({
+  properties = [],
   auth,
   title = 'Properties',
   type = 'sale',
@@ -25,6 +26,24 @@ const PropertyCarousel = ({
   className = ''
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Get website and brand colors
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+
+  const brandColors = currentWebsite?.brand_colors || {
+    primary: '#912018',
+    button_secondary_bg: '#912018',
+    button_secondary_text: '#FFFFFF',
+    button_tertiary_bg: '#000000',
+    button_tertiary_text: '#FFFFFF'
+  };
+
+  // Get button colors with fallbacks
+  const buttonSecondaryBg = brandColors.button_secondary_bg || '#912018';
+  const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
   // Limit properties to max 12 and prepare carousel items
   const limitedProperties = properties.slice(0, 12);
@@ -151,31 +170,37 @@ const PropertyCarousel = ({
                           className="flex flex-col h-full text-inherit no-underline"
                         >
                           {/* CTA Card Image Area - Same height as property cards */}
-                          <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-[#912018] rounded-t-xl flex items-center justify-center">
-                            <div className="text-white text-center">
+                          <div
+                            className="relative w-full h-[200px] property-image-container overflow-hidden rounded-t-xl flex items-center justify-center"
+                            style={{ backgroundColor: buttonSecondaryBg }}
+                          >
+                            <div className="text-center" style={{ color: buttonSecondaryText }}>
                               <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                               <p className="text-xl font-bold">Explore More</p>
                             </div>
                           </div>
-                          
+
                           {/* CTA Card Content - Matching property card structure */}
                           <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
                             {/* Title Section */}
                             <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
                               Discover More Properties
                             </div>
-                            
+
                             {/* Content Sections */}
                             <div className="flex flex-col items-start gap-2 w-full">
                               <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
                                 Browse All Available Listings
                               </div>
-                              
+
                               {/* CTA Button Section */}
                               <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
-                                <div className="inline-flex items-center justify-center px-6 py-2 bg-[#912018] hover:bg-[#7a1815] text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                                <div
+                                  className="inline-flex items-center justify-center px-6 py-2 rounded-full hover:opacity-90 transition-all font-work-sans font-semibold text-sm"
+                                  style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
+                                >
                                   View All Properties →
                                 </div>
                               </div>
@@ -256,31 +281,37 @@ const PropertyCarousel = ({
                           className="flex flex-col h-full text-inherit no-underline"
                         >
                           {/* CTA Card Image Area - Same height as property cards */}
-                          <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-[#912018] rounded-t-xl flex items-center justify-center">
-                            <div className="text-white text-center">
+                          <div
+                            className="relative w-full h-[200px] property-image-container overflow-hidden rounded-t-xl flex items-center justify-center"
+                            style={{ backgroundColor: buttonSecondaryBg }}
+                          >
+                            <div className="text-center" style={{ color: buttonSecondaryText }}>
                               <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                               </svg>
                               <p className="text-xl font-bold">Explore More</p>
                             </div>
                           </div>
-                          
+
                           {/* CTA Card Content - Matching property card structure */}
                           <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
                             {/* Title Section */}
                             <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
                               Discover More Properties
                             </div>
-                            
+
                             {/* Content Sections */}
                             <div className="flex flex-col items-start gap-2 w-full">
                               <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
                                 Browse All Available Listings
                               </div>
-                              
+
                               {/* CTA Button Section */}
                               <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
-                                <div className="inline-flex items-center justify-center px-6 py-2 bg-[#912018] hover:bg-[#7a1815] text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                                <div
+                                  className="inline-flex items-center justify-center px-6 py-2 rounded-full hover:opacity-90 transition-all font-work-sans font-semibold text-sm"
+                                  style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
+                                >
                                   View All Properties →
                                 </div>
                               </div>
@@ -339,31 +370,37 @@ const PropertyCarousel = ({
                       className="flex flex-col h-full text-inherit no-underline"
                     >
                       {/* CTA Card Image Area - Same height as property cards */}
-                      <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-gradient-to-br from-orange-500 to-orange-700 rounded-t-xl flex items-center justify-center">
-                        <div className="text-white text-center">
+                      <div
+                        className="relative w-full h-[200px] property-image-container overflow-hidden rounded-t-xl flex items-center justify-center"
+                        style={{ backgroundColor: buttonSecondaryBg }}
+                      >
+                        <div className="text-center" style={{ color: buttonSecondaryText }}>
                           <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                           <p className="text-xl font-bold">Explore More</p>
                         </div>
                       </div>
-                      
+
                       {/* CTA Card Content - Matching property card structure */}
                       <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
                         {/* Title Section */}
                         <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
                           Discover More Properties
                         </div>
-                        
+
                         {/* Content Sections */}
                         <div className="flex flex-col items-start gap-2 w-full">
                           <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]">
                             Browse All Available Listings
                           </div>
-                          
+
                           {/* CTA Button Section */}
                           <div className="flex items-center justify-center w-full min-h-8 pb-2 border-b border-gray-200">
-                            <div className="inline-flex items-center justify-center px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full transition-colors font-work-sans font-semibold text-sm">
+                            <div
+                              className="inline-flex items-center justify-center px-6 py-2 rounded-full hover:opacity-90 transition-all font-work-sans font-semibold text-sm"
+                              style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
+                            >
                               View All Properties →
                             </div>
                           </div>
@@ -399,9 +436,10 @@ const PropertyCarousel = ({
       
       {/* View All Button */}
       <div className="flex justify-center mt-8">
-        <a 
+        <a
           href={viewAllLink}
-          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 bg-black rounded-full text-white font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 rounded-full font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
         >
           View all
         </a>

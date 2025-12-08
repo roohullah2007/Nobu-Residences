@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
+    const { globalWebsite, website } = usePage().props;
+    const currentWebsite = website || globalWebsite;
+    const brandColors = currentWebsite?.brand_colors || {};
+
+    const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+    const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
     const [contactMethod, setContactMethod] = useState('form'); // 'form', 'phone', 'email'
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
@@ -17,14 +23,15 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
     const [emailCopied, setEmailCopied] = useState(false);
     const [phoneCopied, setPhoneCopied] = useState(false);
 
-    // Agent contact info from backend website settings or agentData
+    // Agent contact info from backend website settings or agentData - no hardcoded fallbacks
     const agentInfo = websiteSettings?.website?.agent_info;
-    const agentPhone = agentData?.phone || agentInfo?.agent_phone || websiteSettings?.website?.contact_info?.phone || '+1 (647) 555-0123';
-    const agentEmail = agentData?.email || websiteSettings?.website?.contact_info?.email || 'agent@noburesidence.com';
-    const agentName = agentData?.name || agentInfo?.agent_name || 'Nobu Residence Agent';
-    const agentTitle = agentInfo?.agent_title || 'Property Manager';
-    const agentBrokerage = agentData?.brokerage || agentInfo?.brokerage || 'Nobu Residences';
-    const agentImage = agentData?.image || agentInfo?.profile_image || null;
+    const contactInfo = websiteSettings?.website?.contact_info;
+    const agentPhone = agentData?.phone || agentInfo?.agent_phone || contactInfo?.phone || '';
+    const agentEmail = agentData?.email || contactInfo?.email || '';
+    const agentName = agentData?.name || agentInfo?.agent_name || '';
+    const agentTitle = agentData?.title || agentInfo?.agent_title || '';
+    const agentBrokerage = agentData?.brokerage || agentInfo?.brokerage || '';
+    const agentImage = agentData?.image || agentInfo?.profile_image || '';
 
     const copyToClipboard = (text, type) => {
         navigator.clipboard.writeText(text).then(() => {
@@ -226,7 +233,8 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                     <button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-colors hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        className="w-full py-3 px-4 rounded-lg font-medium border-none cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                     >
                         {isSubmitting ? 'Submitting...' : 'Submit'}
                     </button>

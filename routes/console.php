@@ -71,3 +71,23 @@ Schedule::command('mls:geocode --limit=200 --failed-only')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/mls-geocode.log'))
     ->description('Retry failed geocoding attempts');
+
+// ============================================================================
+// Saved Search Alerts
+// ============================================================================
+
+// Send saved search alerts daily at 8 AM
+// This checks all saved searches with email_alerts enabled and sends
+// notifications for those with new matching listings based on their frequency
+Schedule::command('alerts:send-saved-search')
+    ->dailyAt('08:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/saved-search-alerts.log'))
+    ->description('Send daily saved search email alerts');
+
+// Additional alert check at 6 PM for users who want fresher alerts
+Schedule::command('alerts:send-saved-search')
+    ->dailyAt('18:00')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/saved-search-alerts.log'))
+    ->description('Send evening saved search email alerts');

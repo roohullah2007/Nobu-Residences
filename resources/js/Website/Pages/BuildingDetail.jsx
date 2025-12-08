@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
@@ -12,6 +12,17 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
 
 export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website }) {
+  const { globalWebsite } = usePage().props;
+  const effectiveWebsite = website || globalWebsite;
+
+  const brandColors = effectiveWebsite?.brand_colors || {
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [isFavorited, setIsFavorited] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
@@ -309,7 +320,8 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                       </p>
                       <button
                         onClick={() => setLoginModalOpen(true)}
-                        className="w-full bg-[#293056] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                        className="w-full py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
+                        style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                       >
                         Sign Up / Log In
                       </button>

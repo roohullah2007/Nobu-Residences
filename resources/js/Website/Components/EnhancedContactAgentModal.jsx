@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 
 export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
+    const { globalWebsite, website } = usePage().props;
+    const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
+    const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
     const [contactMethod, setContactMethod] = useState('form'); // 'form', 'phone', 'email'
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
@@ -181,9 +186,10 @@ export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, 
                                 onClick={() => setContactMethod('form')}
                                 className={`px-4 py-2 font-medium transition-colors ${
                                     contactMethod === 'form'
-                                        ? 'text-[#293056] border-b-2 border-[#293056]'
+                                        ? 'border-b-2'
                                         : 'text-gray-500 hover:text-gray-700'
                                 }`}
+                                style={contactMethod === 'form' ? { color: buttonPrimaryBg, borderColor: buttonPrimaryBg } : {}}
                             >
                                 <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -194,9 +200,10 @@ export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, 
                                 onClick={() => setContactMethod('phone')}
                                 className={`px-4 py-2 font-medium transition-colors ${
                                     contactMethod === 'phone'
-                                        ? 'text-[#293056] border-b-2 border-[#293056]'
+                                        ? 'border-b-2'
                                         : 'text-gray-500 hover:text-gray-700'
                                 }`}
+                                style={contactMethod === 'phone' ? { color: buttonPrimaryBg, borderColor: buttonPrimaryBg } : {}}
                             >
                                 <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -207,9 +214,10 @@ export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, 
                                 onClick={() => setContactMethod('email')}
                                 className={`px-4 py-2 font-medium transition-colors ${
                                     contactMethod === 'email'
-                                        ? 'text-[#293056] border-b-2 border-[#293056]'
+                                        ? 'border-b-2'
                                         : 'text-gray-500 hover:text-gray-700'
                                 }`}
+                                style={contactMethod === 'email' ? { color: buttonPrimaryBg, borderColor: buttonPrimaryBg } : {}}
                             >
                                 <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -315,7 +323,8 @@ export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, 
                                 <button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full bg-[#293056] text-white py-3 px-4 rounded-lg font-medium cursor-pointer hover:bg-[#1e2142] disabled:opacity-70 transition-colors"
+                                    className="w-full py-3 px-4 rounded-lg font-medium cursor-pointer hover:opacity-90 disabled:opacity-70 transition-all"
+                                    style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                                 >
                                     {isSubmitting ? (
                                         <div className="flex items-center justify-center">
@@ -381,7 +390,8 @@ export default function EnhancedContactAgentModal({ isOpen, onClose, agentData, 
                                     <div className="flex gap-2 justify-center">
                                         <button
                                             onClick={handleEmailClick}
-                                            className="px-6 py-2 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors flex items-center gap-2"
+                                            className="px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-all flex items-center gap-2"
+                                            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />

@@ -1,8 +1,15 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 export default function Login({ status, canResetPassword }) {
+    const { globalWebsite, website } = usePage().props;
+    const currentWebsite = globalWebsite || website || {};
+    const websiteName = currentWebsite?.name || 'Our Site';
+    const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
+    const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
     const { data, setData, post, processing, errors, reset } = useForm({
         email: '',
         password: '',
@@ -20,20 +27,11 @@ export default function Login({ status, canResetPassword }) {
 
     return (
         <>
-            <Head title="Login - X Houses" />
-            
+            <Head title={`Login - ${websiteName}`} />
+
             <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 sm:px-6 lg:px-8">
                 {/* Login Card */}
                 <div className="relative z-10 w-full max-w-md">
-                    {/* Logo Section */}
-                    <div className="text-center mb-8">
-                        <Link href="/" className="inline-block">
-                            <div className="font-space-grotesk font-bold text-[#293056] text-[32px] leading-[36px] tracking-[-0.011em]">
-                                X HOUSES
-                            </div>
-                        </Link>
-                    </div>
-
                     {/* Login Form Card */}
                     <div className="bg-white shadow-xl rounded-2xl p-8">
                         <div className="mb-8">
@@ -65,7 +63,7 @@ export default function Login({ status, canResetPassword }) {
                                     name="email"
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-work-sans text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent transition-colors"
+                                    className="w-full px-4 py-3 rounded-lg font-work-sans text-gray-900 placeholder-gray-400 transition-colors border-2 border-gray-300 focus:border-gray-300"
                                     placeholder="Enter your email"
                                     autoComplete="username"
                                     autoFocus
@@ -89,7 +87,7 @@ export default function Login({ status, canResetPassword }) {
                                         name="password"
                                         value={data.password}
                                         onChange={(e) => setData('password', e.target.value)}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg font-work-sans text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#293056] focus:border-transparent transition-colors pr-12"
+                                        className="w-full px-4 py-3 rounded-lg font-work-sans text-gray-900 placeholder-gray-400 transition-colors pr-12 border-2 border-gray-300 focus:border-gray-300"
                                         placeholder="Enter your password"
                                         autoComplete="current-password"
                                     />
@@ -146,7 +144,8 @@ export default function Login({ status, canResetPassword }) {
                             <button
                                 type="submit"
                                 disabled={processing}
-                                className="w-full py-3 px-6 bg-[#293056] text-white font-work-sans font-semibold rounded-lg hover:bg-[#1f2441] focus:outline-none focus:ring-2 focus:ring-[#293056] focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full py-3 px-6 font-work-sans font-semibold rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                             >
                                 {processing ? 'Signing in...' : 'Sign In'}
                             </button>
@@ -182,7 +181,7 @@ export default function Login({ status, canResetPassword }) {
                     {/* Footer */}
                     <div className="mt-8 text-center">
                         <p className="text-xs font-work-sans text-gray-500">
-                            © {new Date().getFullYear()} X Houses. All rights reserved.
+                            © {new Date().getFullYear()} {websiteName}. All rights reserved.
                         </p>
                     </div>
                 </div>

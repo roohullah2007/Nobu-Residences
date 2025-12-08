@@ -103,9 +103,6 @@ class PropertySearchController extends Controller
             $searchParams = $request->input('search_params', []);
             $sanitizedParams = $this->sanitizeSearchParams($searchParams);
 
-            // Check if we need to fetch multiple pages for map (initial load only)
-            $fetchForMap = $request->input('fetch_for_map', false);
-
             $pageSize = $sanitizedParams['page_size'];
             $currentPage = $sanitizedParams['page'];
 
@@ -115,8 +112,7 @@ class PropertySearchController extends Controller
             $cacheTtl = 300; // 5 minutes cache
             if ($currentPage <= 5) {
                 $cacheKey = 'search:' . md5(json_encode([
-                    'params' => $sanitizedParams,
-                    'fetch_for_map' => $fetchForMap
+                    'params' => $sanitizedParams
                 ]));
 
                 // Try to get from cache
@@ -173,20 +169,8 @@ class PropertySearchController extends Controller
                 ]
             ];
 
-            // For map: fetch page 2 if on page 1 and more data exists
-            if ($fetchForMap && $currentPage == 1 && $totalCount > $pageSize) {
-                $mapParams = $sanitizedParams;
-                $mapParams['page'] = 2;
-                $page2Result = $this->fetchMLSPropertiesFromDatabase($mapParams);
-                $mapProperties = array_merge($properties, $page2Result['properties']);
-
-                foreach ($mapProperties as &$prop) {
-                    $prop['data_source'] = 'mls_database';
-                }
-                unset($prop);
-
-                $responseData['map_properties'] = $this->formatProperties($mapProperties);
-            }
+            // Note: Map in mixed view now uses ClusteredPropertyMap which independently
+            // fetches coordinates via /api/map-coordinates endpoint
 
             $response = [
                 'success' => true,
@@ -206,6 +190,58 @@ class PropertySearchController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Search failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get property count for filter preview in FiltersModal
+     * Lightweight endpoint that returns only the count, no property data
+     * Used for dynamic "See X properties" button updates
+     */
+    public function searchCount(Request $request)
+    {
+        try {
+            // Clean any existing output
+            $this->cleanOutputBuffer();
+
+            // Get and sanitize search parameters
+            $searchParams = $request->input('search_params', []);
+            $sanitizedParams = $this->sanitizeSearchParams($searchParams);
+
+            // Generate cache key for count queries (short TTL for freshness)
+            $cacheKey = 'search_count:' . md5(json_encode($sanitizedParams));
+            $cacheTtl = 60; // 1 minute cache for count queries
+
+            // Try to get from cache
+            $cachedCount = Cache::get($cacheKey);
+            if ($cachedCount !== null) {
+                return response()->json([
+                    'success' => true,
+                    'count' => $cachedCount,
+                    'cached' => true
+                ]);
+            }
+
+            // Get count from database (lightweight query)
+            $count = $this->getMLSDatabaseCount($sanitizedParams);
+
+            // Cache the count
+            Cache::put($cacheKey, $count, $cacheTtl);
+
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'cached' => false
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Property search count error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'count' => 0,
+                'message' => 'Count failed: ' . $e->getMessage()
             ], 500);
         }
     }

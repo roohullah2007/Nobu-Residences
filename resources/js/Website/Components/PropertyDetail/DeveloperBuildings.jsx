@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { createBuildingUrl } from '@/utils/slug';
 
@@ -19,6 +20,11 @@ import { createBuildingUrl } from '@/utils/slug';
  * @param {Object} buildingData - Current building data with developer_name
  */
 const DeveloperBuildings = ({ buildingData }) => {
+  const { globalWebsite, website } = usePage().props;
+  const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
   const [buildings, setBuildings] = useState([]);
@@ -164,7 +170,7 @@ const DeveloperBuildings = ({ buildingData }) => {
             </h2>
             {/* Count badge */}
             {buildings.length > 0 && (
-              <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold bg-[#293056] text-white rounded-full">
+              <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold rounded-full" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                 {buildings.length}
               </span>
             )}
@@ -207,7 +213,7 @@ const DeveloperBuildings = ({ buildingData }) => {
         {/* Loading State */}
         {isLoading && (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#293056]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: buttonPrimaryBg }}></div>
           </div>
         )}
 

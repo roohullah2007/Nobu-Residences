@@ -199,7 +199,6 @@ export default function MLSIndex({ properties, stats, recentSyncs, cities, filte
                                 <option value="active">Active</option>
                                 <option value="sold">Sold</option>
                                 <option value="leased">Leased</option>
-                                <option value="inactive">Inactive</option>
                             </select>
                             <select
                                 value={cityFilter}

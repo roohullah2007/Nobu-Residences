@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import NearbySchools from '../../Components/PropertyDetail/NearbySchools';
 import Amenities from '../../Components/PropertyDetail/Amenities';
 import MortgageCalculator from '../../Components/PropertyDetail/MortgageCalculator';
 
 const BuildingStatusTabs = ({ building }) => {
+  const { globalWebsite, website } = usePage().props;
+  const effectiveWebsite = website || globalWebsite;
+
+  const brandColors = effectiveWebsite?.brand_colors || {
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [activeTab, setActiveTab] = useState('overview');
 
   const buildingData = {
@@ -268,16 +280,16 @@ const BuildingStatusTabs = ({ building }) => {
         {/* Status Labels Section - Scrollable on mobile */}
         <div className="flex flex-row items-center gap-2 md:gap-[22px] w-full overflow-x-auto scrollbar-hide pb-2 md:pb-0 md:flex-wrap">
           {/* Building Status Badge */}
-          <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
-            <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
+          <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
+            <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
               {building?.status || 'Available'} Building
             </span>
           </div>
 
           {/* Construction Date Badge */}
           {building?.year_built && (
-            <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
-              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
+            <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
+              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
                 Built in {building.year_built}
               </span>
             </div>
@@ -285,8 +297,8 @@ const BuildingStatusTabs = ({ building }) => {
 
           {/* Units Available Badge */}
           {building?.total_units && (
-            <div className="flex items-center px-3 gap-2 h-8 md:h-10 bg-[#293056] rounded-lg md:rounded-xl flex-shrink-0">
-              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight text-white whitespace-nowrap">
+            <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
+              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
                 {building.total_units} Total Units
               </span>
             </div>

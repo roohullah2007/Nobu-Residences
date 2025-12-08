@@ -32,6 +32,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         street_address_1: building.street_address_1 || '',
         street_address_2: building.street_address_2 || '',
         city: building.city || '',
+        neighbourhood: building.neighbourhood || '',
+        sub_neighbourhood: building.sub_neighbourhood || '',
         province: building.province || 'ON',
         postal_code: building.postal_code || '',
         country: building.country || 'Canada',
@@ -557,6 +559,34 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         required
                                     />
                                     <InputError message={errors.city} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="neighbourhood" value="Neighbourhood" />
+                                    <TextInput
+                                        id="neighbourhood"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.neighbourhood}
+                                        onChange={(e) => setData('neighbourhood', e.target.value)}
+                                        placeholder="e.g., Downtown"
+                                    />
+                                    <InputError message={errors.neighbourhood} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">Main neighbourhood area</p>
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="sub_neighbourhood" value="Sub-Neighbourhood" />
+                                    <TextInput
+                                        id="sub_neighbourhood"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.sub_neighbourhood}
+                                        onChange={(e) => setData('sub_neighbourhood', e.target.value)}
+                                        placeholder="e.g., King West"
+                                    />
+                                    <InputError message={errors.sub_neighbourhood} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">Specific sub-area within the neighbourhood</p>
                                 </div>
 
                                 <div className="sm:col-span-2">

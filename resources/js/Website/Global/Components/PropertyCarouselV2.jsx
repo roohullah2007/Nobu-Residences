@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import PropertyCardV4 from '@/Website/Global/Cards/PropertyCardV4';
 
 /**
  * PropertyCarouselV2 - Reusable carousel component using PropertyCardV4 with overlay buttons
- * 
+ *
  * A responsive property carousel that uses PropertyCardV4 (MoreBuildings card style with overlay buttons).
  * Slides one card at a time like PropertyCarouselV1.
  * Handles desktop (3 cards), tablet (2 cards), and mobile (horizontal scroll) layouts.
- * 
+ *
  * @param {Array} properties - Array of property objects
  * @param {string} title - Section title
  * @param {string} viewAllLink - Link for "View all" button
@@ -15,8 +16,8 @@ import PropertyCardV4 from '@/Website/Global/Cards/PropertyCardV4';
  * @param {string} className - Additional CSS classes
  * @param {boolean} showBackground - Whether to show background styling (default: false)
  */
-const PropertyCarouselV2 = ({ 
-  properties = [], 
+const PropertyCarouselV2 = ({
+  properties = [],
   title = 'Properties',
   viewAllLink = '/properties',
   onCardClick,
@@ -24,6 +25,13 @@ const PropertyCarouselV2 = ({
   showBackground = false
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Get brand colors
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite || {};
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
   const cardsToShow = { desktop: 3, tablet: 2, mobile: 1 };
   
@@ -229,9 +237,10 @@ const PropertyCarouselV2 = ({
       
       {/* View All Button */}
       <div className="flex justify-center mt-8">
-        <a 
+        <a
           href={viewAllLink}
-          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 bg-black rounded-full text-white font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:bg-gray-700 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          className="flex items-center justify-center px-8 py-2.5 gap-2 h-11 rounded-full font-work-sans font-bold text-base leading-6 tracking-tight no-underline transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg hover:no-underline whitespace-nowrap"
+          style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
         >
           View all
         </a>

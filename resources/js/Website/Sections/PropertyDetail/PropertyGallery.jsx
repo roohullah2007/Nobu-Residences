@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import PropertyEnquiryModal from '@/Website/Components/PropertyEnquiryModal';
 
-export default function PropertyGallery({ 
-  propertyImages, 
-  propertyData, 
+export default function PropertyGallery({
+  propertyImages,
+  propertyData,
   auth,
-  onLoginClick 
+  onLoginClick
 }) {
   const [showModal, setShowModal] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentMobileSlide, setCurrentMobileSlide] = useState(0);
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+
+  // Get brand colors from page props
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
+  const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
+  const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
+  const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
 
   // Ensure we have valid images array with fallback
@@ -264,13 +275,15 @@ export default function PropertyGallery({
                         <div className="flex flex-col gap-3">
                           <button
                             onClick={() => onLoginClick && onLoginClick()}
-                            className="block w-full py-2.5 px-4 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1f2441] transition-colors"
+                            className="block w-full py-2.5 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
+                            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                           >
                             Sign In
                           </button>
                           <button
                             onClick={() => onLoginClick && onLoginClick()}
-                            className="block w-full py-2.5 px-4 border border-[#293056] text-[#293056] rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                            className="block w-full py-2.5 px-4 border rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                            style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                           >
                             Create Account
                           </button>
@@ -362,12 +375,13 @@ export default function PropertyGallery({
                   {/* See All Photos Button - Only show if logged in and we have more than 3 images */}
                   {isLoggedIn && images.length > 3 && (
                     <div className="hidden md:block absolute bottom-4 right-4">
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           openModal(0);
                         }}
-                        className="flex justify-center items-center w-[129px] h-10 bg-black rounded-xl text-white font-work-sans font-bold text-sm hover:bg-gray-800 transition-colors"
+                        className="flex justify-center items-center w-[129px] h-10 rounded-xl font-work-sans font-bold text-sm hover:opacity-90 transition-opacity"
+                        style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
                       >
                         See all photos
                       </button>
@@ -426,13 +440,15 @@ export default function PropertyGallery({
                       <div className="flex flex-col gap-2">
                         <button
                           onClick={() => onLoginClick && onLoginClick()}
-                          className="block w-full py-2 px-3 bg-[#293056] text-white rounded-lg font-medium text-sm hover:bg-[#1f2441] transition-colors"
+                          className="block w-full py-2 px-3 rounded-lg font-medium text-sm hover:opacity-90 transition-all"
+                          style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                         >
                           Sign In
                         </button>
                         <button
                           onClick={() => onLoginClick && onLoginClick()}
-                          className="block w-full py-2 px-3 border border-[#293056] text-[#293056] rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+                          className="block w-full py-2 px-3 border rounded-lg font-medium text-sm hover:bg-gray-50 transition-colors"
+                          style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                         >
                           Create Account
                         </button>
@@ -735,12 +751,12 @@ export default function PropertyGallery({
               </div>
               
               {/* Enquire this Property Button */}
-              <div className="bg-black rounded-full h-12 md:h-10 flex items-center justify-center w-full">
-                <button 
+              <div className="rounded-full h-12 md:h-10 flex items-center justify-center w-full" style={{ backgroundColor: buttonTertiaryBg }}>
+                <button
                   onClick={() => setShowEnquiryModal(true)}
-                  className="w-full h-full flex items-center justify-center hover:bg-gray-800 transition-colors rounded-full"
+                  className="w-full h-full flex items-center justify-center hover:opacity-90 transition-opacity rounded-full"
                 >
-                  <span className="font-work-sans font-extrabold text-sm md:text-base text-white">
+                  <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonTertiaryText }}>
                     Enquire this Property
                   </span>
                 </button>

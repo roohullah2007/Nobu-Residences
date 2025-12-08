@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 
 export default function SavedSearchesTab() {
+  const { globalWebsite, website } = usePage().props;
+  const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [savedSearches, setSavedSearches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -186,7 +191,7 @@ export default function SavedSearchesTab() {
         </h2>
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="inline-block w-12 h-12 border-4 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="inline-block w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mb-4" style={{ borderColor: buttonPrimaryBg, borderTopColor: 'transparent' }}></div>
             <div className="text-gray-600">Loading saved searches...</div>
           </div>
         </div>
@@ -286,7 +291,8 @@ export default function SavedSearchesTab() {
                   <div className="flex gap-2 ml-4">
                     <button
                       onClick={() => runSearch(search)}
-                      className="px-4 py-2 bg-[#293056] text-white rounded-lg text-sm font-medium hover:bg-[#1e2142] transition-colors"
+                      className="px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 transition-all"
+                      style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                     >
                       Run Search
                     </button>
@@ -318,7 +324,8 @@ export default function SavedSearchesTab() {
           </p>
           <Link
             href="/search"
-            className="inline-flex items-center px-6 py-3 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors"
+            className="inline-flex items-center px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-all"
+            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2">
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>

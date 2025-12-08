@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
 
 export default function UserFavouritesTab({ onCountUpdate }) {
+  const { globalWebsite, website } = usePage().props;
+  const effectiveWebsite = website || globalWebsite;
+
+  const brandColors = effectiveWebsite?.brand_colors || {
+    button_primary_bg: '#293056',
+    button_primary_text: '#FFFFFF'
+  };
+
+  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
+  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+
   const [savedProperties, setSavedProperties] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -203,7 +214,8 @@ export default function UserFavouritesTab({ onCountUpdate }) {
           </p>
           <Link
             href="/search"
-            className="inline-flex items-center px-6 py-3 bg-[#293056] text-white rounded-lg font-medium hover:bg-[#1e2142] transition-colors"
+            className="inline-flex items-center px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-all"
+            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mr-2">
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
