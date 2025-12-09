@@ -13,6 +13,34 @@ export default function EditHomePage({ auth }) {
     const [inlineIconCategory, setInlineIconCategory] = useState('');
     const [inlineIconIndex, setInlineIconIndex] = useState(null);
 
+    // Helper function to build URL with website slug for preview display
+    const buildUrlWithWebsite = (path) => {
+        // Only add website parameter for non-default websites (id !== 1)
+        if (website?.slug && website?.id !== 1) {
+            // Remove any existing website parameter first
+            let cleanPath = path;
+            if (path.includes('?website=') || path.includes('&website=')) {
+                cleanPath = path.replace(/[?&]website=[^&]*/g, '').replace(/\?&/, '?').replace(/\?$/, '');
+            }
+            const separator = cleanPath.includes('?') ? '&' : '?';
+            return `${cleanPath}${separator}website=${website.slug}`;
+        }
+        return path;
+    };
+
+    // Generate default header links with clean URLs (no website slug)
+    // The Navbar component dynamically adds the website slug when rendering
+    const getDefaultHeaderLinks = () => {
+        return [
+            { id: 1, text: 'Home', url: '/', enabled: true },
+            { id: 2, text: 'Rent', url: '/toronto/for-rent', enabled: true },
+            { id: 3, text: 'Sale', url: '/toronto/for-sale', enabled: true },
+            { id: 4, text: 'Search All', url: '/search', enabled: true },
+            { id: 5, text: 'Blog', url: '/blogs', enabled: true },
+            { id: 6, text: 'Contact Us', url: '/contact', enabled: true }
+        ];
+    };
+
     // Helper function to merge existing content with defaults
     const getDefaultContent = () => {
         const defaults = {
@@ -96,11 +124,15 @@ export default function EditHomePage({ auth }) {
             mls_settings: {
                 default_city: 'Toronto',
                 default_building_address: '55 Mercer Street'
+            },
+            header_links: {
+                enabled: true,
+                links: getDefaultHeaderLinks()
             }
         };
 
         const existingContent = homePage?.content || {};
-        
+
         return {
             hero: { ...defaults.hero, ...existingContent.hero },
             about: { ...defaults.about, ...existingContent.about },
@@ -110,7 +142,13 @@ export default function EditHomePage({ auth }) {
             },
             mls_settings: { ...defaults.mls_settings, ...existingContent.mls_settings },
             faq: { ...defaults.faq, ...existingContent.faq },
-            footer: { ...defaults.footer, ...existingContent.footer }
+            footer: { ...defaults.footer, ...existingContent.footer },
+            header_links: {
+                enabled: existingContent.header_links?.enabled ?? defaults.header_links.enabled,
+                links: (existingContent.header_links?.links && existingContent.header_links.links.length > 0)
+                    ? existingContent.header_links.links
+                    : defaults.header_links.links
+            }
         };
     };
 
@@ -651,6 +689,7 @@ export default function EditHomePage({ auth }) {
                         <div className="border-b border-gray-200 mb-6">
                             <nav className="-mb-px flex space-x-8">
                                 {[
+                                    { id: 'header', name: 'Header Links' },
                                     { id: 'hero', name: 'Hero Section' },
                                     { id: 'about', name: 'About Section' },
                                     { id: 'carousel', name: 'Property Carousels' },
@@ -676,6 +715,187 @@ export default function EditHomePage({ auth }) {
 
                         {/* Tab Content */}
                         <form onSubmit={handleSubmit}>
+                            {/* Header Links Tab */}
+                            {activeTab === 'header' && (
+                                <div className="space-y-8">
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                        <div className="flex items-start space-x-3">
+                                            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <div>
+                                                <h4 className="text-sm font-medium text-blue-800">Header Navigation Links</h4>
+                                                <p className="text-sm text-blue-600 mt-1">
+                                                    Customize the navigation links that appear in the website header. You can add, edit, reorder, or disable links.
+                                                </p>
+                                                {website?.id !== 1 && website?.slug && (
+                                                    <p className="text-sm text-blue-700 mt-2 font-medium">
+                                                        Website Slug: <code className="bg-blue-100 px-2 py-0.5 rounded">{website.slug}</code>
+                                                        <span className="font-normal ml-2">- URLs should include <code className="bg-blue-100 px-1 py-0.5 rounded">?website={website.slug}</code></span>
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 p-6 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Navigation Links</h3>
+
+                                        <div className="space-y-4">
+                                            {(data.content.header_links?.links || []).map((link, index) => (
+                                                <div key={link.id || index} className="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200">
+                                                    <div className="flex-shrink-0">
+                                                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
+                                                            {index + 1}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-500 mb-1">Link Text</label>
+                                                            <input
+                                                                type="text"
+                                                                value={link.text}
+                                                                onChange={(e) => {
+                                                                    const newLinks = [...data.content.header_links.links];
+                                                                    newLinks[index] = { ...newLinks[index], text: e.target.value };
+                                                                    setData('content', {
+                                                                        ...data.content,
+                                                                        header_links: { ...data.content.header_links, links: newLinks }
+                                                                    });
+                                                                }}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                placeholder="Link text"
+                                                            />
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-500 mb-1">URL</label>
+                                                            <input
+                                                                type="text"
+                                                                value={link.url}
+                                                                onChange={(e) => {
+                                                                    const newLinks = [...data.content.header_links.links];
+                                                                    newLinks[index] = { ...newLinks[index], url: e.target.value };
+                                                                    setData('content', {
+                                                                        ...data.content,
+                                                                        header_links: { ...data.content.header_links, links: newLinks }
+                                                                    });
+                                                                }}
+                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                                placeholder="/page-url"
+                                                            />
+                                                            {/* Show preview of final URL with website slug for non-default websites */}
+                                                            {website?.id !== 1 && link.url && (
+                                                                <p className="mt-1 text-xs text-green-600">
+                                                                    Preview: {buildUrlWithWebsite(link.url)}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex items-end gap-2">
+                                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={link.enabled !== false}
+                                                                    onChange={(e) => {
+                                                                        const newLinks = [...data.content.header_links.links];
+                                                                        newLinks[index] = { ...newLinks[index], enabled: e.target.checked };
+                                                                        setData('content', {
+                                                                            ...data.content,
+                                                                            header_links: { ...data.content.header_links, links: newLinks }
+                                                                        });
+                                                                    }}
+                                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                                />
+                                                                <span className="text-sm text-gray-600">Enabled</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex-shrink-0 flex items-center gap-2">
+                                                        {index > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newLinks = [...data.content.header_links.links];
+                                                                    [newLinks[index - 1], newLinks[index]] = [newLinks[index], newLinks[index - 1]];
+                                                                    setData('content', {
+                                                                        ...data.content,
+                                                                        header_links: { ...data.content.header_links, links: newLinks }
+                                                                    });
+                                                                }}
+                                                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                                                                title="Move up"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
+                                                        {index < (data.content.header_links?.links || []).length - 1 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newLinks = [...data.content.header_links.links];
+                                                                    [newLinks[index], newLinks[index + 1]] = [newLinks[index + 1], newLinks[index]];
+                                                                    setData('content', {
+                                                                        ...data.content,
+                                                                        header_links: { ...data.content.header_links, links: newLinks }
+                                                                    });
+                                                                }}
+                                                                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                                                                title="Move down"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                                </svg>
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newLinks = data.content.header_links.links.filter((_, i) => i !== index);
+                                                                setData('content', {
+                                                                    ...data.content,
+                                                                    header_links: { ...data.content.header_links, links: newLinks }
+                                                                });
+                                                            }}
+                                                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                                            title="Remove link"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newLinks = [...(data.content.header_links?.links || [])];
+                                                const newId = Math.max(...newLinks.map(l => l.id || 0), 0) + 1;
+                                                // Use buildUrlWithWebsite to include website slug for new links
+                                                newLinks.push({ id: newId, text: 'New Link', url: buildUrlWithWebsite('/'), enabled: true });
+                                                setData('content', {
+                                                    ...data.content,
+                                                    header_links: { ...data.content.header_links, links: newLinks }
+                                                });
+                                            }}
+                                            className="mt-4 inline-flex items-center px-4 py-2 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Add New Link
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Hero Section Tab */}
                             {activeTab === 'hero' && (
                                 <div className="space-y-8">

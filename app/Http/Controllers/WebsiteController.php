@@ -86,7 +86,7 @@ class WebsiteController extends Controller
     private function getWebsiteSettings()
     {
         $website = $this->getCurrentWebsite();
-        
+
         if (!$website) {
             // Fallback if no website exists
             return [
@@ -98,6 +98,16 @@ class WebsiteController extends Controller
                 'laravelVersion' => Application::VERSION,
                 'phpVersion' => PHP_VERSION,
             ];
+        }
+
+        // Get header_links from the home page content
+        $homePage = $website->homePage();
+        $homePageContent = $homePage?->content ?? null;
+        $headerLinks = null;
+
+        if ($homePageContent) {
+            $contentData = is_string($homePageContent) ? json_decode($homePageContent, true) : $homePageContent;
+            $headerLinks = $contentData['header_links'] ?? null;
         }
 
         return [
@@ -116,6 +126,7 @@ class WebsiteController extends Controller
                 'contact_info' => $website->getContactInfo(),
                 'social_media' => $website->getSocialMedia(),
                 'agent_info' => $website->agentInfo,
+                'header_links' => $headerLinks,
             ],
             'siteName' => $website->name,
             'siteUrl' => $website->domain ?? request()->getHost(),

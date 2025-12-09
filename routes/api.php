@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\TourRequestController;
 use App\Http\Controllers\Api\AgentInfoController;
 use App\Http\Controllers\Api\PropertyAiController;
 use App\Http\Controllers\Api\AlertHistoryController;
+use App\Http\Controllers\ContactController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +25,9 @@ use App\Http\Controllers\Api\AlertHistoryController;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
+// Contact Form API Route (no CSRF required)
+Route::post('/contact', [ContactController::class, 'store'])->name('api.contact.store');
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

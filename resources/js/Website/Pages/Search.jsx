@@ -311,9 +311,10 @@ export default function EnhancedPropertySearch({
     // Update URL with search params
     const url = new URL(window.location);
 
-    // Clear all existing search params except 'tab' and 'page'
+    // Clear all existing search params except 'tab', 'page', and 'website'
     const tabParam = url.searchParams.get('tab');
     const pageParam = resetPage ? '1' : (url.searchParams.get('page') || '1');
+    const websiteParam = url.searchParams.get('website');
 
     // Clear all params
     for (const key of [...url.searchParams.keys()]) {
@@ -323,6 +324,7 @@ export default function EnhancedPropertySearch({
     // Add back essential params
     if (tabParam) url.searchParams.set('tab', tabParam);
     url.searchParams.set('page', pageParam);
+    if (websiteParam) url.searchParams.set('website', websiteParam);
 
     // Add query/location to URL
     if (params.query) {

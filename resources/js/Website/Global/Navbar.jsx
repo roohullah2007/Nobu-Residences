@@ -18,10 +18,43 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
         // Check if website slug is available and not the default (ID 1)
         // The default website doesn't need the query param
         if (effectiveWebsite?.slug && effectiveWebsite?.id !== 1) {
-            const separator = path.includes('?') ? '&' : '?';
-            return `${path}${separator}website=${effectiveWebsite.slug}`;
+            // Remove any existing website parameter first to avoid duplicates
+            let cleanPath = path;
+            if (path.includes('?website=') || path.includes('&website=')) {
+                cleanPath = path.replace(/[?&]website=[^&]*/g, '').replace(/\?&/, '?').replace(/\?$/, '');
+            }
+            const separator = cleanPath.includes('?') ? '&' : '?';
+            return `${cleanPath}${separator}website=${effectiveWebsite.slug}`;
         }
         return path;
+    };
+
+    // Default navigation links
+    const defaultNavLinks = [
+        { id: 1, text: 'Home', url: '/', enabled: true },
+        { id: 2, text: 'Rent', url: '/toronto/for-rent', enabled: true },
+        { id: 3, text: 'Sale', url: '/toronto/for-sale', enabled: true },
+        { id: 4, text: 'Search All', url: '/search', enabled: true },
+        { id: 5, text: 'Blog', url: '/blogs', enabled: true },
+        { id: 6, text: 'Contact Us', url: '/contact', enabled: true }
+    ];
+
+    // Get navigation links from website settings or use defaults
+    const getNavLinks = () => {
+        const headerLinks = effectiveWebsite?.header_links;
+        if (headerLinks?.enabled !== false && headerLinks?.links?.length > 0) {
+            // Filter to only enabled links
+            return headerLinks.links.filter(link => link.enabled !== false);
+        }
+        return defaultNavLinks;
+    };
+
+    const navLinks = getNavLinks();
+
+    // Helper to get the correct URL - ALWAYS apply buildUrl to ensure website slug is added
+    // This handles both default links and custom header_links from database
+    const getNavUrl = (link) => {
+        return buildUrl(link.url);
     };
 
     const brandColors = website?.brand_colors || {
@@ -130,42 +163,15 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
 
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex items-center gap-8">
-                        <Link
-                            href={buildUrl("/")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Home
-                        </Link>
-                        <Link
-                            href={buildUrl("/toronto/for-rent")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Rent
-                        </Link>
-                        <Link
-                            href={buildUrl("/toronto/for-sale")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Sale
-                        </Link>
-                        <Link
-                            href={buildUrl("/search")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Search All
-                        </Link>
-                        <Link
-                            href={buildUrl("/blogs")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Blog
-                        </Link>
-                        <Link
-                            href={buildUrl("/contact")}
-                            className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
-                        >
-                            Contact Us
-                        </Link>
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.id}
+                                href={getNavUrl(link)}
+                                className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
+                            >
+                                {link.text}
+                            </Link>
+                        ))}
                         {simplified ? (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
@@ -281,54 +287,17 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                             
                             {/* Menu Items */}
                             <div className="py-2">
-                                <Link
-                                    href={buildUrl("/")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Home
-                                </Link>
-                                <Link
-                                    href={buildUrl("/toronto/for-rent")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Rent
-                                </Link>
-                                <Link
-                                    href={buildUrl("/toronto/for-sale")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Sale
-                                </Link>
-                                <Link
-                                    href={buildUrl("/search")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Search All
-                                </Link>
-                                <Link
-                                    href={buildUrl("/blogs")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Blog
-                                </Link>
-                                <Link
-                                    href={buildUrl("/contact")}
-                                    className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
-                                    style={{ fontSize: '16px', fontWeight: '500' }}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                >
-                                    Contact Us
-                                </Link>
+                                {navLinks.map((link) => (
+                                    <Link
+                                        key={link.id}
+                                        href={getNavUrl(link)}
+                                        className="block px-6 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition-colors font-work-sans border-b border-gray-50 last:border-b-0"
+                                        style={{ fontSize: '16px', fontWeight: '500' }}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                    >
+                                        {link.text}
+                                    </Link>
+                                ))}
                             </div>
                             
                             {/* Action Button */}

@@ -110,6 +110,17 @@ class HandleInertiaRequests extends Middleware
 
         $globalWebsite = null;
         if ($website) {
+            // Get header_links from the home page content
+            $homePage = $website->homePage();
+            $homePageContent = $homePage?->content ?? null;
+            $headerLinks = null;
+
+            if ($homePageContent) {
+                // Content might be stored as JSON string or array
+                $contentData = is_string($homePageContent) ? json_decode($homePageContent, true) : $homePageContent;
+                $headerLinks = $contentData['header_links'] ?? null;
+            }
+
             $globalWebsite = [
                 'id' => $website->id,
                 'name' => $website->name,
@@ -126,6 +137,7 @@ class HandleInertiaRequests extends Middleware
                 'meta_description' => $website->meta_description,
                 'meta_keywords' => $website->meta_keywords,
                 'description' => $website->description,
+                'header_links' => $headerLinks,
             ];
         }
 

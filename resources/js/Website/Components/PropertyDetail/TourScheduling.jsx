@@ -15,6 +15,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [isFixed, setIsFixed] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successType, setSuccessType] = useState('tour'); // 'tour' or 'question'
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const rightColumnRef = useRef(null);
@@ -164,6 +165,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
         // Reset form and show success
         setFormData({ name: '', email: '', phone: '', message: '' });
         setIsModalOpen(false);
+        setSuccessType('tour');
         setShowSuccess(true);
 
         // Hide success message after 5 seconds
@@ -224,6 +226,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
         setIsQuestionModalOpen(false);
 
         // Show success
+        setSuccessType('question');
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);
@@ -319,10 +322,12 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
             </svg>
             <div className="flex-1">
               <h3 className="text-sm font-medium text-green-800">
-                Tour Request Submitted!
+                {successType === 'question' ? 'Question Submitted!' : 'Tour Request Submitted!'}
               </h3>
               <p className="text-sm text-green-700 mt-1">
-                We'll contact you shortly to confirm your tour.
+                {successType === 'question'
+                  ? 'We\'ll get back to you within 24 hours.'
+                  : 'We\'ll contact you shortly to confirm your tour.'}
               </p>
             </div>
             <button

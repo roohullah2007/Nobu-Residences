@@ -12,6 +12,8 @@ const TourSection = ({ propertyData = null }) => {
     phone: '',
     message: ''
   });
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get brand colors from page props
   const { globalWebsite, website } = usePage().props;
@@ -110,18 +112,64 @@ const TourSection = ({ propertyData = null }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission here
-    console.log('Tour request submitted:', {
-      ...formData,
-      property: property.name,
-      selectedDate: visibleDates[selectedDateIndex],
-      selectedTime: timeSlots.find(t => t.id === selectedTime)
-    });
-    setShowModal(false);
-    // Reset form
-    setFormData({ name: '', email: '', phone: '', message: '' });
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    const selectedDate = visibleDates[selectedDateIndex];
+    const formattedDate = `${selectedDate.day}, ${selectedDate.month} ${selectedDate.dayNum}`;
+    const timeRanges = {
+      morning: '9AM to 12PM',
+      afternoon: '12PM to 4PM',
+      evening: '4PM to 8PM'
+    };
+
+    try {
+      const response = await fetch('/api/tour-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          full_name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+          selected_date: formattedDate,
+          selected_time: timeRanges[selectedTime],
+          property_type: 'property',
+          property_id: propertyData?.listingKey || propertyData?.ListingKey || null,
+          property_address: property.address
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setShowModal(false);
+        setFormData({ name: '', email: '', phone: '', message: '' });
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+        }, 5000);
+      } else {
+        if (result.errors) {
+          const errorMessages = Object.values(result.errors).flat().join('\n');
+          alert(`Please correct the following errors:\n${errorMessages}`);
+        } else {
+          alert(result.message || 'Failed to submit tour request. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting tour request:', error);
+      alert('An error occurred while submitting your request. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getSelectedDateTime = () => {
@@ -154,6 +202,35 @@ const TourSection = ({ propertyData = null }) => {
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-5 py-5">
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="fixed top-4 right-4 z-[1000000] animate-slide-in-right">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start shadow-lg max-w-sm">
+            <div className="flex-shrink-0">
+              <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-green-800">
+                Tour Request Submitted!
+              </h3>
+              <p className="text-sm text-green-700 mt-1">
+                We'll contact you shortly to confirm your tour.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSuccess(false)}
+              className="ml-4 flex-shrink-0 text-green-400 hover:text-green-600"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tour Section */}
       <div className="flex flex-col lg:flex-row items-center gap-5 w-full max-w-[1280px] h-auto lg:h-[218px] mx-auto">
         

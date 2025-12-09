@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 
-const RequestTourModal = ({ isOpen, onClose, property }) => {
+const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -13,6 +13,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Get website and brand colors
   const { globalWebsite, website } = usePage().props;
@@ -70,8 +71,6 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
       });
 
       if (response.ok) {
-        alert('Tour request submitted successfully! We will contact you soon.');
-        onClose();
         // Reset form
         setFormData({
           name: '',
@@ -82,6 +81,16 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
           message: '',
           tourType: 'in-person'
         });
+        // Show success in modal, then close after delay
+        setShowSuccess(true);
+        setTimeout(() => {
+          setShowSuccess(false);
+          onClose();
+          // Call onSuccess callback if provided (for parent components)
+          if (onSuccess) {
+            onSuccess();
+          }
+        }, 2500);
       } else {
         alert('Failed to submit tour request. Please try again.');
       }
@@ -127,6 +136,17 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
           </div>
 
           {/* Modal Body - Scrollable if needed */}
+          {showSuccess ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Tour Request Submitted!</h3>
+              <p className="text-gray-600 text-center">We'll contact you soon to confirm your tour.</p>
+            </div>
+          ) : (
           <form id="tour-request-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4">
             <div>
               {/* Tour Type */}
@@ -269,8 +289,10 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               </div>
             </div>
           </form>
+          )}
 
-          {/* Modal Footer - Fixed */}
+          {/* Modal Footer - Fixed - Only show when not showing success */}
+          {!showSuccess && (
           <div className="px-6 py-4 border-t border-gray-200 flex gap-3 flex-shrink-0">
             <button
               type="button"
@@ -290,6 +312,7 @@ const RequestTourModal = ({ isOpen, onClose, property }) => {
               {isSubmitting ? 'Submitting...' : 'Request Tour'}
             </button>
           </div>
+          )}
         </div>
       </div>
     </>

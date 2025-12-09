@@ -12,6 +12,7 @@ export default function ContactForm({ website }) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -23,20 +24,42 @@ export default function ContactForm({ website }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setSubmitStatus('success');
-      setIsSubmitting(false);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: '',
-        inquiry_type: 'general'
+    setErrorMessage('');
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify(formData),
       });
-    }, 1000);
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setSubmitStatus('success');
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: '',
+          inquiry_type: 'general'
+        });
+      } else {
+        setErrorMessage(result.message || 'Something went wrong. Please try again.');
+        setSubmitStatus('error');
+      }
+    } catch (error) {
+      console.error('Contact form submission error:', error);
+      setErrorMessage('Failed to submit form. Please check your connection and try again.');
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const brandColors = website?.brand_colors || {
@@ -49,9 +72,9 @@ export default function ContactForm({ website }) {
     button_primary_text: '#FFFFFF'
   };
 
-  // Get button colors with fallbacks
-  const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
-  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
+  // Get button colors with fallbacks - use secondary color for buttons
+  const buttonSecondaryBg = brandColors.button_secondary_bg || brandColors.secondary;
+  const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
 
   if (submitStatus === 'success') {
     return (
@@ -71,7 +94,7 @@ export default function ContactForm({ website }) {
           <button
             onClick={() => setSubmitStatus(null)}
             className="px-6 py-3 rounded-full font-work-sans font-medium hover:opacity-90 transition-colors"
-            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+            style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
           >
             Send Another Message
           </button>
@@ -85,7 +108,14 @@ export default function ContactForm({ website }) {
       <h2 className="font-space-grotesk font-bold text-2xl mb-6" style={{ color: brandColors.primary }}>
         Send us a Message
       </h2>
-      
+
+      {/* Error Message */}
+      {submitStatus === 'error' && errorMessage && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="font-work-sans text-red-600 text-sm">{errorMessage}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Inquiry Type */}
@@ -98,7 +128,7 @@ export default function ContactForm({ website }) {
             value={formData.inquiry_type}
             onChange={handleChange}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors"
-            style={{ focusRingColor: primaryColor }}
+            style={{ '--tw-ring-color': brandColors.primary }}
             required
           >
             <option value="general">General Inquiry</option>
@@ -121,7 +151,7 @@ export default function ContactForm({ website }) {
               value={formData.name}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors"
-              style={{ focusRingColor: primaryColor }}
+              style={{ '--tw-ring-color': brandColors.primary }}
               required
             />
           </div>
@@ -136,7 +166,7 @@ export default function ContactForm({ website }) {
               value={formData.email}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors"
-              style={{ focusRingColor: primaryColor }}
+              style={{ '--tw-ring-color': brandColors.primary }}
               required
             />
           </div>
@@ -154,7 +184,7 @@ export default function ContactForm({ website }) {
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors"
-              style={{ focusRingColor: primaryColor }}
+              style={{ '--tw-ring-color': brandColors.primary }}
             />
           </div>
           
@@ -168,7 +198,7 @@ export default function ContactForm({ website }) {
               value={formData.subject}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors"
-              style={{ focusRingColor: primaryColor }}
+              style={{ '--tw-ring-color': brandColors.primary }}
               required
             />
           </div>
@@ -185,7 +215,7 @@ export default function ContactForm({ website }) {
             onChange={handleChange}
             rows={6}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-opacity-50 focus:border-transparent transition-colors resize-none"
-            style={{ focusRingColor: primaryColor }}
+            style={{ '--tw-ring-color': brandColors.primary }}
             placeholder="Please provide details about your inquiry..."
             required
           ></textarea>
@@ -196,7 +226,7 @@ export default function ContactForm({ website }) {
           type="submit"
           disabled={isSubmitting}
           className="w-full py-4 rounded-full font-work-sans font-bold text-lg transition-all duration-300 disabled:opacity-70 hover:opacity-90"
-          style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+          style={{ backgroundColor: buttonSecondaryBg, color: buttonSecondaryText }}
         >
           {isSubmitting ? (
             <div className="flex items-center justify-center">
