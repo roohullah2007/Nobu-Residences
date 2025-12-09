@@ -831,38 +831,53 @@ class WebsiteController extends Controller
      */
     public function blog(Request $request)
     {
-        // Get the category from URL parameter
-        $categorySlug = $request->get('category');
-        $selectedCategory = null;
+        try {
+            // Get the category from URL parameter
+            $categorySlug = $request->get('category');
+            $selectedCategory = null;
 
-        // Build the query for blogs
-        $blogsQuery = \App\Models\Blog::with('blogCategory')
-            ->published();
+            // Build the query for blogs
+            $blogsQuery = \App\Models\Blog::with('blogCategory')
+                ->published();
 
-        // Filter by category if provided
-        if ($categorySlug) {
-            // Find the category by slug
-            $selectedCategory = \App\Models\BlogCategory::where('slug', $categorySlug)->first();
-            if ($selectedCategory) {
-                $blogsQuery->where('category_id', $selectedCategory->id);
+            // Filter by category if provided
+            if ($categorySlug) {
+                // Find the category by slug
+                $selectedCategory = \App\Models\BlogCategory::where('slug', $categorySlug)->first();
+                if ($selectedCategory) {
+                    $blogsQuery->where('category_id', $selectedCategory->id);
+                }
             }
+
+            // Fetch paginated blogs
+            $blogs = $blogsQuery->orderBy('published_at', 'desc')
+                ->paginate(9);
+
+            // Get active blog categories from the database
+            $categories = \App\Models\BlogCategory::active()
+                ->ordered()
+                ->get(['id', 'name', 'slug', 'description', 'featured_image']);
+
+            return Inertia::render('Website/Pages/Blog', array_merge($this->getWebsiteSettings(), [
+                'title' => 'Real Estate Blog',
+                'blogs' => $blogs,
+                'categories' => $categories,
+                'selectedCategory' => $selectedCategory ? $selectedCategory->slug : null
+            ]));
+        } catch (\Exception $e) {
+            \Log::error('Blog page error: ' . $e->getMessage());
+            // Return with minimal settings on error
+            return Inertia::render('Website/Pages/Blog', [
+                'siteName' => 'Nobu Residences',
+                'siteUrl' => request()->getHost(),
+                'year' => date('Y'),
+                'website' => null,
+                'title' => 'Real Estate Blog',
+                'blogs' => [],
+                'categories' => [],
+                'selectedCategory' => null
+            ]);
         }
-
-        // Fetch paginated blogs
-        $blogs = $blogsQuery->orderBy('published_at', 'desc')
-            ->paginate(9);
-
-        // Get active blog categories from the database
-        $categories = \App\Models\BlogCategory::active()
-            ->ordered()
-            ->get(['id', 'name', 'slug', 'description', 'featured_image']);
-
-        return Inertia::render('Website/Pages/Blog', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Real Estate Blog',
-            'blogs' => $blogs,
-            'categories' => $categories,
-            'selectedCategory' => $selectedCategory ? $selectedCategory->slug : null
-        ]));
     }
 
     /**
@@ -908,9 +923,21 @@ class WebsiteController extends Controller
      */
     public function contact()
     {
-        return Inertia::render('Website/Pages/Contact', array_merge($this->getWebsiteSettings(), [
-            'title' => 'Contact Us'
-        ]));
+        try {
+            return Inertia::render('Website/Pages/Contact', array_merge($this->getWebsiteSettings(), [
+                'title' => 'Contact Us'
+            ]));
+        } catch (\Exception $e) {
+            \Log::error('Contact page error: ' . $e->getMessage());
+            // Return with minimal settings on error
+            return Inertia::render('Website/Pages/Contact', [
+                'siteName' => 'Nobu Residences',
+                'siteUrl' => request()->getHost(),
+                'year' => date('Y'),
+                'website' => null,
+                'title' => 'Contact Us'
+            ]);
+        }
     }
 
     /**
