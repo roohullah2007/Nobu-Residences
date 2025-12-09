@@ -44,7 +44,9 @@ class Building extends Model
         'street_address_2',
         'city',
         'neighbourhood',
+        'neighbourhood_id',
         'sub_neighbourhood',
+        'sub_neighbourhood_id',
         'province',
         'postal_code',
         'country',
@@ -147,6 +149,22 @@ class Building extends Model
     public function maintenanceFeeAmenities()
     {
         return $this->belongsToMany(MaintenanceFeeAmenity::class, 'building_maintenance_fee_amenities', 'building_id', 'maintenance_fee_amenity_id')->withTimestamps();
+    }
+
+    /**
+     * Get the neighbourhood taxonomy for this building
+     */
+    public function neighbourhoodTaxonomy()
+    {
+        return $this->belongsTo(Neighbourhood::class, 'neighbourhood_id');
+    }
+
+    /**
+     * Get the sub-neighbourhood taxonomy for this building
+     */
+    public function subNeighbourhoodTaxonomy()
+    {
+        return $this->belongsTo(SubNeighbourhood::class, 'sub_neighbourhood_id');
     }
 
     /**

@@ -220,8 +220,34 @@ class BuildingController extends Controller
                 ];
             });
 
+        // Get all active neighbourhoods for dropdown
+        $neighbourhoods = \App\Models\Neighbourhood::active()
+            ->ordered()
+            ->get()
+            ->map(function ($neighbourhood) {
+                return [
+                    'id' => $neighbourhood->id,
+                    'name' => $neighbourhood->name,
+                    'city' => $neighbourhood->city
+                ];
+            });
+
+        // Get all active sub-neighbourhoods for dropdown
+        $subNeighbourhoods = \App\Models\SubNeighbourhood::active()
+            ->ordered()
+            ->with('neighbourhood')
+            ->get()
+            ->map(function ($subNeighbourhood) {
+                return [
+                    'id' => $subNeighbourhood->id,
+                    'name' => $subNeighbourhood->name,
+                    'neighbourhood_id' => $subNeighbourhood->neighbourhood_id,
+                    'neighbourhood_name' => $subNeighbourhood->neighbourhood?->name
+                ];
+            });
+
         // Load the building relationships
-        $building->load(['developer', 'maintenanceFeeAmenities']);
+        $building->load(['developer', 'maintenanceFeeAmenities', 'neighbourhoodTaxonomy', 'subNeighbourhoodTaxonomy']);
 
         // Get building amenities with explicit query to ensure we get the data
         $buildingAmenities = $building->amenities()->get();
@@ -282,10 +308,14 @@ class BuildingController extends Controller
                 'landscape_architect' => $building->landscape_architect,
                 'amenity_ids' => $buildingAmenities->pluck('id')->toArray(),
                 'maintenance_fee_amenity_ids' => $building->maintenanceFeeAmenities->pluck('id')->toArray(),
+                'neighbourhood_id' => $building->neighbourhood_id,
+                'sub_neighbourhood_id' => $building->sub_neighbourhood_id,
             ],
             'developers' => $developers,
             'amenities' => $amenities,
-            'maintenanceFeeAmenities' => $maintenanceFeeAmenities
+            'maintenanceFeeAmenities' => $maintenanceFeeAmenities,
+            'neighbourhoods' => $neighbourhoods,
+            'subNeighbourhoods' => $subNeighbourhoods
         ]);
     }
 
@@ -300,7 +330,9 @@ class BuildingController extends Controller
             'street_address_2' => 'nullable|string|max:255',
             'city' => 'required|string|max:100',
             'neighbourhood' => 'nullable|string|max:255',
+            'neighbourhood_id' => 'nullable|exists:neighbourhoods,id',
             'sub_neighbourhood' => 'nullable|string|max:255',
+            'sub_neighbourhood_id' => 'nullable|exists:sub_neighbourhoods,id',
             'province' => 'required|string|max:100',
             'postal_code' => 'nullable|string|max:20',
             'country' => 'nullable|string|max:100',

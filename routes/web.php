@@ -305,6 +305,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);
     Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);
 
+    // Neighbourhood Taxonomy routes
+    Route::resource('neighbourhoods', \App\Http\Controllers\Admin\NeighbourhoodController::class);
+    Route::get('api/neighbourhoods', [\App\Http\Controllers\Admin\NeighbourhoodController::class, 'getNeighbourhoods'])->name('api.neighbourhoods');
+
+    // Sub-Neighbourhood Taxonomy routes
+    Route::resource('sub-neighbourhoods', \App\Http\Controllers\Admin\SubNeighbourhoodController::class);
+    Route::get('api/sub-neighbourhoods', [\App\Http\Controllers\Admin\SubNeighbourhoodController::class, 'getSubNeighbourhoods'])->name('api.sub-neighbourhoods');
+
     // Schools removed - using API data instead
 
     // Tour Requests Management

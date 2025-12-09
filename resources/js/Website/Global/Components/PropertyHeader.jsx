@@ -295,18 +295,18 @@ export default function PropertyHeader({
                   <span>
                     {getLocationBreadcrumb().map((part, index) => (
                       <span key={part.type}>
-                        {part.type === 'city' ? (
-                          // Only city is clickable - goes to search page
-                          <Link
-                            href={`/search?query=${encodeURIComponent(part.label)}`}
-                            className="underline hover:text-[#1f2441] transition-colors"
-                          >
-                            {part.label}
-                          </Link>
-                        ) : (
-                          // Neighbourhood and sub_neighbourhood are not clickable
-                          <span className="underline">{part.label}</span>
-                        )}
+                        {/* All location parts are now clickable taxonomies */}
+                        <Link
+                          href={part.type === 'city'
+                            ? `/search?query=${encodeURIComponent(part.label)}`
+                            : part.type === 'neighbourhood'
+                            ? `/search?neighbourhood=${encodeURIComponent(part.label)}`
+                            : `/search?sub_neighbourhood=${encodeURIComponent(part.label)}`
+                          }
+                          className="underline hover:text-[#1f2441] transition-colors"
+                        >
+                          {part.label}
+                        </Link>
                         {index < getLocationBreadcrumb().length - 1 && (
                           <span className="text-gray-400">, </span>
                         )}
