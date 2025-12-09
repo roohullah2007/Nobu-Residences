@@ -35,82 +35,82 @@ export default function RealEstateLinksSection() {
   // Popular Toronto Searches
   const popularSearches = {
     "Downtown Core": [
-      "condos for sale in King West",
-      "condos for sale in Bay St. Corridor",
-      "condos for sale in Entertainment District",
-      "condos for sale in Financial District",
-      "recently sold condos in King West",
-      "recently leased condos in Entertainment District"
+      "Condos for sale in King West",
+      "Condos for sale in Bay St. Corridor",
+      "Condos for sale in Entertainment District",
+      "Condos for sale in Financial District",
+      "Recently sold condos in King West",
+      "Recently leased condos in Entertainment District"
     ],
     "West Toronto": [
-      "condos for sale in Liberty Village",
-      "condos for sale in CityPlace",
-      "condos for sale in Mimico",
-      "condos for sale in The Waterfront"
+      "Condos for sale in Liberty Village",
+      "Condos for sale in CityPlace",
+      "Condos for sale in Mimico",
+      "Condos for sale in The Waterfront"
     ],
     "East Toronto": [
-      "condos for sale in St. Lawrence",
-      "condos for sale in Distillery District",
-      "condos for sale in Regent Park",
-      "condos for sale in Corktown"
+      "Condos for sale in St. Lawrence",
+      "Condos for sale in Distillery District",
+      "Condos for sale in Regent Park",
+      "Condos for sale in Corktown"
     ],
     "Central Toronto": [
-      "condos for sale in Church St. Corridor",
-      "condos for sale in Yonge and Bloor",
-      "condos for sale in Mount Pleasant West",
-      "condos for sale in Willowdale East"
+      "Condos for sale in Church St. Corridor",
+      "Condos for sale in Yonge and Bloor",
+      "Condos for sale in Mount Pleasant West",
+      "Condos for sale in Willowdale East"
     ],
     "Midtown Toronto": [
-      "condos for sale in Davisville",
-      "condos for sale in Yonge and Eglinton",
-      "condos for sale in Lawrence Park",
-      "condos for sale in Leaside"
+      "Condos for sale in Davisville",
+      "Condos for sale in Yonge and Eglinton",
+      "Condos for sale in Lawrence Park",
+      "Condos for sale in Leaside"
     ],
     "North York": [
-      "condos for sale in Sheppard and Yonge",
-      "condos for sale in Bayview Village",
-      "condos for sale in Don Mills",
-      "condos for sale in York Mills"
+      "Condos for sale in Sheppard and Yonge",
+      "Condos for sale in Bayview Village",
+      "Condos for sale in Don Mills",
+      "Condos for sale in York Mills"
     ],
     "Etobicoke": [
-      "condos for sale in Humber Bay",
-      "condos for sale in Islington Village",
-      "condos for sale in Royal York",
-      "condos for sale in The Kingsway"
+      "Condos for sale in Humber Bay",
+      "Condos for sale in Islington Village",
+      "Condos for sale in Royal York",
+      "Condos for sale in The Kingsway"
     ],
     "Scarborough": [
-      "condos for sale in Scarborough Town Centre",
-      "condos for sale in Birch Cliff",
-      "condos for sale in Cliffside",
-      "condos for sale in Guildwood"
+      "Condos for sale in Scarborough Town Centre",
+      "Condos for sale in Birch Cliff",
+      "Condos for sale in Cliffside",
+      "Condos for sale in Guildwood"
     ]
   };
 
   // Nearby Cities
   const nearbyCities = {
     "York Region": [
-      "condos for sale in Richmond Hill",
-      "condos for sale in Vaughan",
-      "condos for sale in Markham",
-      "condos for sale in Aurora"
+      "Condos for sale in Richmond Hill",
+      "Condos for sale in Vaughan",
+      "Condos for sale in Markham",
+      "Condos for sale in Aurora"
     ],
     "Durham Region": [
-      "condos for sale in Pickering",
-      "condos for sale in Ajax",
-      "condos for sale in Whitby",
-      "condos for sale in Oshawa"
+      "Condos for sale in Pickering",
+      "Condos for sale in Ajax",
+      "Condos for sale in Whitby",
+      "Condos for sale in Oshawa"
     ],
     "Peel Region": [
-      "condos for sale in Mississauga",
-      "condos for sale in Brampton",
-      "condos for sale in Caledon",
-      "townhouses for sale in Mississauga"
+      "Condos for sale in Mississauga",
+      "Condos for sale in Brampton",
+      "Condos for sale in Caledon",
+      "Townhouses for sale in Mississauga"
     ],
     "Halton Region": [
-      "condos for sale in Oakville",
-      "condos for sale in Burlington",
-      "condos for sale in Milton",
-      "townhouses for sale in Oakville"
+      "Condos for sale in Oakville",
+      "Condos for sale in Burlington",
+      "Condos for sale in Milton",
+      "Townhouses for sale in Oakville"
     ]
   };
 

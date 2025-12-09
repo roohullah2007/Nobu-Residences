@@ -6,7 +6,8 @@ import { Link, usePage } from '@inertiajs/react';
 export default function PropertyHeader({
   data,
   auth,
-  type = 'property' // 'property' or 'building'
+  type = 'property', // 'property' or 'building'
+  buildingData = null // Building data for property location breadcrumb
 }) {
   const [showShareDropdown, setShowShareDropdown] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
@@ -207,16 +208,36 @@ export default function PropertyHeader({
     return data?.subtitle || '';
   };
 
-  // Get location breadcrumb for buildings only
+  // Get location breadcrumb for buildings and properties with building data
   // For buildings: use building's own data
+  // For properties: use buildingData if available, otherwise just show city from property
   const getLocationBreadcrumb = () => {
-    // Only show location breadcrumb on building details page
-    if (type !== 'building') return null;
-
     const parts = [];
 
-    // For buildings, use the building's own data
-    const locationSource = data;
+    // Determine location source based on type
+    let locationSource = null;
+
+    if (type === 'building') {
+      // For buildings, use the building's own data
+      locationSource = data;
+    } else if (type === 'property') {
+      // For properties, use buildingData if available
+      if (buildingData && (buildingData.city || buildingData.neighbourhood || buildingData.sub_neighbourhood)) {
+        locationSource = buildingData;
+      } else if (data?.city || data?.City) {
+        // No building data, just show city from property
+        const city = data?.city || data?.City;
+        if (city) {
+          return [{
+            label: city,
+            type: 'city'
+          }];
+        }
+        return null;
+      } else {
+        return null;
+      }
+    }
 
     // If no location source, return null
     if (!locationSource) return null;

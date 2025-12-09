@@ -78,7 +78,8 @@
       "Bash(kill:*)",
       "Bash(do php artisan mls:sync-images --batch-size=100 --skip-existing)",
       "Bash(/opt/homebrew/bin/mysqldump:*)",
-      "Bash(gzip:*)"
+      "Bash(gzip:*)",
+      "Bash(pgrep:*)"
     ],
     "deny": [],
     "ask": [],

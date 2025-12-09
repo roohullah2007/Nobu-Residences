@@ -1,6 +1,19 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 
+// Default fallback image
+const DEFAULT_CATEGORY_IMAGE = '/images/no-image-placeholder.jpg';
+
+// Simple helper to get valid image URL - no async loading
+const getValidImageUrl = (category) => {
+    // If backend validated the image exists, use it
+    if (category.validated_featured_image) {
+        return category.validated_featured_image;
+    }
+    // Otherwise use placeholder
+    return DEFAULT_CATEGORY_IMAGE;
+};
+
 /**
  * Blog Categories Section Component
  * Displays blog categories in a grid layout
@@ -64,12 +77,14 @@ const BlogCategoriesSection = ({ categories = [] }) => {
  * Individual Blog Category Card Component
  */
 const BlogCategoryCard = ({ category }) => {
+    const bgImage = getValidImageUrl(category);
+
     return (
         <Link
             href={`/blogs?category=${category.slug}`}
             className="group relative block w-full h-[397px] rounded-xl p-6 overflow-hidden bg-cover bg-center transition-transform hover:scale-[1.02]"
             style={{
-                backgroundImage: `url(${category.featured_image})`
+                backgroundImage: `url(${bgImage})`
             }}
         >
             {/* Dark overlay for better text visibility */}

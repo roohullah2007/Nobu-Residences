@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Blog extends Model
 {
@@ -25,6 +26,38 @@ class Blog extends Model
         'published_at' => 'datetime',
         'views' => 'integer'
     ];
+
+    protected $appends = ['validated_image'];
+
+    /**
+     * Get the validated image URL (returns null if image doesn't exist)
+     */
+    public function getValidatedImageAttribute()
+    {
+        if (empty($this->attributes['image'])) {
+            return null;
+        }
+
+        $image = $this->attributes['image'];
+
+        // If it's a public assets path, check public folder
+        if (str_starts_with($image, '/assets/') || str_starts_with($image, '/images/')) {
+            $publicPath = public_path(ltrim($image, '/'));
+            if (file_exists($publicPath)) {
+                return $image;
+            }
+            return null;
+        }
+
+        // Check if it's a storage path
+        $imagePath = str_replace('/storage/', '', $image);
+
+        if (Storage::disk('public')->exists($imagePath)) {
+            return $image;
+        }
+
+        return null;
+    }
 
     /**
      * Get the category that owns the blog.

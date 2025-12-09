@@ -291,6 +291,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
               data={displayData}
               auth={auth}
               type="property"
+              buildingData={buildingData}
             />
           </div>
 

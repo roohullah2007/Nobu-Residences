@@ -19,6 +19,7 @@ const MoreBuildings = ({
   const [condoListings, setCondoListings] = useState([]);
   const [buildingsData, setBuildingsData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
   const [showAllListings, setShowAllListings] = useState(false);
   
   const { listingKey, auth, globalWebsite, website } = usePage().props;
@@ -212,14 +213,15 @@ const MoreBuildings = ({
         console.log('Formatted nearby listings:', formattedListings);
         setNearbyListings(formattedListings);
         
-        // Fetch ALL images directly via API 
+        // Fetch ALL images directly via API
         const listingKeysToFetch = formattedListings
           .filter(listing => listing.listingKey)
           .map(listing => listing.listingKey);
-        
+
         if (listingKeysToFetch.length > 0) {
           console.log('Fetching images for listings:', listingKeysToFetch);
-          
+          setIsLoadingImages(true);
+
           // Fetch all images in one API call
           try {
             const imageResponse = await fetch('/api/property-images', {
@@ -230,13 +232,13 @@ const MoreBuildings = ({
               },
               body: JSON.stringify({ listing_keys: listingKeysToFetch })
             });
-            
+
             const imageResult = await imageResponse.json();
             console.log('Image API response:', imageResult);
-            
+
             // Check both possible response structures
             const imagesData = imageResult.data?.images || imageResult.images;
-            
+
             if (imageResult.success && imagesData) {
               console.log('Images data found:', imagesData);
               // Update listings with fetched images
@@ -248,7 +250,7 @@ const MoreBuildings = ({
                   if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
                     processedImageUrl = processedImageUrl.replace('https://', 'http://');
                   }
-                  
+
                   // Process all images array too
                   const processedImages = (imageData.all_images || []).map(url => {
                     if (url && typeof url === 'string' && url.includes('ampre.ca')) {
@@ -256,12 +258,12 @@ const MoreBuildings = ({
                     }
                     return url;
                   });
-                  
+
                   console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
-                  return { 
-                    ...listing, 
-                    imageUrl: processedImageUrl, 
-                    images: processedImages 
+                  return {
+                    ...listing,
+                    imageUrl: processedImageUrl,
+                    images: processedImages
                   };
                 }
                 return listing;
@@ -269,6 +271,8 @@ const MoreBuildings = ({
             }
           } catch (imgError) {
             console.error('Error fetching images:', imgError);
+          } finally {
+            setIsLoadingImages(false);
           }
         }
       } else {
@@ -353,7 +357,8 @@ const MoreBuildings = ({
         
         if (listingKeysToFetch.length > 0) {
           console.log('Fetching images for listings:', listingKeysToFetch);
-          
+          setIsLoadingImages(true);
+
           // Fetch all images in one API call
           try {
             const imageResponse = await fetch('/api/property-images', {
@@ -364,13 +369,13 @@ const MoreBuildings = ({
               },
               body: JSON.stringify({ listing_keys: listingKeysToFetch })
             });
-            
+
             const imageResult = await imageResponse.json();
             console.log('Image API response:', imageResult);
-            
+
             // Check both possible response structures
             const imagesData = imageResult.data?.images || imageResult.images;
-            
+
             if (imageResult.success && imagesData) {
               console.log('Images data found:', imagesData);
               // Update listings with fetched images
@@ -382,7 +387,7 @@ const MoreBuildings = ({
                   if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
                     processedImageUrl = processedImageUrl.replace('https://', 'http://');
                   }
-                  
+
                   // Process all images array too
                   const processedImages = (imageData.all_images || []).map(url => {
                     if (url && typeof url === 'string' && url.includes('ampre.ca')) {
@@ -390,12 +395,12 @@ const MoreBuildings = ({
                     }
                     return url;
                   });
-                  
+
                   console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
-                  return { 
-                    ...listing, 
-                    imageUrl: processedImageUrl, 
-                    images: processedImages 
+                  return {
+                    ...listing,
+                    imageUrl: processedImageUrl,
+                    images: processedImages
                   };
                 }
                 return listing;
@@ -403,6 +408,8 @@ const MoreBuildings = ({
             }
           } catch (imgError) {
             console.error('Error fetching images:', imgError);
+          } finally {
+            setIsLoadingImages(false);
           }
         }
       } else {
@@ -829,15 +836,15 @@ const MoreBuildings = ({
           )}
         </div>
 
-        {/* Loading State - Don't show if we already have buildings data */}
-        {isLoading && buildings.length === 0 && (
+        {/* Loading State - Show while loading data OR loading images */}
+        {((isLoading && buildings.length === 0) || isLoadingImages) && (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#293056]"></div>
           </div>
         )}
 
         {/* No Data State - Only show if not loading AND no buildings AND no preloaded data */}
-        {!isLoading && buildings.length === 0 && (
+        {!isLoading && !isLoadingImages && buildings.length === 0 && (
           (() => {
             // For Properties sections, check if buildingData has MLS properties
             const hasPreloadedSale = buildingData?.mls_properties_for_sale?.length > 0;
@@ -929,7 +936,7 @@ const MoreBuildings = ({
         })()}
 
         {/* Mobile: Grid Layout (for carousel layouts - same as Properties For Sale) */}
-        {!isLoading && buildings.length > 0 && !isGridLayout && (
+        {!isLoading && !isLoadingImages && buildings.length > 0 && !isGridLayout && (
         <div className="block md:hidden">
           <div className="grid grid-cols-1 gap-4">
             {buildings.slice(0, 6).map((building) => (
@@ -952,7 +959,7 @@ const MoreBuildings = ({
         )}
 
         {/* Desktop: Slider Container (for carousel layouts) */}
-        {!isLoading && buildings.length > 0 && !isGridLayout && (
+        {!isLoading && !isLoadingImages && buildings.length > 0 && !isGridLayout && (
         <div className="hidden md:block relative overflow-hidden">
           <div 
             ref={sliderRef}
@@ -989,7 +996,7 @@ const MoreBuildings = ({
         )}
 
         {/* Dots Indicator - Desktop Only (for carousel layouts) */}
-        {!isLoading && buildings.length > 0 && totalSlides > 1 && !isGridLayout && (
+        {!isLoading && !isLoadingImages && buildings.length > 0 && totalSlides > 1 && !isGridLayout && (
         <div className="hidden md:flex justify-center mt-6 gap-2">
           {Array.from({ length: totalSlides }).map((_, index) => (
             <button

@@ -13,6 +13,9 @@ export default function PropertyGallery({
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [currentMobileSlide, setCurrentMobileSlide] = useState(0);
   const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+  const [mlsImages, setMlsImages] = useState([]);
+  const [isLoadingMlsImages, setIsLoadingMlsImages] = useState(false);
+  const [mlsImagesFetched, setMlsImagesFetched] = useState(false);
 
   // Get brand colors from page props
   const { globalWebsite, website } = usePage().props;
@@ -25,6 +28,55 @@ export default function PropertyGallery({
   const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
   const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
 
+  // Fetch MLS images if local images not available
+  useEffect(() => {
+    const fetchMlsImages = async () => {
+      // Get listingKey from propertyData
+      const listingKey = propertyData?.listingKey || propertyData?.ListingKey ||
+                        propertyData?.mlsNumber || propertyData?.MlsNumber ||
+                        propertyData?.ListingId || propertyData?.listingId;
+
+      if (!listingKey) {
+        console.log('🖼️ No listing key found for MLS image fetch');
+        setMlsImagesFetched(true);
+        return;
+      }
+
+      setIsLoadingMlsImages(true);
+      try {
+        console.log('🖼️ Fetching MLS images for listing:', listingKey);
+        const response = await fetch(`/api/mls/property-images/${listingKey}`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.images && data.images.length > 0) {
+            console.log('🖼️ Fetched', data.images.length, 'MLS images');
+            setMlsImages(data.images);
+          } else {
+            console.log('🖼️ No MLS images found');
+          }
+        } else {
+          console.log('🖼️ MLS image fetch failed:', response.status);
+        }
+      } catch (error) {
+        console.error('🖼️ Error fetching MLS images:', error);
+      } finally {
+        setIsLoadingMlsImages(false);
+        setMlsImagesFetched(true);
+      }
+    };
+
+    // Only fetch MLS images if:
+    // 1. We don't have local images
+    // 2. We haven't already fetched MLS images
+    // 3. We're not currently loading
+    const hasLocalImages = propertyImages && Array.isArray(propertyImages) && propertyImages.length > 0;
+    const hasDataImages = propertyData?.Images && Array.isArray(propertyData.Images) && propertyData.Images.length > 0;
+
+    if (!hasLocalImages && !hasDataImages && !mlsImagesFetched && !isLoadingMlsImages) {
+      fetchMlsImages();
+    }
+  }, [propertyData, propertyImages, mlsImagesFetched, isLoadingMlsImages]);
 
   // Ensure we have valid images array with fallback
   const processImages = () => {
@@ -32,7 +84,8 @@ export default function PropertyGallery({
 
     // First check if propertyData has Images field
     const dataImages = propertyData?.Images || propertyData?.images || propertyData?.ImageObjects;
-    const imagesToProcess = propertyImages || dataImages || [];
+    // Use propertyImages first, then dataImages, then mlsImages as fallback
+    const imagesToProcess = propertyImages || dataImages || mlsImages || [];
 
     // Handle different image data structures
     if (Array.isArray(imagesToProcess)) {
@@ -308,86 +361,108 @@ export default function PropertyGallery({
             <div className="hidden md:flex lg:flex justify-between flex-col w-full md:w-[318px] h-auto md:h-[645px] gap-2 md:gap-0">
               {/* Small Image 1 */}
               <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
-                <div 
-                  className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                  onClick={() => isLoggedIn && openModal(1)}
-                >
-                  <img 
-                    src={(function() {
-                      let url = images[1] || images[0];
-                      if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                        return url.replace('https://', 'http://');
-                      }
-                      return url;
-                    })()}
-                    alt="Property image 2"
-                    className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
-                    onError={(e) => handleImageError(e, 1)}
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-                  
-                  {/* Login Overlay for Small Image 1 */}
-                  {!isLoggedIn && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                      <button
-                        onClick={() => onLoginClick && onLoginClick()}
-                        className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
-                      >
-                        Sign In
-                      </button>
+                {images.length > 0 ? (
+                  <div
+                    className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+                    onClick={() => isLoggedIn && openModal(1)}
+                  >
+                    <img
+                      src={(function() {
+                        let url = images[1] || images[0];
+                        if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
+                          return url.replace('https://', 'http://');
+                        }
+                        return url;
+                      })()}
+                      alt="Property image 2"
+                      className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
+                      onError={(e) => handleImageError(e, 1)}
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+
+                    {/* Login Overlay for Small Image 1 */}
+                    {!isLoggedIn && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
+                          className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
+                        >
+                          Sign In
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">No images available</p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
-              
+
               {/* Small Image 2 with See All Photos Button */}
               <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
-                <div 
-                  className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                  onClick={() => isLoggedIn && openModal(2)}
-                >
-                  <img 
-                    src={(function() {
-                      let url = images[2] || images[1] || images[0];
-                      if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                        return url.replace('https://', 'http://');
-                      }
-                      return url;
-                    })()}
-                    alt="Property image 3"
-                    className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
-                    onError={handleImageError}
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-                  
-                  {/* Login Overlay for Small Image 2 */}
-                  {!isLoggedIn && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                      <button
-                        onClick={() => onLoginClick && onLoginClick()}
-                        className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
-                      >
-                        Create Account
-                      </button>
+                {images.length > 0 ? (
+                  <div
+                    className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+                    onClick={() => isLoggedIn && openModal(2)}
+                  >
+                    <img
+                      src={(function() {
+                        let url = images[2] || images[1] || images[0];
+                        if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
+                          return url.replace('https://', 'http://');
+                        }
+                        return url;
+                      })()}
+                      alt="Property image 3"
+                      className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
+                      onError={handleImageError}
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+
+                    {/* Login Overlay for Small Image 2 */}
+                    {!isLoggedIn && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <button
+                          onClick={() => onLoginClick && onLoginClick()}
+                          className="px-4 py-2 bg-white/90 backdrop-blur text-[#293056] rounded-lg font-medium hover:bg-white transition-colors text-sm"
+                        >
+                          Create Account
+                        </button>
+                      </div>
+                    )}
+
+                    {/* See All Photos Button - Only show if logged in and we have more than 3 images */}
+                    {isLoggedIn && images.length > 3 && (
+                      <div className="hidden md:block absolute bottom-4 right-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal(0);
+                          }}
+                          className="flex justify-center items-center w-[129px] h-10 rounded-xl font-work-sans font-bold text-sm hover:opacity-90 transition-opacity"
+                          style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
+                        >
+                          See all photos
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative w-full h-full rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">No images available</p>
                     </div>
-                  )}
-                  
-                  {/* See All Photos Button - Only show if logged in and we have more than 3 images */}
-                  {isLoggedIn && images.length > 3 && (
-                    <div className="hidden md:block absolute bottom-4 right-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openModal(0);
-                        }}
-                        className="flex justify-center items-center w-[129px] h-10 rounded-xl font-work-sans font-bold text-sm hover:opacity-90 transition-opacity"
-                        style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
-                      >
-                        See all photos
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
