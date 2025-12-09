@@ -12,6 +12,7 @@ export default function EditHomePage({ auth }) {
     const [showInlineIconModal, setShowInlineIconModal] = useState(false);
     const [inlineIconCategory, setInlineIconCategory] = useState('');
     const [inlineIconIndex, setInlineIconIndex] = useState(null);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     // Helper function to build URL with website slug for preview display
     const buildUrlWithWebsite = (path) => {
@@ -204,10 +205,12 @@ export default function EditHomePage({ auth }) {
                 footer_background_image: data.footer_background_image,
             };
             
-            put(route('admin.websites.home-page.update', website.id), submitData, {
+            put(route('admin.websites.update-home-page', website.id), submitData, {
                 forceFormData: true,
                 onSuccess: (response) => {
                     console.log('Success response:', response);
+                    setShowSuccess(true);
+                    setTimeout(() => setShowSuccess(false), 4000);
                 },
                 onError: (errors) => {
                     console.error('Form submission errors:', errors);
@@ -644,6 +647,32 @@ export default function EditHomePage({ auth }) {
     return (
         <AdminLayout title={title}>
             <Head title={title} />
+
+            {/* Success Notification */}
+            {showSuccess && (
+                <div className="fixed top-4 right-4 z-[1000] animate-pulse">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start shadow-lg max-w-sm">
+                        <div className="flex-shrink-0">
+                            <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <h3 className="text-sm font-medium text-green-800">Changes Saved Successfully!</h3>
+                            <p className="text-sm text-green-700 mt-1">Your home page has been updated.</p>
+                        </div>
+                        <button
+                            onClick={() => setShowSuccess(false)}
+                            className="ml-auto -mr-1.5 -mt-1.5 bg-green-50 text-green-500 rounded-lg p-1.5 hover:bg-green-100 inline-flex h-8 w-8"
+                        >
+                            <span className="sr-only">Dismiss</span>
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-8">
                 <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">

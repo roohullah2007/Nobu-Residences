@@ -7,6 +7,7 @@ use App\Services\GeocodingService;
 use App\Models\SavedSearch;
 use App\Models\Property;
 use App\Models\MLSProperty;
+use App\Models\Building;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -423,8 +424,61 @@ class PropertySearchController extends Controller
             }
         }
 
+        // Apply building_id filter - lookup building and search for all its addresses
+        // This handles multi-address buildings like NOBU Residences (15 and 35 Mercer)
+        $buildingAddressesApplied = false;
+        if (!empty($params['building_id'])) {
+            $building = Building::find($params['building_id']);
+            if ($building) {
+                // Collect all street addresses from the building
+                $streetAddresses = [];
+
+                if (!empty($building->street_address_1)) {
+                    $streetAddresses[] = trim($building->street_address_1);
+                }
+                if (!empty($building->street_address_2)) {
+                    $streetAddresses[] = trim($building->street_address_2);
+                }
+
+                // If we have street addresses, apply OR filter for each address
+                if (!empty($streetAddresses)) {
+                    $query->where(function($q) use ($streetAddresses) {
+                        foreach ($streetAddresses as $idx => $streetAddress) {
+                            // Extract street number and name for matching
+                            // Handle formats like "15 Mercer St", "35 Mercer", etc.
+                            if (preg_match('/^(\d+)\s+(.+)/', $streetAddress, $matches)) {
+                                $streetNumber = $matches[1];
+                                $streetName = preg_replace('/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive)\.?\s*$/i', '', trim($matches[2]));
+
+                                if ($idx === 0) {
+                                    // First address - use where
+                                    $q->where(function($subQ) use ($streetNumber, $streetName) {
+                                        $subQ->where('address', 'like', $streetNumber . ' %')
+                                             ->where('address', 'like', '%' . $streetName . '%');
+                                    });
+                                } else {
+                                    // Additional addresses - use orWhere
+                                    $q->orWhere(function($subQ) use ($streetNumber, $streetName) {
+                                        $subQ->where('address', 'like', $streetNumber . ' %')
+                                             ->where('address', 'like', '%' . $streetName . '%');
+                                    });
+                                }
+                            }
+                        }
+                    });
+                    $buildingAddressesApplied = true;
+
+                    Log::info('Building address filter applied', [
+                        'building_id' => $params['building_id'],
+                        'street_addresses' => $streetAddresses
+                    ]);
+                }
+            }
+        }
+
         // Apply location filter - use FULLTEXT on address column for fast searches
-        if (!empty($params['query'])) {
+        // Skip if building_id filter was already applied
+        if (!$buildingAddressesApplied && !empty($params['query'])) {
             $searchQuery = trim($params['query']);
 
             // Detect if it's a postal code (Canadian format: A1A 1A1 or A1A1A1)
@@ -592,8 +646,48 @@ class PropertySearchController extends Controller
             }
         }
 
+        // Apply building_id filter - lookup building and search for all its addresses
+        $buildingAddressesApplied = false;
+        if (!empty($params['building_id'])) {
+            $building = Building::find($params['building_id']);
+            if ($building) {
+                $streetAddresses = [];
+                if (!empty($building->street_address_1)) {
+                    $streetAddresses[] = trim($building->street_address_1);
+                }
+                if (!empty($building->street_address_2)) {
+                    $streetAddresses[] = trim($building->street_address_2);
+                }
+
+                if (!empty($streetAddresses)) {
+                    $query->where(function($q) use ($streetAddresses) {
+                        foreach ($streetAddresses as $idx => $streetAddress) {
+                            if (preg_match('/^(\d+)\s+(.+)/', $streetAddress, $matches)) {
+                                $streetNumber = $matches[1];
+                                $streetName = preg_replace('/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive)\.?\s*$/i', '', trim($matches[2]));
+
+                                if ($idx === 0) {
+                                    $q->where(function($subQ) use ($streetNumber, $streetName) {
+                                        $subQ->where('address', 'like', $streetNumber . ' %')
+                                             ->where('address', 'like', '%' . $streetName . '%');
+                                    });
+                                } else {
+                                    $q->orWhere(function($subQ) use ($streetNumber, $streetName) {
+                                        $subQ->where('address', 'like', $streetNumber . ' %')
+                                             ->where('address', 'like', '%' . $streetName . '%');
+                                    });
+                                }
+                            }
+                        }
+                    });
+                    $buildingAddressesApplied = true;
+                }
+            }
+        }
+
         // Apply location filter - use FULLTEXT on address column for fast searches
-        if ($hasLocationQuery) {
+        // Skip if building_id filter was already applied
+        if (!$buildingAddressesApplied && $hasLocationQuery) {
             $searchQuery = trim($params['query']);
 
             // Detect if it's a postal code (Canadian format: A1A 1A1 or A1A1A1)
@@ -2652,6 +2746,7 @@ class PropertySearchController extends Controller
             'bedrooms' => 0,
             'bathrooms' => 0,
             'sort' => 'newest',
+            'building_id' => '', // Building ID for multi-address building searches
         ];
         
         if (!is_array($params)) {
@@ -2686,6 +2781,7 @@ class PropertySearchController extends Controller
         $sanitized['property_status'] = htmlspecialchars($sanitized['property_status'] ?? '');
         $sanitized['query'] = htmlspecialchars($sanitized['query']);
         $sanitized['sort'] = htmlspecialchars($sanitized['sort']);
+        $sanitized['building_id'] = htmlspecialchars($sanitized['building_id'] ?? '');
         
         // Validate sort parameter
         $validSorts = ['newest', 'price-high', 'price-low', 'bedrooms', 'bathrooms', 'sqft'];

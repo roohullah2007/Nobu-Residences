@@ -13,32 +13,53 @@ export default function HeroSection({ auth, siteName = 'Nobu Residences', websit
     const subheading = heroContent.subheading || 'Whether buying or renting, Nobu makes finding your home easy and reliable.';
     const backgroundImage = heroContent.background_image || '/assets/hero-section.jpg';
     
-    // Get default building address from MLS settings or use fallback
-    const defaultBuildingAddress = mlsSettings.default_building_address || '15 Mercer Street';
-    const addressParts = defaultBuildingAddress.split(' ');
+    // Get building addresses from MLS settings - supports multiple buildings
+    // Can be a single address like "15 Mercer Street" or comma-separated like "15 Mercer Street, 35 Mercer Street"
+    const defaultBuildingAddresses = mlsSettings.default_building_address || '15 Mercer Street';
+    const buildingAddresses = defaultBuildingAddresses.split(',').map(addr => addr.trim());
+
+    // Parse the first building address for URL slug
+    const firstAddress = buildingAddresses[0];
+    const addressParts = firstAddress.split(' ');
     const streetNumber = addressParts[0] || '15';
     const streetName = addressParts.slice(1).join(' ').replace(/\s+Street$/i, '') || 'Mercer';
     const buildingSlug = `${streetNumber}-${streetName.replace(/\s+/g, '-')}`;
-    
-    // Fetch property counts on component mount
+
+    // Fetch property counts on component mount - supports multiple buildings
     useEffect(() => {
         const fetchPropertyCounts = async () => {
             try {
-                // Use the building address from MLS settings
-                const response = await fetch(`/api/buildings/count-mls-listings?street_number=${streetNumber}&street_name=${streetName}`);
-                const data = await response.json();
-                if (data.success) {
-                    setPropertyCounts(data.data);
+                // Fetch counts for all configured buildings
+                let totalForSale = 0;
+                let totalForRent = 0;
+
+                for (const address of buildingAddresses) {
+                    const parts = address.split(' ');
+                    const num = parts[0];
+                    const name = parts.slice(1).join(' ').replace(/\s+Street$/i, '');
+
+                    const response = await fetch(`/api/buildings/count-mls-listings?street_number=${num}&street_name=${name}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        totalForSale += data.data.for_sale || 0;
+                        totalForRent += data.data.for_rent || 0;
+                    }
                 }
+
+                setPropertyCounts({
+                    for_sale: totalForSale,
+                    for_rent: totalForRent,
+                    total: totalForSale + totalForRent
+                });
             } catch (error) {
                 console.error('Error fetching property counts:', error);
             } finally {
                 setIsLoadingCounts(false);
             }
         };
-        
+
         fetchPropertyCounts();
-    }, [streetNumber, streetName]);
+    }, [defaultBuildingAddresses]);
     
     // Always use dynamic buttons with building-specific URLs
     // IMPORTANT: Ignore database URLs and always use building-specific routes

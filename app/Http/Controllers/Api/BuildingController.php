@@ -208,12 +208,14 @@ class BuildingController extends Controller
     
     /**
      * Find building by street address
+     * Searches in address, street_address_1, and street_address_2 fields
+     * to support buildings with multiple addresses (e.g., NOBU Residences with 15 Mercer and 35 Mercer)
      */
     public function findByAddress(Request $request): JsonResponse
     {
         $streetNumber = $request->input('street_number');
         $streetName = $request->input('street_name');
-        
+
         if (!$streetNumber || !$streetName) {
             return response()->json([
                 'success' => false,
@@ -221,18 +223,26 @@ class BuildingController extends Controller
                 'data' => null
             ]);
         }
-        
+
         // Search for building with matching street address
+        // Check all address fields: address, street_address_1, and street_address_2
         $searchPattern = $streetNumber . ' ' . $streetName;
-        
+
         $building = Building::with(['developer', 'amenities'])
             ->where(function($query) use ($searchPattern, $streetNumber, $streetName) {
+                // Search in main address field
                 $query->where('address', 'LIKE', $searchPattern . '%')
-                      ->orWhere('address', 'LIKE', $streetNumber . ' ' . $streetName . '%');
+                      ->orWhere('address', 'LIKE', $streetNumber . ' ' . $streetName . '%')
+                      // Also search in street_address_1 field (supports multi-address buildings)
+                      ->orWhere('street_address_1', 'LIKE', $searchPattern . '%')
+                      ->orWhere('street_address_1', 'LIKE', $streetNumber . ' ' . $streetName . '%')
+                      // Also search in street_address_2 field (supports multi-address buildings)
+                      ->orWhere('street_address_2', 'LIKE', $searchPattern . '%')
+                      ->orWhere('street_address_2', 'LIKE', $streetNumber . ' ' . $streetName . '%');
             })
             ->where('status', 'active')
             ->first();
-            
+
         if (!$building) {
             return response()->json([
                 'success' => false,
@@ -240,7 +250,7 @@ class BuildingController extends Controller
                 'data' => null
             ]);
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => $building

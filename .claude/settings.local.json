@@ -75,7 +75,8 @@
       "mcp__ide__getDiagnostics",
       "Bash(truncate:*)",
       "Bash(echo:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(do php artisan mls:sync-images --batch-size=100 --skip-existing)"
     ],
     "deny": [],
     "ask": [],
