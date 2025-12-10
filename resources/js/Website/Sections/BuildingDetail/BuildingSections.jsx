@@ -60,8 +60,8 @@ export default function BuildingSections({
         />
       </div>
 
-      {/* More Buildings by Developer Section - Show if developer_name exists */}
-      {buildingData?.developer_name && (
+      {/* More Buildings by Developer Section - Show if developer_id or developer_name exists */}
+      {(buildingData?.developer_id || buildingData?.developer_name) && (
         <DeveloperBuildings buildingData={buildingData} />
       )}
 

@@ -42,6 +42,11 @@ class BuildingController extends Controller
         if ($request->has('developer_name')) {
             $query->where('developer_name', $request->input('developer_name'));
         }
+
+        // Filter by developer_id (taxonomy)
+        if ($request->has('developer_id')) {
+            $query->where('developer_id', $request->input('developer_id'));
+        }
         
         if ($request->has('min_price')) {
             $query->where('price_range', '>=', $request->input('min_price'));

@@ -510,11 +510,15 @@ const MoreBuildings = ({
         params.append('building_type', buildingData.building_type);
       }
 
-      // For Developer Buildings, filter by developer_name
-      if (title.startsWith("More Buildings by") && buildingData?.developer_name) {
+      // For Developer Buildings, filter by developer_id (taxonomy)
+      if (title.startsWith("More Buildings by") && buildingData?.developer_id) {
+        params.append('developer_id', buildingData.developer_id);
+        console.log('DeveloperBuildings - developer_id:', buildingData.developer_id);
+        console.log('DeveloperBuildings - Fetching buildings for developer:', buildingData.developer?.name || buildingData.developer_name);
+      } else if (title.startsWith("More Buildings by") && buildingData?.developer_name) {
+        // Fallback to developer_name if developer_id is not set
         params.append('developer_name', buildingData.developer_name);
-        console.log('DeveloperBuildings - developer_name:', buildingData.developer_name);
-        console.log('DeveloperBuildings - Fetching buildings for developer:', buildingData.developer_name);
+        console.log('DeveloperBuildings - developer_name (fallback):', buildingData.developer_name);
       }
 
       const url = `/api/buildings?${params.toString()}`;

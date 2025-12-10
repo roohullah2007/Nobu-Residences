@@ -226,6 +226,11 @@ class Building extends Model
             $this->load('maintenanceFeeAmenities');
         }
 
+        // Ensure developer relationship is loaded
+        if (!$this->relationLoaded('developer')) {
+            $this->load('developer');
+        }
+
         // Get amenities from relationship only (no JSON fallback)
         $amenities = $this->amenities->map(function($amenity) {
             return [
@@ -244,6 +249,18 @@ class Building extends Model
             ];
         })->toArray();
 
+        // Get developer data from relationship
+        $developerRelation = $this->getRelation('developer');
+        $developerData = null;
+        if ($developerRelation) {
+            $developerData = [
+                'id' => $developerRelation->id,
+                'name' => $developerRelation->name,
+                'type' => $developerRelation->type,
+                'logo' => $developerRelation->logo,
+            ];
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -256,8 +273,9 @@ class Building extends Model
             'neighbourhood' => $this->neighbourhood,
             'sub_neighbourhood' => $this->sub_neighbourhood,
             'province' => $this->province,
-            'developer' => $this->developer,
-            'developer_name' => $this->developer_name,
+            'developer_id' => $this->developer_id,
+            'developer' => $developerData,
+            'developer_name' => $this->developer_name ?: ($developerData['name'] ?? null),
             'management_name' => $this->management_name,
             'corp_number' => $this->corp_number,
             'date_registered' => $this->date_registered,

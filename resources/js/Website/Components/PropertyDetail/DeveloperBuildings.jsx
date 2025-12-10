@@ -30,35 +30,41 @@ const DeveloperBuildings = ({ buildingData }) => {
   const [buildings, setBuildings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get developer name from building data
-  const developerName = buildingData?.developer_name;
+  // Get developer info from building data - prefer developer_id (taxonomy) over developer_name (text field)
+  const developerId = buildingData?.developer_id;
+  const developerName = buildingData?.developer?.name || buildingData?.developer_name;
   const title = `More Buildings by ${developerName}`;
 
   // Fetch buildings by developer
   useEffect(() => {
-    if (!developerName) {
+    if (!developerId && !developerName) {
       setIsLoading(false);
       return;
     }
 
     fetchDeveloperBuildings();
-  }, [developerName, buildingData?.city, buildingData?.id]);
+  }, [developerId, developerName, buildingData?.city, buildingData?.id]);
 
   const fetchDeveloperBuildings = async () => {
     setIsLoading(true);
     console.log('DeveloperBuildings - buildingData:', buildingData);
+    console.log('DeveloperBuildings - developer_id:', developerId);
     console.log('DeveloperBuildings - developer_name:', developerName);
     console.log('DeveloperBuildings - Fetching buildings for developer:', developerName);
 
     try {
-      // Prepare query parameters
+      // Prepare query parameters - prefer developer_id (taxonomy) over developer_name (text)
       const params = new URLSearchParams();
-      params.append('developer_name', developerName);
-
-      // Add city filter for better results
-      if (buildingData?.city) {
-        params.append('city', buildingData.city);
+      if (developerId) {
+        params.append('developer_id', developerId);
+      } else if (developerName) {
+        params.append('developer_name', developerName);
       }
+
+      // Note: Don't add city filter - we want ALL buildings by this developer regardless of city
+      // if (buildingData?.city) {
+      //   params.append('city', buildingData.city);
+      // }
 
       const url = `/api/buildings?${params.toString()}`;
       console.log('DeveloperBuildings - API URL:', url);
