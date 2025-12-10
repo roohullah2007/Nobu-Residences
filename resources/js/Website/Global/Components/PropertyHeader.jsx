@@ -170,37 +170,64 @@ export default function PropertyHeader({
   const getTitle = () => {
     if (type === 'building') {
       // For buildings, show the address instead of name
-      return data?.address || data?.name;
+      // Ensure "Street" is appended if the address doesn't already contain it
+      let address = data?.address || data?.name || '';
+
+      // Check if address needs "Street" suffix
+      // Common street type abbreviations that should be expanded or kept
+      const streetTypes = ['St', 'Ave', 'Blvd', 'Rd', 'Dr', 'Ln', 'Ct', 'Way', 'Pl', 'Cres', 'Street', 'Avenue', 'Boulevard', 'Road', 'Drive', 'Lane', 'Court', 'Place', 'Crescent'];
+      const hasStreetType = streetTypes.some(type =>
+        address.toLowerCase().includes(type.toLowerCase() + ',') ||
+        address.toLowerCase().includes(type.toLowerCase() + ' ') ||
+        address.toLowerCase().endsWith(type.toLowerCase())
+      );
+
+      // If address ends with just a street name without type, add "Street"
+      if (!hasStreetType && address && !address.includes(',')) {
+        address = address + ' Street';
+      }
+
+      return address;
     }
 
-    // For properties, format as "UnitNumber - StreetNumber StreetName"
+    // For properties, format as "UnitNumber - StreetNumber StreetName Street"
     if (type === 'property' && data) {
       const unitNumber = data?.unitNumber || data?.UnitNumber || '';
       const streetNumber = data?.streetNumber || data?.StreetNumber || '';
       const streetName = data?.streetName || data?.StreetName || '';
-      
+
       // Build the formatted title
       let title = '';
-      
+
       // Add unit number if available
       if (unitNumber) {
         title = unitNumber;
       }
-      
+
       // Add street number and name
       if (streetNumber && streetName) {
-        const streetPart = `${streetNumber} ${streetName}`;
+        // Check if streetName already contains a street type suffix
+        const streetTypes = ['St', 'Ave', 'Blvd', 'Rd', 'Dr', 'Ln', 'Ct', 'Way', 'Pl', 'Cres', 'Street', 'Avenue', 'Boulevard', 'Road', 'Drive', 'Lane', 'Court', 'Place', 'Crescent'];
+        const hasStreetType = streetTypes.some(type =>
+          streetName.toLowerCase().endsWith(type.toLowerCase()) ||
+          streetName.toLowerCase().includes(type.toLowerCase() + ' ')
+        );
+
+        // Add "Street" if the street name doesn't already have a type
+        const formattedStreetName = hasStreetType ? streetName : `${streetName} Street`;
+        const streetPart = `${streetNumber} ${formattedStreetName}`;
+
         if (title) {
           title = `${title} - ${streetPart}`;
         } else {
           title = streetPart;
         }
       }
-      
+
       // Fallback to original address if no formatted parts available
       return title || data?.address;
     }
-    
+
     return data?.address;
   };
 

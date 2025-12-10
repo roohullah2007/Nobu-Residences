@@ -1,4 +1,4 @@
-import { Head, Link, usePage, useForm } from '@inertiajs/react';
+import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useState } from 'react';
 
@@ -192,21 +192,33 @@ export default function EditHomePage({ auth }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
         if (website?.id) {
             clearErrors();
-            
-            const submitData = {
-                title: data.title || '',
-                content: JSON.stringify(data.content),
-                hero_background_image: data.hero_background_image,
-                about_image: data.about_image,
-                footer_logo: data.footer_logo,
-                footer_background_image: data.footer_background_image,
-            };
-            
-            put(route('admin.websites.update-home-page', website.id), submitData, {
+
+            // Use Inertia's router.post with _method for PUT to properly handle form data
+            const formData = new FormData();
+            formData.append('_method', 'PUT');
+            formData.append('title', data.title || homePage?.title || 'Home');
+            formData.append('content', JSON.stringify(data.content));
+
+            if (data.hero_background_image) {
+                formData.append('hero_background_image', data.hero_background_image);
+            }
+            if (data.about_image) {
+                formData.append('about_image', data.about_image);
+            }
+            if (data.footer_logo) {
+                formData.append('footer_logo', data.footer_logo);
+            }
+            if (data.footer_background_image) {
+                formData.append('footer_background_image', data.footer_background_image);
+            }
+
+            // Use router.post with _method override for proper multipart form handling
+            router.post(route('admin.websites.update-home-page', website.id), formData, {
                 forceFormData: true,
+                preserveScroll: true,
                 onSuccess: (response) => {
                     console.log('Success response:', response);
                     setShowSuccess(true);

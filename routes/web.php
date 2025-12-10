@@ -346,7 +346,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::delete('/{website}', [WebsiteManagementController::class, 'destroy'])->name('destroy');
         Route::post('/{website}/duplicate', [WebsiteManagementController::class, 'duplicate'])->name('duplicate');
         Route::get('/{website}/edit-home-page', [WebsiteManagementController::class, 'editHomePage'])->name('edit-home-page');
-        Route::put('/{website}/update-home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('update-home-page');
+        Route::match(['put', 'post'], '/{website}/update-home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('update-home-page');
         Route::get('/{website}/pages', [WebsiteManagementController::class, 'pages'])->name('pages');
     });
     
