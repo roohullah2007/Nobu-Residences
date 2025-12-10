@@ -105,7 +105,7 @@ export default function ContactInfo({ website }) {
 
           <div className="flex items-center space-x-4 mb-6">
             {agentImage && (
-              <div className="w-16 h-16 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center overflow-hidden">
+              <div className="relative w-16 h-16 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center overflow-hidden">
                 <img
                   src={agentImage}
                   alt={agentName || 'Agent'}
