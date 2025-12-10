@@ -7,7 +7,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 
-export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [] }) {
+export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         address: '',
@@ -22,6 +22,8 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         main_image: '',
         images: [],
         developer_id: '',
+        neighbourhood_id: '',
+        sub_neighbourhood_id: '',
         is_featured: false,
         latitude: '',
         longitude: '',
@@ -46,6 +48,11 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         listing_type: 'For Sale',
         maintenance_fee_amenity_ids: []
     });
+
+    // Filter sub-neighbourhoods based on selected neighbourhood
+    const filteredSubNeighbourhoods = data.neighbourhood_id
+        ? subNeighbourhoods.filter(sub => sub.neighbourhood_id === data.neighbourhood_id)
+        : subNeighbourhoods;
 
     const [selectedAmenities, setSelectedAmenities] = useState([]);
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState([]);
@@ -478,6 +485,47 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         ))}
                                     </select>
                                     <InputError message={errors.developer_id} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="neighbourhood_id" value="Neighbourhood" />
+                                    <select
+                                        id="neighbourhood_id"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.neighbourhood_id}
+                                        onChange={(e) => {
+                                            setData('neighbourhood_id', e.target.value);
+                                            // Reset sub-neighbourhood when neighbourhood changes
+                                            setData('sub_neighbourhood_id', '');
+                                        }}
+                                    >
+                                        <option value="">Select a neighbourhood...</option>
+                                        {neighbourhoods.map((neighbourhood) => (
+                                            <option key={neighbourhood.id} value={neighbourhood.id}>
+                                                {neighbourhood.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.neighbourhood_id} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="sub_neighbourhood_id" value="Sub-Neighbourhood" />
+                                    <select
+                                        id="sub_neighbourhood_id"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.sub_neighbourhood_id}
+                                        onChange={(e) => setData('sub_neighbourhood_id', e.target.value)}
+                                    >
+                                        <option value="">Select a sub-neighbourhood...</option>
+                                        {filteredSubNeighbourhoods.map((subNeighbourhood) => (
+                                            <option key={subNeighbourhood.id} value={subNeighbourhood.id}>
+                                                {subNeighbourhood.name}
+                                                {!data.neighbourhood_id && subNeighbourhood.neighbourhood && ` (${subNeighbourhood.neighbourhood.name})`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.sub_neighbourhood_id} className="mt-2" />
                                 </div>
 
                                 <div className="sm:col-span-3">

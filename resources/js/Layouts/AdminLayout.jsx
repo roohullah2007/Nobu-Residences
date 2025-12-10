@@ -5,7 +5,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
     const { auth } = usePage().props;
     const { url } = usePage();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [realEstateOpen, setRealEstateOpen] = useState(url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || false);
+    const [realEstateOpen, setRealEstateOpen] = useState(url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || url?.startsWith('/admin/developers') || false);
 
     const navigation = [
         {
@@ -36,7 +36,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
             ),
-            current: url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || false,
+            current: url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || url?.startsWith('/admin/developers') || false,
             hasSubmenu: true,
             submenu: [
                 {
@@ -46,8 +46,8 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 },
                 {
                     name: 'Developers',
-                    href: route('admin.real-estate.developers'),
-                    current: url?.startsWith('/admin/real-estate/developers') || false
+                    href: route('admin.developers.index'),
+                    current: url?.startsWith('/admin/developers') || url?.startsWith('/admin/real-estate/developers') || false
                 },
                 {
                     name: 'Amenities',

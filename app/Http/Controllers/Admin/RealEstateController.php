@@ -20,15 +20,11 @@ class RealEstateController extends Controller
 
     /**
      * Real Estate Developers management
+     * Redirects to the new developer management system
      */
-    public function developers(): Response
+    public function developers()
     {
-        return Inertia::render('Admin/RealEstate/Developers', [
-            'title' => 'Developers',
-            'developers' => [
-                // This will be populated with actual developer data later
-            ]
-        ]);
+        return redirect()->route('admin.developers.index');
     }
 
     /**

@@ -86,10 +86,16 @@ class BuildingController extends Controller
                 ];
             });
 
+        // Get neighbourhoods and sub-neighbourhoods for dropdowns
+        $neighbourhoods = \App\Models\Neighbourhood::orderBy('name')->get();
+        $subNeighbourhoods = \App\Models\SubNeighbourhood::with('neighbourhood')->orderBy('name')->get();
+
         return Inertia::render('Admin/Buildings/Create', [
             'developers' => $developers,
             'amenities' => $amenities,
-            'maintenanceFeeAmenities' => $maintenanceFeeAmenities
+            'maintenanceFeeAmenities' => $maintenanceFeeAmenities,
+            'neighbourhoods' => $neighbourhoods,
+            'subNeighbourhoods' => $subNeighbourhoods
         ]);
     }
 
@@ -113,6 +119,8 @@ class BuildingController extends Controller
             'main_image' => 'nullable|string',
             'images' => 'nullable|array',
             'developer_id' => 'nullable|exists:developers,id',
+            'neighbourhood_id' => 'nullable|exists:neighbourhoods,id',
+            'sub_neighbourhood_id' => 'nullable|exists:sub_neighbourhoods,id',
             'developer_name' => 'nullable|string|max:255',
             'management_name' => 'nullable|string|max:255',
             'corp_number' => 'nullable|string|max:100',
