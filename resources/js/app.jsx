@@ -26,14 +26,16 @@ createInertiaApp({
     resolve: (name) => {
         const allPages = import.meta.glob(['./Pages/**/*.jsx', './Website/**/*.jsx']);
 
-        // First try the exact path
-        let path = `./Pages/${name}.jsx`;
-        if (allPages[path]) {
-            return resolvePageComponent(path, allPages);
+        // If name starts with 'Website/', use it directly
+        if (name.startsWith('Website/')) {
+            const path = `./${name}.jsx`;
+            if (allPages[path]) {
+                return resolvePageComponent(path, allPages);
+            }
         }
 
-        // Try as a direct Website path
-        path = `./${name}.jsx`;
+        // Try the Pages path
+        let path = `./Pages/${name}.jsx`;
         if (allPages[path]) {
             return resolvePageComponent(path, allPages);
         }

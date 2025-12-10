@@ -11,11 +11,26 @@ createServer((page) =>
         page,
         render: ReactDOMServer.renderToString,
         title: (title) => `${title} - ${appName}`,
-        resolve: (name) =>
-            resolvePageComponent(
-                `./Pages/${name}.jsx`,
-                import.meta.glob('./Pages/**/*.jsx'),
-            ),
+        resolve: (name) => {
+            const allPages = import.meta.glob(['./Pages/**/*.jsx', './Website/**/*.jsx']);
+
+            // If name starts with 'Website/', use it directly
+            if (name.startsWith('Website/')) {
+                const path = `./${name}.jsx`;
+                if (allPages[path]) {
+                    return resolvePageComponent(path, allPages);
+                }
+            }
+
+            // Try the Pages path
+            let path = `./Pages/${name}.jsx`;
+            if (allPages[path]) {
+                return resolvePageComponent(path, allPages);
+            }
+
+            // Fallback to default resolution
+            return resolvePageComponent(`./Pages/${name}.jsx`, allPages);
+        },
         setup: ({ App, props }) => {
             global.route = (name, params, absolute) =>
                 route(name, params, absolute, {
