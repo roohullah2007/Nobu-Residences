@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 
 const Footer = ({
@@ -12,7 +12,11 @@ const Footer = ({
 }) => {
     const [showContactModal, setShowContactModal] = useState(false);
 
-    const brandColors = website?.brand_colors || {
+    // Get global website data which includes footer_content
+    const { globalWebsite } = usePage().props;
+    const effectiveWebsite = website || globalWebsite;
+
+    const brandColors = effectiveWebsite?.brand_colors || {
         primary: '#912018',
         secondary: '#1d957d',
         accent: '#F5F8FF',
@@ -41,19 +45,19 @@ const Footer = ({
     const buttonQuaternaryBg = brandColors.button_quaternary_bg || '#FFFFFF';
     const buttonQuaternaryText = brandColors.button_quaternary_text || '#293056';
 
-    // Get footer data from pageContent or fallback to defaults
-    const footerData = pageContent?.footer || {};
+    // Get footer data from pageContent, globalWebsite.footer_content, or fallback to defaults
+    const footerData = pageContent?.footer || globalWebsite?.footer_content || {};
     const footerEnabled = footerData?.enabled !== false; // Default to true
-    
+
     // If footer is disabled, don't render anything
     if (!footerEnabled) {
         return null;
     }
-    
+
     // Get contact info from website or footer data
-    const contactInfo = website?.contact_info || {};
-    const agentInfo = website?.agent_info || {};
-    const socialMedia = website?.social_media || {};
+    const contactInfo = effectiveWebsite?.contact_info || {};
+    const agentInfo = effectiveWebsite?.agent_info || {};
+    const socialMedia = effectiveWebsite?.social_media || {};
 
     // Contact display settings
     const contactSettings = footerData?.contact_info || {};
@@ -81,8 +85,8 @@ const Footer = ({
     const footerContent = {
         heading: footerData?.heading || 'Your new home is waiting',
         subheading: footerData?.subheading || 'Apply online in minutes or get in touch to schedule a personalized tour',
-        description: footerData?.description || website?.description || '',
-        logo_url: footerData?.logo_url || website?.logo_url || '',
+        description: footerData?.description || effectiveWebsite?.description || '',
+        logo_url: footerData?.logo_url || effectiveWebsite?.logo_url || '',
         background_image: footerData?.background_image || '/assets/house-img.jpg',
         copyright_text: footerData?.copyright_text || `Copyright ${year} © ${siteName} - All Rights Reserved.`,
         quick_links: footerData?.quick_links || [
