@@ -14,22 +14,12 @@ createServer((page) =>
         resolve: (name) => {
             const allPages = import.meta.glob(['./Pages/**/*.jsx', './Website/**/*.jsx']);
 
-            // If name starts with 'Website/', use it directly
-            if (name.startsWith('Website/')) {
-                const path = `./${name}.jsx`;
-                if (allPages[path]) {
-                    return resolvePageComponent(path, allPages);
-                }
-            }
+            // Determine the correct path based on name
+            const path = name.startsWith('Website/')
+                ? `./${name}.jsx`
+                : `./Pages/${name}.jsx`;
 
-            // Try the Pages path
-            let path = `./Pages/${name}.jsx`;
-            if (allPages[path]) {
-                return resolvePageComponent(path, allPages);
-            }
-
-            // Fallback to default resolution
-            return resolvePageComponent(`./Pages/${name}.jsx`, allPages);
+            return resolvePageComponent(path, allPages);
         },
         setup: ({ App, props }) => {
             global.route = (name, params, absolute) =>
