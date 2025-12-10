@@ -51,32 +51,67 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
     const buttonSecondaryBg = brandColors.button_secondary_bg || brandColors.secondary;
     const buttonSecondaryText = brandColors.button_secondary_text || '#FFFFFF';
 
-    // Add styles for range inputs
+    // Add styles for range inputs - dual range slider support
     useEffect(() => {
         const style = document.createElement('style');
         style.textContent = `
+            /* Hide the default track for both sliders */
+            input[type="range"]::-webkit-slider-runnable-track {
+                background: transparent;
+            }
+            input[type="range"]::-moz-range-track {
+                background: transparent;
+            }
+
+            /* Style the thumbs to be visible and clickable */
             input[type="range"]::-webkit-slider-thumb {
                 -webkit-appearance: none;
                 appearance: none;
-                width: 18px;
-                height: 18px;
+                width: 20px;
+                height: 20px;
                 background: transparent;
                 cursor: pointer;
                 border: none;
+                pointer-events: auto;
+                position: relative;
             }
             input[type="range"]::-moz-range-thumb {
-                width: 18px;
-                height: 18px;
+                width: 20px;
+                height: 20px;
                 background: transparent;
                 cursor: pointer;
                 border: none;
+                pointer-events: auto;
             }
             input[type="range"]::-ms-thumb {
-                width: 18px;
-                height: 18px;
+                width: 20px;
+                height: 20px;
                 background: transparent;
                 cursor: pointer;
                 border: none;
+                pointer-events: auto;
+            }
+
+            /* Make the min slider only capture events on the left side */
+            .price-range-min {
+                pointer-events: none;
+            }
+            .price-range-min::-webkit-slider-thumb {
+                pointer-events: auto;
+            }
+            .price-range-min::-moz-range-thumb {
+                pointer-events: auto;
+            }
+
+            /* Make the max slider only capture events on the right side */
+            .price-range-max {
+                pointer-events: none;
+            }
+            .price-range-max::-webkit-slider-thumb {
+                pointer-events: auto;
+            }
+            .price-range-max::-moz-range-thumb {
+                pointer-events: auto;
             }
         `;
         document.head.appendChild(style);
@@ -810,7 +845,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                     }}
                                 ></div>
 
-                                {/* Min Range Input */}
+                                {/* Min Range Input - pointer-events only on thumb via CSS */}
                                 <input
                                     type="range"
                                     min="0"
@@ -826,14 +861,11 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         // Trigger debounced auto-search for slider changes
                                         triggerDebouncedAutoSearch(updatedData);
                                     }}
-                                    className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
-                                    style={{
-                                        zIndex: 4,
-                                        pointerEvents: 'auto'
-                                    }}
+                                    className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer price-range-min"
+                                    style={{ zIndex: 3 }}
                                 />
 
-                                {/* Max Range Input */}
+                                {/* Max Range Input - higher z-index so it's always accessible */}
                                 <input
                                     type="range"
                                     min="0"
@@ -849,11 +881,8 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                         // Trigger debounced auto-search for slider changes
                                         triggerDebouncedAutoSearch(updatedData);
                                     }}
-                                    className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer"
-                                    style={{
-                                        zIndex: 3,
-                                        pointerEvents: 'auto'
-                                    }}
+                                    className="absolute w-full h-5 appearance-none bg-transparent cursor-pointer price-range-max"
+                                    style={{ zIndex: 4 }}
                                 />
 
                                 {/* Left Handle SVG */}
