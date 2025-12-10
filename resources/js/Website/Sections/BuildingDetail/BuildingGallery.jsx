@@ -186,7 +186,16 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   {/* Address */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Address</span>
-                    <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px]">
+                    <span
+                      className="font-work-sans text-sm text-[#535862] text-right max-w-[180px] truncate"
+                      title={(() => {
+                        // Full address for tooltip
+                        if (buildingData?.street_address_1 && buildingData?.street_address_2) {
+                          return `${buildingData.street_address_1} & ${buildingData.street_address_2}`;
+                        }
+                        return buildingData?.address || buildingData?.name || '-';
+                      })()}
+                    >
                       {(() => {
                         // Format address with & between street addresses
                         if (buildingData?.street_address_1 && buildingData?.street_address_2) {
