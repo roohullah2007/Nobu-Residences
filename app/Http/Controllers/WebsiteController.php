@@ -858,7 +858,7 @@ class WebsiteController extends Controller
                 ->ordered()
                 ->get(['id', 'name', 'slug', 'description', 'featured_image']);
 
-            return Inertia::render('Website/Pages/Blog', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('Blog', array_merge($this->getWebsiteSettings(), [
                 'title' => 'Real Estate Blog',
                 'blogs' => $blogs,
                 'categories' => $categories,
@@ -867,7 +867,7 @@ class WebsiteController extends Controller
         } catch (\Exception $e) {
             \Log::error('Blog page error: ' . $e->getMessage());
             // Return with minimal settings on error
-            return Inertia::render('Website/Pages/Blog', [
+            return Inertia::render('Blog', [
                 'siteName' => 'Nobu Residences',
                 'siteUrl' => request()->getHost(),
                 'year' => date('Y'),
@@ -924,13 +924,13 @@ class WebsiteController extends Controller
     public function contact()
     {
         try {
-            return Inertia::render('Website/Pages/Contact', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('Contact', array_merge($this->getWebsiteSettings(), [
                 'title' => 'Contact Us'
             ]));
         } catch (\Exception $e) {
             \Log::error('Contact page error: ' . $e->getMessage());
             // Return with minimal settings on error
-            return Inertia::render('Website/Pages/Contact', [
+            return Inertia::render('Contact', [
                 'siteName' => 'Nobu Residences',
                 'siteUrl' => request()->getHost(),
                 'year' => date('Y'),
