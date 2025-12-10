@@ -61,18 +61,20 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                 <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
 
                 {/* Content */}
-                <div className="relative z-10 text-left text-white container mx-auto px-4 md:px-0">
-                    {/* Breadcrumb */}
-                    <h3 className="text-lg md:text-xl font-medium mb-4">
-                        / Blog {selectedCategoryObj && `/ ${selectedCategoryObj.name}`}
-                    </h3>
+                <div className="relative z-10 w-full max-w-[1280px] mx-auto px-4 md:px-0">
+                    <div className="max-w-3xl text-left text-white">
+                        {/* Breadcrumb */}
+                        <h3 className="font-work-sans font-normal text-sm leading-6 -tracking-wider mb-4">
+                            / Blog {selectedCategoryObj && `/ ${selectedCategoryObj.name}`}
+                        </h3>
 
-                    {/* Main Title */}
-                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold max-w-3xl leading-tight">
-                        {selectedCategoryObj
-                            ? `${selectedCategoryObj.name} Articles`
-                            : 'Inspiration for Real Estate by real people'}
-                    </h1>
+                        {/* Main Title */}
+                        <h1 className="font-space-grotesk text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
+                            {selectedCategoryObj
+                                ? `${selectedCategoryObj.name} Articles`
+                                : 'Inspiration for Real Estate by real people'}
+                        </h1>
+                    </div>
                 </div>
             </section>
 
@@ -153,21 +155,11 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                                         className="block group"
                                     >
                                         <article className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer h-full">
-                                            {post.image ? (
-                                                <img
-                                                    src={post.image}
-                                                    alt={post.title}
-                                                    className="h-48 w-full object-cover"
-                                                    onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src = '/images/blog-placeholder.jpg';
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className="h-48 bg-gray-200 flex items-center justify-center">
-                                                    <span className="text-gray-500">Blog Image</span>
-                                                </div>
-                                            )}
+                                            <img
+                                                src={post.validated_image || '/images/no-image-placeholder.jpg'}
+                                                alt={post.title}
+                                                className="h-48 w-full object-cover"
+                                            />
                                             <div className="p-6">
                                                 {post.blog_category && (
                                                     <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium mb-3">

@@ -18,7 +18,7 @@ const createBuildingSlug = (name, id) => {
     return `${slug}-${id}`;
 };
 
-export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [] }) {
+export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     // Debug logging
     console.log('=== BuildingsEdit Component Loaded ===');
     console.log('Building prop:', building);
@@ -33,7 +33,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         street_address_2: building.street_address_2 || '',
         city: building.city || '',
         neighbourhood: building.neighbourhood || '',
+        neighbourhood_id: building.neighbourhood_id || '',
         sub_neighbourhood: building.sub_neighbourhood || '',
+        sub_neighbourhood_id: building.sub_neighbourhood_id || '',
         province: building.province || 'ON',
         postal_code: building.postal_code || '',
         country: building.country || 'Canada',
@@ -562,31 +564,72 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="neighbourhood" value="Neighbourhood" />
-                                    <TextInput
-                                        id="neighbourhood"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.neighbourhood}
-                                        onChange={(e) => setData('neighbourhood', e.target.value)}
-                                        placeholder="e.g., Downtown"
-                                    />
-                                    <InputError message={errors.neighbourhood} className="mt-2" />
-                                    <p className="text-xs text-gray-500 mt-1">Main neighbourhood area</p>
+                                    <InputLabel htmlFor="neighbourhood_id" value="Neighbourhood" />
+                                    <select
+                                        id="neighbourhood_id"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.neighbourhood_id || ''}
+                                        onChange={(e) => {
+                                            const selectedId = e.target.value;
+                                            const selectedNeighbourhood = neighbourhoods.find(n => n.id === parseInt(selectedId));
+                                            setData({
+                                                ...data,
+                                                neighbourhood_id: selectedId ? parseInt(selectedId) : '',
+                                                neighbourhood: selectedNeighbourhood?.name || '',
+                                                // Reset sub-neighbourhood when neighbourhood changes
+                                                sub_neighbourhood_id: '',
+                                                sub_neighbourhood: ''
+                                            });
+                                        }}
+                                    >
+                                        <option value="">Select a neighbourhood...</option>
+                                        {neighbourhoods.map((neighbourhood) => (
+                                            <option key={neighbourhood.id} value={neighbourhood.id}>
+                                                {neighbourhood.name} {neighbourhood.city && `(${neighbourhood.city})`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.neighbourhood_id} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Main neighbourhood area.{' '}
+                                        <a href="/admin/neighbourhoods" target="_blank" className="text-indigo-600 hover:text-indigo-800">
+                                            Manage neighbourhoods
+                                        </a>
+                                    </p>
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="sub_neighbourhood" value="Sub-Neighbourhood" />
-                                    <TextInput
-                                        id="sub_neighbourhood"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.sub_neighbourhood}
-                                        onChange={(e) => setData('sub_neighbourhood', e.target.value)}
-                                        placeholder="e.g., King West"
-                                    />
-                                    <InputError message={errors.sub_neighbourhood} className="mt-2" />
-                                    <p className="text-xs text-gray-500 mt-1">Specific sub-area within the neighbourhood</p>
+                                    <InputLabel htmlFor="sub_neighbourhood_id" value="Sub-Neighbourhood" />
+                                    <select
+                                        id="sub_neighbourhood_id"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.sub_neighbourhood_id || ''}
+                                        onChange={(e) => {
+                                            const selectedId = e.target.value;
+                                            const selectedSubNeighbourhood = subNeighbourhoods.find(sn => sn.id === parseInt(selectedId));
+                                            setData({
+                                                ...data,
+                                                sub_neighbourhood_id: selectedId ? parseInt(selectedId) : '',
+                                                sub_neighbourhood: selectedSubNeighbourhood?.name || ''
+                                            });
+                                        }}
+                                    >
+                                        <option value="">Select a sub-neighbourhood...</option>
+                                        {subNeighbourhoods
+                                            .filter(sn => !data.neighbourhood_id || sn.neighbourhood_id === parseInt(data.neighbourhood_id))
+                                            .map((subNeighbourhood) => (
+                                                <option key={subNeighbourhood.id} value={subNeighbourhood.id}>
+                                                    {subNeighbourhood.name} {subNeighbourhood.neighbourhood_name && `(${subNeighbourhood.neighbourhood_name})`}
+                                                </option>
+                                            ))}
+                                    </select>
+                                    <InputError message={errors.sub_neighbourhood_id} className="mt-2" />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Specific sub-area within the neighbourhood.{' '}
+                                        <a href="/admin/sub-neighbourhoods" target="_blank" className="text-indigo-600 hover:text-indigo-800">
+                                            Manage sub-neighbourhoods
+                                        </a>
+                                    </p>
                                 </div>
 
                                 <div className="sm:col-span-2">

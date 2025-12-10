@@ -5,7 +5,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
     const { auth } = usePage().props;
     const { url } = usePage();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [realEstateOpen, setRealEstateOpen] = useState(url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || false);
+    const [realEstateOpen, setRealEstateOpen] = useState(url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || false);
 
     const navigation = [
         {
@@ -36,7 +36,7 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
             ),
-            current: url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || false,
+            current: url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || false,
             hasSubmenu: true,
             submenu: [
                 {
@@ -58,6 +58,16 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     name: 'Maintenance Fees',
                     href: route('admin.maintenance-fee-amenities.index'),
                     current: url?.startsWith('/admin/maintenance-fee-amenities') || false
+                },
+                {
+                    name: 'Neighbourhoods',
+                    href: route('admin.neighbourhoods.index'),
+                    current: url?.startsWith('/admin/neighbourhoods') || false
+                },
+                {
+                    name: 'Sub-Neighbourhoods',
+                    href: route('admin.sub-neighbourhoods.index'),
+                    current: url?.startsWith('/admin/sub-neighbourhoods') || false
                 }
             ]
         },

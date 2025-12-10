@@ -256,4 +256,115 @@ class PropertyImageController extends Controller
 
         return $imagesByKey;
     }
+
+    /**
+     * Get property images for a single listing with MLS API fallback
+     * Tries DB first, then MLS API if not found
+     */
+    public function getPropertyImagesWithFallback(string $listingKey)
+    {
+        $startTime = microtime(true);
+
+        try {
+            if (empty($listingKey)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Listing key is required'
+                ], 400);
+            }
+
+            Log::info('Fetching images with fallback for listing: ' . $listingKey);
+
+            // Step 1: Try to get images from database first
+            $dbImages = $this->getImagesFromDatabase([$listingKey]);
+            $propertyImages = $dbImages[$listingKey] ?? [];
+
+            if (!empty($propertyImages)) {
+                // Found images in database
+                $processedImages = $this->processAmpreImages($propertyImages);
+                $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+
+                return response()->json([
+                    'success' => true,
+                    'source' => 'database',
+                    'images' => array_map(fn($img) => $img['MediaURL'], $processedImages),
+                    'execution_time_ms' => $executionTime
+                ])->header('Cache-Control', 'public, max-age=300');
+            }
+
+            // Step 2: Try to fetch from MLS API
+            Log::info('No images in DB, fetching from MLS API for: ' . $listingKey);
+
+            try {
+                // Use AmpreApiService to fetch images from MLS
+                $this->ampreApi->resetFilters();
+                $this->ampreApi->setSelect(['ListingKey', 'Media']);
+                $this->ampreApi->addCustomFilter("ListingKey eq '{$listingKey}'");
+
+                $properties = $this->ampreApi->fetchProperties();
+
+                if (!empty($properties) && isset($properties[0])) {
+                    $property = $properties[0];
+                    $mlsImages = [];
+
+                    // Get images from Media field
+                    if (isset($property['Media']) && is_array($property['Media'])) {
+                        foreach ($property['Media'] as $media) {
+                            if (isset($media['MediaURL'])) {
+                                $mlsImages[] = ['MediaURL' => $media['MediaURL']];
+                            }
+                        }
+                    }
+
+                    if (!empty($mlsImages)) {
+                        $processedImages = $this->processAmpreImages($mlsImages);
+                        $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+
+                        return response()->json([
+                            'success' => true,
+                            'source' => 'mls_api',
+                            'images' => array_map(fn($img) => $img['MediaURL'], $processedImages),
+                            'execution_time_ms' => $executionTime
+                        ])->header('Cache-Control', 'public, max-age=300');
+                    }
+                }
+            } catch (Exception $e) {
+                Log::warning('MLS API image fetch failed: ' . $e->getMessage());
+            }
+
+            // Step 3: No images found in either source
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            return response()->json([
+                'success' => true,
+                'source' => 'none',
+                'images' => [],
+                'execution_time_ms' => $executionTime
+            ])->header('Cache-Control', 'public, max-age=60');
+
+        } catch (Exception $e) {
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::error("Property images fetch with fallback error after {$executionTime}ms: " . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch images',
+                'images' => [],
+                'execution_time_ms' => $executionTime
+            ], 500)->header('Cache-Control', 'public, max-age=60');
+        }
+    }
+
+    /**
+     * Process AMPRE images - convert HTTPS to HTTP
+     */
+    private function processAmpreImages(array $images): array
+    {
+        return array_map(function($img) {
+            if (isset($img['MediaURL']) && strpos($img['MediaURL'], 'ampre.ca') !== false && strpos($img['MediaURL'], 'https://') === 0) {
+                $img['MediaURL'] = str_replace('https://', 'http://', $img['MediaURL']);
+            }
+            return $img;
+        }, $images);
+    }
 }

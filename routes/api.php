@@ -65,6 +65,9 @@ Route::prefix('property-images')->group(function () {
     Route::get('/single', [PropertyImageController::class, 'getPropertyImage']);
 });
 
+// MLS Property Images with API fallback
+Route::get('/mls/property-images/{listingKey}', [PropertyImageController::class, 'getPropertyImagesWithFallback']);
+
 // Property Detail API Routes
 Route::prefix('properties')->group(function () {
     Route::get('/nearby-listings', [PropertyDetailController::class, 'getNearbyListings']);

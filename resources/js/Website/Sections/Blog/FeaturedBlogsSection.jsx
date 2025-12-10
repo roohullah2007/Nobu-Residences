@@ -1,6 +1,19 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 
+// Default fallback image
+const DEFAULT_BLOG_IMAGE = '/images/no-image-placeholder.jpg';
+
+// Simple helper to get valid image URL - no async loading, just use validated_image from backend
+const getValidImageUrl = (blog) => {
+    // If backend validated the image exists, use it
+    if (blog.validated_image) {
+        return blog.validated_image;
+    }
+    // Otherwise use placeholder
+    return DEFAULT_BLOG_IMAGE;
+};
+
 const FeaturedBlogsSection = ({ blogs = [] }) => {
     // Get the three most recent blogs
     const featuredBlogs = blogs.slice(0, 3);
@@ -13,6 +26,11 @@ const FeaturedBlogsSection = ({ blogs = [] }) => {
     const mainBlog = featuredBlogs[0];
     const topSideBlog = featuredBlogs[1];
     const bottomSideBlog = featuredBlogs[2];
+
+    // Get validated images - no client-side image loading
+    const mainBlogImage = getValidImageUrl(mainBlog);
+    const topSideBlogImage = getValidImageUrl(topSideBlog);
+    const bottomSideBlogImage = getValidImageUrl(bottomSideBlog);
 
     // Format date for display
     const formatDate = (dateString) => {
@@ -34,7 +52,7 @@ const FeaturedBlogsSection = ({ blogs = [] }) => {
                         href={`/blogs/${mainBlog.slug || mainBlog.id}`}
                         className="w-full md:w-[815px] h-[400px] md:h-[604px] rounded-xl p-8 flex flex-col justify-end gap-2.5 relative overflow-hidden hover:scale-[1.01] transition-transform"
                         style={{
-                            backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(0, 0, 0, 0.7) 60%), url('${mainBlog.image || 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=600&fit=crop'}')`,
+                            backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(0, 0, 0, 0.7) 60%), url('${mainBlogImage}')`,
                             backgroundSize: 'cover',
                             backgroundPosition: 'center'
                         }}
@@ -69,7 +87,7 @@ const FeaturedBlogsSection = ({ blogs = [] }) => {
                             href={`/blogs/${topSideBlog.slug || topSideBlog.id}`}
                             className="w-full h-[289px] rounded-xl p-6 flex flex-col justify-end gap-2.5 relative overflow-hidden hover:scale-[1.02] transition-transform"
                             style={{
-                                backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(0, 0, 0, 0.6) 60%), url('${topSideBlog.image || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=400&h=300&fit=crop'}')`,
+                                backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(0, 0, 0, 0.6) 60%), url('${topSideBlogImage}')`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center'
                             }}
@@ -102,7 +120,7 @@ const FeaturedBlogsSection = ({ blogs = [] }) => {
                             href={`/blogs/${bottomSideBlog.slug || bottomSideBlog.id}`}
                             className="w-full h-[289px] rounded-xl p-6 flex flex-col justify-end gap-2.5 relative overflow-hidden hover:scale-[1.02] transition-transform"
                             style={{
-                                backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(0, 0, 0, 0.5) 60%), url('${bottomSideBlog.image || 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop'}')`,
+                                backgroundImage: `linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(0, 0, 0, 0.5) 60%), url('${bottomSideBlogImage}')`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center'
                             }}
