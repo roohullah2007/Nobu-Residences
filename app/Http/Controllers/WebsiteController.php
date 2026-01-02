@@ -959,7 +959,7 @@ class WebsiteController extends Controller
 
             $developers = $developersQuery->get();
 
-            return Inertia::render('Website/Pages/DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
                 'title' => 'Top Condo Developers in Toronto',
                 'developer' => null,
                 'buildings' => [],
@@ -967,7 +967,7 @@ class WebsiteController extends Controller
             ]));
         } catch (\Exception $e) {
             \Log::error('Developers page error: ' . $e->getMessage());
-            return Inertia::render('Website/Pages/DeveloperDetail', [
+            return Inertia::render('DeveloperDetail', [
                 'siteName' => 'Nobu Residences',
                 'siteUrl' => request()->getHost(),
                 'year' => date('Y'),
@@ -1041,7 +1041,7 @@ class WebsiteController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            return Inertia::render('Website/Pages/DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
                 'title' => $developer->name . ' - Developer',
                 'developer' => $developer,
                 'buildings' => $buildings,
