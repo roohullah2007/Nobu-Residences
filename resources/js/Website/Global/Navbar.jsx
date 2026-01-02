@@ -36,17 +36,74 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
         { id: 3, text: 'Sale', url: '/toronto/for-sale', enabled: true },
         { id: 4, text: 'Search All', url: '/search', enabled: true },
         { id: 5, text: 'Blog', url: '/blogs', enabled: true },
-        { id: 6, text: 'Contact Us', url: '/contact', enabled: true }
+        { id: 6, text: 'Developers', url: '/developers', enabled: true },
+        { id: 7, text: 'Compare', url: '/compare-listings', enabled: true },
+        { id: 8, text: 'Contact Us', url: '/contact', enabled: true }
     ];
 
     // Get navigation links from website settings or use defaults
     const getNavLinks = () => {
         const headerLinks = effectiveWebsite?.header_links;
+        let links = defaultNavLinks;
+
         if (headerLinks?.enabled !== false && headerLinks?.links?.length > 0) {
             // Filter to only enabled links
-            return headerLinks.links.filter(link => link.enabled !== false);
+            links = headerLinks.links.filter(link => link.enabled !== false);
         }
-        return defaultNavLinks;
+
+        // Always ensure Developers link is included
+        const hasDevelopersLink = links.some(link =>
+            link.url === '/developers' || link.text?.toLowerCase() === 'developers'
+        );
+
+        if (!hasDevelopersLink) {
+            // Find Contact Us position to insert before it
+            const contactIndex = links.findIndex(link =>
+                link.text?.toLowerCase() === 'contact us' || link.url === '/contact'
+            );
+
+            const developersLink = { id: 'developers', text: 'Developers', url: '/developers', enabled: true };
+
+            if (contactIndex !== -1) {
+                // Insert before Contact Us
+                links = [
+                    ...links.slice(0, contactIndex),
+                    developersLink,
+                    ...links.slice(contactIndex)
+                ];
+            } else {
+                // Add at the end
+                links = [...links, developersLink];
+            }
+        }
+
+        // Always ensure Compare link is included
+        const hasCompareLink = links.some(link =>
+            link.url === '/compare-listings' || link.text?.toLowerCase() === 'compare'
+        );
+
+        if (!hasCompareLink) {
+            // Find Contact Us position to insert before it
+            const contactIndex = links.findIndex(link =>
+                link.text?.toLowerCase() === 'contact us' || link.url === '/contact'
+            );
+
+            const compareLink = { id: 'compare', text: 'Compare', url: '/compare-listings', enabled: true };
+
+            if (contactIndex !== -1) {
+                // Insert before Contact Us
+                links = [
+                    ...links.slice(0, contactIndex),
+                    compareLink,
+                    ...links.slice(contactIndex)
+                ];
+            } else {
+                // Add at the end
+                links = [...links, compareLink];
+            }
+        }
+
+        return links;
     };
 
     const navLinks = getNavLinks();

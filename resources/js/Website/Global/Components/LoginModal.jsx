@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 const LoginModal = ({ isOpen, onClose, website = {} }) => {
+  const { googleOAuthEnabled } = usePage().props;
   const [activeTab, setActiveTab] = useState('register');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -543,8 +544,8 @@ const LoginModal = ({ isOpen, onClose, website = {} }) => {
           </form>
           )}
           
-          {/* OR Divider and Google Login - Only show when not in forgot password mode */}
-          {!showForgotPassword && (
+          {/* OR Divider and Google Login - Only show when not in forgot password mode and OAuth is configured */}
+          {!showForgotPassword && googleOAuthEnabled && (
             <>
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
@@ -556,7 +557,7 @@ const LoginModal = ({ isOpen, onClose, website = {} }) => {
               </div>
 
               {/* Google Login Button */}
-              <GoogleLoginButton 
+              <GoogleLoginButton
                 text={activeTab === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
                 className="w-full"
               />

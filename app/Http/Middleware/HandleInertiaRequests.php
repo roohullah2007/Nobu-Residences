@@ -145,6 +145,12 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        // Check if Google OAuth is properly configured (not placeholder values)
+        $googleClientId = config('services.google.client_id');
+        $googleOAuthEnabled = !empty($googleClientId) &&
+                              $googleClientId !== 'your-google-client-id' &&
+                              !str_starts_with($googleClientId, 'your-');
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -153,6 +159,7 @@ class HandleInertiaRequests extends Middleware
             'globalWebsite' => $globalWebsite,
             'currentWebsiteSlug' => $website?->slug,
             'googleMapsApiKey' => env('GOOGLE_MAPS_API_KEY', ''),
+            'googleOAuthEnabled' => $googleOAuthEnabled,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

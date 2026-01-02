@@ -941,6 +941,110 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Display the developers listing page
+     */
+    public function developers(Request $request)
+    {
+        try {
+            $search = $request->get('search');
+
+            // Get all developers with buildings count
+            $developersQuery = \App\Models\Developer::withCount('buildings')
+                ->orderBy('name');
+
+            // Apply search filter if provided
+            if ($search) {
+                $developersQuery->where('name', 'like', '%' . $search . '%');
+            }
+
+            $developers = $developersQuery->get();
+
+            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+                'title' => 'Top Condo Developers in Toronto',
+                'developer' => null,
+                'buildings' => [],
+                'allDevelopers' => $developers
+            ]));
+        } catch (\Exception $e) {
+            \Log::error('Developers page error: ' . $e->getMessage());
+            return Inertia::render('DeveloperDetail', [
+                'siteName' => 'Nobu Residences',
+                'siteUrl' => request()->getHost(),
+                'year' => date('Y'),
+                'website' => null,
+                'title' => 'Top Condo Developers in Toronto',
+                'developer' => null,
+                'buildings' => [],
+                'allDevelopers' => []
+            ]);
+        }
+    }
+
+    /**
+     * Display a specific developer detail page
+     */
+    public function developerDetail($developerSlug)
+    {
+        try {
+            // First try to find by UUID
+            $developer = \App\Models\Developer::where('id', $developerSlug)->first();
+
+            // If not found by ID, search all developers and match by slug
+            if (!$developer) {
+                $developers = \App\Models\Developer::all();
+                foreach ($developers as $dev) {
+                    if (\Illuminate\Support\Str::slug($dev->name) === $developerSlug) {
+                        $developer = $dev;
+                        break;
+                    }
+                }
+            }
+
+            // If still not found, try partial name match
+            if (!$developer) {
+                $searchName = str_replace('-', ' ', $developerSlug);
+                $developer = \App\Models\Developer::where('name', 'like', '%' . $searchName . '%')->first();
+            }
+
+            if (!$developer) {
+                abort(404, 'Developer not found');
+            }
+
+            // Get buildings by this developer
+            $buildings = \App\Models\Building::where('developer_id', $developer->id)
+                ->orderBy('name')
+                ->get();
+
+            // Get listings (MLS properties) associated with buildings by this developer
+            $buildingIds = $buildings->pluck('id')->toArray();
+            $listings = [];
+
+            if (!empty($buildingIds)) {
+                $listings = \App\Models\MlsProperty::whereIn('building_id', $buildingIds)
+                    ->orderBy('ListPrice', 'desc')
+                    ->limit(8)
+                    ->get();
+            }
+
+            // Get all developers for the search dropdown
+            $allDevelopers = \App\Models\Developer::withCount('buildings')
+                ->orderBy('name')
+                ->get();
+
+            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+                'title' => $developer->name . ' - Developer',
+                'developer' => $developer,
+                'buildings' => $buildings,
+                'listings' => $listings,
+                'allDevelopers' => $allDevelopers
+            ]));
+        } catch (\Exception $e) {
+            \Log::error('Developer detail page error: ' . $e->getMessage());
+            abort(404, 'Developer not found');
+        }
+    }
+
+    /**
      * Proxy images from AMPRE to avoid SSL errors
      */
     public function proxyImage(Request $request)

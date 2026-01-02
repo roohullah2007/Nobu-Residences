@@ -18,6 +18,7 @@ import { usePage } from '@inertiajs/react';
  * - Enhanced image loading with fallbacks
  * - Interactive hover effects
  * - Heart button for favourites
+ * - Compare button for comparison
  *
  * @param {Object} property - Property data object
  * @param {string} size - Card size ('default', 'mobile') - default: 'default'
@@ -25,6 +26,8 @@ import { usePage } from '@inertiajs/react';
  * @param {string} className - Additional CSS classes
  * @param {boolean} showFavouriteButton - Whether to show favourite button (default: true)
  * @param {Function} onFavouriteChange - Optional callback when favourite status changes
+ * @param {boolean} showCompareButton - Whether to show compare button (default: true)
+ * @param {Function} onCompareChange - Optional callback when compare status changes
  */
 const PropertyCardV5 = ({
   property,
@@ -32,11 +35,14 @@ const PropertyCardV5 = ({
   onClick,
   className = '',
   showFavouriteButton = true,
-  onFavouriteChange
+  onFavouriteChange,
+  showCompareButton = true,
+  onCompareChange
 }) => {
   const { auth } = usePage().props;
   const [isFavourited, setIsFavourited] = useState(false);
   const [isLoadingFavourite, setIsLoadingFavourite] = useState(false);
+  const [isInCompare, setIsInCompare] = useState(false);
 
   const listingKey = property?.listingKey || property?.ListingKey || property?.id;
   const isAuthenticated = auth?.user ? true : false;
@@ -47,6 +53,152 @@ const PropertyCardV5 = ({
       checkFavouriteStatus();
     }
   }, [isAuthenticated, listingKey]);
+
+  // Check compare status on mount
+  useEffect(() => {
+    if (listingKey && showCompareButton && property.source !== 'building') {
+      checkCompareStatus();
+    }
+  }, [listingKey]);
+
+  // Listen for compare list changes from other components
+  useEffect(() => {
+    const handleCompareChange = () => {
+      if (listingKey) {
+        checkCompareStatus();
+      }
+    };
+    window.addEventListener('compareListChanged', handleCompareChange);
+    return () => window.removeEventListener('compareListChanged', handleCompareChange);
+  }, [listingKey]);
+
+  const checkCompareStatus = () => {
+    try {
+      const compareList = JSON.parse(localStorage.getItem('compareListings') || '[]');
+      const isInList = compareList.some(item => item.listingKey === listingKey);
+      setIsInCompare(isInList);
+    } catch (error) {
+      console.error('Error checking compare status:', error);
+    }
+  };
+
+  const toggleCompare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!listingKey) return;
+
+    try {
+      const compareList = JSON.parse(localStorage.getItem('compareListings') || '[]');
+      const existingIndex = compareList.findIndex(item => item.listingKey === listingKey);
+
+      if (existingIndex > -1) {
+        // Remove from compare
+        compareList.splice(existingIndex, 1);
+        localStorage.setItem('compareListings', JSON.stringify(compareList));
+        setIsInCompare(false);
+        showCompareNotification('Removed from compare', 'removed');
+      } else {
+        // Check if already have 3 items
+        if (compareList.length >= 3) {
+          showCompareNotification('Maximum 3 properties can be compared', 'error');
+          return;
+        }
+
+        // Prepare property data for storage
+        const compareData = {
+          listingKey: listingKey,
+          property_listing_key: listingKey,
+          property_data: {
+            listingKey: listingKey,
+            ListingKey: listingKey,
+            MediaURL: property?.MediaURL || property?.imageUrl,
+            imageUrl: property?.imageUrl || property?.MediaURL,
+            ListPrice: property?.price || property?.ListPrice,
+            price: property?.price || property?.ListPrice,
+            address: property?.address || property?.Address || property?.UnparsedAddress,
+            Address: property?.address || property?.Address || property?.UnparsedAddress,
+            UnparsedAddress: property?.UnparsedAddress || property?.address,
+            StreetNumber: property?.StreetNumber,
+            StreetName: property?.StreetName,
+            UnitNumber: property?.UnitNumber,
+            City: property?.city || property?.City,
+            city: property?.city || property?.City,
+            StateOrProvince: property?.province || property?.StateOrProvince || 'ON',
+            PropertyType: property?.propertyType || property?.PropertyType,
+            TransactionType: property?.TransactionType || 'For Sale',
+            BedroomsTotal: property?.bedrooms || property?.BedroomsTotal,
+            bedrooms: property?.bedrooms || property?.BedroomsTotal,
+            BathroomsTotalInteger: property?.bathrooms || property?.BathroomsTotalInteger,
+            bathrooms: property?.bathrooms || property?.BathroomsTotalInteger,
+            LivingArea: property?.area || property?.LivingArea,
+            BuildingAreaTotal: property?.BuildingAreaTotal,
+            ParkingTotal: property?.ParkingTotal || property?.parking,
+            AssociationFee: property?.AssociationFee,
+            TaxAnnualAmount: property?.TaxAnnualAmount,
+            DirectionFaces: property?.DirectionFaces,
+            YearBuilt: property?.YearBuilt,
+            SubdivisionName: property?.SubdivisionName,
+            Neighborhood: property?.Neighborhood
+          }
+        };
+
+        compareList.push(compareData);
+        localStorage.setItem('compareListings', JSON.stringify(compareList));
+        setIsInCompare(true);
+        showCompareNotification('Added to compare', 'added');
+      }
+
+      // Dispatch event for other components
+      window.dispatchEvent(new CustomEvent('compareListChanged'));
+
+      // Call callback if provided
+      if (onCompareChange) {
+        onCompareChange(!isInCompare, listingKey);
+      }
+    } catch (error) {
+      console.error('Error toggling compare:', error);
+    }
+  };
+
+  const showCompareNotification = (message, type) => {
+    const notification = document.createElement('div');
+    const bgColor = type === 'added' ? '#293056' : type === 'error' ? '#DC2626' : '#6B7280';
+
+    notification.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>${type === 'added' ? '⚖️' : type === 'error' ? '⚠️' : '✓'}</span>
+        <span>${message}</span>
+        ${type === 'added' ? '<a href="/compare-listings" class="ml-2 underline text-white/80 hover:text-white">View</a>' : ''}
+      </div>
+    `;
+
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: ${bgColor};
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  };
 
   const checkFavouriteStatus = async () => {
     if (!listingKey) return;
@@ -386,8 +538,27 @@ const PropertyCardV5 = ({
                 </span>
               </div>
 
-              {/* Bottom row - Heart button */}
-              <div className="flex justify-end items-center gap-2.5 h-8">
+              {/* Bottom row - Compare badge (left) and Heart button (right) */}
+              <div className="flex justify-between items-center h-8">
+                {/* Compare Badge - Left Side */}
+                {showCompareButton && property.source !== 'building' && (
+                  <button
+                    onClick={toggleCompare}
+                    className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm transition-all duration-200 ${
+                      isInCompare
+                        ? 'bg-[#293056] text-white border border-[#293056] hover:bg-[#293056]/90'
+                        : 'bg-white text-[#293056] border border-gray-200 hover:bg-gray-50'
+                    }`}
+                    title={isInCompare ? 'Remove from compare' : 'Add to compare'}
+                  >
+                    {isInCompare ? 'Added' : 'Compare'}
+                  </button>
+                )}
+
+                {/* Empty div for spacing when no compare button */}
+                {(!showCompareButton || property.source === 'building') && <div></div>}
+
+                {/* Favourite Button - Right Side */}
                 {showFavouriteButton && property.source !== 'building' && (
                   <button
                     onClick={toggleFavourite}

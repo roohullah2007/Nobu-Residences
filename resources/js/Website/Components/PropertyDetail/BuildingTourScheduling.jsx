@@ -8,8 +8,8 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
   const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
   const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
   const [currentDateIndex, setCurrentDateIndex] = useState(0);
-  const [selectedDateSlot, setSelectedDateSlot] = useState(1); // 0 for first slot, 1 for second slot
-  const [selectedTime, setSelectedTime] = useState('afternoon');
+  const [selectedDateSlot, setSelectedDateSlot] = useState(0); // 0 for first slot (tomorrow), 1 for second slot
+  const [selectedTime, setSelectedTime] = useState('morning'); // Default to morning - earliest available
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
   const [isFixed, setIsFixed] = useState(false);
@@ -35,12 +35,13 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
     question: ''
   });
 
-  // Generate dates array
+  // Generate dates array - starts from TOMORROW (no same-day booking)
   const generateDates = () => {
     const dates = [];
     const today = new Date();
-    
-    for (let i = 0; i < 14; i++) {
+
+    // Start from i=1 (tomorrow) - no same-day booking allowed
+    for (let i = 1; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({

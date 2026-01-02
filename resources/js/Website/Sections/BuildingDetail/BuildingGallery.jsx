@@ -207,13 +207,63 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                     </span>
                   </div>
 
-                  {/* Neighbourhood */}
+                  {/* Neighbourhood - Show most specific first: sub_neighbourhood > neighbourhood > city */}
                   <div className="flex justify-between items-start">
                     <span className="font-work-sans font-semibold text-sm text-[#252B37]">Neighbourhood</span>
-                    <span className="font-work-sans text-sm text-[#535862]">
-                      {buildingData?.neighborhood_info || buildingData?.neighbourhood || buildingData?.city || '-'}
+                    <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px]">
+                      {(() => {
+                        // Build neighbourhood string from most specific to general
+                        const parts = [];
+                        if (buildingData?.sub_neighbourhood) parts.push(buildingData.sub_neighbourhood);
+                        if (buildingData?.neighbourhood && buildingData?.neighbourhood !== buildingData?.sub_neighbourhood) {
+                          parts.push(buildingData.neighbourhood);
+                        }
+                        if (parts.length === 0 && buildingData?.neighborhood_info) {
+                          parts.push(buildingData.neighborhood_info);
+                        }
+                        if (parts.length === 0 && buildingData?.city) {
+                          parts.push(buildingData.city);
+                        }
+                        return parts.length > 0 ? parts.join(', ') : '-';
+                      })()}
                     </span>
                   </div>
+
+                  {/* Square Footage Range */}
+                  {(buildingData?.suite_size_range || buildingData?.sqft_range || (buildingData?.mls_properties_for_sale?.length > 0 || buildingData?.mls_properties_for_rent?.length > 0)) && (
+                    <div className="flex justify-between items-start">
+                      <span className="font-work-sans font-semibold text-sm text-[#252B37]">Sq Ft Range</span>
+                      <span className="font-work-sans text-sm text-[#535862]">
+                        {(() => {
+                          // Use explicit range if available
+                          if (buildingData?.suite_size_range) return buildingData.suite_size_range;
+                          if (buildingData?.sqft_range) return buildingData.sqft_range;
+
+                          // Calculate from MLS properties
+                          const allProperties = [
+                            ...(buildingData?.mls_properties_for_sale || []),
+                            ...(buildingData?.mls_properties_for_rent || [])
+                          ];
+
+                          if (allProperties.length > 0) {
+                            const sqftValues = allProperties
+                              .map(p => p.sqft || p.LivingAreaRange || p.AboveGradeFinishedArea || 0)
+                              .filter(v => v > 0);
+
+                            if (sqftValues.length > 0) {
+                              const minSqft = Math.min(...sqftValues);
+                              const maxSqft = Math.max(...sqftValues);
+                              if (minSqft === maxSqft) {
+                                return `${minSqft.toLocaleString()} sqft`;
+                              }
+                              return `${minSqft.toLocaleString()} - ${maxSqft.toLocaleString()} sqft`;
+                            }
+                          }
+                          return '-';
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* For Sale and For Rent Buttons */}

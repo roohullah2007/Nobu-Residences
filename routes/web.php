@@ -45,6 +45,10 @@ Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
     ->name('city-for-rent');
 Route::get('/blogs', [WebsiteController::class, 'blog'])->name('blog');
 Route::get('/blogs/{slug}', [WebsiteController::class, 'blogDetail'])->name('blog.detail');
+
+// Developer routes
+Route::get('/developers', [WebsiteController::class, 'developers'])->name('developers');
+Route::get('/developer/{developerSlug}', [WebsiteController::class, 'developerDetail'])->name('developer.detail');
 Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
@@ -224,6 +228,53 @@ Route::get('/user/favourites', function () {
         'year' => date('Y'),
     ]);
 })->middleware(['auth', 'verified'])->name('user.favourites');
+
+// Compare Listings Route
+Route::get('/compare-listings', function () {
+    // Get website settings for consistent header/footer
+    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
+        ?? \App\Models\Website::with('agentInfo')->first();
+
+    $websiteData = null;
+    if ($website) {
+        $websiteData = [
+            'id' => $website->id,
+            'name' => $website->name,
+            'slug' => $website->slug,
+            'logo_url' => $website->logo_url,
+            'logo_width' => $website->logo_width,
+            'logo_height' => $website->logo_height,
+            'brand_colors' => $website->getBrandColors(),
+            'fonts' => $website->fonts,
+            'meta_title' => $website->meta_title,
+            'meta_description' => $website->meta_description,
+            'favicon_url' => $website->favicon_url,
+            'contact_info' => $website->getContactInfo(),
+            'social_media' => $website->getSocialMedia(),
+            'agent_info' => $website->agentInfo,
+        ];
+    }
+
+    // Get user favourites with property data
+    $favourites = [];
+    if (auth()->check()) {
+        $favourites = \App\Models\UserPropertyFavourite::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->toArray();
+    }
+
+    return Inertia::render('CompareListings', [
+        'auth' => [
+            'user' => auth()->user()
+        ],
+        'website' => $websiteData,
+        'favourites' => $favourites,
+        'siteName' => $website?->name ?? 'Nobu Residences',
+        'siteUrl' => $website?->domain ?? config('app.url'),
+        'year' => date('Y'),
+    ]);
+})->name('compare.listings');
 
 // User Alerts Route
 Route::get('/user/alerts', function () {

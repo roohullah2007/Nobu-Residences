@@ -3,7 +3,7 @@ import { useState } from 'react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 export default function Login({ status, canResetPassword }) {
-    const { globalWebsite, website } = usePage().props;
+    const { globalWebsite, website, googleOAuthEnabled } = usePage().props;
     const currentWebsite = globalWebsite || website || {};
     const websiteName = currentWebsite?.name || 'Our Site';
     const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
@@ -150,18 +150,22 @@ export default function Login({ status, canResetPassword }) {
                                 {processing ? 'Signing in...' : 'Sign In'}
                             </button>
 
-                            {/* OR Divider */}
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-300"></div>
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 bg-white text-gray-500 font-work-sans">Or continue with</span>
-                                </div>
-                            </div>
+                            {/* OR Divider and Google Login - Only show when OAuth is configured */}
+                            {googleOAuthEnabled && (
+                                <>
+                                    <div className="relative">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <div className="w-full border-t border-gray-300"></div>
+                                        </div>
+                                        <div className="relative flex justify-center text-sm">
+                                            <span className="px-2 bg-white text-gray-500 font-work-sans">Or continue with</span>
+                                        </div>
+                                    </div>
 
-                            {/* Google Login Button */}
-                            <GoogleLoginButton />
+                                    {/* Google Login Button */}
+                                    <GoogleLoginButton />
+                                </>
+                            )}
 
                             {/* Register Link */}
                             <div className="text-center pt-4 border-t border-gray-100">
