@@ -787,7 +787,7 @@ export default function DeveloperDetail({
                 }}
             >
                 {/* Blurred Band */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-full max-w-[1252px] h-[296px] mx-4 backdrop-blur-xl bg-white/30 rounded-2xl"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-[1252px] h-[296px] backdrop-blur-xl bg-white/30 rounded-2xl"></div>
 
                 {/* Content Container */}
                 <div className="relative z-10 w-full max-w-[1252px] mx-auto px-4 flex flex-col items-center justify-center">
@@ -804,8 +804,8 @@ export default function DeveloperDetail({
                         Top 14 Condo Developers in Toronto
                     </h1>
 
-                    {/* Search Box */}
-                    <form onSubmit={handleSearch} className="w-full max-w-[580px]">
+                    {/* Search Box with Live Results */}
+                    <div className="w-full max-w-[580px] relative">
                         <div className="relative flex items-center">
                             <input
                                 type="text"
@@ -814,10 +814,7 @@ export default function DeveloperDetail({
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full h-14 px-5 pr-16 rounded-lg bg-white border-0 text-[#101323] placeholder-[#101323]/50 focus:outline-none focus:ring-2 focus:ring-[#101323]/20 font-work-sans text-base shadow-sm"
                             />
-                            <button
-                                type="submit"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg bg-[#101323] text-white flex items-center justify-center hover:bg-[#101323]/90 transition-colors"
-                            >
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg bg-[#101323] text-white flex items-center justify-center">
                                 <svg
                                     width="20"
                                     height="20"
@@ -831,9 +828,69 @@ export default function DeveloperDetail({
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <path d="m21 21-4.35-4.35"></path>
                                 </svg>
-                            </button>
+                            </div>
                         </div>
-                    </form>
+
+                        {/* Live Search Results Dropdown */}
+                        {searchQuery.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 max-h-[320px] overflow-y-auto z-50">
+                                {filteredDevelopers.length > 0 ? (
+                                    filteredDevelopers.slice(0, 6).map((dev) => (
+                                        <Link
+                                            key={dev.id}
+                                            href={`/developer/${dev.slug || dev.id}`}
+                                            className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                        >
+                                            {/* Developer Logo */}
+                                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                {dev.logo ? (
+                                                    <img
+                                                        src={dev.logo.startsWith('/') ? dev.logo : `/storage/${dev.logo}`}
+                                                        alt={dev.name}
+                                                        className="max-w-[40px] max-h-[40px] object-contain"
+                                                    />
+                                                ) : (
+                                                    <span className="text-lg font-bold text-[#293056]">
+                                                        {dev.name.charAt(0)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {/* Developer Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-work-sans font-semibold text-[#101323] truncate">
+                                                    {dev.name}
+                                                </h4>
+                                                <p className="text-sm text-gray-500">
+                                                    {dev.buildings_count || 0} buildings
+                                                </p>
+                                            </div>
+                                            {/* Arrow */}
+                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-6 text-center">
+                                        <p className="text-gray-500 font-work-sans">No developers found</p>
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="mt-2 text-[#293056] hover:text-[#293056]/80 font-medium text-sm"
+                                        >
+                                            Clear search
+                                        </button>
+                                    </div>
+                                )}
+                                {filteredDevelopers.length > 6 && (
+                                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                                        <p className="text-sm text-gray-600 text-center">
+                                            Showing 6 of {filteredDevelopers.length} results. Scroll down to see all.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </section>
 

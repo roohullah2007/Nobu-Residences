@@ -959,7 +959,7 @@ class WebsiteController extends Controller
 
             $developers = $developersQuery->get();
 
-            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('Website/Pages/DeveloperDetail', array_merge($this->getWebsiteSettings(), [
                 'title' => 'Top Condo Developers in Toronto',
                 'developer' => null,
                 'buildings' => [],
@@ -967,7 +967,7 @@ class WebsiteController extends Controller
             ]));
         } catch (\Exception $e) {
             \Log::error('Developers page error: ' . $e->getMessage());
-            return Inertia::render('DeveloperDetail', [
+            return Inertia::render('Website/Pages/DeveloperDetail', [
                 'siteName' => 'Nobu Residences',
                 'siteUrl' => request()->getHost(),
                 'year' => date('Y'),
@@ -986,27 +986,35 @@ class WebsiteController extends Controller
     public function developerDetail($developerSlug)
     {
         try {
-            // First try to find by UUID
-            $developer = \App\Models\Developer::where('id', $developerSlug)->first();
+            $developer = null;
+
+            // First try to find by UUID (if it looks like a UUID)
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $developerSlug)) {
+                $developer = \App\Models\Developer::where('id', $developerSlug)->first();
+            }
 
             // If not found by ID, search all developers and match by slug
             if (!$developer) {
                 $developers = \App\Models\Developer::all();
+                $normalizedSlug = strtolower(trim($developerSlug));
+
                 foreach ($developers as $dev) {
-                    if (\Illuminate\Support\Str::slug($dev->name) === $developerSlug) {
+                    $devSlug = \Illuminate\Support\Str::slug($dev->name);
+                    if ($devSlug === $normalizedSlug) {
                         $developer = $dev;
                         break;
                     }
                 }
             }
 
-            // If still not found, try partial name match
+            // If still not found, try partial name match (case insensitive)
             if (!$developer) {
                 $searchName = str_replace('-', ' ', $developerSlug);
-                $developer = \App\Models\Developer::where('name', 'like', '%' . $searchName . '%')->first();
+                $developer = \App\Models\Developer::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchName) . '%'])->first();
             }
 
             if (!$developer) {
+                \Log::warning('Developer not found for slug: ' . $developerSlug);
                 abort(404, 'Developer not found');
             }
 
@@ -1015,15 +1023,17 @@ class WebsiteController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            // Get listings (MLS properties) associated with buildings by this developer
-            $buildingIds = $buildings->pluck('id')->toArray();
+            // Get listings - try to get some sample MLS properties (not linked by building_id since that column doesn't exist)
             $listings = [];
 
-            if (!empty($buildingIds)) {
-                $listings = \App\Models\MlsProperty::whereIn('building_id', $buildingIds)
-                    ->orderBy('ListPrice', 'desc')
+            try {
+                // Get some recent listings as sample
+                $listings = \App\Models\MlsProperty::orderBy('ListPrice', 'desc')
                     ->limit(8)
                     ->get();
+            } catch (\Exception $e) {
+                // If MLS properties query fails, just use empty array
+                $listings = [];
             }
 
             // Get all developers for the search dropdown
@@ -1031,7 +1041,7 @@ class WebsiteController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            return Inertia::render('Website/Pages/DeveloperDetail', array_merge($this->getWebsiteSettings(), [
                 'title' => $developer->name . ' - Developer',
                 'developer' => $developer,
                 'buildings' => $buildings,
