@@ -502,40 +502,61 @@ export default function DeveloperDetail({
                             {/* Buildings Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {buildings.map((building) => {
-                                    const formattedBuilding = {
-                                        id: building.id,
-                                        listingKey: `BLDG-${building.id}`,
-                                        propertyType: building.building_type || 'Residential Building',
-                                        address: building.address || building.name,
-                                        name: building.name,
-                                        city: building.city,
-                                        province: building.province,
-                                        imageUrl: building.main_image || building.images?.[0] || '/images/placeholder-property.jpg',
-                                        price: building.price_range || building.units_for_sale || 0,
-                                        bedrooms: building.bedrooms || '1-3',
-                                        bathrooms: building.bathrooms || '1-2',
-                                        total_units: building.total_units,
-                                        total_floors: building.floors,
-                                        unitsForSale: building.units_for_sale,
-                                        unitsForRent: building.units_for_rent,
-                                        yearBuilt: building.year_built,
-                                        isRental: false,
-                                        transactionType: 'Building',
-                                        source: 'building',
-                                        UnitNumber: '',
-                                        StreetNumber: '',
-                                        StreetName: building.address || building.name,
-                                        City: building.city,
-                                        StateOrProvince: building.province
-                                    };
+                                    const buildingImage = building.main_image
+                                        ? (building.main_image.startsWith('/') ? building.main_image : `/storage/${building.main_image}`)
+                                        : building.images?.[0] || '/images/placeholder-property.jpg';
 
                                     return (
-                                        <PropertyCardV5
+                                        <div
                                             key={building.id}
-                                            property={formattedBuilding}
-                                            size="default"
+                                            className="flex flex-col w-full min-h-[380px] bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative"
                                             onClick={() => handleBuildingClick(building)}
-                                        />
+                                        >
+                                            {/* Building Image */}
+                                            <div className="relative w-full h-[200px] overflow-hidden bg-gray-100 rounded-t-xl">
+                                                <div className="relative overflow-hidden w-full h-full transition-transform duration-300 group-hover:scale-105">
+                                                    <img
+                                                        src={buildingImage}
+                                                        alt={building.name}
+                                                        className="w-full h-full object-cover transition-all duration-700 ease-out"
+                                                        onError={(e) => {
+                                                            e.target.src = '/images/placeholder-property.jpg';
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Building Info */}
+                                            <div className="flex flex-col flex-grow items-start p-4 gap-2.5 box-border">
+                                                {/* Building Name */}
+                                                <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056]">
+                                                    {building.name}
+                                                </div>
+
+                                                <div className="flex flex-col items-start gap-2 w-full">
+                                                    {/* Address */}
+                                                    <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056] line-clamp-2">
+                                                        {building.address || building.street_address || 'Address not available'}
+                                                    </div>
+
+                                                    {/* Developer */}
+                                                    <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600">
+                                                        <span className="text-gray-500">By</span>&nbsp;
+                                                        <span className="text-[#293056] font-medium">{developer?.name || 'Developer'}</span>
+                                                    </div>
+
+                                                    {/* Units | Floors | Year Built */}
+                                                    <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
+                                                        {building.total_units && `${building.total_units} Units`}
+                                                        {building.total_units && building.floors && ' | '}
+                                                        {building.floors && `${building.floors} Floors`}
+                                                        {(building.total_units || building.floors) && building.year_built && ' | '}
+                                                        {building.year_built && `Built ${building.year_built}`}
+                                                        {!building.total_units && !building.floors && !building.year_built && 'Details coming soon'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     );
                                 })}
                             </div>
