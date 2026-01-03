@@ -1023,18 +1023,8 @@ class WebsiteController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            // Get listings - try to get some sample MLS properties (not linked by building_id since that column doesn't exist)
+            // Listings - empty for now (MlsProperty model may not exist on all environments)
             $listings = [];
-
-            try {
-                // Get some recent listings as sample
-                $listings = \App\Models\MlsProperty::orderBy('ListPrice', 'desc')
-                    ->limit(8)
-                    ->get();
-            } catch (\Exception $e) {
-                // If MLS properties query fails, just use empty array
-                $listings = [];
-            }
 
             // Get all developers for the search dropdown
             $allDevelopers = \App\Models\Developer::withCount('buildings')
