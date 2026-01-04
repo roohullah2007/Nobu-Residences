@@ -34,14 +34,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
-    
-    // Google OAuth routes
+
+    // Google OAuth redirect (guest only)
     Route::get('auth/google', [GoogleAuthController::class, 'redirectToGoogle'])
         ->name('auth.google');
-    
-    Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])
-        ->name('auth.google.callback');
 });
+
+// Google OAuth callback - outside guest middleware to avoid session issues
+Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])
+    ->name('auth.google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)

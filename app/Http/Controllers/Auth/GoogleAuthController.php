@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class GoogleAuthController extends Controller
@@ -63,7 +64,10 @@ class GoogleAuthController extends Controller
             return redirect()->intended('/dashboard');
             
         } catch (Exception $e) {
-            return redirect('/login')->with('error', 'Unable to authenticate with Google. Please try again.');
+            Log::error('Google OAuth Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect('/login')->withErrors(['google' => 'Unable to authenticate with Google: ' . $e->getMessage()]);
         }
     }
 
@@ -119,7 +123,10 @@ class GoogleAuthController extends Controller
             return redirect()->intended('/dashboard');
             
         } catch (Exception $e) {
-            return redirect('/login')->with('error', 'Unable to authenticate with Google. Please try again.');
+            Log::error('Google OAuth Callback Error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect('/login')->withErrors(['google' => 'Unable to authenticate with Google: ' . $e->getMessage()]);
         }
     }
 }
