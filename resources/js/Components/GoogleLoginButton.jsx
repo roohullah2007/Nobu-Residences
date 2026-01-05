@@ -1,15 +1,10 @@
 import React from 'react';
 
 export default function GoogleLoginButton({ text = "Sign in with Google", className = "" }) {
-    const handleGoogleLogin = () => {
-        window.location.href = '/auth/google';
-    };
-
     return (
-        <button
-            type="button"
-            onClick={handleGoogleLogin}
-            className={`w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${className}`}
+        <a
+            href="/auth/google"
+            className={`w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer ${className}`}
         >
             <svg
                 className="w-5 h-5 mr-2"
@@ -36,6 +31,6 @@ export default function GoogleLoginButton({ text = "Sign in with Google", classN
                 </g>
             </svg>
             <span>{text}</span>
-        </button>
+        </a>
     );
 }
