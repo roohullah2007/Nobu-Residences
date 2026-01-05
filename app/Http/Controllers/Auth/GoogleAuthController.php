@@ -77,11 +77,10 @@ class GoogleAuthController extends Controller
                     'provider_id' => $googleUser->id,
                     'password' => Hash::make(Str::random(16)), // Random password since they'll use Google
                     'role' => 'user',
-                    'is_active' => true,
                     'email_verified_at' => now(),
                 ]);
             }
-            
+
             Auth::login($user, true); // true for remember me
             Log::info('Step 6: User logged in successfully: ' . $user->email);
             Log::info('Step 7: Redirecting to dashboard...');
@@ -137,13 +136,12 @@ class GoogleAuthController extends Controller
                     'provider_id' => $googleUser->id,
                     'password' => Hash::make(Str::random(16)), // Random password since they'll use Google
                     'role' => 'user',
-                    'is_active' => true,
                     'email_verified_at' => now(),
                 ]);
             }
-            
+
             Auth::login($user, true);
-            
+
             return redirect()->intended('/dashboard');
             
         } catch (Exception $e) {
