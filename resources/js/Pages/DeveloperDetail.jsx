@@ -178,7 +178,7 @@ export default function DeveloperDetail({
 
                 {/* Developer Hero Section */}
                 <section className="pt-16 pb-8 bg-white">
-                    <div className="max-w-[1252px] mx-auto px-4">
+                    <div className="max-w-[1280px] mx-auto px-4">
                         <div className="flex flex-col lg:flex-row justify-between items-start gap-8 rounded-2xl p-8" style={{ backgroundColor: '#F8F9FC' }}>
                             {/* Left Side - Rating & Name */}
                             <div className="flex-1">
@@ -222,7 +222,7 @@ export default function DeveloperDetail({
 
                 {/* Developer Info Section */}
                 <section className="py-12 bg-white">
-                    <div className="max-w-[1252px] mx-auto px-4">
+                    <div className="max-w-[1280px] mx-auto px-4">
                         <div className="rounded-2xl p-8" style={{ backgroundColor: '#F8F9FC' }}>
                             <div className="flex flex-col lg:flex-row gap-12">
                                 {/* Left Side - Description */}
@@ -335,7 +335,7 @@ export default function DeveloperDetail({
 
                 {/* Agent Info & Tour Scheduling Section */}
                 <section className="bg-[#292E56]" style={{ height: '314px' }}>
-                    <div className="max-w-[1252px] mx-auto px-4 h-full flex items-center">
+                    <div className="max-w-[1280px] mx-auto px-4 h-full flex items-center">
                         <div className="flex flex-col lg:flex-row gap-6 w-full">
                             {/* Agent Info Card - Left Side */}
                             <div className="bg-white rounded-2xl p-6 flex items-center" style={{ width: '602px', height: '218px' }}>
@@ -486,7 +486,7 @@ export default function DeveloperDetail({
                 {/* Buildings by Developer Section */}
                 {buildings.length > 0 && (
                     <section className="py-12 bg-white">
-                        <div className="max-w-[1252px] mx-auto px-4">
+                        <div className="max-w-[1280px] mx-auto px-4">
                             {/* Section Header */}
                             <div className="flex flex-row justify-between items-center mb-8">
                                 <div className="flex items-center gap-4">
@@ -566,7 +566,7 @@ export default function DeveloperDetail({
 
                 {/* Expertise Highlights & Awards Section */}
                 <section className="py-16 bg-white">
-                    <div className="max-w-[1252px] mx-auto px-4">
+                    <div className="max-w-[1280px] mx-auto px-4">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                             {/* Expertise Highlights */}
                             <div>
@@ -640,7 +640,7 @@ export default function DeveloperDetail({
                 {/* Listings by Developer Section */}
                 {listings.length > 0 && (
                     <section className="py-12 bg-white">
-                        <div className="max-w-[1252px] mx-auto px-4">
+                        <div className="max-w-[1280px] mx-auto px-4">
                             {/* Section Header */}
                             <div className="flex flex-row justify-between items-center mb-8">
                                 <div className="flex items-center gap-4">
@@ -808,10 +808,10 @@ export default function DeveloperDetail({
                 }}
             >
                 {/* Blurred Band */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-[1252px] h-[296px] backdrop-blur-xl bg-white/30 rounded-2xl"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-[1280px] h-[296px] backdrop-blur-xl bg-white/30 rounded-2xl"></div>
 
                 {/* Content Container */}
-                <div className="relative z-10 w-full max-w-[1252px] mx-auto px-4 flex flex-col items-center justify-center">
+                <div className="relative z-10 w-full max-w-[1280px] mx-auto px-4 flex flex-col items-center justify-center">
                     {/* Main Title */}
                     <h1
                         className="font-space-grotesk font-bold text-center mb-10"
@@ -917,7 +917,7 @@ export default function DeveloperDetail({
 
             {/* Text Section */}
             <section className="py-16 bg-white">
-                <div className="max-w-[1252px] mx-auto px-4 md:px-0">
+                <div className="max-w-[1280px] mx-auto px-4 md:px-0">
                     <h2
                         className="font-space-grotesk font-bold text-[#293056] mb-6"
                         style={{ fontSize: '28px', lineHeight: '1.3' }}
@@ -936,7 +936,7 @@ export default function DeveloperDetail({
             {/* All Developers Grid */}
             {allDevelopers.length > 0 && (
                 <section className="py-12 bg-white">
-                    <div className="max-w-[1252px] mx-auto px-4 md:px-0">
+                    <div className="max-w-[1280px] mx-auto px-4 md:px-0">
                         {/* Section Header */}
                         <h2 className="font-space-grotesk font-bold text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056] mb-8">
                             Condo Developers in Toronto
