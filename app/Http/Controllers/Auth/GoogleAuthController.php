@@ -20,19 +20,9 @@ class GoogleAuthController extends Controller
     public function redirectToGoogle()
     {
         try {
-            Log::info('=== GOOGLE AUTH DEBUG ===');
-            Log::info('Step 1: redirectToGoogle() called');
-            Log::info('Google Client ID: ' . (config('services.google.client_id') ? 'SET (' . substr(config('services.google.client_id'), 0, 20) . '...)' : 'NOT SET'));
-            Log::info('Google Client Secret: ' . (config('services.google.client_secret') ? 'SET' : 'NOT SET'));
-            Log::info('Google Redirect URI: ' . config('services.google.redirect'));
-
-            $redirectUrl = Socialite::driver('google')->redirect()->getTargetUrl();
-            Log::info('Step 2: Redirect URL generated: ' . $redirectUrl);
-
             return Socialite::driver('google')->redirect();
         } catch (Exception $e) {
             Log::error('Google Redirect Error: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             return redirect('/login')->withErrors(['google' => 'Google login failed: ' . $e->getMessage()]);
         }
     }
@@ -42,20 +32,12 @@ class GoogleAuthController extends Controller
      */
     public function handleGoogleCallback()
     {
-        Log::info('=== GOOGLE CALLBACK DEBUG ===');
-        Log::info('Step 3: handleGoogleCallback() called');
-        Log::info('Request URL: ' . request()->fullUrl());
-        Log::info('Has code param: ' . (request()->has('code') ? 'YES' : 'NO'));
-        Log::info('Has error param: ' . (request()->has('error') ? 'YES - ' . request()->get('error') : 'NO'));
-
         try {
-            Log::info('Step 4: Getting Google user...');
             $googleUser = Socialite::driver('google')->user();
-            Log::info('Step 5: Google user retrieved: ' . $googleUser->email);
-            
+
             // Check if user exists with this email
             $user = User::where('email', $googleUser->email)->first();
-            
+
             if ($user) {
                 // Update user with Google information if not already set
                 if (!$user->google_id) {
@@ -75,21 +57,18 @@ class GoogleAuthController extends Controller
                     'avatar' => $googleUser->avatar,
                     'provider' => 'google',
                     'provider_id' => $googleUser->id,
-                    'password' => Hash::make(Str::random(16)), // Random password since they'll use Google
+                    'password' => Hash::make(Str::random(16)),
                     'role' => 'user',
                     'email_verified_at' => now(),
                 ]);
             }
 
-            Auth::login($user, true); // true for remember me
-            Log::info('Step 6: User logged in successfully: ' . $user->email);
-            Log::info('Step 7: Redirecting to dashboard...');
+            Auth::login($user, true);
 
             return redirect()->intended('/dashboard');
 
         } catch (Exception $e) {
             Log::error('Google OAuth Callback Error: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             return redirect('/login')->withErrors(['google' => 'Unable to authenticate with Google: ' . $e->getMessage()]);
         }
     }
@@ -111,10 +90,10 @@ class GoogleAuthController extends Controller
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
-            
+
             // Check if user exists with this email
             $user = User::where('email', $googleUser->email)->first();
-            
+
             if ($user) {
                 // Update user with Google information if not already set
                 if (!$user->google_id) {
@@ -134,7 +113,7 @@ class GoogleAuthController extends Controller
                     'avatar' => $googleUser->avatar,
                     'provider' => 'google',
                     'provider_id' => $googleUser->id,
-                    'password' => Hash::make(Str::random(16)), // Random password since they'll use Google
+                    'password' => Hash::make(Str::random(16)),
                     'role' => 'user',
                     'email_verified_at' => now(),
                 ]);
@@ -143,11 +122,9 @@ class GoogleAuthController extends Controller
             Auth::login($user, true);
 
             return redirect()->intended('/dashboard');
-            
+
         } catch (Exception $e) {
-            Log::error('Google OAuth Callback Error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('Google OAuth Callback Error: ' . $e->getMessage());
             return redirect('/login')->withErrors(['google' => 'Unable to authenticate with Google: ' . $e->getMessage()]);
         }
     }
