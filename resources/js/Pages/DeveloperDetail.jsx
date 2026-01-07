@@ -177,13 +177,13 @@ export default function DeveloperDetail({
                 </div>
 
                 {/* Developer Hero Section */}
-                <section className="pt-16 pb-8 bg-white">
+                <section className="pt-8 sm:pt-16 pb-6 sm:pb-8 bg-white">
                     <div className="max-w-[1280px] mx-auto px-4">
-                        <div className="flex flex-col lg:flex-row justify-between items-start gap-8 rounded-2xl p-8" style={{ backgroundColor: '#F8F9FC' }}>
+                        <div className="flex flex-col lg:flex-row justify-between items-start gap-6 sm:gap-8 rounded-2xl p-4 sm:p-8" style={{ backgroundColor: '#F8F9FC' }}>
                             {/* Left Side - Rating & Name */}
-                            <div className="flex-1">
+                            <div className="flex-1 w-full lg:w-auto">
                                 {/* Rating Badge */}
-                                <div className="inline-flex items-center px-4 py-2 rounded-full bg-[#912018] text-white text-sm font-medium mb-6">
+                                <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#912018] text-white text-xs sm:text-sm font-medium mb-4 sm:mb-6">
                                     (154 Ratings, Average: 5 out of 5)
                                 </div>
 
@@ -201,8 +201,8 @@ export default function DeveloperDetail({
                             </div>
 
                             {/* Right Side - Logo Card */}
-                            <div className="flex-shrink-0">
-                                <div className="w-[280px] h-[140px] bg-white rounded-2xl border border-gray-200 flex items-center justify-center p-6 shadow-sm">
+                            <div className="flex-shrink-0 w-full lg:w-auto">
+                                <div className="w-full sm:w-[280px] h-[140px] bg-white rounded-2xl border border-gray-200 flex items-center justify-center p-6 shadow-sm">
                                     {developer.logo ? (
                                         <img
                                             src={developer.logo.startsWith('/') ? developer.logo : `/storage/${developer.logo}`}
@@ -223,8 +223,8 @@ export default function DeveloperDetail({
                 {/* Developer Info Section */}
                 <section className="py-12 bg-white">
                     <div className="max-w-[1280px] mx-auto px-4">
-                        <div className="rounded-2xl p-8" style={{ backgroundColor: '#F8F9FC' }}>
-                            <div className="flex flex-col lg:flex-row gap-12">
+                        <div className="rounded-2xl p-4 sm:p-8" style={{ backgroundColor: '#F8F9FC' }}>
+                            <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
                                 {/* Left Side - Description */}
                                 <div className="flex-1 lg:max-w-[60%]">
                                     {/* Section 1 */}
@@ -261,7 +261,7 @@ export default function DeveloperDetail({
                                 </div>
 
                                 {/* Right Side - Stats Cards */}
-                                <div className="flex-shrink-0 lg:w-[380px] space-y-6">
+                                <div className="flex-shrink-0 w-full lg:w-[380px] space-y-4 sm:space-y-6">
                                     {/* Total Projects Completed */}
                                     <div className="rounded-xl p-5 flex items-center gap-4" style={{ backgroundColor: '#EBECF5' }}>
                                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
@@ -320,11 +320,10 @@ export default function DeveloperDetail({
                             </div>
 
                             {/* View All Button */}
-                            <div className="mt-10">
+                            <div className="mt-8 sm:mt-10">
                                 <Link
                                     href={`/toronto/for-sale?developer=${developer.slug || developer.id}`}
-                                    className="inline-flex items-center justify-center px-8 py-4 bg-[#101323] text-white font-work-sans font-semibold text-base rounded-full hover:bg-[#101323]/90 transition-colors"
-                                    style={{ minWidth: '320px' }}
+                                    className="inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-[#101323] text-white font-work-sans font-semibold text-sm sm:text-base rounded-full hover:bg-[#101323]/90 transition-colors"
                                 >
                                     View all the projects for sale
                                 </Link>
@@ -334,14 +333,14 @@ export default function DeveloperDetail({
                 </section>
 
                 {/* Agent Info & Tour Scheduling Section */}
-                <section className="bg-[#292E56]" style={{ height: '314px' }}>
+                <section className="bg-[#292E56] py-8 lg:py-0 lg:h-[314px]">
                     <div className="max-w-[1280px] mx-auto px-4 h-full flex items-center">
-                        <div className="flex flex-col lg:flex-row gap-6 w-full">
+                        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 w-full">
                             {/* Agent Info Card - Left Side */}
-                            <div className="bg-white rounded-2xl p-6 flex items-center" style={{ width: '602px', height: '218px' }}>
-                                <div className="flex items-center gap-4 w-full">
+                            <div className="bg-white rounded-2xl p-4 sm:p-6 flex-1 lg:flex-none lg:w-[602px]">
+                                <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
                                     {/* Agent Photo */}
-                                    <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-gray-200 flex-shrink-0">
+                                    <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-full overflow-hidden border-4 border-gray-200 flex-shrink-0">
                                         {website?.agent_info?.profile_image || website?.contact_info?.agent?.image ? (
                                             <img
                                                 src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image}
@@ -350,7 +349,7 @@ export default function DeveloperDetail({
                                             />
                                         ) : (
                                             <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                                <span className="text-2xl font-bold text-gray-500">
+                                                <span className="text-xl sm:text-2xl font-bold text-gray-500">
                                                     {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'A').charAt(0)}
                                                 </span>
                                             </div>
@@ -358,62 +357,61 @@ export default function DeveloperDetail({
                                     </div>
 
                                     {/* Agent Details */}
-                                    <div className="flex-1">
-                                        <h3 className="font-work-sans font-bold text-[#101323] text-xl uppercase tracking-wide">
+                                    <div className="flex-1 text-center sm:text-left">
+                                        <h3 className="font-work-sans font-bold text-[#101323] text-lg sm:text-xl uppercase tracking-wide">
                                             {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || 'JATIN GILL'}
                                         </h3>
-                                        <p className="font-work-sans text-[#912018] font-semibold text-sm mt-1">
+                                        <p className="font-work-sans text-[#912018] font-semibold text-xs sm:text-sm mt-1">
                                             {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || 'Sales Representative'}
                                         </p>
-                                        <p className="font-work-sans text-[#101323]/80 text-sm mt-1">
+                                        <p className="font-work-sans text-[#101323]/80 text-xs sm:text-sm mt-1">
                                             {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Property.ca Inc, Brokerage'}
                                         </p>
-                                        <p className="font-work-sans text-[#101323] font-bold text-sm mt-2">
+                                        <p className="font-work-sans text-[#101323] font-bold text-xs sm:text-sm mt-2">
                                             {website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}
                                         </p>
                                     </div>
 
                                     {/* Contact Button */}
-                                    <button className="py-3 px-6 bg-[#292E56] text-white font-work-sans font-semibold text-base rounded-full hover:bg-[#292E56]/90 transition-colors">
+                                    <button className="w-full sm:w-auto py-2 sm:py-3 px-4 sm:px-6 bg-[#292E56] text-white font-work-sans font-semibold text-sm sm:text-base rounded-full hover:bg-[#292E56]/90 transition-colors">
                                         Contact the team
                                     </button>
                                 </div>
                             </div>
 
                             {/* Tour Scheduling Card - Right Side */}
-                            <div className="bg-white rounded-2xl p-6 flex items-center" style={{ width: '602px', height: '218px' }}>
-                                <div className="flex flex-row gap-6 items-center w-full justify-between">
+                            <div className="bg-white rounded-2xl p-4 sm:p-6 flex-1 lg:flex-none lg:w-[602px]">
+                                <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-center w-full lg:justify-between">
                                     {/* Left Side - Dates & Times */}
-                                    <div className="flex flex-col gap-3" style={{ width: '295px' }}>
+                                    <div className="flex flex-col gap-3 w-full lg:w-auto">
                                         {/* Date Selection Row */}
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-center gap-1 sm:gap-2">
                                             {/* Prev Button */}
                                             <button
                                                 onClick={goToPrevDate}
                                                 disabled={currentDateIndex === 0}
-                                                className="w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
                                             >
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                     <polyline points="15,18 9,12 15,6"></polyline>
                                                 </svg>
                                             </button>
 
                                             {/* Date Slots */}
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-1 sm:gap-2">
                                                 {currentDates.map((dateItem, index) => (
                                                     <div
                                                         key={index}
                                                         onClick={() => setSelectedDateSlot(index)}
-                                                        className={`rounded-lg text-center cursor-pointer border-2 transition-all flex flex-col justify-center ${
+                                                        className={`rounded-lg text-center cursor-pointer border-2 transition-all flex flex-col justify-center w-[60px] h-[70px] sm:w-[77px] sm:h-[91px] ${
                                                             selectedDateSlot === index
                                                                 ? 'bg-white border-[#292E56]'
                                                                 : 'bg-white border-gray-200 hover:border-gray-300'
                                                         }`}
-                                                        style={{ width: '77px', height: '91px' }}
                                                     >
-                                                        <p className="uppercase text-xs text-gray-500 font-medium">{dateItem?.day}</p>
-                                                        <p className="text-2xl font-bold my-1">{dateItem?.dayNum}</p>
-                                                        <p className="uppercase text-xs text-gray-500">{dateItem?.month}</p>
+                                                        <p className="uppercase text-[10px] sm:text-xs text-gray-500 font-medium">{dateItem?.day}</p>
+                                                        <p className="text-xl sm:text-2xl font-bold my-0.5 sm:my-1">{dateItem?.dayNum}</p>
+                                                        <p className="uppercase text-[10px] sm:text-xs text-gray-500">{dateItem?.month}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -422,16 +420,16 @@ export default function DeveloperDetail({
                                             <button
                                                 onClick={goToNextDate}
                                                 disabled={currentDateIndex >= dates.length - 3}
-                                                className="w-8 h-8 rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
                                             >
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                     <polyline points="9,18 15,12 9,6"></polyline>
                                                 </svg>
                                             </button>
                                         </div>
 
                                         {/* Time Slots Row */}
-                                        <div className="flex gap-2 justify-center">
+                                        <div className="flex gap-1 sm:gap-2 justify-center">
                                             {[
                                                 { key: 'morning', label: 'Morning', range: '9AM TO 12PM' },
                                                 { key: 'afternoon', label: 'Afternoon', range: '12PM TO 4PM' },
@@ -440,39 +438,36 @@ export default function DeveloperDetail({
                                                 <div
                                                     key={timeSlot.key}
                                                     onClick={() => setSelectedTime(timeSlot.key)}
-                                                    className={`rounded-lg cursor-pointer border-2 text-center flex flex-col justify-center ${
+                                                    className={`rounded-lg cursor-pointer border-2 text-center flex flex-col justify-center w-[70px] h-[50px] sm:w-[91px] sm:h-[59px] ${
                                                         selectedTime === timeSlot.key
                                                             ? 'bg-white border-[#292E56]'
                                                             : 'bg-white border-gray-200 hover:border-gray-300'
                                                     }`}
-                                                    style={{ width: '91px', height: '59px' }}
                                                 >
-                                                    <p className="text-sm font-semibold">{timeSlot.label}</p>
-                                                    <p className="text-[10px] text-gray-500 uppercase">{timeSlot.range}</p>
+                                                    <p className="text-xs sm:text-sm font-semibold">{timeSlot.label}</p>
+                                                    <p className="text-[8px] sm:text-[10px] text-gray-500 uppercase">{timeSlot.range}</p>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
 
                                     {/* Right Side - Schedule Info & Buttons */}
-                                    <div className="flex flex-col gap-3" style={{ width: '223px' }}>
-                                        <div>
-                                            <h3 className="font-space-grotesk font-bold text-[#293056] text-xl">Schedule a tour</h3>
-                                            <p className="text-gray-500 text-sm">Tour with a buyer's agent</p>
+                                    <div className="flex flex-col gap-3 w-full lg:w-[223px]">
+                                        <div className="text-center lg:text-left">
+                                            <h3 className="font-space-grotesk font-bold text-[#293056] text-lg sm:text-xl">Schedule a tour</h3>
+                                            <p className="text-gray-500 text-xs sm:text-sm">Tour with a buyer's agent</p>
                                         </div>
 
                                         <button
                                             onClick={() => setIsModalOpen(true)}
-                                            className="bg-[#292E56] text-white font-work-sans font-medium text-base rounded-lg hover:bg-[#292E56]/90 transition-colors"
-                                            style={{ width: '223px', height: '44px' }}
+                                            className="w-full bg-[#292E56] text-white font-work-sans font-medium text-sm sm:text-base rounded-lg hover:bg-[#292E56]/90 transition-colors h-[40px] sm:h-[44px]"
                                         >
                                             Request A Tour
                                         </button>
 
                                         <button
                                             onClick={() => setIsQuestionModalOpen(true)}
-                                            className="bg-white text-gray-700 font-work-sans font-medium text-base rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-                                            style={{ width: '223px', height: '44px' }}
+                                            className="w-full bg-white text-gray-700 font-work-sans font-medium text-sm sm:text-base rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors h-[40px] sm:h-[44px]"
                                         >
                                             Ask A Question
                                         </button>
@@ -485,15 +480,15 @@ export default function DeveloperDetail({
 
                 {/* Buildings by Developer Section */}
                 {buildings.length > 0 && (
-                    <section className="py-12 bg-white">
+                    <section className="py-8 sm:py-12 bg-white">
                         <div className="max-w-[1280px] mx-auto px-4">
                             {/* Section Header */}
-                            <div className="flex flex-row justify-between items-center mb-8">
-                                <div className="flex items-center gap-4">
-                                    <h2 className="font-space-grotesk font-bold text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056]">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-2">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                                    <h2 className="font-space-grotesk font-bold text-[22px] sm:text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056]">
                                         Buildings by {developer.name}
                                     </h2>
-                                    <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold rounded-full bg-[#293056] text-white">
+                                    <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-bold rounded-full bg-[#293056] text-white">
                                         {buildings.length}
                                     </span>
                                 </div>
@@ -565,12 +560,12 @@ export default function DeveloperDetail({
                 )}
 
                 {/* Expertise Highlights & Awards Section */}
-                <section className="py-16 bg-white">
+                <section className="py-10 sm:py-16 bg-white">
                     <div className="max-w-[1280px] mx-auto px-4">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
                             {/* Expertise Highlights */}
                             <div>
-                                <h2 className="font-space-grotesk font-bold text-[#293056] text-2xl uppercase tracking-wide mb-8">
+                                <h2 className="font-space-grotesk font-bold text-[#293056] text-xl sm:text-2xl uppercase tracking-wide mb-6 sm:mb-8">
                                     EXPERTISE HIGHLIGHTS
                                 </h2>
                                 <ul className="space-y-6">
@@ -609,7 +604,7 @@ export default function DeveloperDetail({
 
                             {/* Awards & Recognitions */}
                             <div>
-                                <h2 className="font-space-grotesk font-bold text-[#293056] text-2xl uppercase tracking-wide mb-8">
+                                <h2 className="font-space-grotesk font-bold text-[#293056] text-xl sm:text-2xl uppercase tracking-wide mb-6 sm:mb-8">
                                     AWARDS & RECOGNITIONS
                                 </h2>
                                 <ul className="space-y-6">
@@ -639,15 +634,15 @@ export default function DeveloperDetail({
 
                 {/* Listings by Developer Section */}
                 {listings.length > 0 && (
-                    <section className="py-12 bg-white">
+                    <section className="py-8 sm:py-12 bg-white">
                         <div className="max-w-[1280px] mx-auto px-4">
                             {/* Section Header */}
-                            <div className="flex flex-row justify-between items-center mb-8">
-                                <div className="flex items-center gap-4">
-                                    <h2 className="font-space-grotesk font-bold text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056]">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-2">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                                    <h2 className="font-space-grotesk font-bold text-[22px] sm:text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056]">
                                         Listings by {developer.name}
                                     </h2>
-                                    <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold rounded-full bg-[#293056] text-white">
+                                    <span className="inline-flex items-center justify-center px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm font-bold rounded-full bg-[#293056] text-white">
                                         {listings.length}
                                     </span>
                                 </div>
@@ -802,21 +797,20 @@ export default function DeveloperDetail({
 
             {/* Hero Section - Full Screen Height */}
             <section
-                className="relative bg-cover bg-center bg-no-repeat flex items-center justify-center min-h-screen"
+                className="relative bg-cover bg-center bg-no-repeat flex items-center justify-center min-h-[70vh] sm:min-h-screen py-20 sm:py-0"
                 style={{
                     backgroundImage: 'url(/images/devolper-hero.jpg)'
                 }}
             >
                 {/* Blurred Band */}
-                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-[1280px] h-[296px] backdrop-blur-xl bg-white/30 rounded-2xl"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-[1280px] h-auto min-h-[200px] sm:h-[296px] backdrop-blur-xl bg-white/30 rounded-2xl py-8 sm:py-0"></div>
 
                 {/* Content Container */}
                 <div className="relative z-10 w-full max-w-[1280px] mx-auto px-4 flex flex-col items-center justify-center">
                     {/* Main Title */}
                     <h1
-                        className="font-space-grotesk font-bold text-center mb-10"
+                        className="font-space-grotesk font-bold text-center mb-6 sm:mb-10 text-[28px] sm:text-[40px] md:text-[55px] lg:text-[65px]"
                         style={{
-                            fontSize: 'clamp(32px, 5vw, 65px)',
                             lineHeight: '1.1',
                             letterSpacing: '-0.03em',
                             color: '#101323'
@@ -826,16 +820,16 @@ export default function DeveloperDetail({
                     </h1>
 
                     {/* Search Box with Live Results */}
-                    <div className="w-full max-w-[580px] relative">
+                    <div className="w-full max-w-[580px] relative px-4 sm:px-0">
                         <div className="relative flex items-center">
                             <input
                                 type="text"
                                 placeholder="Search by developer..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-14 px-5 pr-16 rounded-lg bg-white border-0 text-[#101323] placeholder-[#101323]/50 focus:outline-none focus:ring-2 focus:ring-[#101323]/20 font-work-sans text-base shadow-sm"
+                                className="w-full h-12 sm:h-14 px-4 sm:px-5 pr-14 sm:pr-16 rounded-lg bg-white border-0 text-[#101323] placeholder-[#101323]/50 focus:outline-none focus:ring-2 focus:ring-[#101323]/20 font-work-sans text-sm sm:text-base shadow-sm"
                             />
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg bg-[#101323] text-white flex items-center justify-center">
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[#101323] text-white flex items-center justify-center">
                                 <svg
                                     width="20"
                                     height="20"
@@ -916,17 +910,17 @@ export default function DeveloperDetail({
             </section>
 
             {/* Text Section */}
-            <section className="py-16 bg-white">
-                <div className="max-w-[1280px] mx-auto px-4 md:px-0">
+            <section className="py-10 sm:py-16 bg-white">
+                <div className="max-w-[1280px] mx-auto px-4">
                     <h2
-                        className="font-space-grotesk font-bold text-[#293056] mb-6"
-                        style={{ fontSize: '28px', lineHeight: '1.3' }}
+                        className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
+                        style={{ lineHeight: '1.3' }}
                     >
                         Text Section
                     </h2>
                     <p
-                        className="font-work-sans text-[#293056]/80 leading-relaxed"
-                        style={{ fontSize: '18px', lineHeight: '1.7' }}
+                        className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
+                        style={{ lineHeight: '1.7' }}
                     >
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     </p>
@@ -935,35 +929,33 @@ export default function DeveloperDetail({
 
             {/* All Developers Grid */}
             {allDevelopers.length > 0 && (
-                <section className="py-12 bg-white">
-                    <div className="max-w-[1280px] mx-auto px-4 md:px-0">
+                <section className="py-8 sm:py-12 bg-white">
+                    <div className="max-w-[1280px] mx-auto px-4">
                         {/* Section Header */}
-                        <h2 className="font-space-grotesk font-bold text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056] mb-8">
+                        <h2 className="font-space-grotesk font-bold text-[22px] sm:text-[28px] md:text-[32px] leading-tight tracking-[-0.03em] text-[#293056] mb-6 sm:mb-8">
                             Condo Developers in Toronto
                         </h2>
 
                         {/* Developers Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                             {filteredDevelopers.map((dev) => (
                                 <Link
                                     key={dev.id}
                                     href={`/developer/${dev.slug || dev.id}`}
-                                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all"
-                                    style={{ width: '360px', height: '381px' }}
+                                    className="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all w-full"
                                 >
                                     {/* Developer Logo Section */}
                                     <div
-                                        className="w-full bg-gray-50 flex items-center justify-center"
-                                        style={{ height: '275px' }}
+                                        className="w-full bg-gray-50 flex items-center justify-center h-[200px] sm:h-[250px] lg:h-[275px]"
                                     >
                                         {dev.logo ? (
                                             <img
                                                 src={dev.logo.startsWith('/') ? dev.logo : `/storage/${dev.logo}`}
                                                 alt={dev.name}
-                                                className="max-w-[200px] max-h-[120px] object-contain"
+                                                className="max-w-[150px] sm:max-w-[200px] max-h-[80px] sm:max-h-[120px] object-contain"
                                             />
                                         ) : (
-                                            <span className="text-5xl font-bold text-[#101323]">
+                                            <span className="text-3xl sm:text-5xl font-bold text-[#101323] px-4 text-center">
                                                 {dev.name}
                                             </span>
                                         )}
@@ -973,9 +965,8 @@ export default function DeveloperDetail({
                                     <div className="px-4 py-3">
                                         {/* Developer Name */}
                                         <h3
-                                            className="font-work-sans font-bold text-[#101323] group-hover:text-blue-600 transition-colors"
+                                            className="font-work-sans font-bold text-[#101323] group-hover:text-blue-600 transition-colors text-base sm:text-lg"
                                             style={{
-                                                fontSize: '18px',
                                                 lineHeight: '27px',
                                                 letterSpacing: '-0.03em'
                                             }}
@@ -988,14 +979,13 @@ export default function DeveloperDetail({
 
                                         {/* Buildings Count */}
                                         <p
-                                            className="font-work-sans font-normal text-[#101323]/70"
+                                            className="font-work-sans font-normal text-[#101323]/70 text-sm sm:text-base"
                                             style={{
-                                                fontSize: '16px',
                                                 lineHeight: '25px',
                                                 letterSpacing: '-0.03em'
                                             }}
                                         >
-                                            {dev.buildings_count || 0}
+                                            {dev.buildings_count || 0} buildings
                                         </p>
                                     </div>
                                 </Link>

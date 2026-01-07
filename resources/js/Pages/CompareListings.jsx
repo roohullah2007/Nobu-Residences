@@ -15,6 +15,7 @@ export default function CompareListings({
     const [showContactModal, setShowContactModal] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [compareListings, setCompareListings] = useState([]);
+    const [showShareSuccess, setShowShareSuccess] = useState(false);
 
     // Load compare listings from localStorage on mount
     useEffect(() => {
@@ -108,16 +109,32 @@ export default function CompareListings({
         };
     };
 
-    const handleShare = () => {
-        if (navigator.share) {
-            navigator.share({
-                title: 'Compare Listings',
-                text: 'Check out these listings I\'m comparing!',
-                url: window.location.href
-            });
-        } else {
-            navigator.clipboard.writeText(window.location.href);
-            alert('Link copied to clipboard!');
+    const handleShare = async () => {
+        const shareData = {
+            title: 'Compare Listings',
+            text: 'Check out these listings I\'m comparing!',
+            url: window.location.href
+        };
+
+        try {
+            if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                setShowShareSuccess(true);
+                setTimeout(() => setShowShareSuccess(false), 3000);
+            }
+        } catch (error) {
+            // If share was cancelled or failed, try clipboard
+            if (error.name !== 'AbortError') {
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    setShowShareSuccess(true);
+                    setTimeout(() => setShowShareSuccess(false), 3000);
+                } catch (clipboardError) {
+                    console.error('Failed to copy:', clipboardError);
+                }
+            }
         }
     };
 
@@ -213,12 +230,12 @@ export default function CompareListings({
 
     // Render comparison row
     const renderComparisonRow = (key, getValue) => (
-        <div key={key} className="h-[54px] flex items-center">
-            <div className="grid grid-cols-3 gap-4 w-full">
+        <div key={key} className="h-[48px] sm:h-[54px] flex items-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 w-full">
                 {comparisonItems.map((item, index) => (
                     <div
                         key={item.listingKey || item.property_listing_key || index}
-                        className="h-[40px] flex items-center justify-center bg-[#E8EBF5] rounded-lg font-work-sans text-[#293056] text-base px-2 truncate"
+                        className="h-[36px] sm:h-[40px] flex items-center justify-center bg-[#E8EBF5] rounded-lg font-work-sans text-[#293056] text-xs sm:text-base px-1 sm:px-2 truncate"
                     >
                         {getValue(item, key)}
                     </div>
@@ -236,20 +253,14 @@ export default function CompareListings({
             </div>
 
             <div className="min-h-screen bg-white">
-                <div className="max-w-[1252px] mx-auto px-4 py-12">
+                <div className="max-w-[1280px] mx-auto px-4 py-6 sm:py-12">
                     {/* Header Section */}
-                    <div className="flex justify-between items-start mb-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6 sm:mb-8">
                         <div>
-                            <h1
-                                className="font-space-grotesk font-bold text-[#293056] mb-2"
-                                style={{ fontSize: '40px' }}
-                            >
+                            <h1 className="font-space-grotesk font-bold text-[#293056] mb-2 text-[28px] sm:text-[36px] md:text-[40px]">
                                 Compare Listings
                             </h1>
-                            <p
-                                className="font-work-sans text-gray-600"
-                                style={{ fontSize: '18px', fontWeight: 400 }}
-                            >
+                            <p className="font-work-sans text-gray-600 text-base sm:text-lg">
                                 {hasComparisonData
                                     ? `Comparing ${comparisonItems.length} ${comparisonItems.length === 1 ? 'property' : 'properties'}`
                                     : 'Add properties to compare by clicking the compare button on any property card.'
@@ -258,18 +269,18 @@ export default function CompareListings({
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                             {hasComparisonData && (
                                 <button
                                     onClick={clearAllCompare}
-                                    className="px-6 py-2.5 border border-red-300 rounded-full font-work-sans font-medium text-red-600 hover:bg-red-50 transition-colors"
+                                    className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 border border-red-300 rounded-full font-work-sans font-medium text-red-600 hover:bg-red-50 transition-colors text-sm sm:text-base"
                                 >
                                     Clear All
                                 </button>
                             )}
                             <button
                                 onClick={handleShare}
-                                className="px-6 py-2.5 border border-gray-300 rounded-full font-work-sans font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-2.5 border border-gray-300 rounded-full font-work-sans font-medium text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
                             >
                                 Share
                             </button>
@@ -277,15 +288,12 @@ export default function CompareListings({
                     </div>
 
                     {/* Main Content - Agent Card + Property Cards */}
-                    <div className="flex gap-6 items-start">
+                    <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start">
                         {/* Agent Info Card - Left Side */}
-                        <div
-                            className="bg-white rounded-2xl border border-gray-200 p-6 flex-shrink-0 shadow-sm"
-                            style={{ width: '300px', height: '352px' }}
-                        >
-                            <div className="flex flex-col items-center">
+                        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 flex-shrink-0 shadow-sm w-full lg:w-[300px]">
+                            <div className="flex flex-row lg:flex-col items-center gap-4 lg:gap-0">
                                 {/* Agent Photo */}
-                                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-100 mb-4">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden border-4 border-gray-100 lg:mb-4 flex-shrink-0">
                                     {agentImage ? (
                                         <img
                                             src={agentImage}
@@ -294,7 +302,7 @@ export default function CompareListings({
                                         />
                                     ) : (
                                         <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                                            <span className="text-3xl font-bold text-gray-500">
+                                            <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-500">
                                                 {agentName ? agentName.charAt(0) : '?'}
                                             </span>
                                         </div>
@@ -302,50 +310,59 @@ export default function CompareListings({
                                 </div>
 
                                 {/* Agent Details */}
-                                {agentName && (
-                                    <h3 className="font-work-sans font-bold text-[#101323] text-lg uppercase tracking-wide text-center">
-                                        {agentName}
-                                    </h3>
-                                )}
-                                {agentTitle && (
-                                    <p className="font-work-sans text-[#912018] font-semibold text-sm mt-1 text-center">
-                                        {agentTitle}
-                                    </p>
-                                )}
-                                {agentBrokerage && (
-                                    <p className="font-work-sans text-gray-600 text-sm mt-1 text-center">
-                                        {agentBrokerage}
-                                    </p>
-                                )}
-                                {agentPhone && (
-                                    <p className="font-work-sans text-[#101323] font-bold text-sm mt-2 text-center">
-                                        {agentPhone}
-                                    </p>
-                                )}
+                                <div className="flex-1 lg:flex-none lg:text-center">
+                                    {agentName && (
+                                        <h3 className="font-work-sans font-bold text-[#101323] text-base sm:text-lg uppercase tracking-wide lg:text-center">
+                                            {agentName}
+                                        </h3>
+                                    )}
+                                    {agentTitle && (
+                                        <p className="font-work-sans text-[#912018] font-semibold text-xs sm:text-sm mt-1 lg:text-center">
+                                            {agentTitle}
+                                        </p>
+                                    )}
+                                    {agentBrokerage && (
+                                        <p className="font-work-sans text-gray-600 text-xs sm:text-sm mt-1 lg:text-center hidden sm:block">
+                                            {agentBrokerage}
+                                        </p>
+                                    )}
+                                    {agentPhone && (
+                                        <p className="font-work-sans text-[#101323] font-bold text-xs sm:text-sm mt-2 lg:text-center">
+                                            {agentPhone}
+                                        </p>
+                                    )}
+                                </div>
 
                                 {/* Contact Button */}
                                 <button
                                     onClick={handleContactClick}
-                                    className="w-full mt-6 py-3 px-6 bg-[#292E56] text-white font-work-sans font-semibold text-base rounded-full hover:bg-[#292E56]/90 transition-colors"
+                                    className="hidden sm:block lg:w-full mt-0 lg:mt-6 py-2 sm:py-3 px-4 sm:px-6 bg-[#292E56] text-white font-work-sans font-semibold text-sm sm:text-base rounded-full hover:bg-[#292E56]/90 transition-colors"
                                 >
-                                    Contact the team
+                                    Contact
                                 </button>
                             </div>
+                            {/* Mobile Contact Button */}
+                            <button
+                                onClick={handleContactClick}
+                                className="sm:hidden w-full mt-4 py-2.5 px-4 bg-[#292E56] text-white font-work-sans font-semibold text-sm rounded-full hover:bg-[#292E56]/90 transition-colors"
+                            >
+                                Contact the team
+                            </button>
                         </div>
 
                         {/* Property Cards - Right Side */}
-                        <div className="flex-1">
+                        <div className="flex-1 w-full">
                             {hasComparisonData ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {comparisonItems.map((item, index) => (
                                         <div key={item.listingKey || item.property_listing_key || index} className="relative">
                                             {/* Remove Button */}
                                             <button
                                                 onClick={() => removeFromCompare(item.listingKey || item.property_listing_key)}
-                                                className="absolute -top-2 -right-2 z-10 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
+                                                className="absolute -top-2 -right-2 z-10 w-7 h-7 sm:w-8 sm:h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-colors"
                                                 title="Remove from compare"
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
@@ -359,19 +376,19 @@ export default function CompareListings({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-[352px] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300">
-                                    <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div className="flex flex-col items-center justify-center h-[250px] sm:h-[352px] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 px-4">
+                                    <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mb-3 sm:mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                     </svg>
-                                    <h3 className="font-work-sans font-semibold text-gray-700 text-lg mb-2">
+                                    <h3 className="font-work-sans font-semibold text-gray-700 text-base sm:text-lg mb-2 text-center">
                                         No properties to compare
                                     </h3>
-                                    <p className="font-work-sans text-gray-500 text-center max-w-sm">
-                                        Add properties to compare by clicking the compare button (bar chart icon) on any property card.
+                                    <p className="font-work-sans text-gray-500 text-center text-sm sm:text-base max-w-sm">
+                                        Add properties to compare by clicking the compare button on any property card.
                                     </p>
                                     <a
                                         href="/search"
-                                        className="mt-4 px-6 py-2 bg-[#292E56] text-white font-work-sans font-medium rounded-full hover:bg-[#292E56]/90 transition-colors"
+                                        className="mt-4 px-5 sm:px-6 py-2 bg-[#292E56] text-white font-work-sans font-medium text-sm sm:text-base rounded-full hover:bg-[#292E56]/90 transition-colors"
                                     >
                                         Browse Properties
                                     </a>
@@ -382,13 +399,13 @@ export default function CompareListings({
 
                     {/* Properties Detail Comparison Section - Only show if we have favourites */}
                     {hasComparisonData && (
-                        <div className="mt-12 flex gap-6 items-start">
-                            {/* Left Card - Labels */}
-                            <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0" style={{ width: '280px' }}>
-                                <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
-                                    Properties detail
-                                </h2>
-                                <div>
+                        <div className="mt-8 sm:mt-12">
+                            {/* Mobile: Stacked layout, Desktop: Side by side */}
+                            <div className="block lg:hidden">
+                                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-lg sm:text-xl mb-4 sm:mb-6">
+                                        Properties detail
+                                    </h2>
                                     {[
                                         'Instant Estimate',
                                         'Beds',
@@ -399,126 +416,225 @@ export default function CompareListings({
                                         'Property Taxes',
                                         'Exposure'
                                     ].map((label, idx) => (
-                                        <div
-                                            key={label}
-                                            className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 7 ? 'border-b border-dashed border-gray-300' : ''}`}
-                                        >
-                                            {label}
+                                        <div key={label} className={`py-3 ${idx < 7 ? 'border-b border-dashed border-gray-200' : ''}`}>
+                                            <p className="font-work-sans text-[#293056] text-sm font-medium mb-2">{label}</p>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {comparisonItems.map((item, index) => (
+                                                    <div
+                                                        key={item.listingKey || item.property_listing_key || index}
+                                                        className="h-[36px] flex items-center justify-center bg-[#E8EBF5] rounded-lg font-work-sans text-[#293056] text-xs px-1 truncate"
+                                                    >
+                                                        {getPropertyValue(item, label)}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Right Card - Property Values */}
-                            <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
-                                {/* Spacer for header alignment */}
-                                <div className="h-[36px] mb-8"></div>
+                            {/* Desktop: Side by side layout */}
+                            <div className="hidden lg:flex gap-6 items-start">
+                                {/* Left Card - Labels */}
+                                <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0 w-[280px]">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
+                                        Properties detail
+                                    </h2>
+                                    <div>
+                                        {[
+                                            'Instant Estimate',
+                                            'Beds',
+                                            'Bathrooms',
+                                            'Area',
+                                            'Parking',
+                                            'Maintenance Fees',
+                                            'Property Taxes',
+                                            'Exposure'
+                                        ].map((label, idx) => (
+                                            <div
+                                                key={label}
+                                                className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 7 ? 'border-b border-dashed border-gray-300' : ''}`}
+                                            >
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                {/* Rows of values */}
-                                {[
-                                    'Instant Estimate',
-                                    'Beds',
-                                    'Bathrooms',
-                                    'Area',
-                                    'Parking',
-                                    'Maintenance Fees',
-                                    'Property Taxes',
-                                    'Exposure'
-                                ].map((key) => renderComparisonRow(key, getPropertyValue))}
+                                {/* Right Card - Property Values */}
+                                <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
+                                    {/* Spacer for header alignment */}
+                                    <div className="h-[36px] mb-8"></div>
+
+                                    {/* Rows of values */}
+                                    {[
+                                        'Instant Estimate',
+                                        'Beds',
+                                        'Bathrooms',
+                                        'Area',
+                                        'Parking',
+                                        'Maintenance Fees',
+                                        'Property Taxes',
+                                        'Exposure'
+                                    ].map((key) => renderComparisonRow(key, getPropertyValue))}
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Building Detail Comparison Section - Only show if we have favourites */}
                     {hasComparisonData && (
-                        <div className="mt-6 flex gap-6 items-start">
-                            {/* Left Card - Labels */}
-                            <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0" style={{ width: '280px' }}>
-                                <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
-                                    Building detail
-                                </h2>
-                                <div>
+                        <div className="mt-4 sm:mt-6">
+                            {/* Mobile: Stacked layout */}
+                            <div className="block lg:hidden">
+                                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-lg sm:text-xl mb-4 sm:mb-6">
+                                        Building detail
+                                    </h2>
                                     {[
                                         'Building age',
                                         'Avg Price/sqft',
                                         'Last year growth',
                                         'Amenities'
                                     ].map((label, idx) => (
-                                        <div
-                                            key={label}
-                                            className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 3 ? 'border-b border-dashed border-gray-300' : ''}`}
-                                        >
-                                            {label}
+                                        <div key={label} className={`py-3 ${idx < 3 ? 'border-b border-dashed border-gray-200' : ''}`}>
+                                            <p className="font-work-sans text-[#293056] text-sm font-medium mb-2">{label}</p>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {comparisonItems.map((item, index) => (
+                                                    <div
+                                                        key={item.listingKey || item.property_listing_key || index}
+                                                        className="h-[36px] flex items-center justify-center bg-[#E8EBF5] rounded-lg font-work-sans text-[#293056] text-xs px-1 truncate"
+                                                    >
+                                                        {getBuildingValue(item, label)}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Right Card - Building Values */}
-                            <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
-                                {/* Spacer for header alignment */}
-                                <div className="h-[36px] mb-8"></div>
+                            {/* Desktop: Side by side layout */}
+                            <div className="hidden lg:flex gap-6 items-start">
+                                {/* Left Card - Labels */}
+                                <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0 w-[280px]">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
+                                        Building detail
+                                    </h2>
+                                    <div>
+                                        {[
+                                            'Building age',
+                                            'Avg Price/sqft',
+                                            'Last year growth',
+                                            'Amenities'
+                                        ].map((label, idx) => (
+                                            <div
+                                                key={label}
+                                                className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 3 ? 'border-b border-dashed border-gray-300' : ''}`}
+                                            >
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                {/* Rows of values */}
-                                {[
-                                    'Building age',
-                                    'Avg Price/sqft',
-                                    'Last year growth',
-                                    'Amenities'
-                                ].map((key) => renderComparisonRow(key, getBuildingValue))}
+                                {/* Right Card - Building Values */}
+                                <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
+                                    {/* Spacer for header alignment */}
+                                    <div className="h-[36px] mb-8"></div>
+
+                                    {/* Rows of values */}
+                                    {[
+                                        'Building age',
+                                        'Avg Price/sqft',
+                                        'Last year growth',
+                                        'Amenities'
+                                    ].map((key) => renderComparisonRow(key, getBuildingValue))}
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Neighbourhood Comparison Section - Only show if we have favourites */}
                     {hasComparisonData && (
-                        <div className="mt-6 flex gap-6 items-start">
-                            {/* Left Card - Labels */}
-                            <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0" style={{ width: '280px' }}>
-                                <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
-                                    Neighbourhood
-                                </h2>
-                                <div>
+                        <div className="mt-4 sm:mt-6">
+                            {/* Mobile: Stacked layout */}
+                            <div className="block lg:hidden">
+                                <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-lg sm:text-xl mb-4 sm:mb-6">
+                                        Neighbourhood
+                                    </h2>
                                     {[
                                         'Name',
                                         'Avg Price/sqft',
                                         'Last year growth'
                                     ].map((label, idx) => (
-                                        <div
-                                            key={label}
-                                            className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 2 ? 'border-b border-dashed border-gray-300' : ''}`}
-                                        >
-                                            {label}
+                                        <div key={label} className={`py-3 ${idx < 2 ? 'border-b border-dashed border-gray-200' : ''}`}>
+                                            <p className="font-work-sans text-[#293056] text-sm font-medium mb-2">{label}</p>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {comparisonItems.map((item, index) => (
+                                                    <div
+                                                        key={item.listingKey || item.property_listing_key || index}
+                                                        className="h-[36px] flex items-center justify-center bg-[#E8EBF5] rounded-lg font-work-sans text-[#293056] text-xs px-1 truncate"
+                                                    >
+                                                        {getNeighbourhoodValue(item, label)}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Right Card - Neighbourhood Values */}
-                            <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
-                                {/* Spacer for header alignment */}
-                                <div className="h-[36px] mb-8"></div>
+                            {/* Desktop: Side by side layout */}
+                            <div className="hidden lg:flex gap-6 items-start">
+                                {/* Left Card - Labels */}
+                                <div className="bg-white rounded-2xl border border-gray-200 p-8 flex-shrink-0 w-[280px]">
+                                    <h2 className="font-space-grotesk font-bold text-[#293056] text-xl mb-8">
+                                        Neighbourhood
+                                    </h2>
+                                    <div>
+                                        {[
+                                            'Name',
+                                            'Avg Price/sqft',
+                                            'Last year growth'
+                                        ].map((label, idx) => (
+                                            <div
+                                                key={label}
+                                                className={`h-[54px] flex items-center font-work-sans text-[#293056] text-base ${idx < 2 ? 'border-b border-dashed border-gray-300' : ''}`}
+                                            >
+                                                {label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
 
-                                {/* Rows of values */}
-                                {[
-                                    'Name',
-                                    'Avg Price/sqft',
-                                    'Last year growth'
-                                ].map((key) => renderComparisonRow(key, getNeighbourhoodValue))}
+                                {/* Right Card - Neighbourhood Values */}
+                                <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-8">
+                                    {/* Spacer for header alignment */}
+                                    <div className="h-[36px] mb-8"></div>
+
+                                    {/* Rows of values */}
+                                    {[
+                                        'Name',
+                                        'Avg Price/sqft',
+                                        'Last year growth'
+                                    ].map((key) => renderComparisonRow(key, getNeighbourhoodValue))}
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Your Saved Favourites - Show database favourites if logged in */}
                     {auth?.user && favourites.length > 0 && (
-                        <div className="mt-12">
-                            <h2 className="font-space-grotesk font-bold text-[#293056] text-2xl mb-6">
+                        <div className="mt-8 sm:mt-12">
+                            <h2 className="font-space-grotesk font-bold text-[#293056] text-xl sm:text-2xl mb-4 sm:mb-6">
                                 Your Saved Favourites
                             </h2>
-                            <p className="font-work-sans text-gray-600 mb-6">
+                            <p className="font-work-sans text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
                                 Click the compare button to add these to your comparison.
                             </p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {favourites.slice(0, 8).map((favourite, index) => (
                                     <PropertyCardV5
                                         key={favourite.id || favourite.property_listing_key || `fav-${index}`}
@@ -533,7 +649,7 @@ export default function CompareListings({
                     )}
 
                     {/* FAQ Section */}
-                    <div className="mt-12">
+                    <div className="mt-8 sm:mt-12 -mx-4 sm:mx-0">
                         <FAQ
                             title="Frequently Asked Questions"
                             faqItems={[
@@ -564,7 +680,7 @@ export default function CompareListings({
                     </div>
 
                     {/* Real Estate Links Section */}
-                    <div className="mt-12">
+                    <div className="mt-8 sm:mt-12 -mx-4 sm:mx-0">
                         <RealEstateLinksSection />
                     </div>
                 </div>
@@ -589,6 +705,18 @@ export default function CompareListings({
                 onClose={() => setShowLoginModal(false)}
                 website={website}
             />
+
+            {/* Share Success Notification */}
+            {showShareSuccess && (
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[1000000] animate-fade-in">
+                    <div className="bg-[#293056] text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-2">
+                        <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-work-sans font-medium text-sm">Link copied to clipboard!</span>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 }
