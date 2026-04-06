@@ -538,9 +538,9 @@ class PropertySearchController extends Controller
                 'ParkingTotal' => $details['numParkingSpaces'] ?? 0,
                 'PropertySubType' => $details['style'] ?? $details['propertyType'] ?? '',
                 'PropertyType' => $details['propertyType'] ?? 'Residential',
-                'StandardStatus' => strtoupper($listing['status'] ?? 'A') === 'A' ? 'Active' : 'Inactive',
+                'StandardStatus' => $this->mapRepliersListingStatus($listing),
                 'MlsStatus' => $listing['lastStatus'] ?? '',
-                'TransactionType' => $transactionType,
+                'TransactionType' => $this->mapRepliersTransactionDisplay($listing, $transactionType),
                 'City' => $address['city'] ?? '',
                 'StateOrProvince' => $address['state'] ?? 'ON',
                 'PostalCode' => $address['zip'] ?? '',
@@ -1061,6 +1061,40 @@ class PropertySearchController extends Controller
             'inactive' => 'Off Market',
         ];
         return $statusMap[strtolower($status)] ?? 'Active';
+    }
+
+    /**
+     * Map Repliers listing to readable status (Active, Sold, Leased)
+     */
+    private function mapRepliersListingStatus(array $listing): string
+    {
+        $status = strtoupper($listing['status'] ?? 'A');
+        $lastStatus = strtolower($listing['lastStatus'] ?? '');
+
+        if ($status === 'U') {
+            if (in_array($lastStatus, ['sld', 'sc'])) return 'Sold';
+            if (in_array($lastStatus, ['lsd', 'lc'])) return 'Leased';
+            if ($lastStatus === 'exp') return 'Expired';
+            return 'Off Market';
+        }
+
+        return 'Active';
+    }
+
+    /**
+     * Map Repliers listing to transaction display text (For Sale, Sold, For Rent, Leased)
+     */
+    private function mapRepliersTransactionDisplay(array $listing, string $defaultType): string
+    {
+        $status = strtoupper($listing['status'] ?? 'A');
+        $lastStatus = strtolower($listing['lastStatus'] ?? '');
+
+        if ($status === 'U') {
+            if (in_array($lastStatus, ['sld', 'sc'])) return 'Sold';
+            if (in_array($lastStatus, ['lsd', 'lc'])) return 'Leased';
+        }
+
+        return $defaultType;
     }
 
     /**

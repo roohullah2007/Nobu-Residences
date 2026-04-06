@@ -1708,6 +1708,7 @@ export default function EnhancedPropertySearch({
                                 onClick={(property) => {
                                 window.location.href = generatePropertyUrl(property);
                                 }}
+                                onLoginRequired={() => setShowLoginModal(true)}
                                 className={`w-full transition-all duration-300 ${
                                     activeProperty === property.ListingKey ? 'scale-[1.02] z-10' : ''
                                   }`}
@@ -1836,8 +1837,9 @@ export default function EnhancedPropertySearch({
                               property={formattedProperty}
                               size="default"
                               onClick={(property) => {
-                                window.location.href = `/property/${property.listingKey}`;
+                                window.location.href = generatePropertyUrl(property);
                               }}
+                              onLoginRequired={() => setShowLoginModal(true)}
                               className=""
                             />
                           );

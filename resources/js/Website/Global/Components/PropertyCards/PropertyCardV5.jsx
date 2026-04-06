@@ -37,7 +37,8 @@ const PropertyCardV5 = ({
   showFavouriteButton = true,
   onFavouriteChange,
   showCompareButton = true,
-  onCompareChange
+  onCompareChange,
+  onLoginRequired,
 }) => {
   const { auth } = usePage().props;
   const [isFavourited, setIsFavourited] = useState(false);
@@ -436,7 +437,31 @@ const PropertyCardV5 = ({
 
   const config = sizeConfig[size];
 
+  // Check if listing is sold/leased
+  const isSoldOrLeased = (() => {
+    const ms = (property.MlsStatus || '').toLowerCase();
+    const ss = (property.StandardStatus || '').toLowerCase();
+    const tt = (property.TransactionType || '').toLowerCase();
+    return ['sold', 'sld', 'sc'].includes(ms) || ['leased', 'lsd', 'lc'].includes(ms) ||
+           ss === 'sold' || ss === 'leased' || tt === 'sold' || tt === 'leased';
+  })();
+
+  // Use existing auth state
+  const isLoggedIn = isAuthenticated;
+
   const handleClick = (e) => {
+    // Require login for sold/leased listings
+    if (isSoldOrLeased && !isLoggedIn) {
+      e.preventDefault();
+      if (onLoginRequired) {
+        onLoginRequired();
+      } else {
+        // Fallback: redirect to login
+        window.location.href = '/login';
+      }
+      return;
+    }
+
     if (onClick) {
       e.preventDefault();
       onClick(property);
@@ -469,7 +494,16 @@ const PropertyCardV5 = ({
             <div className="absolute inset-2 flex flex-col justify-between">
               {/* Top row - Sale and Property Type chips - Swapped positions */}
               <div className="flex justify-between items-center gap-2.5 h-8">
-                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200 status-badge`}>
+                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm border border-gray-200 status-badge ${
+                  (() => {
+                    const ms = (property.MlsStatus || '').toLowerCase();
+                    const ss = (property.StandardStatus || '').toLowerCase();
+                    const tt = (property.TransactionType || '').toLowerCase();
+                    if (['sold', 'sld', 'sc'].includes(ms) || ss === 'sold' || tt === 'sold') return 'bg-red-600 text-white border-red-600';
+                    if (['leased', 'lsd', 'lc'].includes(ms) || ss === 'leased' || tt === 'leased') return 'bg-orange-500 text-white border-orange-500';
+                    return 'bg-white text-[#293056]';
+                  })()
+                }`}>
                   {/* Priority: MlsStatus for Sold/Leased, then formatted_status, then TransactionType */}
                   {(() => {
                     // Helper function to calculate days since sold
@@ -486,43 +520,42 @@ const PropertyCardV5 = ({
                       }
                     };
 
-                    // Check MlsStatus first (most reliable for Sold/Leased)
+                    // Check MlsStatus first - handles both Repliers (Sld/Lsd) and AMPRE (Sold/Leased) formats
                     const mlsStatusLower = property.MlsStatus ? property.MlsStatus.toLowerCase() : '';
-                    if (mlsStatusLower === 'sold') {
+                    if (mlsStatusLower === 'sold' || mlsStatusLower === 'sld' || mlsStatusLower === 'sc') {
                       const daysSince = getDaysSinceSold(property.soldDate);
-                      if (daysSince !== null) {
+                      if (daysSince !== null && daysSince <= 30) {
                         if (daysSince === 0) return 'Sold Today';
                         if (daysSince === 1) return 'Sold Yesterday';
                         return `Sold ${daysSince}d ago`;
                       }
                       return 'Sold';
                     }
-                    if (mlsStatusLower === 'leased' || mlsStatusLower === 'rented' || mlsStatusLower === 'lease') {
+                    if (['leased', 'lsd', 'lc', 'rented', 'lease'].includes(mlsStatusLower)) {
                       return 'Leased';
                     }
 
                     // Check StandardStatus
                     const standardStatusLower = property.StandardStatus ? property.StandardStatus.toLowerCase() : '';
-                    if (property.StandardStatus === 'Closed') {
-                      // Closed with For Lease transaction = Leased, otherwise Sold
-                      if (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent') {
+                    if (standardStatusLower === 'sold' || standardStatusLower === 'closed') {
+                      if (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent' || property.TransactionType === 'Leased') {
                         return 'Leased';
                       }
                       const daysSince = getDaysSinceSold(property.soldDate);
-                      if (daysSince !== null) {
+                      if (daysSince !== null && daysSince <= 30) {
                         if (daysSince === 0) return 'Sold Today';
                         if (daysSince === 1) return 'Sold Yesterday';
                         return `Sold ${daysSince}d ago`;
                       }
                       return 'Sold';
                     }
-                    if (standardStatusLower === 'leased' || standardStatusLower === 'rented' || standardStatusLower === 'lease') {
+                    if (['leased', 'rented'].includes(standardStatusLower)) {
                       return 'Leased';
                     }
-                    if (property.StandardStatus === 'Off Market' &&
-                        (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent')) {
-                      return 'Leased';
-                    }
+
+                    // Check TransactionType directly for Sold/Leased
+                    if (property.TransactionType === 'Sold') return 'Sold';
+                    if (property.TransactionType === 'Leased') return 'Leased';
 
                     // Use formatted_status from backend if available
                     if (property.formatted_status) {
