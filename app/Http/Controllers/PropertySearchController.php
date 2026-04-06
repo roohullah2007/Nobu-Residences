@@ -442,6 +442,24 @@ class PropertySearchController extends Controller
             $apiParams['minBaths'] = $params['bathrooms'];
         }
 
+        // Days on market filter
+        if (!empty($params['days_on_market']) && $params['days_on_market'] !== 'Any') {
+            $days = (int) $params['days_on_market'];
+            if (($apiParams['status'] ?? 'A') === 'U') {
+                // For sold/leased, use maxDaysOnMarket
+                $apiParams['maxDaysOnMarket'] = $days;
+            } else {
+                // For active listings, use minListDate to filter recent listings
+                $apiParams['minListDate'] = now()->subDays($days)->format('Y-m-d');
+            }
+        }
+
+        // Keywords search (appended to existing search)
+        if (!empty($params['keywords'])) {
+            $existingSearch = $apiParams['search'] ?? '';
+            $apiParams['search'] = trim($existingSearch . ' ' . $params['keywords']);
+        }
+
         // Sort mapping
         $sortMap = [
             'newest' => 'createdOnDesc',
@@ -452,6 +470,35 @@ class PropertySearchController extends Controller
             'sqft' => 'updatedOnDesc',
         ];
         $apiParams['sortBy'] = $sortMap[$params['sort'] ?? 'newest'] ?? 'createdOnDesc';
+
+        // Viewport/polygon search
+        // Viewport/polygon/radius search
+        if (!empty($params['viewport_bounds'])) {
+            $bounds = $params['viewport_bounds'];
+            if (isset($bounds['lat'], $bounds['long'], $bounds['radius'])) {
+                // Radius search from drawn circle or center point
+                $apiParams['lat'] = $bounds['lat'];
+                $apiParams['long'] = $bounds['long'];
+                $apiParams['radius'] = $bounds['radius'];
+            } elseif (isset($bounds['north'], $bounds['south'], $bounds['east'], $bounds['west'])) {
+                // Convert viewport bounds to center + radius
+                $n = (float) $bounds['north'];
+                $s = (float) $bounds['south'];
+                $e = (float) $bounds['east'];
+                $w = (float) $bounds['west'];
+                $centerLat = ($n + $s) / 2;
+                $centerLng = ($e + $w) / 2;
+                // Calculate radius in km (haversine approximation)
+                $latDiff = abs($n - $s) * 111.32; // ~111km per degree lat
+                $lngDiff = abs($e - $w) * 111.32 * cos(deg2rad($centerLat));
+                $radius = max($latDiff, $lngDiff) / 2;
+                $radius = min(max($radius, 1), 50); // Clamp between 1-50km
+
+                $apiParams['lat'] = round($centerLat, 6);
+                $apiParams['long'] = round($centerLng, 6);
+                $apiParams['radius'] = round($radius, 1);
+            }
+        }
 
         // Call Repliers API
         $repliersApi = app(\App\Services\RepliersApiService::class);
@@ -2742,16 +2789,23 @@ class PropertySearchController extends Controller
             'bathrooms' => 0,
             'sort' => 'newest',
             'building_id' => '', // Building ID for multi-address building searches
+            'viewport_bounds' => null,
+            'days_on_market' => '',
+            'keywords' => '',
+            'home_types' => [],
         ];
         
         if (!is_array($params)) {
             return $defaults;
         }
         
-        // Remove viewport_bounds from params before merging to avoid it being treated as a filter
-        unset($params['viewport_bounds']);
-        
+        // Preserve viewport_bounds if present (needed for polygon/map search)
+        $viewportBounds = $params['viewport_bounds'] ?? null;
+
         $sanitized = array_merge($defaults, $params);
+
+        // Restore viewport_bounds after merge
+        $sanitized['viewport_bounds'] = $viewportBounds;
 
         // Map listing_type to status if provided (frontend sends 'sale'/'rent', backend expects 'For Sale'/'For Rent')
         if (isset($params['listing_type'])) {

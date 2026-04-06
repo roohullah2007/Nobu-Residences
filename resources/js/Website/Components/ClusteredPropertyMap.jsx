@@ -12,6 +12,7 @@ const ClusteredPropertyMap = ({
   className = '',
   onPropertyClick = null,
   onMarkerCountChange = null,
+  onPolygonDraw = null,
   initialCenter = { lat: 43.6532, lng: -79.3832 }, // Toronto default
   initialZoom = 11,
 }) => {
@@ -19,9 +20,13 @@ const ClusteredPropertyMap = ({
   const markersRef = useRef([]);
   const markerClustererRef = useRef(null);
   const infoWindowRef = useRef(null);
+  const drawingManagerRef = useRef(null);
+  const drawnPolygonRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [hasDrawnPolygon, setHasDrawnPolygon] = useState(false);
   const [markerStats, setMarkerStats] = useState({ displayed: 0, total: 0 });
   const lastBoundsRef = useRef(null);
   const lastZoomRef = useRef(initialZoom);
@@ -318,6 +323,137 @@ const ClusteredPropertyMap = ({
     });
   };
 
+  // Clear drawn polygon from the map
+  const clearDrawnPolygon = useCallback(() => {
+    if (drawnPolygonRef.current) {
+      drawnPolygonRef.current.setMap(null);
+      drawnPolygonRef.current = null;
+    }
+    setHasDrawnPolygon(false);
+    if (onPolygonDraw) {
+      onPolygonDraw(null);
+    }
+  }, [onPolygonDraw]);
+
+  // Toggle drawing mode
+  const toggleDrawingMode = useCallback(() => {
+    if (!drawingManagerRef.current) return;
+
+    if (isDrawingMode) {
+      // Disable drawing mode
+      drawingManagerRef.current.setDrawingMode(null);
+      setIsDrawingMode(false);
+    } else {
+      // Clear any existing polygon first
+      clearDrawnPolygon();
+      // Enable polygon drawing
+      drawingManagerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
+      setIsDrawingMode(true);
+    }
+  }, [isDrawingMode, clearDrawnPolygon]);
+
+  // Initialize Drawing Manager on the map
+  const initDrawingManager = useCallback((map) => {
+    if (!window.google?.maps?.drawing) {
+      console.warn('Google Maps Drawing library not loaded');
+      return;
+    }
+
+    const drawingManager = new window.google.maps.drawing.DrawingManager({
+      drawingMode: null, // Start with drawing disabled
+      drawingControl: false, // We use our own UI button
+      polygonOptions: {
+        fillColor: '#007cba',
+        fillOpacity: 0.15,
+        strokeColor: '#007cba',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        clickable: true,
+        editable: true,
+        zIndex: 1,
+      },
+    });
+
+    drawingManager.setMap(map);
+    drawingManagerRef.current = drawingManager;
+
+    // Listen for polygon complete
+    window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon) => {
+      // Clear any previously drawn polygon
+      if (drawnPolygonRef.current) {
+        drawnPolygonRef.current.setMap(null);
+      }
+      drawnPolygonRef.current = polygon;
+      setHasDrawnPolygon(true);
+
+      // Disable drawing mode after polygon is drawn
+      drawingManager.setDrawingMode(null);
+      setIsDrawingMode(false);
+
+      // Extract coordinates as GeoJSON
+      const path = polygon.getPath();
+      const coordinates = [];
+      for (let i = 0; i < path.getLength(); i++) {
+        const point = path.getAt(i);
+        coordinates.push([point.lng(), point.lat()]);
+      }
+      // Close the polygon ring
+      if (coordinates.length > 0) {
+        coordinates.push(coordinates[0]);
+      }
+
+      // Calculate bounding box of the drawn polygon for search
+      const bounds = new window.google.maps.LatLngBounds();
+      for (let i = 0; i < path.getLength(); i++) {
+        bounds.extend(path.getAt(i));
+      }
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+      const searchBounds = {
+        north: ne.lat(),
+        south: sw.lat(),
+        east: ne.lng(),
+        west: sw.lng(),
+      };
+
+      console.log('Polygon drawn, bounds:', searchBounds);
+
+      if (onPolygonDraw) {
+        onPolygonDraw(searchBounds);
+      }
+
+      // Listen for edits to update bounds
+      const updateBounds = () => {
+        const newBounds = new window.google.maps.LatLngBounds();
+        for (let i = 0; i < path.getLength(); i++) {
+          newBounds.extend(path.getAt(i));
+        }
+        const newNe = newBounds.getNorthEast();
+        const newSw = newBounds.getSouthWest();
+        if (onPolygonDraw) {
+          onPolygonDraw({
+            north: newNe.lat(),
+            south: newSw.lat(),
+            east: newNe.lng(),
+            west: newSw.lng(),
+          });
+        }
+      };
+      window.google.maps.event.addListener(path, 'set_at', updateBounds);
+
+      window.google.maps.event.addListener(path, 'insert_at', () => {
+        const updatedCoords = [];
+        for (let i = 0; i < path.getLength(); i++) {
+          const pt = path.getAt(i);
+          updatedCoords.push([pt.lng(), pt.lat()]);
+        }
+        if (updatedCoords.length > 0) updatedCoords.push(updatedCoords[0]);
+        const updatedGeoJson = JSON.stringify({ type: 'Polygon', coordinates: [updatedCoords] });
+        if (onPolygonDraw) onPolygonDraw(updatedGeoJson);
+      });
+    });
+  }, [onPolygonDraw, clearDrawnPolygon]);
+
   // Initialize map
   const handleMapContainerReady = useCallback((mapDiv) => {
     if (!mapDiv || mapInstanceRef.current) return;
@@ -348,6 +484,9 @@ const ClusteredPropertyMap = ({
 
         mapInstanceRef.current = map;
         setMapLoaded(true);
+
+        // Initialize Drawing Manager for polygon search
+        initDrawingManager(map);
 
         // Listen for map idle (user stopped moving/zooming)
         map.addListener('idle', () => {
@@ -382,7 +521,7 @@ const ClusteredPropertyMap = ({
     } else {
       initMap();
     }
-  }, [initialCenter, initialZoom, debouncedUpdate]);
+  }, [initialCenter, initialZoom, debouncedUpdate, initDrawingManager]);
 
   // Load Google Maps script
   const loadGoogleMapsScript = (callback) => {
@@ -405,7 +544,7 @@ const ClusteredPropertyMap = ({
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initClusteredMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing&callback=initClusteredMap`;
     script.async = true;
     script.defer = true;
 
@@ -428,6 +567,14 @@ const ClusteredPropertyMap = ({
       if (markerClustererRef.current) {
         markerClustererRef.current.clearMarkers();
         markerClustererRef.current = null;
+      }
+      if (drawingManagerRef.current) {
+        drawingManagerRef.current.setMap(null);
+        drawingManagerRef.current = null;
+      }
+      if (drawnPolygonRef.current) {
+        drawnPolygonRef.current.setMap(null);
+        drawnPolygonRef.current = null;
       }
     };
   }, [clearMarkers, debouncedUpdate]);
@@ -471,6 +618,36 @@ const ClusteredPropertyMap = ({
 
   return (
     <div className={`${className} relative rounded-lg overflow-hidden border bg-gray-50`} style={{ minHeight: '400px' }}>
+      {/* Draw Area / Clear controls */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        <button
+          onClick={toggleDrawingMode}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm font-medium transition-colors ${
+            isDrawingMode
+              ? 'bg-[#007cba] text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title="Draw a polygon to search within an area"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          {isDrawingMode ? 'Drawing...' : 'Draw Area'}
+        </button>
+        {hasDrawnPolygon && (
+          <button
+            onClick={clearDrawnPolygon}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm font-medium bg-white text-red-600 hover:bg-red-50 transition-colors"
+            title="Clear the drawn area"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Clear Area
+          </button>
+        )}
+      </div>
+
       {/* Stats overlay */}
       <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg px-3 py-2">
         <div className="text-sm font-medium text-gray-700">

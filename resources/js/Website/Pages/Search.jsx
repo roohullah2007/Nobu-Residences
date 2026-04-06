@@ -265,6 +265,7 @@ export default function EnhancedPropertySearch({
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [propertyImages, setPropertyImages] = useState({});
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [drawnPolygon, setDrawnPolygon] = useState(null); // GeoJSON string from map polygon drawing
 
   // Initialize lazy loading hook for property images
   const {
@@ -382,6 +383,11 @@ export default function EnhancedPropertySearch({
           page: resetPage ? 1 : (params.page || 1),
           page_size: 16
         };
+
+        // Include drawn area bounds for map-based area search
+        if (drawnPolygon) {
+          searchParams.viewport_bounds = drawnPolygon;
+        }
       }
 
       const endpoint = currentTab === 'buildings' ? '/api/buildings-search' : '/api/property-search';
@@ -699,6 +705,19 @@ export default function EnhancedPropertySearch({
     setSearchFilters(newFilters);
     setCurrentPage(1);
     performSearch(newFilters, true, activeTab);
+  };
+
+  // Handle polygon drawn on map - triggers a new search with the polygon area
+  const handlePolygonDraw = (bounds) => {
+    setDrawnPolygon(bounds);
+    if (bounds) {
+      // Trigger search with drawn area bounds
+      const newParams = { ...searchFilters, viewport_bounds: bounds };
+      performSearch(newParams, true, activeTab);
+    } else {
+      // Area cleared - search without bounds
+      performSearch(searchFilters, true, activeTab);
+    }
   };
 
   const handleSaveSearch = async () => {
@@ -1625,6 +1644,7 @@ export default function EnhancedPropertySearch({
                   onMarkerCountChange={(displayed, total) => {
                     console.log(`Map showing ${displayed} of ${total} properties`);
                   }}
+                  onPolygonDraw={handlePolygonDraw}
                 />
               ) : (
                 // Use ViewportAwarePropertyMap for buildings
@@ -1780,6 +1800,7 @@ export default function EnhancedPropertySearch({
                       onMarkerCountChange={(displayed, total) => {
                         console.log(`Mixed view map showing ${displayed} of ${total} properties`);
                       }}
+                      onPolygonDraw={handlePolygonDraw}
                       initialZoom={12}
                     />
                   ) : (
