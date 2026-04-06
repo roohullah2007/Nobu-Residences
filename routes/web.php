@@ -53,13 +53,13 @@ Route::get('/contact', [WebsiteController::class, 'contact'])->name('contact');
 Route::get('/privacy', [WebsiteController::class, 'privacy'])->name('privacy');
 Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // New SEO-friendly property route structure: /city/street-address/mls-id
-// listingKey must be: MLS ID format (letter followed by digits like C12550852)
-// This prevents matching building slugs like "lakeshore-vista"
+// Property detail: supports both old format (/city/address/C12550852) and
+// new SEO format (/city/address/unit-604-C12550852)
 Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
     ->where([
         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
-        'listingKey' => '[A-Z][0-9]+' // MLS IDs start with a letter followed by numbers (e.g., C12550852)
+        'listingKey' => '(?:unit-\d+-)?[A-Z][0-9]+' // MLS ID or unit-{num}-{MLS ID}
     ])
     ->name('property-detail');
 

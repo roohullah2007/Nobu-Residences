@@ -1473,6 +1473,11 @@ class WebsiteController extends Controller
      */
     public function propertyDetail($city, $address, $listingKey)
     {
+        // Extract MLS number from new URL format: unit-604-S12960990 -> S12960990
+        if (preg_match('/^unit-\d+-([A-Z]\d+)$/i', $listingKey, $matches)) {
+            $listingKey = $matches[1];
+        }
+
         // Try to fetch property data from Repliers API or local database
         $propertyData = null;
         $rawListingData = null; // Store raw listing data for AI generation
@@ -1550,20 +1555,12 @@ class WebsiteController extends Controller
             }
         }
         
-        // If not found locally, try Repliers API (for MLS listings)
+        // If not found locally, fetch from Repliers API (for MLS listings)
         if (!$propertyData) {
             try {
-                // First try local MLS database
-                $mlsDbProperty = \App\Models\MLSProperty::where('mls_id', $listingKey)->first();
-                $repliersListing = null;
-
-                if ($mlsDbProperty && !empty($mlsDbProperty->mls_data)) {
-                    $repliersListing = $mlsDbProperty->mls_data;
-                } else {
-                    // Fallback to Repliers API
-                    $repliersApi = app(\App\Services\RepliersApiService::class);
-                    $repliersListing = $repliersApi->getListingByMlsNumber($listingKey);
-                }
+                // Always fetch from Repliers API for fresh data
+                $repliersApi = app(\App\Services\RepliersApiService::class);
+                $repliersListing = $repliersApi->getListingByMlsNumber($listingKey);
 
                 if ($repliersListing) {
                     // Debug log the raw API response
@@ -2130,25 +2127,35 @@ class WebsiteController extends Controller
     {
         $rooms = [];
 
-        // Repliers format: rooms array with nested objects
+        // Repliers format: rooms array with description, length, width, features
         if (isset($listing['rooms']) && is_array($listing['rooms'])) {
             foreach ($listing['rooms'] as $room) {
+                $length = $room['length'] ?? '';
+                $width = $room['width'] ?? '';
+                $dimensions = ($length && $width) ? "{$length} x {$width} m" : ($room['dimensions'] ?? $room['RoomDimensions'] ?? '');
+
                 $rooms[] = [
-                    'type' => $room['type'] ?? $room['RoomType'] ?? '',
+                    'type' => $room['description'] ?? $room['type'] ?? $room['RoomType'] ?? '',
+                    'name' => $room['description'] ?? $room['type'] ?? $room['RoomType'] ?? '',
                     'level' => $room['level'] ?? $room['RoomLevel'] ?? '',
-                    'dimensions' => $room['dimensions'] ?? $room['RoomDimensions'] ?? '',
-                    'features' => $room['features'] ?? $room['RoomFeatures'] ?? [],
+                    'length' => $length,
+                    'width' => $width,
+                    'dimensions' => $dimensions,
+                    'features' => $room['features'] ?? $room['RoomFeatures'] ?? '',
                 ];
             }
         }
-        // Legacy format
+        // Legacy AMPRE format
         elseif (isset($listing['Rooms']) && is_array($listing['Rooms'])) {
             foreach ($listing['Rooms'] as $room) {
                 $rooms[] = [
                     'type' => $room['RoomType'] ?? '',
+                    'name' => $room['RoomType'] ?? '',
                     'level' => $room['RoomLevel'] ?? '',
+                    'length' => $room['RoomLength'] ?? '',
+                    'width' => $room['RoomWidth'] ?? '',
                     'dimensions' => $room['RoomDimensions'] ?? '',
-                    'features' => $room['RoomFeatures'] ?? [],
+                    'features' => $room['RoomFeatures'] ?? '',
                 ];
             }
         }
