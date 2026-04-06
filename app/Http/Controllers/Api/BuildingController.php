@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Building;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 
 class BuildingController extends Controller
 {
@@ -283,55 +283,33 @@ class BuildingController extends Controller
         
         // Always use MLS API for accurate condo apartment counts
         // Skip static counts to ensure we get filtered results from MLS
-        
-        // Otherwise, try to use MLS API
+
+        // Otherwise, try to use MLS API (Repliers)
         try {
-            $ampreService = app(AmpreApiService::class);
-            
-            // Count FOR SALE listings
-            $ampreService->resetFilters();
-            
-            // Match address pattern
+            $repliersService = app(RepliersApiService::class);
+
             $streetPattern = $streetNumber . ' ' . $streetName;
-            $ampreService->addCustomFilter("contains(UnparsedAddress, '{$streetPattern}')");
-            
-            // Transaction and Status filters for Sale
-            $ampreService->addFilter('TransactionType', 'For Sale', 'eq');
-            $ampreService->addFilter('StandardStatus', 'Active', 'eq');
-            
-            // Filter for condo apartments only
-            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
-            
-            // Set minimal fields for counting
-            $ampreService->setTop(1);
-            $ampreService->setSelect(['ListingKey']);
-            
-            // Get count for sale
-            $saleResponse = $ampreService->fetchPropertiesWithCount();
+
+            // Count FOR SALE listings
+            $saleResponse = $repliersService->searchListings([
+                'search' => $streetPattern,
+                'status' => 'A',
+                'type' => 'sale',
+                'class' => 'condo',
+                'resultsPerPage' => 1,
+            ]);
             $forSale = $saleResponse['count'] ?? 0;
-            
-            // Log the query for debugging
-            \Log::info('MLS Sale Query URL: ' . $ampreService->getRequestUrl());
-            
+
+            \Log::info('MLS Sale Query for: ' . $streetPattern, ['count' => $forSale]);
+
             // Count FOR RENT listings
-            $ampreService->resetFilters();
-            
-            // Match address pattern
-            $ampreService->addCustomFilter("contains(UnparsedAddress, '{$streetPattern}')");
-            
-            // Transaction and Status filters for Lease/Rent
-            $ampreService->addFilter('TransactionType', 'For Lease', 'eq');
-            $ampreService->addFilter('StandardStatus', 'Active', 'eq');
-            
-            // Filter for condo apartments only
-            $ampreService->addFilter('PropertySubType', 'Condo Apartment', 'eq');
-            
-            // Set minimal fields for counting
-            $ampreService->setTop(1);
-            $ampreService->setSelect(['ListingKey']);
-            
-            // Get count for rent
-            $rentResponse = $ampreService->fetchPropertiesWithCount();
+            $rentResponse = $repliersService->searchListings([
+                'search' => $streetPattern,
+                'status' => 'A',
+                'type' => 'lease',
+                'class' => 'condo',
+                'resultsPerPage' => 1,
+            ]);
             $forRent = $rentResponse['count'] ?? 0;
             
             return response()->json([

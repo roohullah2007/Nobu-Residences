@@ -16,9 +16,8 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
     
     const { data, setData, post, processing, errors, reset } = useForm({
         // API Keys
-        ampre_api_url: api_keys.ampre_api_url || '',
-        ampre_vow_token: '',
-        ampre_idx_token: '',
+        repliers_api_url: api_keys.repliers_api_url || '',
+        repliers_api_key: '',
         google_maps_api_key: '',
         walkscore_api_key: '',
         
@@ -42,7 +41,7 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
         e.preventDefault();
         post(route('admin.api-keys.update'), {
             onSuccess: () => {
-                reset('ampre_vow_token', 'ampre_idx_token', 'google_maps_api_key', 'walkscore_api_key');
+                reset('repliers_api_key', 'google_maps_api_key', 'walkscore_api_key');
             }
         });
     };
@@ -88,34 +87,24 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
 
     const apiKeysConfig = [
         {
-            id: 'ampre_api_url',
-            label: 'AMPRE API URL',
+            id: 'repliers_api_url',
+            label: 'Repliers API URL',
             type: 'url',
-            description: 'The base URL for the AMPRE real estate API endpoint.',
-            placeholder: 'https://query.ampre.ca/odata/',
+            description: 'The base URL for the Repliers MLS API endpoint.',
+            placeholder: 'https://api.repliers.io/',
             required: true,
             showToggle: false,
-            currentValue: api_keys.ampre_api_url
+            currentValue: api_keys.repliers_api_url
         },
         {
-            id: 'ampre_vow_token',
-            label: 'AMPRE VOW Token',
+            id: 'repliers_api_key',
+            label: 'Repliers API Key',
             type: 'password',
-            description: 'Virtual Office Website token for AMPRE API authentication.',
-            placeholder: 'Enter your VOW token',
+            description: 'API key for Repliers MLS API authentication.',
+            placeholder: 'Enter your Repliers API key',
             required: true,
             showToggle: true,
-            currentValue: api_keys.ampre_vow_token
-        },
-        {
-            id: 'ampre_idx_token',
-            label: 'AMPRE IDX Token',
-            type: 'password',
-            description: 'Internet Data Exchange token for additional AMPRE API features.',
-            placeholder: 'Enter your IDX token',
-            required: false,
-            showToggle: true,
-            currentValue: api_keys.ampre_idx_token
+            currentValue: api_keys.repliers_api_key
         },
         {
             id: 'google_maps_api_key',
@@ -149,7 +138,7 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                             API Keys Management
                         </h2>
                         <p className="mt-1 text-sm text-gray-500">
-                            Configure your API credentials for AMPRE, Google Maps, and other services
+                            Configure your API credentials for Repliers, Google Maps, and other services
                         </p>
                     </div>
                 </div>
@@ -176,17 +165,10 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                         <h3 className="text-lg font-medium text-gray-900 mb-4">API Connection Status</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="flex items-center space-x-3">
-                                <div className={`w-3 h-3 rounded-full ${connection_status.ampre_vow === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                                <span className="text-sm font-medium">AMPRE VOW</span>
-                                <span className={`text-sm ${getStatusColor(connection_status.ampre_vow)}`}>
-                                    {getStatusText(connection_status.ampre_vow)}
-                                </span>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                                <div className={`w-3 h-3 rounded-full ${connection_status.ampre_idx === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                                <span className="text-sm font-medium">AMPRE IDX</span>
-                                <span className={`text-sm ${getStatusColor(connection_status.ampre_idx)}`}>
-                                    {getStatusText(connection_status.ampre_idx)}
+                                <div className={`w-3 h-3 rounded-full ${connection_status.repliers === 'configured' ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                                <span className="text-sm font-medium">Repliers API</span>
+                                <span className={`text-sm ${getStatusColor(connection_status.repliers)}`}>
+                                    {getStatusText(connection_status.repliers)}
                                 </span>
                             </div>
                             <div className="flex items-center space-x-3">
@@ -439,39 +421,39 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                             API Status & Testing
                         </h3>
                         <div className="space-y-4">
-                            {/* AMPRE API */}
+                            {/* Repliers API */}
                             <div className="bg-gray-50 px-4 py-4 rounded-lg">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center">
                                         <div className={`w-3 h-3 rounded-full mr-3 ${
-                                            api_keys.ampre_vow_token ? 'bg-green-400' : 'bg-red-400'
+                                            api_keys.repliers_api_key ? 'bg-green-400' : 'bg-red-400'
                                         }`}></div>
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">AMPRE API</p>
+                                            <p className="text-sm font-medium text-gray-900">Repliers API</p>
                                             <p className="text-sm text-gray-500">
-                                                {api_keys.ampre_vow_token ? 'Connected' : 'Not configured'}
+                                                {api_keys.repliers_api_key ? 'Connected' : 'Not configured'}
                                             </p>
                                         </div>
                                     </div>
-                                    {api_keys.ampre_vow_token && (
+                                    {api_keys.repliers_api_key && (
                                         <SecondaryButton
-                                            onClick={() => testApiConnection('ampre')}
-                                            disabled={testing.ampre}
+                                            onClick={() => testApiConnection('repliers')}
+                                            disabled={testing.repliers}
                                         >
-                                            {testing.ampre ? 'Testing...' : 'Test Connection'}
+                                            {testing.repliers ? 'Testing...' : 'Test Connection'}
                                         </SecondaryButton>
                                     )}
                                 </div>
-                                {testResults.ampre && (
+                                {testResults.repliers && (
                                     <div className={`mt-3 p-3 rounded text-sm ${
-                                        testResults.ampre.success 
-                                            ? 'bg-green-100 text-green-800' 
+                                        testResults.repliers.success
+                                            ? 'bg-green-100 text-green-800'
                                             : 'bg-red-100 text-red-800'
                                     }`}>
-                                        {testResults.ampre.message}
-                                        {testResults.ampre.data && (
+                                        {testResults.repliers.message}
+                                        {testResults.repliers.data && (
                                             <div className="mt-1 text-xs">
-                                                Properties accessible: {testResults.ampre.data.property_count}
+                                                Properties accessible: {testResults.repliers.data.property_count}
                                             </div>
                                         )}
                                     </div>
@@ -566,7 +548,7 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                             <h3 className="text-sm font-medium text-blue-800">Need Help?</h3>
                             <div className="mt-2 text-sm text-blue-700">
                                 <ul className="list-disc list-inside space-y-1">
-                                    <li><strong>AMPRE API:</strong> Contact your AMPRE provider for VOW and IDX tokens</li>
+                                    <li><strong>Repliers API:</strong> Get your API key from your Repliers account dashboard</li>
                                     <li><strong>Google Maps:</strong> Get your API key from the Google Cloud Console</li>
                                     <li><strong>WalkScore:</strong> Sign up at walkscore.com/professional/api</li>
                                 </ul>

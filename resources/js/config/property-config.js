@@ -35,7 +35,6 @@ export const PROPERTY_CONFIG = {
   ERROR_IMAGE: '/images/property-error-placeholder.jpg',
   
   // Browser compatibility
-  DISABLE_AMPRE_SSL: true, // Convert HTTPS to HTTP for AMPRE images
   FALLBACK_TO_PLACEHOLDER: true,
   
   // Development settings

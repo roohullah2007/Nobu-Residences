@@ -2,18 +2,18 @@
 
 namespace App\Providers;
 
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use Illuminate\Support\ServiceProvider;
 
-class AmpreServiceProvider extends ServiceProvider
+class RepliersServiceProvider extends ServiceProvider
 {
     /**
      * Register services.
      */
     public function register(): void
     {
-        $this->app->singleton(AmpreApiService::class, function ($app) {
-            return new AmpreApiService();
+        $this->app->singleton(RepliersApiService::class, function ($app) {
+            return new RepliersApiService();
         });
     }
 

@@ -10,16 +10,16 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * MLS Integration Service
- * 
- * Integrates MLS data with local property and building data using AMPRE API
+ *
+ * Integrates MLS data with local property and building data using Repliers API
  */
 class MLSIntegrationService
 {
-    private AmpreApiService $ampreApi;
+    private RepliersApiService $repliersApi;
 
-    public function __construct(AmpreApiService $ampreApi)
+    public function __construct(RepliersApiService $repliersApi)
     {
-        $this->ampreApi = $ampreApi;
+        $this->repliersApi = $repliersApi;
     }
 
     /**
@@ -28,56 +28,47 @@ class MLSIntegrationService
     public function syncProperties(array $filters = []): array
     {
         try {
-            // Set up default filters
-            $this->ampreApi->resetFilters();
-            $this->ampreApi->setSelect([
-                'ListingKey', 'ListPrice', 'PropertyType', 'TransactionType',
-                'BedroomsTotal', 'BathroomsTotalInteger', 'UnparsedAddress',
-                'City', 'StateOrProvince', 'PostalCode', 'Country',
-                'Latitude', 'Longitude', 'ListingDate', 'ExpirationDate',
-                'MLSNumber', 'PropertySubType', 'LivingArea', 'YearBuilt',
-                'PublicRemarks', 'StandardStatus', 'BuildingName'
-            ]);
+            $params = [
+                'status' => 'A',
+                'class' => 'condoProperty',
+                'resultsPerPage' => $filters['limit'] ?? 100,
+                'pageNum' => 1,
+                'sortBy' => 'updatedOnDesc',
+            ];
 
             // Apply filters
             if (!empty($filters['city'])) {
-                $this->ampreApi->addFilter('City', $filters['city']);
-            }
-            if (!empty($filters['propertyType'])) {
-                $this->ampreApi->addFilter('PropertyType', $filters['propertyType']);
+                $params['city'] = $filters['city'];
             }
             if (!empty($filters['transactionType'])) {
-                $this->ampreApi->addFilter('TransactionType', $filters['transactionType']);
+                $params['type'] = strtolower($filters['transactionType']) === 'rent' ? 'lease' : 'sale';
             }
-            if (!empty($filters['minPrice']) && !empty($filters['maxPrice'])) {
-                $this->ampreApi->setPriceRange($filters['minPrice'], $filters['maxPrice']);
+            if (!empty($filters['minPrice'])) {
+                $params['minPrice'] = $filters['minPrice'];
+            }
+            if (!empty($filters['maxPrice'])) {
+                $params['maxPrice'] = $filters['maxPrice'];
             }
 
-            // Add active status filter
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
+            $result = $this->repliersApi->searchListings($params);
 
-            // Set ordering (use ModificationTimestamp as ListingDate might not be available)
-            $this->ampreApi->setOrderBy(['ModificationTimestamp desc']);
-            $this->ampreApi->setTop($filters['limit'] ?? 100);
-
-            $result = $this->ampreApi->fetchPropertiesWithCount();
-            
             $syncedProperties = [];
             $syncedBuildings = [];
 
             DB::transaction(function () use ($result, &$syncedProperties, &$syncedBuildings) {
-                foreach ($result['properties'] as $mlsProperty) {
-                    // Sync building if BuildingName exists
+                foreach ($result['listings'] as $listing) {
+                    // Sync building if building name exists
                     $building = null;
-                    if (!empty($mlsProperty['BuildingName'])) {
-                        $building = $this->syncBuilding($mlsProperty);
+                    $buildingName = $listing['address']['neighborhood'] ?? null;
+                    if ($buildingName) {
+                        $building = $this->syncBuilding($listing);
                         if ($building && !in_array($building->id, $syncedBuildings)) {
                             $syncedBuildings[] = $building->id;
                         }
                     }
 
                     // Sync property
-                    $property = $this->syncProperty($mlsProperty, $building);
+                    $property = $this->syncProperty($listing, $building);
                     if ($property) {
                         $syncedProperties[] = $property->id;
                     }
@@ -90,61 +81,62 @@ class MLSIntegrationService
                 'synced_properties' => count($syncedProperties),
                 'synced_buildings' => count($syncedBuildings),
                 'properties' => $syncedProperties,
-                'buildings' => $syncedBuildings
+                'buildings' => $syncedBuildings,
             ];
 
         } catch (Exception $e) {
             Log::error('MLS Property Sync Error', [
                 'error' => $e->getMessage(),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
 
     /**
-     * Sync building from MLS data
+     * Sync building from Repliers listing data
      */
-    private function syncBuilding(array $mlsProperty): ?Building
+    private function syncBuilding(array $listing): ?Building
     {
-        if (empty($mlsProperty['BuildingName'])) {
+        $address = $listing['address'] ?? [];
+        $buildingName = $address['neighborhood'] ?? $address['streetName'] ?? '';
+
+        if (empty($buildingName)) {
             return null;
         }
 
         try {
-            // Look for existing building by name and address
-            $building = Building::where('name', $mlsProperty['BuildingName'])
-                ->where('city', $mlsProperty['City'] ?? '')
+            $city = $address['city'] ?? '';
+            $building = Building::where('name', $buildingName)
+                ->where('city', $city)
                 ->first();
 
+            $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+
             $buildingData = [
-                'name' => $mlsProperty['BuildingName'],
-                'address' => $mlsProperty['UnparsedAddress'] ?? '',
-                'full_address' => $mlsProperty['UnparsedAddress'] ?? '',
-                'city' => $mlsProperty['City'] ?? '',
-                'province' => $mlsProperty['StateOrProvince'] ?? '',
-                'postal_code' => $mlsProperty['PostalCode'] ?? '',
-                'country' => $mlsProperty['Country'] ?? 'Canada',
-                'latitude' => $mlsProperty['Latitude'] ?? null,
-                'longitude' => $mlsProperty['Longitude'] ?? null,
-                'building_type' => $this->mapPropertyTypeToBuilding($mlsProperty['PropertyType'] ?? ''),
-                'year_built' => $mlsProperty['YearBuilt'] ?? null,
+                'name' => $buildingName,
+                'address' => $fullAddress,
+                'full_address' => $fullAddress . ', ' . $city . ', ' . ($address['state'] ?? 'ON'),
+                'city' => $city,
+                'province' => $address['state'] ?? 'ON',
+                'postal_code' => $address['zip'] ?? '',
+                'country' => $address['country'] ?? 'Canada',
+                'latitude' => $listing['map']['latitude'] ?? null,
+                'longitude' => $listing['map']['longitude'] ?? null,
+                'building_type' => $this->mapPropertyTypeToBuilding($listing['details']['style'] ?? ''),
+                'year_built' => $listing['details']['yearBuilt'] ?? null,
                 'status' => 'active',
             ];
 
             if ($building) {
-                // Update existing building
                 $building->update($buildingData);
-                $building->syncFromMLS($mlsProperty);
             } else {
-                // Create new building
-                $buildingData['mls_building_id'] = $mlsProperty['BuildingName'] . '_' . ($mlsProperty['City'] ?? '');
+                $buildingData['mls_building_id'] = $buildingName . '_' . $city;
                 $building = Building::create($buildingData);
-                $building->syncFromMLS($mlsProperty);
             }
 
             return $building;
@@ -152,53 +144,60 @@ class MLSIntegrationService
         } catch (Exception $e) {
             Log::error('Building Sync Error', [
                 'error' => $e->getMessage(),
-                'building_name' => $mlsProperty['BuildingName']
+                'building_name' => $buildingName,
             ]);
             return null;
         }
     }
 
     /**
-     * Sync property from MLS data
+     * Sync property from Repliers listing data
      */
-    private function syncProperty(array $mlsProperty, ?Building $building = null): ?Property
+    private function syncProperty(array $listing, ?Building $building = null): ?Property
     {
         try {
-            // Look for existing property by MLS number
-            $property = Property::where('mls_number', $mlsProperty['MLSNumber'] ?? $mlsProperty['ListingKey'])
-                ->first();
+            $mlsNumber = $listing['mlsNumber'] ?? '';
+            $property = Property::where('mls_number', $mlsNumber)->first();
+
+            $address = $listing['address'] ?? [];
+            $details = $listing['details'] ?? [];
+            $map = $listing['map'] ?? [];
+
+            $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+            if (!empty($address['unitNumber'])) {
+                $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+            }
+
+            $transactionType = strtolower($listing['type'] ?? 'sale');
 
             $propertyData = [
                 'building_id' => $building?->id,
-                'title' => $this->generatePropertyTitle($mlsProperty),
-                'description' => $mlsProperty['PublicRemarks'] ?? '',
-                'address' => $mlsProperty['UnparsedAddress'] ?? '',
-                'full_address' => $mlsProperty['UnparsedAddress'] ?? '',
-                'city' => $mlsProperty['City'] ?? '',
-                'province' => $mlsProperty['StateOrProvince'] ?? '',
-                'postal_code' => $mlsProperty['PostalCode'] ?? '',
-                'country' => $mlsProperty['Country'] ?? 'Canada',
-                'latitude' => $mlsProperty['Latitude'] ?? null,
-                'longitude' => $mlsProperty['Longitude'] ?? null,
-                'price' => $mlsProperty['ListPrice'] ?? 0,
-                'property_type' => $mlsProperty['PropertyType'] ?? '',
-                'transaction_type' => strtolower($mlsProperty['TransactionType'] ?? 'sale'),
-                'status' => $this->mapMLSStatus($mlsProperty['StandardStatus'] ?? 'Active'),
-                'bedrooms' => $mlsProperty['BedroomsTotal'] ?? null,
-                'bathrooms' => $mlsProperty['BathroomsTotalInteger'] ?? null,
-                'area' => $mlsProperty['LivingArea'] ?? null,
+                'title' => $this->generatePropertyTitle($listing),
+                'description' => $details['description'] ?? '',
+                'address' => $fullAddress,
+                'full_address' => $fullAddress . ', ' . ($address['city'] ?? '') . ', ' . ($address['state'] ?? 'ON'),
+                'city' => $address['city'] ?? '',
+                'province' => $address['state'] ?? 'ON',
+                'postal_code' => $address['zip'] ?? '',
+                'country' => $address['country'] ?? 'Canada',
+                'latitude' => $map['latitude'] ?? null,
+                'longitude' => $map['longitude'] ?? null,
+                'price' => $listing['listPrice'] ?? 0,
+                'property_type' => $details['propertyType'] ?? '',
+                'transaction_type' => $transactionType === 'lease' ? 'rent' : 'sale',
+                'status' => $this->mapRepliersStatus($listing['status'] ?? 'A', $listing['lastStatus'] ?? ''),
+                'bedrooms' => $details['numBedrooms'] ?? null,
+                'bathrooms' => $details['numBathrooms'] ?? null,
+                'area' => $details['sqft'] ?? null,
                 'area_unit' => 'sqft',
-                'year_built' => $mlsProperty['YearBuilt'] ?? null,
-                'listing_date' => $mlsProperty['ListingDate'] ?? now(),
-                'expiry_date' => $mlsProperty['ExpirationDate'] ?? null,
-                'mls_number' => $mlsProperty['MLSNumber'] ?? $mlsProperty['ListingKey'],
+                'year_built' => $details['yearBuilt'] ?? null,
+                'listing_date' => $listing['listDate'] ?? now(),
+                'mls_number' => $mlsNumber,
             ];
 
             if ($property) {
-                // Update existing property
                 $property->update($propertyData);
             } else {
-                // Create new property
                 $property = Property::create($propertyData);
             }
 
@@ -207,7 +206,7 @@ class MLSIntegrationService
         } catch (Exception $e) {
             Log::error('Property Sync Error', [
                 'error' => $e->getMessage(),
-                'mls_number' => $mlsProperty['MLSNumber'] ?? $mlsProperty['ListingKey']
+                'mls_number' => $listing['mlsNumber'] ?? 'unknown',
             ]);
             return null;
         }
@@ -216,38 +215,36 @@ class MLSIntegrationService
     /**
      * Get property images from MLS
      */
-    public function syncPropertyImages(array $listingKeys): array
+    public function syncPropertyImages(array $mlsNumbers): array
     {
         try {
-            $images = $this->ampreApi->getPropertiesImages($listingKeys);
-            
             $synced = 0;
-            foreach ($images as $listingKey => $propertyImages) {
-                $property = Property::where('mls_number', $listingKey)->first();
-                if ($property && !empty($propertyImages)) {
-                    $imageUrls = array_map(function($img) {
-                        return $img['MediaURL'];
-                    }, $propertyImages);
-                    
-                    $property->update(['images' => $imageUrls]);
-                    $synced++;
+            foreach ($mlsNumbers as $mlsNumber) {
+                $listing = $this->repliersApi->getListingByMlsNumber($mlsNumber);
+                if ($listing) {
+                    $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+                    $property = Property::where('mls_number', $mlsNumber)->first();
+                    if ($property && !empty($imageUrls)) {
+                        $property->update(['images' => $imageUrls]);
+                        $synced++;
+                    }
                 }
             }
 
             return [
                 'success' => true,
-                'synced_properties' => $synced
+                'synced_properties' => $synced,
             ];
 
         } catch (Exception $e) {
             Log::error('Property Images Sync Error', [
                 'error' => $e->getMessage(),
-                'listing_keys' => $listingKeys
+                'mls_numbers' => $mlsNumbers,
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -258,186 +255,157 @@ class MLSIntegrationService
     public function searchProperties(array $searchParams): array
     {
         try {
-            $this->ampreApi->resetFilters();
-            $this->ampreApi->setSelect([
-                'ListingKey', 'ListPrice', 'PropertyType', 'TransactionType',
-                'BedroomsTotal', 'BathroomsTotalInteger', 'UnparsedAddress',
-                'City', 'StateOrProvince', 'PostalCode', 'Latitude', 'Longitude',
-                'PropertySubType', 'PublicRemarks', 'StandardStatus'
-            ]);
+            $params = [
+                'status' => 'A',
+                'resultsPerPage' => $searchParams['limit'] ?? 20,
+                'pageNum' => $searchParams['page'] ?? 1,
+                'sortBy' => 'updatedOnDesc',
+            ];
 
             // Apply search filters
             if (!empty($searchParams['search'])) {
-                $this->ampreApi->addCustomFilter(
-                    "contains(UnparsedAddress,'{$searchParams['search']}') or contains(City,'{$searchParams['search']}')"
-                );
+                $params['search'] = $searchParams['search'];
             }
 
             if (!empty($searchParams['forSale'])) {
-                $this->ampreApi->addFilter('TransactionType', $searchParams['forSale'] === 'sale' ? 'Sale' : 'Rent');
+                $params['type'] = $searchParams['forSale'] === 'sale' ? 'sale' : 'lease';
             }
 
             if (!empty($searchParams['bedType'])) {
-                $this->ampreApi->addFilter('BedroomsTotal', $searchParams['bedType'], 'ge');
+                $params['minBedrooms'] = $searchParams['bedType'];
             }
 
             if (!empty($searchParams['minPrice']) && $searchParams['minPrice'] !== '0') {
-                $minPrice = (int) str_replace(['$', ','], '', $searchParams['minPrice']);
-                $this->ampreApi->addFilter('ListPrice', (string)$minPrice, 'ge');
+                $params['minPrice'] = (int) str_replace(['$', ','], '', $searchParams['minPrice']);
             }
 
             if (!empty($searchParams['maxPrice']) && $searchParams['maxPrice'] !== '$37,000,000') {
-                $maxPrice = (int) str_replace(['$', ','], '', $searchParams['maxPrice']);
-                $this->ampreApi->addFilter('ListPrice', (string)$maxPrice, 'le');
+                $params['maxPrice'] = (int) str_replace(['$', ','], '', $searchParams['maxPrice']);
             }
 
-            // Only active listings
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
+            $result = $this->repliersApi->searchListings($params);
 
-            // Set pagination
-            $limit = $searchParams['limit'] ?? 20;
-            $skip = ($searchParams['page'] ?? 1 - 1) * $limit;
-            $this->ampreApi->setTop($limit);
-            $this->ampreApi->setSkip($skip);
+            // Transform Repliers data to our format
+            $properties = array_map(function ($listing) {
+                $address = $listing['address'] ?? [];
+                $details = $listing['details'] ?? [];
+                $map = $listing['map'] ?? [];
+                $images = $this->repliersApi->getListingImageUrls($listing);
 
-            // Set ordering (use ModificationTimestamp as ListingDate might not be available)
-            $this->ampreApi->setOrderBy(['ModificationTimestamp desc']);
-
-            $result = $this->ampreApi->fetchPropertiesWithCount();
-
-            // Fetch images for properties if we have results
-            $propertyImages = [];
-            if (!empty($result['properties'])) {
-                try {
-                    $listingKeys = array_column($result['properties'], 'ListingKey');
-                    // Try to get images with different size descriptions
-                    $sizeDescriptions = ['Large', 'Medium', 'Largest', 'Original'];
-                    
-                    foreach ($sizeDescriptions as $sizeDescription) {
-                        $propertyImages = $this->ampreApi->getPropertiesImages($listingKeys, $sizeDescription, 250);
-                        if (!empty($propertyImages)) {
-                            break; // Use the first successful result
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to fetch property images: ' . $e->getMessage());
+                $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                if (!empty($address['unitNumber'])) {
+                    $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
                 }
-            }
 
-            // Transform MLS data to our format
-            $properties = array_map(function($mlsProperty) use ($propertyImages) {
                 return [
-                    'id' => $mlsProperty['ListingKey'],
-                    'listingKey' => $mlsProperty['ListingKey'],
-                    'price' => $mlsProperty['ListPrice'] ?? 0,
-                    'propertyType' => $mlsProperty['PropertyType'] ?? '',
-                    'transactionType' => $mlsProperty['TransactionType'] ?? '',
-                    'bedrooms' => $mlsProperty['BedroomsTotal'] ?? 0,
-                    'bathrooms' => $mlsProperty['BathroomsTotalInteger'] ?? 0,
-                    'address' => $mlsProperty['UnparsedAddress'] ?? '',
-                    'city' => $mlsProperty['City'] ?? '',
-                    'province' => $mlsProperty['StateOrProvince'] ?? '',
-                    'latitude' => $mlsProperty['Latitude'] ?? null,
-                    'longitude' => $mlsProperty['Longitude'] ?? null,
-                    'buildingName' => null, // BuildingName not available in current API
-                    'isRental' => strtolower($mlsProperty['TransactionType'] ?? '') === 'rent',
-                    'image' => $this->getPropertyImage($mlsProperty['ListingKey'], $propertyImages)
+                    'id' => $listing['mlsNumber'],
+                    'listingKey' => $listing['mlsNumber'],
+                    'price' => $listing['listPrice'] ?? 0,
+                    'propertyType' => $details['propertyType'] ?? '',
+                    'transactionType' => ucfirst($listing['type'] ?? 'Sale'),
+                    'bedrooms' => $details['numBedrooms'] ?? 0,
+                    'bathrooms' => $details['numBathrooms'] ?? 0,
+                    'address' => $fullAddress,
+                    'city' => $address['city'] ?? '',
+                    'province' => $address['state'] ?? 'ON',
+                    'latitude' => $map['latitude'] ?? null,
+                    'longitude' => $map['longitude'] ?? null,
+                    'buildingName' => $address['neighborhood'] ?? null,
+                    'isRental' => strtolower($listing['type'] ?? '') === 'lease',
+                    'image' => !empty($images) ? $images[0] : $this->getDefaultImage($listing['mlsNumber']),
                 ];
-            }, $result['properties']);
+            }, $result['listings']);
 
             return [
                 'success' => true,
                 'properties' => $properties,
                 'total' => $result['count'],
                 'page' => $searchParams['page'] ?? 1,
-                'limit' => $limit
+                'limit' => $searchParams['limit'] ?? 20,
             ];
 
         } catch (Exception $e) {
             Log::error('MLS Property Search Error', [
                 'error' => $e->getMessage(),
-                'search_params' => $searchParams
+                'search_params' => $searchParams,
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
                 'properties' => [],
-                'total' => 0
+                'total' => 0,
             ];
         }
     }
 
     /**
-     * Get the first available image for a property
+     * Get a default placeholder image
      */
-    private function getPropertyImage(string $listingKey, array $propertyImages): string
+    private function getDefaultImage(string $mlsNumber): string
     {
-        if (isset($propertyImages[$listingKey]) && !empty($propertyImages[$listingKey])) {
-            $imageUrl = $propertyImages[$listingKey][0]['MediaURL'] ?? '';
-            
-            // Validate the image URL
-            if (!empty($imageUrl) && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
-                return $imageUrl;
-            }
-        }
-        
-        // Return a consistent default image based on listing key
         $defaultImages = [
             'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop&auto=format&q=80',
             'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=400&h=300&fit=crop&auto=format&q=80',
             'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=400&h=300&fit=crop&auto=format&q=80',
             'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&auto=format&q=80',
         ];
-        
-        // Use listing key to consistently get the same fallback image
-        $imageIndex = crc32($listingKey) % count($defaultImages);
+
+        $imageIndex = crc32($mlsNumber) % count($defaultImages);
         return $defaultImages[abs($imageIndex)];
     }
 
     /**
-     * Map MLS status to our internal status
+     * Map Repliers status to our internal status
      */
-    private function mapMLSStatus(string $mlsStatus): string
+    private function mapRepliersStatus(string $status, string $lastStatus = ''): string
     {
-        return match (strtolower($mlsStatus)) {
-            'active' => 'active',
-            'sold' => 'sold',
-            'leased' => 'rented',
-            'expired', 'withdrawn', 'cancelled' => 'inactive',
-            default => 'active'
+        $lastStatusLower = strtolower($lastStatus);
+
+        if ($lastStatusLower === 'sld') {
+            return 'sold';
+        }
+        if ($lastStatusLower === 'lsd') {
+            return 'leased';
+        }
+
+        return match (strtoupper($status)) {
+            'A' => 'active',
+            'U' => in_array($lastStatusLower, ['sld']) ? 'sold' : (in_array($lastStatusLower, ['lsd', 'lc']) ? 'leased' : 'inactive'),
+            default => 'active',
         };
     }
 
     /**
      * Map property type to building type
      */
-    private function mapPropertyTypeToBuilding(string $propertyType): string
+    private function mapPropertyTypeToBuilding(string $style): string
     {
-        return match (strtolower($propertyType)) {
-            'condominium', 'condo' => 'Condo',
-            'apartment' => 'Apartment',
-            'townhouse', 'townhome' => 'Townhouse',
+        return match (strtolower($style)) {
+            'apartment', 'condo apartment' => 'Condo',
+            'townhouse', 'stacked townhouse' => 'Townhouse',
             'commercial' => 'Commercial',
-            default => 'Mixed Use'
+            default => 'Mixed Use',
         };
     }
 
     /**
-     * Generate property title from MLS data
+     * Generate property title from listing data
      */
-    private function generatePropertyTitle(array $mlsProperty): string
+    private function generatePropertyTitle(array $listing): string
     {
-        $address = $mlsProperty['UnparsedAddress'] ?? '';
-        $propertyType = $mlsProperty['PropertyType'] ?? '';
-        $bedrooms = $mlsProperty['BedroomsTotal'] ?? '';
-        
-        if (!empty($bedrooms) && !empty($propertyType)) {
-            return "{$bedrooms} Bed {$propertyType} - {$address}";
-        } elseif (!empty($propertyType)) {
-            return "{$propertyType} - {$address}";
+        $details = $listing['details'] ?? [];
+        $address = $listing['address'] ?? [];
+        $bedrooms = $details['numBedrooms'] ?? '';
+        $style = $details['style'] ?? '';
+        $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? ''));
+
+        if (!empty($bedrooms) && !empty($style)) {
+            return "{$bedrooms} Bed {$style} - {$fullAddress}";
+        } elseif (!empty($style)) {
+            return "{$style} - {$fullAddress}";
         }
-        
-        return $address ?: 'Property Listing';
+
+        return $fullAddress ?: 'Property Listing';
     }
 }

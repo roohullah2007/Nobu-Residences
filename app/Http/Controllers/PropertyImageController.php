@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  * - Batch and single image requests
  * - Caching for performance
  * - Proper error handling with fallbacks
- * - Direct integration with AmpreApiService
+ * - Direct integration with RepliersApiService
  */
 class PropertyImageController extends Controller
 {
@@ -112,11 +112,6 @@ class PropertyImageController extends Controller
                     $imageUrl = $mlsProperty->image_urls[0] ?? null;
 
                     if ($imageUrl) {
-                        // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
-                        if (strpos($imageUrl, 'ampre.ca') !== false && strpos($imageUrl, 'https://') === 0) {
-                            $imageUrl = str_replace('https://', 'http://', $imageUrl);
-                        }
-
                         $images[$key] = [
                             'image_url' => $imageUrl,
                             'is_placeholder' => false,

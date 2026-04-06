@@ -14,28 +14,19 @@ class SettingsSeeder extends Seeder
     {
         $apiSettings = [
             [
-                'key' => 'ampre_api_url',
-                'value' => 'https://query.ampre.ca/odata/',
+                'key' => 'repliers_api_url',
+                'value' => 'https://api.repliers.io',
                 'type' => 'string',
-                'description' => 'AMPRE API base URL for MLS data integration',
+                'description' => 'Repliers API base URL for MLS data integration',
                 'group' => 'api',
                 'is_public' => false,
                 'is_encrypted' => false,
             ],
             [
-                'key' => 'ampre_vow_token',
+                'key' => 'repliers_api_key',
                 'value' => '',
                 'type' => 'string',
-                'description' => 'AMPRE VOW (Virtual Office Website) token for accessing MLS property data',
-                'group' => 'api',
-                'is_public' => false,
-                'is_encrypted' => true,
-            ],
-            [
-                'key' => 'ampre_idx_token',
-                'value' => '',
-                'type' => 'string',
-                'description' => 'AMPRE IDX (Internet Data Exchange) token for displaying MLS listings',
+                'description' => 'Repliers API key for accessing MLS property data',
                 'group' => 'api',
                 'is_public' => false,
                 'is_encrypted' => true,

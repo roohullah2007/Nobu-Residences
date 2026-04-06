@@ -241,21 +241,17 @@ class PropertyFavouriteController extends Controller
             // Get all listing keys for batch image fetching
             $listingKeys = $favourites->pluck('property_listing_key')->toArray();
 
-            // Fetch images and property data from MLS API if listing keys exist
+            // Fetch fresh image URLs from MLS database if listing keys exist
             $imagesByKey = [];
-            $propertiesByKey = [];
             if (!empty($listingKeys)) {
                 try {
-                    // Use the AmpreApiService to fetch images
-                    $ampreApi = app(\App\Services\AmpreApiService::class);
-
-                    // Fetch images
-                    $imagesByKey = $ampreApi->getPropertiesImages($listingKeys);
-
-                    // TODO: Fetch latest property data (address, price, etc.)
-                    // For now, skip fetching property details to avoid breaking favorites
-                    // We'll add this back once we verify the correct API method
-
+                    // Fetch images from local mls_properties table (synced from Repliers)
+                    $mlsProperties = \App\Models\MLSProperty::whereIn('mls_id', $listingKeys)->get();
+                    foreach ($mlsProperties as $mlsProp) {
+                        if (!empty($mlsProp->image_urls)) {
+                            $imagesByKey[$mlsProp->mls_id] = $mlsProp->image_urls;
+                        }
+                    }
                 } catch (\Exception $e) {
                     \Log::warning('Failed to fetch MLS data for favourites: ' . $e->getMessage());
                     // Continue without updated data rather than failing
@@ -265,27 +261,13 @@ class PropertyFavouriteController extends Controller
             $formattedFavourites = $favourites->map(function ($favourite) use ($imagesByKey) {
                 $propertyData = $favourite->property_data;
 
-                // TODO: Add back property data updates once we verify the API method
-                // For now, just use the stored property data
+                // Get images from MLS database if available
+                $mlsImageUrls = $imagesByKey[$favourite->property_listing_key] ?? [];
 
-                // Get images from MLS API if available
-                $mlsImagesData = $imagesByKey[$favourite->property_listing_key] ?? [];
-
-                // Extract image URLs from the MLS API response
-                if (!empty($mlsImagesData)) {
-                    $mlsImageUrls = array_map(function($imageItem) {
-                        // Extract MediaURL from each image item
-                        return $imageItem['MediaURL'] ?? null;
-                    }, $mlsImagesData);
-
-                    // Filter out null values
-                    $mlsImageUrls = array_filter($mlsImageUrls);
-
-                    // If we have valid image URLs, use them
-                    if (!empty($mlsImageUrls)) {
-                        $propertyData['images'] = array_values($mlsImageUrls); // Reset array keys
-                        $propertyData['imageUrl'] = $mlsImageUrls[0] ?? null;
-                    }
+                // If we have valid image URLs, use them
+                if (!empty($mlsImageUrls)) {
+                    $propertyData['images'] = array_values($mlsImageUrls);
+                    $propertyData['imageUrl'] = $mlsImageUrls[0] ?? null;
                 }
 
                 // Return formatted favourite data

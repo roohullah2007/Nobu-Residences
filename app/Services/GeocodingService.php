@@ -19,7 +19,7 @@ class GeocodingService
 
     public function __construct()
     {
-        $this->apiKey = config('ampre.google_maps_api_key') ?: config('maps.google-maps.api_key') ?: env('GOOGLE_MAPS_API_KEY');
+        $this->apiKey = config('repliers.google_maps_api_key') ?: config('maps.google-maps.api_key') ?: env('GOOGLE_MAPS_API_KEY');
         // Only use Google if explicitly enabled via env variable
         $this->useGoogleGeocoding = env('USE_GOOGLE_GEOCODING', false) && !empty($this->apiKey);
         $this->createGeocodingTable();

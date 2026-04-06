@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use App\Services\GeocodingService;
 use App\Models\SavedSearch;
 use App\Models\Property;
@@ -16,12 +16,12 @@ use Exception;
 
 class PropertySearchController extends Controller
 {
-    private AmpreApiService $ampreApi;
+    private RepliersApiService $repliersApi;
     private GeocodingService $geocoder;
 
-    public function __construct(AmpreApiService $ampreApi, GeocodingService $geocoder)
+    public function __construct(RepliersApiService $repliersApi, GeocodingService $geocoder)
     {
-        $this->ampreApi = $ampreApi;
+        $this->repliersApi = $repliersApi;
         $this->geocoder = $geocoder;
     }
 
@@ -32,59 +32,47 @@ class PropertySearchController extends Controller
     {
         try {
             $this->cleanOutputBuffer();
-            
-            // Reset filters first
-            $this->ampreApi->resetFilters();
-            
-            // Configure API client for basic query
-            $this->ampreApi->setSelect(['ListingKey', 'StandardStatus', 'MlsStatus', 'TransactionType', 'City', 'PostalCode', 'ListPrice']);
-            $this->ampreApi->setTop(200);
-            
-            // Try different queries to find leased properties
+
+            // Test different Repliers API queries
             $queries = [
-                'for_lease_transaction' => "TransactionType eq 'For Lease'",
-                'for_rent_transaction' => "TransactionType eq 'For Rent'",
-                'lease_in_mlsstatus' => "contains(MlsStatus, 'Lease')",
-                'lease_in_standardstatus' => "contains(StandardStatus, 'Lease')",
-                'closed_with_lease' => "StandardStatus eq 'Closed' and TransactionType eq 'For Lease'",
-                'off_market' => "StandardStatus eq 'Off Market'"
+                'active_sale' => ['status' => 'A', 'type' => 'sale', 'resultsPerPage' => 5],
+                'active_lease' => ['status' => 'A', 'type' => 'lease', 'resultsPerPage' => 5],
+                'sold' => ['status' => 'U', 'lastStatus' => 'Sld', 'resultsPerPage' => 5],
+                'leased' => ['status' => 'U', 'lastStatus' => 'Lsd', 'resultsPerPage' => 5],
             ];
-            
+
             $results = [];
-            foreach ($queries as $key => $filter) {
-                $this->ampreApi->resetFilters();
-                $this->ampreApi->addCustomFilter($filter);
-                
+            foreach ($queries as $key => $params) {
                 try {
-                    $properties = $this->ampreApi->fetchProperties();
+                    $result = $this->repliersApi->searchListings($params);
                     $results[$key] = [
-                        'filter' => $filter,
-                        'count' => count($properties),
-                        'sample' => array_slice($properties, 0, 2)
+                        'params' => $params,
+                        'count' => $result['count'] ?? 0,
+                        'sample' => array_slice($result['listings'] ?? [], 0, 2),
                     ];
                 } catch (\Exception $e) {
                     $results[$key] = [
-                        'filter' => $filter,
-                        'error' => $e->getMessage()
+                        'params' => $params,
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'test_results' => $results,
-                'note' => 'Testing different filters to find lease data'
+                'note' => 'Testing Repliers API filters for listing statuses',
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Debug leased statuses error', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -124,15 +112,14 @@ class PropertySearchController extends Controller
                 }
             }
 
-            // DATABASE-ONLY: Load properties page by page from mls_properties table
-            // Properties are synced to DB via cron jobs - NO live API calls here
-            $mlsDbResult = $this->fetchMLSPropertiesFromDatabase($sanitizedParams);
-            $properties = $mlsDbResult['properties'];
-            $totalCount = $mlsDbResult['count'];
+            // Fetch listings directly from Repliers API
+            $apiResult = $this->fetchPropertiesFromRepliersAPI($sanitizedParams);
+            $properties = $apiResult['properties'];
+            $totalCount = $apiResult['count'];
 
             // Add data_source marker to each property
             foreach ($properties as &$prop) {
-                $prop['data_source'] = 'mls_database';
+                $prop['data_source'] = 'repliers_api';
             }
             unset($prop);
 
@@ -164,8 +151,8 @@ class PropertySearchController extends Controller
                 'has_more' => ($currentPage * $pageSize) < $totalCount,
                 'mls_db_total' => $totalCount,
                 'debug' => [
-                    'data_source' => 'mls_database',
-                    'db_properties_count' => count($properties),
+                    'data_source' => 'repliers_api',
+                    'properties_count' => count($properties),
                     'cache_hit' => false
                 ]
             ];
@@ -224,8 +211,11 @@ class PropertySearchController extends Controller
                 ]);
             }
 
-            // Get count from database (lightweight query)
-            $count = $this->getMLSDatabaseCount($sanitizedParams);
+            // Get count from Repliers API (use small page to minimize data transfer)
+            $sanitizedParams['page_size'] = 1;
+            $sanitizedParams['page'] = 1;
+            $apiResult = $this->fetchPropertiesFromRepliersAPI($sanitizedParams);
+            $count = $apiResult['count'];
 
             // Cache the count
             Cache::put($cacheKey, $count, $cacheTtl);
@@ -361,9 +351,187 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * Fetch properties directly from Repliers API
+     * Buildings still come from local DB
+     */
+    private function fetchPropertiesFromRepliersAPI(array $params): array
+    {
+        $startTime = microtime(true);
+
+        // Build Repliers API params
+        $apiParams = [
+            'pageNum' => $params['page'] ?? 1,
+            'resultsPerPage' => $params['page_size'] ?? 16,
+            'class' => 'condoProperty',
+        ];
+
+        // Status mapping
+        $status = $params['status'] ?? 'For Sale';
+        $propertyStatus = $params['property_status'] ?? '';
+
+        if (!empty($propertyStatus)) {
+            if (strtolower($propertyStatus) === 'sold') {
+                $apiParams['status'] = 'U';
+                $apiParams['lastStatus'] = ['Sld', 'Sc'];
+            } elseif (strtolower($propertyStatus) === 'leased') {
+                $apiParams['status'] = 'U';
+                $apiParams['lastStatus'] = ['Lsd', 'Lc'];
+            }
+        } else {
+            $apiParams['status'] = 'A';
+            if (in_array($status, ['For Lease', 'For Rent'])) {
+                $apiParams['type'] = 'lease';
+            } else {
+                $apiParams['type'] = 'sale';
+            }
+        }
+
+        // Location/search query
+        if (!empty($params['query'])) {
+            $query = trim($params['query']);
+            // Check if it's a city name
+            $gtaCities = config('repliers.gta_cities', []);
+            $matchedCity = null;
+            foreach ($gtaCities as $city) {
+                if (strtolower($city) === strtolower($query)) {
+                    $matchedCity = $city;
+                    break;
+                }
+            }
+            if ($matchedCity) {
+                $apiParams['city'] = $matchedCity;
+            } else {
+                // Use as search term (address, neighborhood, etc.)
+                $apiParams['search'] = $query;
+            }
+        }
+
+        // Property type filter
+        if (!empty($params['property_type']) && count($params['property_type']) > 0) {
+            // Map display names to Repliers style values
+            $styleMap = [
+                'Condo Apartment' => 'Apartment',
+                'Condo Townhouse' => 'Stacked Townhouse',
+                'Detached' => 'Detached',
+                'Semi-Detached' => 'Semi-Detached',
+                'Loft' => 'Loft',
+                'Bachelor/Studio' => 'Bachelor/Studio',
+            ];
+            $styles = [];
+            foreach ($params['property_type'] as $type) {
+                $styles[] = $styleMap[$type] ?? $type;
+            }
+            if (count($styles) === 1) {
+                $apiParams['style'] = $styles[0];
+            }
+        }
+
+        // Price filters
+        if ($params['price_min'] > 0) {
+            $apiParams['minPrice'] = $params['price_min'];
+        }
+        if ($params['price_max'] > 0 && $params['price_max'] < 10000000) {
+            $apiParams['maxPrice'] = $params['price_max'];
+        }
+
+        // Bedroom/bathroom filters
+        if ($params['bedrooms'] > 0) {
+            $apiParams['minBedrooms'] = $params['bedrooms'];
+        }
+        if ($params['bathrooms'] > 0) {
+            $apiParams['minBaths'] = $params['bathrooms'];
+        }
+
+        // Sort mapping
+        $sortMap = [
+            'newest' => 'createdOnDesc',
+            'price-high' => 'listPriceDesc',
+            'price-low' => 'listPriceAsc',
+            'bedrooms' => 'updatedOnDesc',
+            'bathrooms' => 'updatedOnDesc',
+            'sqft' => 'updatedOnDesc',
+        ];
+        $apiParams['sortBy'] = $sortMap[$params['sort'] ?? 'newest'] ?? 'createdOnDesc';
+
+        // Call Repliers API
+        $repliersApi = app(\App\Services\RepliersApiService::class);
+        $result = $repliersApi->searchListings($apiParams);
+
+        $listings = $result['listings'] ?? [];
+        $totalCount = $result['count'] ?? 0;
+
+        // Transform Repliers listings to the format the frontend expects
+        $formattedProperties = [];
+        foreach ($listings as $listing) {
+            $address = $listing['address'] ?? [];
+            $details = $listing['details'] ?? [];
+            $map = $listing['map'] ?? [];
+            $office = $listing['office'] ?? [];
+            $images = $listing['images'] ?? [];
+            $condominium = $listing['condominium'] ?? [];
+
+            $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+            if (!empty($address['unitNumber'])) {
+                $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+            }
+
+            $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+            $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
+
+            $transactionType = strtolower($listing['type'] ?? 'sale') === 'lease' ? 'For Rent' : 'For Sale';
+
+            $formattedProperties[] = [
+                'ListingKey' => $listing['mlsNumber'] ?? '',
+                'ListPrice' => $listing['listPrice'] ?? 0,
+                'UnparsedAddress' => $fullAddress,
+                'BedroomsTotal' => ($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0),
+                'BathroomsTotalInteger' => ($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0),
+                'AboveGradeFinishedArea' => $details['sqft'] ?? 0,
+                'LivingAreaRange' => $details['sqft'] ?? '',
+                'ParkingTotal' => $details['numParkingSpaces'] ?? 0,
+                'PropertySubType' => $details['style'] ?? $details['propertyType'] ?? '',
+                'PropertyType' => $details['propertyType'] ?? 'Residential',
+                'StandardStatus' => strtoupper($listing['status'] ?? 'A') === 'A' ? 'Active' : 'Inactive',
+                'MlsStatus' => $listing['lastStatus'] ?? '',
+                'TransactionType' => $transactionType,
+                'City' => $address['city'] ?? '',
+                'StateOrProvince' => $address['state'] ?? 'ON',
+                'PostalCode' => $address['zip'] ?? '',
+                'Latitude' => $map['latitude'] ?? '',
+                'Longitude' => $map['longitude'] ?? '',
+                'UnitNumber' => $address['unitNumber'] ?? '',
+                'StreetNumber' => $address['streetNumber'] ?? '',
+                'StreetName' => $address['streetName'] ?? '',
+                'StreetSuffix' => $address['streetSuffix'] ?? '',
+                'ListingContractDate' => $listing['listDate'] ?? '',
+                'DaysOnMarket' => $listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? 0,
+                'PublicRemarks' => $details['description'] ?? '',
+                'ListOfficeName' => $office['brokerageName'] ?? '',
+                'AssociationFee' => $condominium['fees']['maintenance'] ?? $details['maintenanceFee'] ?? null,
+                'TaxAnnualAmount' => null,
+                'MediaURL' => $mediaUrl,
+                'Images' => array_map(fn($url) => ['MediaURL' => $url], $imageUrls),
+                '_source' => 'repliers_api',
+            ];
+        }
+
+        $totalTime = round((microtime(true) - $startTime) * 1000, 2);
+        Log::info('Repliers API Search', [
+            'params' => $apiParams,
+            'total' => $totalCount,
+            'returned' => count($formattedProperties),
+            'time_ms' => $totalTime,
+        ]);
+
+        return [
+            'properties' => $formattedProperties,
+            'count' => $totalCount,
+        ];
+    }
+
+    /**
      * Fetch properties from the mls_properties table (synced MLS data)
-     * This is the primary source for MLS listings before falling back to API
-     * Uses optimized index for fast COUNT queries
+     * Kept as fallback - primary search now uses Repliers API directly
      */
     private function fetchMLSPropertiesFromDatabase(array $params): array
     {
@@ -509,8 +677,26 @@ class PropertySearchController extends Controller
         }
 
         // Apply property type filter (PropertySubType)
+        // Map frontend names to DB values (Repliers uses different names than AMPRE)
         if (!empty($params['property_type']) && count($params['property_type']) > 0) {
-            $query->whereIn('property_sub_type', $params['property_type']);
+            $typeMap = [
+                'Condo Apartment' => ['Condo Apartment', 'Apartment'],
+                'Condo Townhouse' => ['Condo Townhouse', 'Stacked Townhouse'],
+                'Detached' => ['Detached'],
+                'Semi-Detached' => ['Semi-Detached'],
+                'Attached/Townhouse' => ['Attached/Townhouse', 'Townhouse'],
+                'Vacant Land' => ['Vacant Land'],
+            ];
+
+            $dbTypes = [];
+            foreach ($params['property_type'] as $type) {
+                if (isset($typeMap[$type])) {
+                    $dbTypes = array_merge($dbTypes, $typeMap[$type]);
+                } else {
+                    $dbTypes[] = $type;
+                }
+            }
+            $query->whereIn('property_sub_type', array_unique($dbTypes));
         }
 
         // Apply price range filter
@@ -745,40 +931,66 @@ class PropertySearchController extends Controller
      */
     private function convertMLSPropertyToApiFormat(MLSProperty $mlsProperty): array
     {
-        // Get images from database ONLY - no API calls
         $images = $mlsProperty->image_urls ?? [];
         $mediaUrl = !empty($images) ? $images[0] : null;
-
-        // Get mls_data for additional fields
         $mlsData = $mlsProperty->mls_data ?? [];
+
+        // Detect format: Repliers has nested 'address' object, AMPRE has flat 'City'
+        $isRepliers = isset($mlsData['address']) && is_array($mlsData['address']);
+
+        if ($isRepliers) {
+            $address = $mlsData['address'] ?? [];
+            $details = $mlsData['details'] ?? [];
+            $office = $mlsData['office'] ?? [];
+            $unitNumber = $address['unitNumber'] ?? '';
+            $streetNumber = $address['streetNumber'] ?? '';
+            $streetName = $address['streetName'] ?? '';
+            $streetSuffix = $address['streetSuffix'] ?? '';
+            $sqft = $details['sqft'] ?? '';
+            $publicRemarks = $details['description'] ?? '';
+            $officeName = $office['brokerageName'] ?? '';
+            $listDate = $mlsData['listDate'] ?? '';
+            $mlsStatus = $mlsData['lastStatus'] ?? '';
+        } else {
+            // Old AMPRE flat format
+            $unitNumber = $mlsData['UnitNumber'] ?? '';
+            $streetNumber = $mlsData['StreetNumber'] ?? '';
+            $streetName = $mlsData['StreetName'] ?? '';
+            $streetSuffix = $mlsData['StreetSuffix'] ?? '';
+            $sqft = $mlsData['LivingAreaRange'] ?? $mlsData['LivingArea'] ?? '';
+            $publicRemarks = $mlsData['PublicRemarks'] ?? '';
+            $officeName = $mlsData['ListOfficeName'] ?? '';
+            $listDate = $mlsData['ListingContractDate'] ?? '';
+            $mlsStatus = $mlsData['MlsStatus'] ?? '';
+        }
 
         return [
             'ListingKey' => $mlsProperty->mls_id,
             'ListPrice' => (float) $mlsProperty->price,
-            'UnparsedAddress' => $mlsProperty->address ?? $mlsData['UnparsedAddress'] ?? '',
+            'UnparsedAddress' => $mlsProperty->address ?? '',
             'BedroomsTotal' => $mlsProperty->bedrooms ?? 0,
             'BathroomsTotalInteger' => $mlsProperty->bathrooms ?? 0,
-            'AboveGradeFinishedArea' => $mlsProperty->square_footage ?? $mlsData['LivingArea'] ?? 0,
-            'LivingAreaRange' => $mlsData['LivingAreaRange'] ?? '',
-            'ParkingTotal' => $mlsProperty->parking_spaces ?? $mlsData['ParkingTotal'] ?? 0,
-            'PropertySubType' => $mlsProperty->property_sub_type ?? $mlsData['PropertySubType'] ?? '',
-            'PropertyType' => $mlsData['PropertyType'] ?? 'Residential',
+            'AboveGradeFinishedArea' => $mlsProperty->square_footage ?? 0,
+            'LivingAreaRange' => $sqft,
+            'ParkingTotal' => $mlsProperty->parking_spaces ?? 0,
+            'PropertySubType' => $mlsProperty->property_sub_type ?? '',
+            'PropertyType' => $isRepliers ? ($mlsData['details']['propertyType'] ?? 'Residential') : ($mlsData['PropertyType'] ?? 'Residential'),
             'StandardStatus' => $this->mapMLSPropertyStatus($mlsProperty->status),
-            'MlsStatus' => $mlsData['MlsStatus'] ?? $this->mapMLSPropertyStatus($mlsProperty->status),
+            'MlsStatus' => $mlsStatus ?: $this->mapMLSPropertyStatus($mlsProperty->status),
             'TransactionType' => $mlsProperty->property_type ?? 'For Sale',
             'City' => $mlsProperty->city ?? '',
             'StateOrProvince' => $mlsProperty->province ?? 'ON',
             'PostalCode' => $mlsProperty->postal_code ?? '',
             'Latitude' => $mlsProperty->latitude ? (string) $mlsProperty->latitude : '',
             'Longitude' => $mlsProperty->longitude ? (string) $mlsProperty->longitude : '',
-            'UnitNumber' => $mlsData['UnitNumber'] ?? '',
-            'StreetNumber' => $mlsData['StreetNumber'] ?? '',
-            'StreetName' => $mlsData['StreetName'] ?? '',
-            'StreetSuffix' => $mlsData['StreetSuffix'] ?? '',
-            'ListingContractDate' => $mlsProperty->listed_date ? $mlsProperty->listed_date->format('Y-m-d') : ($mlsData['ListingContractDate'] ?? ''),
-            'PublicRemarks' => $mlsData['PublicRemarks'] ?? '',
-            'ListOfficeName' => $mlsData['ListOfficeName'] ?? '',
-            'AssociationFee' => $mlsData['AssociationFee'] ?? null,
+            'UnitNumber' => $unitNumber,
+            'StreetNumber' => $streetNumber,
+            'StreetName' => $streetName,
+            'StreetSuffix' => $streetSuffix,
+            'ListingContractDate' => $mlsProperty->listed_date ? $mlsProperty->listed_date->format('Y-m-d') : $listDate,
+            'PublicRemarks' => $publicRemarks,
+            'ListOfficeName' => $officeName,
+            'AssociationFee' => $mlsData['AssociationFee'] ?? ($isRepliers ? ($mlsData['details']['maintenanceFee'] ?? null) : null),
             'TaxAnnualAmount' => $mlsData['TaxAnnualAmount'] ?? null,
             'MediaURL' => $mediaUrl,
             'Images' => array_map(function($url) {
@@ -805,16 +1017,19 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Fetch images from API and update MLSProperty record
+     * Fetch images from Repliers API and update MLSProperty record
      */
     private function fetchAndUpdateMLSPropertyImages(MLSProperty $mlsProperty): array
     {
         try {
-            $imagesByKey = $this->ampreApi->getPropertiesImages([$mlsProperty->mls_id]);
-            if (!empty($imagesByKey[$mlsProperty->mls_id])) {
-                $imageUrls = array_map(function($img) {
-                    return $img['MediaURL'] ?? '';
-                }, $imagesByKey[$mlsProperty->mls_id]);
+            $result = $this->repliersApi->searchListings([
+                'search' => $mlsProperty->mls_id,
+                'resultsPerPage' => 1,
+                'fields' => 'mlsNumber,images',
+            ]);
+            $listing = $result['listings'][0] ?? null;
+            if ($listing && ($listing['mlsNumber'] ?? '') === $mlsProperty->mls_id && !empty($listing['images'])) {
+                $imageUrls = $this->repliersApi->getListingImageUrls($listing);
                 $imageUrls = array_filter($imageUrls);
 
                 if (!empty($imageUrls)) {
@@ -987,12 +1202,15 @@ class PropertySearchController extends Controller
                 return $mlsProperty->image_urls;
             }
 
-            // If not in cache, try to fetch from AMPRE API
-            $imagesByKey = $this->ampreApi->getPropertiesImages([$mlsNumber]);
-            if (!empty($imagesByKey[$mlsNumber])) {
-                return array_map(function($img) {
-                    return $img['MediaURL'] ?? '';
-                }, $imagesByKey[$mlsNumber]);
+            // If not in cache, try to fetch from Repliers API
+            $result = $this->repliersApi->searchListings([
+                'search' => $mlsNumber,
+                'resultsPerPage' => 1,
+                'fields' => 'mlsNumber,images',
+            ]);
+            $listing = $result['listings'][0] ?? null;
+            if ($listing && ($listing['mlsNumber'] ?? '') === $mlsNumber && !empty($listing['images'])) {
+                return $this->repliersApi->getListingImageUrls($listing);
             }
         } catch (Exception $e) {
             Log::warning('Failed to fetch MLS images for property', [
@@ -1102,9 +1320,18 @@ class PropertySearchController extends Controller
                 $batchSize = 5;
                 $imagesByKey = [];
 
-                foreach (array_chunk($mlsListingKeys, $batchSize) as $batch) {
-                    $batchImages = $this->ampreApi->getPropertiesImages($batch);
-                    $imagesByKey = array_merge($imagesByKey, $batchImages);
+                // Load images from database (synced from Repliers CDN)
+                $mlsProps = MLSProperty::whereIn('mls_id', $mlsListingKeys)
+                    ->whereNotNull('image_urls')
+                    ->get()
+                    ->keyBy('mls_id');
+
+                foreach ($mlsProps as $mlsId => $mlsProp) {
+                    if (!empty($mlsProp->image_urls)) {
+                        $imagesByKey[$mlsId] = array_map(function($url, $idx) {
+                            return ['MediaURL' => $url, 'Order' => $idx];
+                        }, $mlsProp->image_urls, array_keys($mlsProp->image_urls));
+                    }
                 }
 
                 // Track used images to avoid duplicates
@@ -1192,14 +1419,21 @@ class PropertySearchController extends Controller
             // Get MLS IDs from backend to exclude from MLS results
             $excludeMlsIds = $this->getBackendMlsIdentifiers();
 
-            // Step 2: Fetch MLS properties
-            $this->configureApiClient($sanitizedParams);
-            $this->applySearchFilters($sanitizedParams);
-            $this->applyViewportBoundsFilter($viewportBounds);
+            // Step 2: Fetch MLS properties from database within viewport
+            $mlsQuery = MLSProperty::query()
+                ->whereNull('deleted_at')
+                ->where('latitude', '>=', $viewportBounds['south'])
+                ->where('latitude', '<=', $viewportBounds['north'])
+                ->where('longitude', '>=', $viewportBounds['west'])
+                ->where('longitude', '<=', $viewportBounds['east'])
+                ->where('is_active', true)
+                ->limit(100);
 
-            $apiResult = $this->ampreApi->fetchPropertiesWithCount();
-            $allMlsProperties = $apiResult['properties'];
-            $mlsTotalCount = $apiResult['count'];
+            $mlsResults = $mlsQuery->get();
+            $allMlsProperties = $mlsResults->map(function($mlsProp) {
+                return $this->convertMLSPropertyToApiFormat($mlsProp);
+            })->toArray();
+            $mlsTotalCount = count($allMlsProperties);
 
             // Filter out MLS properties that exist in backend database
             $mlsProperties = $this->filterOutBackendProperties($allMlsProperties, $excludeMlsIds);
@@ -1351,8 +1585,9 @@ class PropertySearchController extends Controller
         // Determine rough area based on coordinates
         $city = $this->getCityFromCoordinates($centerLat, $centerLng);
         
+        // City filter is now handled in database query layer
         if ($city) {
-            $this->ampreApi->addCustomFilter("contains(City, '{$city}')");
+            Log::info('Viewport city filter (for reference)', ['city' => $city]);
         }
         
         // Log the viewport being searched
@@ -1415,26 +1650,22 @@ class PropertySearchController extends Controller
             // Get base filters from request (location, status, etc.)
             $baseFilters = $request->input('filters', []);
             
-            // Configure API client with base filters
-            $this->configureApiClient([
-                'page' => 1,
-                'page_size' => 1 // We only need counts, not actual properties
-            ]);
-            
-            // Apply base filters (status, location) but not property type
+            // Get property type counts from database
+            $query = MLSProperty::active()->whereNull('deleted_at');
+
+            // Apply status filter
             if (!empty($baseFilters['status'])) {
-                $this->ampreApi->addFilter('TransactionType', $baseFilters['status']);
-            } else {
-                $this->ampreApi->addFilter('TransactionType', 'For Sale');
+                $type = strtolower($baseFilters['status']);
+                if (str_contains($type, 'rent') || str_contains($type, 'lease')) {
+                    $query->where('property_type', 'For Rent');
+                } else {
+                    $query->where('property_type', 'For Sale');
+                }
             }
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
-            
-            // Apply location filter if provided
+
+            // Apply location filter
             if (!empty($baseFilters['query'])) {
-                $this->applyLocationFilter($baseFilters['query']);
-            } else {
-                // Default to Toronto area
-                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+                $query->where('city', 'like', '%' . $baseFilters['query'] . '%');
             }
             
             // Define all possible property types based on MLS standards
@@ -1461,16 +1692,28 @@ class PropertySearchController extends Controller
                 'Other'
             ];
             
-            $availableTypes = [];
-            
-            // Return only the 5 requested property types with estimated counts
-            $availableTypes = [
-                ['value' => 'Vacant Land', 'label' => 'Vacant Land', 'count' => 15],
-                ['value' => 'Detached', 'label' => 'Detached', 'count' => 75],
-                ['value' => 'Condo Apartment', 'label' => 'Condo Apartment', 'count' => 150],
-                ['value' => 'Condo Townhouse', 'label' => 'Condo Townhouse', 'count' => 30],
-                ['value' => 'Attached/Townhouse', 'label' => 'Townhouse', 'count' => 60]
+            // Get actual counts from database with type mapping
+            $typeMapping = [
+                'Condo Apartment' => ['Condo Apartment', 'Apartment'],
+                'Condo Townhouse' => ['Condo Townhouse', 'Stacked Townhouse'],
+                'Loft' => ['Loft', 'Industrial Loft'],
+                'Bachelor/Studio' => ['Bachelor/Studio'],
+                'Multi-Level' => ['Multi-Level'],
+                'Other' => ['Other', 'Bungalow', 'Bungaloft'],
             ];
+
+            $availableTypes = [];
+            foreach ($typeMapping as $displayName => $dbValues) {
+                $typeQuery = clone $query;
+                $count = $typeQuery->whereIn('property_sub_type', $dbValues)->count();
+                if ($count > 0) {
+                    $availableTypes[] = [
+                        'value' => $displayName,
+                        'label' => $displayName,
+                        'count' => $count,
+                    ];
+                }
+            }
             
             // Don't filter out any types - show all available property types
             // In production, you might want to get actual counts from the API
@@ -1618,52 +1861,8 @@ class PropertySearchController extends Controller
      */
     private function configureApiClient(array $params)
     {
-        // Reset filters first
-        $this->ampreApi->resetFilters();
-        
-        // Set select fields - matching WordPress plugin exactly
-        $this->ampreApi->setSelect([
-            'ListingKey',
-            'BedroomsTotal',
-            'BathroomsTotalInteger',
-            'UnparsedAddress',
-            'UnitNumber',
-            'StreetNumber',
-            'StreetName',
-            'ListPrice',
-            'TransactionType',
-            'City',
-            'StateOrProvince', 
-            'PostalCode',
-            'PropertySubType',
-            'PropertyType',
-            'StandardStatus',
-            'MlsStatus',  // Added to capture MLS-specific status
-            'LivingAreaRange',
-            'AboveGradeFinishedArea',
-            'ParkingTotal',
-            'Latitude',
-            'Longitude',
-            'ListingContractDate',
-            'PublicRemarks',
-            'ListOfficeName',
-            'OpenHouseDate',
-            'OpenHouseEndTime', 
-            'OpenHouseNotes',
-            'OpenHouseRemarks',
-            'OpenHouseStartTime'
-        ]);
-        
-        // Set pagination parameters
-        $pageSize = $params['page_size'] ?? 16;
-        $page = $params['page'] ?? 1;
-        $skip = ($page - 1) * $pageSize;
-        
-        $this->ampreApi->setTop($pageSize);
-        $this->ampreApi->setSkip($skip);
-        
-        // Enable count to get total number of results
-        $this->ampreApi->setCount(true);
+        // No-op: API search is now handled via Repliers searchListings() with params
+        // This method is kept for backward compatibility with viewport search
     }
 
     /**
@@ -1730,18 +1929,8 @@ class PropertySearchController extends Controller
      */
     private function applyDefaultFilters()
     {
-        // Default filters
-        $this->ampreApi->addFilter('TransactionType', 'For Sale');
-        $this->ampreApi->addFilter('StandardStatus', 'Active');
-        
-        // Default property type: Condo Apartment
-        $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
-        
-        // Default minimum price: $50,000 for sale properties
-        $this->ampreApi->setPriceRange(50000, null);
-        
-        // Default to Toronto area (using contains to match subdivisions like Toronto W08, Toronto C01, etc)
-        $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
+        // No-op: Search now uses database. Repliers API filters are applied
+        // directly via searchListings() params when API calls are needed.
     }
 
     /**
@@ -1749,193 +1938,8 @@ class PropertySearchController extends Controller
      */
     private function applyUserFilters(array $params)
     {
-        // Map transaction type to correct MLS values
-        $transactionType = 'For Sale'; // Default
-        $standardStatus = 'Active'; // Default
-        
-        // Check if property_status is set (Sold/Leased) - it takes precedence
-        $skipStandardStatus = false; // Flag to skip StandardStatus filter for sold/leased
-        if (!empty($params['property_status'])) {
-            // Allow all users to see Sold/Leased properties
-            switch ($params['property_status']) {
-                case 'Sold':
-                case 'sold':
-                    // For sold properties, we only filter by status, not transaction type
-                    $transactionType = null;  // Don't filter by transaction type
-                    $standardStatus = 'Sold'; // Filter by Sold status only
-                    break;
-                case 'Leased':
-                case 'leased':
-                    // For leased properties, we only filter by status, not transaction type
-                    $transactionType = null;  // Don't filter by transaction type
-                    $standardStatus = 'Leased'; // Filter by Leased status only
-                    break;
-            }
-        }
-        
-        if (empty($params['property_status']) && !empty($params['status'])) {
-            // Only check status if property_status is not set
-            switch ($params['status']) {
-                case 'For Sale':
-                case 'for-sale':
-                    $transactionType = 'For Sale';
-                    $standardStatus = 'Active';
-                    break;
-                case 'For Rent':
-                case 'For Lease':
-                case 'for-lease':
-                case 'for-rent':
-                    $transactionType = 'For Lease';
-                    $standardStatus = 'Active';
-                    break;
-                case 'Sold':
-                case 'sold':
-                    // Allow all users to see Sold properties
-                    $transactionType = null;  // Don't filter by transaction type
-                    $standardStatus = 'Sold'; // StandardStatus is 'Sold'
-                    break;
-                case 'Leased':
-                case 'Rented':
-                case 'leased':
-                case 'rented':
-                    // Allow all users to see Leased properties
-                    $transactionType = null;  // Don't filter by transaction type
-                    $standardStatus = 'Leased';
-                    break;
-            }
-        }
-
-        // Apply filters
-        // Check if we should use MlsStatus for Sold/Leased properties
-        if ($standardStatus === 'Sold') {
-            // For Sold properties, check both MlsStatus and StandardStatus
-            $filterQuery = "(MlsStatus eq 'Sold' or StandardStatus eq 'Sold' or StandardStatus eq 'Closed')";
-            $this->ampreApi->addCustomFilter($filterQuery);
-            
-            Log::info("Applying Sold filter", [
-                'filter' => $filterQuery,
-                'property_status_param' => $params['property_status'] ?? null
-            ]);
-        } elseif ($standardStatus === 'Leased') {
-            // For Leased properties - based on actual MLS data structure
-            // Properties are leased when:
-            // 1. MlsStatus contains "Leased" (including "Leased", "Leased Conditional")
-            // 2. StandardStatus is "Closed" with TransactionType "For Lease"
-            $filterQuery = "(contains(MlsStatus, 'Lease') or " .
-                          "(StandardStatus eq 'Closed' and TransactionType eq 'For Lease'))";
-            $this->ampreApi->addCustomFilter($filterQuery);
-            
-            // Get the full URL to see what's being sent
-            $requestUrl = $this->ampreApi->getRequestUrl('Property');
-            
-            Log::info("Applying Leased filter - Updated", [
-                'filter' => $filterQuery,
-                'full_request_url' => $requestUrl,
-                'property_status_param' => $params['property_status'] ?? null,
-                'status_param' => $params['status'] ?? null,
-                'all_params' => $params
-            ]);
-        } else {
-            // For Active listings, use both StandardStatus and TransactionType
-            $this->ampreApi->addFilter('StandardStatus', $standardStatus);
-            if ($transactionType !== null) {
-                $this->ampreApi->addFilter('TransactionType', $transactionType);
-            }
-            
-            Log::info("Applying Active listing filters", [
-                'standardStatus' => $standardStatus,
-                'transactionType' => $transactionType
-            ]);
-        }
-
-        // Check for Nobu Residences special case (both 15 and 35 Mercer)
-        if (!empty($params['mercer_buildings']) && !empty($params['street_name']) && strtolower($params['street_name']) === 'mercer') {
-            // Search for both 15 and 35 Mercer Street
-            $this->ampreApi->addCustomFilter("(StreetNumber eq '15' or StreetNumber eq '35')");
-            $this->ampreApi->addCustomFilter("contains(StreetName, 'Mercer')");
-            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-        }
-        // Check for street_number and street_name parameters first
-        elseif (!empty($params['street_number']) && !empty($params['street_name'])) {
-            // If both street_number and street_name are provided, search for that specific address
-            $streetNumber = trim($params['street_number']);
-            $streetName = trim($params['street_name']);
-
-            // Apply filters for street number and street name
-            $this->ampreApi->addFilter('StreetNumber', $streetNumber);
-            $this->ampreApi->addCustomFilter("contains(StreetName, '{$streetName}')");
-
-            // Also search in Toronto area
-            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-        } elseif (!empty($params['query']) && trim($params['query']) !== '') {
-            // Fall back to query parameter if street_number and street_name are not provided
-            $query = trim($params['query']);
-            
-            // If query is just 'Toronto', apply it as a city contains filter to match subdivisions
-            if (strtolower($query) === 'toronto') {
-                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-            } else {
-                // Otherwise do a global search
-                $this->applyGlobalSearchFilter($query);
-            }
-        } else {
-            // Default to Toronto area if no query provided (using contains for subdivisions)
-            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-        }
-
-        // Apply property type filter
-        if (!empty($params['property_type']) && count($params['property_type']) > 0) {
-            $validPropertyTypes = array_filter($params['property_type'], function($type) {
-                return !empty($type) && trim($type) !== '';
-            });
-            
-            if (count($validPropertyTypes) === 1) {
-                $this->ampreApi->addFilter('PropertySubType', $validPropertyTypes[0]);
-            } elseif (count($validPropertyTypes) > 1) {
-                $this->ampreApi->setFilterOr('PropertySubType', $validPropertyTypes);
-            }
-        }
-        // Don't apply any property type filter when 'All Types' is selected (empty array)
-
-        // Apply price filters - adjusted for Leased properties
-        $isLeasedSearch = ($standardStatus === 'Leased' || $transactionType === 'For Lease');
-        
-        if ($params['price_min'] > 0 || $params['price_max'] > 0) {
-            $minPrice = $params['price_min'] > 0 ? max($params['price_min'], 2) : null;
-            $maxPrice = $params['price_max'] > 0 ? $params['price_max'] : null;
-            
-            if ($minPrice === null) {
-                if ($isLeasedSearch) {
-                    $minPrice = 1; // For rental/leased properties - minimum $1
-                } else {
-                    $minPrice = 50000; // For sale properties
-                }
-            }
-            
-            // For leased properties, adjust max price if it's too high (likely set for sale properties)
-            if ($isLeasedSearch && $maxPrice > 50000) {
-                $maxPrice = 10000; // Cap at $10,000/month for rentals
-            }
-            
-            $this->ampreApi->setPriceRange($minPrice, $maxPrice);
-        } else {
-            // Apply default based on transaction type
-            if ($isLeasedSearch) {
-                $this->ampreApi->setPriceRange(1, 10000); // $1 to $10,000/month for rentals
-            } else {
-                $this->ampreApi->setPriceRange(50000, null); // $50,000+ for sales
-            }
-        }
-
-        // Apply bedroom filter
-        if ($params['bedrooms'] > 0) {
-            $this->ampreApi->addFilter('BedroomsTotal', $params['bedrooms'], 'ge');
-        }
-
-        // Apply bathroom filter
-        if ($params['bathrooms'] > 0) {
-            $this->ampreApi->addFilter('BathroomsTotalInteger', $params['bathrooms'], 'ge');
-        }
+        // No-op: Search now uses database queries exclusively.
+        // Repliers API filters are applied via searchListings() params when needed.
     }
 
     /**
@@ -2069,7 +2073,8 @@ class PropertySearchController extends Controller
                     $searchFilter = "(" . implode(' or ', $filters) . ")";
                 }
                 
-                $this->ampreApi->addCustomFilter($searchFilter);
+                // Filter applied via database queries, not API
+                Log::info('Address search filter (for reference)', ['filter' => $searchFilter]);
                 return;
             }
         }
@@ -2155,7 +2160,7 @@ class PropertySearchController extends Controller
                 ]);
 
                 // Try to find properties with the neighborhood name in available fields
-                // Only use fields that exist in AMPRE API
+                // Only use fields that exist in Repliers API
                 $searchFilter = "(contains(UnparsedAddress, '" . $escapedQuery . "') " .
                                "or contains(StreetName, '" . $escapedQuery . "'))";
 
@@ -2425,37 +2430,18 @@ class PropertySearchController extends Controller
             'isNeighborhood' => $isNeighborhood ?? false
         ]);
 
-        $this->ampreApi->addCustomFilter($searchFilter);
+        // Search filter is applied in database queries, not via API
+        Log::info('Search filter (for reference)', ['filter' => $searchFilter]);
     }
 
     /**
-     * Apply sort order to API client
+     * Apply sort order - no-op, sorting handled by database queries
      */
     private function applySortOrder($sortType)
     {
-        switch ($sortType) {
-            case 'newest':
-                $this->ampreApi->setOrderBy('ListingContractDate desc');
-                break;
-            case 'price-high':
-                $this->ampreApi->setOrderBy('ListPrice desc');
-                break;
-            case 'price-low':
-                $this->ampreApi->setOrderBy('ListPrice asc');
-                break;
-            case 'bedrooms':
-                $this->ampreApi->setOrderBy('BedroomsTotal desc');
-                break;
-            case 'bathrooms':
-                $this->ampreApi->setOrderBy('BathroomsTotalInteger desc');
-                break;
-            case 'sqft':
-                $this->ampreApi->setOrderBy('AboveGradeFinishedArea desc');
-                break;
-            default:
-                $this->ampreApi->setOrderBy('ListingContractDate desc');
-                break;
-        }
+        // Sorting is now handled in the database query layer
+        // This method is kept for backward compatibility
+        return;
     }
 
     /**
@@ -2478,9 +2464,18 @@ class PropertySearchController extends Controller
             $batchSize = 5;
             $imagesByKey = [];
             
-            foreach (array_chunk($listingKeys, $batchSize) as $batch) {
-                $batchImages = $this->ampreApi->getPropertiesImages($batch);
-                $imagesByKey = array_merge($imagesByKey, $batchImages);
+            // Load images from database (synced from Repliers CDN)
+            $mlsProps = MLSProperty::whereIn('mls_id', $listingKeys)
+                ->whereNotNull('image_urls')
+                ->get()
+                ->keyBy('mls_id');
+
+            foreach ($mlsProps as $mlsId => $mlsProp) {
+                if (!empty($mlsProp->image_urls)) {
+                    $imagesByKey[$mlsId] = array_map(function($url, $idx) {
+                        return ['MediaURL' => $url, 'Order' => $idx];
+                    }, $mlsProp->image_urls, array_keys($mlsProp->image_urls));
+                }
             }
             
             // Track used images to avoid duplicates

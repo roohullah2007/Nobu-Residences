@@ -245,25 +245,11 @@ const MoreBuildings = ({
               setNearbyListings(prev => prev.map(listing => {
                 const imageData = imagesData[listing.listingKey];
                 if (imageData && imageData.image_url) {
-                  // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
-                  let processedImageUrl = imageData.image_url;
-                  if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-                    processedImageUrl = processedImageUrl.replace('https://', 'http://');
-                  }
-
-                  // Process all images array too
-                  const processedImages = (imageData.all_images || []).map(url => {
-                    if (url && typeof url === 'string' && url.includes('ampre.ca')) {
-                      return url.replace('https://', 'http://');
-                    }
-                    return url;
-                  });
-
-                  console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
+                  console.log(`Updating image for ${listing.listingKey}:`, imageData.image_url);
                   return {
                     ...listing,
-                    imageUrl: processedImageUrl,
-                    images: processedImages
+                    imageUrl: imageData.image_url,
+                    images: imageData.all_images || []
                   };
                 }
                 return listing;
@@ -382,25 +368,11 @@ const MoreBuildings = ({
               setSimilarListings(prev => prev.map(listing => {
                 const imageData = imagesData[listing.listingKey];
                 if (imageData && imageData.image_url) {
-                  // Convert HTTPS to HTTP for AMPRE images to avoid SSL errors
-                  let processedImageUrl = imageData.image_url;
-                  if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-                    processedImageUrl = processedImageUrl.replace('https://', 'http://');
-                  }
-
-                  // Process all images array too
-                  const processedImages = (imageData.all_images || []).map(url => {
-                    if (url && typeof url === 'string' && url.includes('ampre.ca')) {
-                      return url.replace('https://', 'http://');
-                    }
-                    return url;
-                  });
-
-                  console.log(`Updating image for ${listing.listingKey}:`, processedImageUrl);
+                  console.log(`Updating image for ${listing.listingKey}:`, imageData.image_url);
                   return {
                     ...listing,
-                    imageUrl: processedImageUrl,
-                    images: processedImages
+                    imageUrl: imageData.image_url,
+                    images: imageData.all_images || []
                   };
                 }
                 return listing;

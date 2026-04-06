@@ -93,8 +93,14 @@ class SchoolController extends Controller
 
         try {
             // First try to get schools from Google Places API
-            $googlePlacesService = new GooglePlacesService();
-            $googleSchools = $googlePlacesService->getNearbySchools($latitude, $longitude, $radius * 1000); // Convert km to meters
+            $googleSchools = [];
+            try {
+                $googlePlacesService = new GooglePlacesService();
+                $googleSchools = $googlePlacesService->getNearbySchools($latitude, $longitude, $radius * 1000); // Convert km to meters
+            } catch (\Exception $googleEx) {
+                \Log::warning('Google Places API failed for schools, falling back to DB: ' . $googleEx->getMessage());
+                $googleSchools = [];
+            }
 
             // If we have Google Places results, return them
             if (!empty($googleSchools)) {

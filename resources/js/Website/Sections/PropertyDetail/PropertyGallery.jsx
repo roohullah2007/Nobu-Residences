@@ -104,19 +104,6 @@ export default function PropertyGallery({
           // Remove any duplicate slashes except for http://
           url = url.replace(/([^:]\/)\/+/g, "$1");
 
-          // Handle AMPRE CDN URLs - convert HTTPS to HTTP to avoid SSL issues
-          if (url.includes('ampre.ca')) {
-            // Always ensure HTTP for AMPRE URLs, even if already HTTP
-            if (url.startsWith('https://')) {
-              url = url.replace('https://', 'http://');
-              console.log('🖼️ Converted AMPRE HTTPS to HTTP:', originalUrl, '->', url);
-            } else if (!url.startsWith('http://') && !url.startsWith('//')) {
-              // If it's a relative AMPRE URL, make it absolute with HTTP
-              url = 'http://' + (url.startsWith('/') ? url.substring(1) : url);
-              console.log('🖼️ Made AMPRE URL absolute:', originalUrl, '->', url);
-            }
-          }
-
           // Ensure URL is absolute
           if (!url.startsWith('http') && !url.startsWith('//')) {
             // If it's a relative URL, prepend the base URL
@@ -270,13 +257,6 @@ export default function PropertyGallery({
   const handleImageError = (e, fallbackIndex = 0) => {
     console.log('🖼️ Image failed to load:', e.target.src);
 
-    // Try HTTP version if HTTPS fails for AMPRE images
-    if (e.target.src.includes('ampre.ca') && e.target.src.startsWith('https://')) {
-      console.log('🖼️ Trying HTTP version for AMPRE image');
-      e.target.src = e.target.src.replace('https://', 'http://');
-      return;
-    }
-
     // Hide the broken image by setting display to none
     e.target.style.display = 'none';
     // Prevent infinite error loop
@@ -302,13 +282,7 @@ export default function PropertyGallery({
                   onClick={() => isLoggedIn && openModal(0)}
                 >
                   <img
-                    src={(function() {
-                      let url = images[0];
-                      if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                        return url.replace('https://', 'http://');
-                      }
-                      return url;
-                    })()}
+                    src={images[0]}
                     alt="Main property image"
                     className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                     onError={handleImageError}
@@ -367,13 +341,7 @@ export default function PropertyGallery({
                     onClick={() => isLoggedIn && openModal(1)}
                   >
                     <img
-                      src={(function() {
-                        let url = images[1] || images[0];
-                        if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                          return url.replace('https://', 'http://');
-                        }
-                        return url;
-                      })()}
+                      src={images[1] || images[0]}
                       alt="Property image 2"
                       className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                       onError={(e) => handleImageError(e, 1)}
@@ -412,13 +380,7 @@ export default function PropertyGallery({
                     onClick={() => isLoggedIn && openModal(2)}
                   >
                     <img
-                      src={(function() {
-                        let url = images[2] || images[1] || images[0];
-                        if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                          return url.replace('https://', 'http://');
-                        }
-                        return url;
-                      })()}
+                      src={images[2] || images[1] || images[0]}
                       alt="Property image 3"
                       className={`w-full h-full object-cover object-center transition-transform duration-300 ${isLoggedIn ? 'group-hover:scale-105' : 'blur-lg'}`}
                       onError={handleImageError}
@@ -478,13 +440,7 @@ export default function PropertyGallery({
                       }`}
                     >
                       <img
-                        src={(function() {
-                          let url = image;
-                          if (url && url.includes && url.includes('ampre.ca') && url.startsWith('https://')) {
-                            return url.replace('https://', 'http://');
-                          }
-                          return url;
-                        })()}
+                        src={image}
                         alt={`Property image ${index + 1}`}
                         className={`w-full h-full object-cover object-center ${!isLoggedIn ? 'blur-lg' : ''}`}
                         onError={(e) => handleImageError(e, index)}
@@ -880,18 +836,13 @@ export default function PropertyGallery({
                 style={{ transform: `translateX(-${modalImageIndex * 100}%)` }}
               >
                 {images.map((image, index) => {
-                  // Ensure AMPRE images use HTTP in modal too
-                  let modalImageUrl = image;
-                  if (modalImageUrl && modalImageUrl.includes && modalImageUrl.includes('ampre.ca') && modalImageUrl.startsWith('https://')) {
-                    modalImageUrl = modalImageUrl.replace('https://', 'http://');
-                  }
                   return (
                     <div key={index} className="min-w-full flex items-center justify-center p-4">
-                      <img 
-                        src={modalImageUrl}
+                      <img
+                        src={image}
                         alt={`Property image ${index + 1}`}
                         onError={(e) => {
-                          console.error('PropertyGallery - Failed to load modal image:', modalImageUrl);
+                          console.error('PropertyGallery - Failed to load modal image:', image);
                           // Hide broken image - no fallback
                           e.target.style.display = 'none';
                           e.target.onerror = null;
@@ -919,11 +870,6 @@ export default function PropertyGallery({
           {images.length > 1 && (
             <div className="flex gap-2 px-4 py-3 bg-black bg-opacity-90 border-t border-white border-opacity-10 overflow-x-auto">
               {images.map((image, index) => {
-                // Ensure AMPRE images use HTTP in thumbnails too
-                let thumbUrl = image;
-                if (thumbUrl && thumbUrl.includes && thumbUrl.includes('ampre.ca') && thumbUrl.startsWith('https://')) {
-                  thumbUrl = thumbUrl.replace('https://', 'http://');
-                }
                 return (
                   <button
                     key={index}
@@ -935,7 +881,7 @@ export default function PropertyGallery({
                     }`}
                   >
                     <img 
-                      src={thumbUrl}
+                      src={image}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-20 h-15 object-cover block"
                       onError={handleImageError}

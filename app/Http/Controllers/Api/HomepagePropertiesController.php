@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,11 +12,11 @@ use Exception;
 
 class HomepagePropertiesController extends Controller
 {
-    private AmpreApiService $ampreApi;
+    private RepliersApiService $repliersApi;
 
-    public function __construct(AmpreApiService $ampreApi)
+    public function __construct(RepliersApiService $repliersApi)
     {
-        $this->ampreApi = $ampreApi;
+        $this->repliersApi = $repliersApi;
     }
 
     /**
@@ -209,42 +209,6 @@ class HomepagePropertiesController extends Controller
     private function fetchPropertiesNearLocation(string $transactionType, string $address, string $city = 'Toronto')
     {
         try {
-            // Reset filters
-            $this->ampreApi->resetFilters();
-
-            // Set select fields for display
-            $this->ampreApi->setSelect([
-                'ListingKey',
-                'BedroomsTotal',
-                'BathroomsTotalInteger',
-                'UnparsedAddress',
-                'ListPrice',
-                'TransactionType',
-                'City',
-                'StateOrProvince',
-                'PostalCode',
-                'PropertySubType',
-                'PropertyType',
-                'StandardStatus',
-                'LivingAreaRange',
-                'AboveGradeFinishedArea',
-                'ParkingTotal',
-                'PublicRemarks',
-                'ListOfficeName',
-                'UnitNumber',
-                'StreetNumber',
-                'StreetName',
-                'StreetSuffix'
-            ]);
-
-            // Set pagination - limit to 12 properties for carousel
-            $this->ampreApi->setTop(12);
-            $this->ampreApi->setSkip(0);
-
-            // Apply filters
-            $this->ampreApi->addFilter('TransactionType', $transactionType);
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
-
             // Parse address to search for nearby properties
             $addressParts = explode(',', $address);
             $streetAddress = trim($addressParts[0] ?? $address);
@@ -253,94 +217,59 @@ class HomepagePropertiesController extends Controller
             $streetParts = explode(' ', $streetAddress);
             $streetName = implode(' ', array_slice($streetParts, 1));
 
-            // Search for properties in the same area/neighborhood
-            if (!empty($streetName)) {
-                // Search for properties on the same street or nearby streets
-                $this->ampreApi->addCustomFilter("contains(UnparsedAddress, '{$streetName}')");
-            }
-
             // Filter by city - extract just the city name from full address format
             $cityName = explode(',', $city)[0] ?? 'Toronto';
-            $this->ampreApi->addCustomFilter("contains(City, '{$cityName}')");
 
-            // Sort by newest listings first
-            $this->ampreApi->setOrderBy('ListingContractDate desc');
+            $type = ($transactionType === 'For Sale') ? 'sale' : 'lease';
+            $minPrice = ($transactionType === 'For Sale') ? 200000 : 1000;
 
-            // Add reasonable price filter
-            if ($transactionType === 'For Sale') {
-                $this->ampreApi->setPriceRange(200000, null);
-            } else {
-                $this->ampreApi->setPriceRange(1000, null);
+            $params = [
+                'status' => 'A',
+                'type' => $type,
+                'city' => $cityName,
+                'minPrice' => $minPrice,
+                'resultsPerPage' => 12,
+                'sortBy' => 'createdOnDesc',
+            ];
+
+            if (!empty($streetName)) {
+                $params['search'] = $streetName;
             }
 
             // Fetch properties
-            $apiResult = $this->ampreApi->fetchPropertiesWithCount();
-            $properties = $apiResult['properties'] ?? [];
+            $apiResult = $this->repliersApi->searchListings($params);
+            $listings = $apiResult['listings'] ?? [];
 
             // Log for debugging
             Log::info("Properties near {$address}, {$city} - {$transactionType}", [
                 'street_name' => $streetName,
-                'count' => count($properties),
+                'count' => count($listings),
                 'total' => $apiResult['count'] ?? 0
             ]);
 
             // If no properties found, try broader search in the city
-            if (empty($properties)) {
+            if (empty($listings)) {
                 Log::info("No properties found near {$address}, trying broader {$city} search");
 
-                $this->ampreApi->resetFilters();
-                $this->ampreApi->setSelect([
-                    'ListingKey',
-                    'BedroomsTotal',
-                    'BathroomsTotalInteger',
-                    'UnparsedAddress',
-                    'ListPrice',
-                    'TransactionType',
-                    'City',
-                    'StateOrProvince',
-                    'PostalCode',
-                    'PropertySubType',
-                    'PropertyType',
-                    'StandardStatus',
-                    'LivingAreaRange',
-                    'AboveGradeFinishedArea',
-                    'ParkingTotal',
-                    'PublicRemarks',
-                    'ListOfficeName',
-                    'UnitNumber',
-                    'StreetNumber',
-                    'StreetName',
-                    'StreetSuffix'
-                ]);
+                $broaderMinPrice = ($transactionType === 'For Sale') ? 300000 : 1500;
+                $broaderMaxPrice = ($transactionType === 'For Sale') ? 3000000 : 6000;
 
-                $this->ampreApi->setTop(12);
-                $this->ampreApi->setSkip(0);
-                $this->ampreApi->addFilter('TransactionType', $transactionType);
-                $this->ampreApi->addFilter('StandardStatus', 'Active');
-                // Filter by city - extract just the city name from full address format
-                $cityName = explode(',', $city)[0] ?? 'Toronto';
-                $this->ampreApi->addCustomFilter("contains(City, '{$cityName}')");
+                $broaderParams = [
+                    'status' => 'A',
+                    'type' => $type,
+                    'city' => $cityName,
+                    'minPrice' => $broaderMinPrice,
+                    'maxPrice' => $broaderMaxPrice,
+                    'resultsPerPage' => 12,
+                    'sortBy' => 'priceDesc',
+                ];
 
-                // Add reasonable price filter for broader search
-                if ($transactionType === 'For Sale') {
-                    $this->ampreApi->setPriceRange(300000, 3000000);
-                } else {
-                    $this->ampreApi->setPriceRange(1500, 6000);
-                }
-
-                $this->ampreApi->setOrderBy('ListPrice desc');
-
-                $apiResult = $this->ampreApi->fetchPropertiesWithCount();
-                $properties = $apiResult['properties'] ?? [];
-            }
-
-            // Add images to properties
-            if (!empty($properties)) {
-                $properties = $this->addPropertyImages($properties);
+                $apiResult = $this->repliersApi->searchListings($broaderParams);
+                $listings = $apiResult['listings'] ?? [];
             }
 
             // Format properties for frontend
-            return $this->formatPropertiesForCarousel($properties, $transactionType);
+            return $this->formatRepliersListingsForCarousel($listings, $transactionType);
 
         } catch (Exception $e) {
             Log::error("Error fetching {$transactionType} properties near {$address}: " . $e->getMessage());
@@ -354,150 +283,63 @@ class HomepagePropertiesController extends Controller
     private function fetchProperties(string $transactionType, string $address)
     {
         try {
-            // Reset filters
-            $this->ampreApi->resetFilters();
+            $type = ($transactionType === 'For Sale') ? 'sale' : 'lease';
+            $minPrice = ($transactionType === 'For Sale') ? 200000 : 1000;
 
-            // Set select fields for homepage display
-            $this->ampreApi->setSelect([
-                'ListingKey',
-                'BedroomsTotal',
-                'BathroomsTotalInteger',
-                'UnparsedAddress',
-                'ListPrice',
-                'TransactionType',
-                'City',
-                'StateOrProvince',
-                'PostalCode',
-                'PropertySubType',
-                'PropertyType',
-                'StandardStatus',
-                'LivingAreaRange',
-                'AboveGradeFinishedArea',
-                'ParkingTotal',
-                'PublicRemarks',
-                'ListOfficeName',
-                'UnitNumber',
-                'StreetNumber',
-                'StreetName',
-                'StreetSuffix'
-            ]);
-
-            // Set pagination - limit to 12 properties for carousel
-            $this->ampreApi->setTop(12); // Limited to 12 for carousel display
-            $this->ampreApi->setSkip(0);
-
-            // Apply filters
-            $this->ampreApi->addFilter('TransactionType', $transactionType);
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
-            
-            // Show all property types from 55 Mercer Street (not just Condo Apartments)
-            // $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
-            
-            // Filter specifically for the building address
-            // Try multiple variations to catch different formats
-            $addressParts = explode(' ', $address);
-            $streetNumber = $addressParts[0] ?? '';
-            $streetName = implode(' ', array_slice($addressParts, 1));
-            
-            // Build filter with variations
-            $addressFilter = "(contains(UnparsedAddress, '{$address}') or " .
-                           "contains(UnparsedAddress, '{$streetNumber} {$streetName}') or " .
-                           "contains(UnparsedAddress, '{$streetNumber}-{$streetName}') or " .
-                           "startswith(UnparsedAddress, '{$address}'))";
-            $this->ampreApi->addCustomFilter($addressFilter);
-            
-            // Also filter for Toronto
-            $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-
-            // Sort by newest listings first
-            $this->ampreApi->setOrderBy('ListingContractDate desc');
-
-            // Add reasonable price filter
-            if ($transactionType === 'For Sale') {
-                $this->ampreApi->setPriceRange(200000, null); // Min $200k for sale
-            } else {
-                $this->ampreApi->setPriceRange(1000, null); // Min $1000/month for rent
-            }
+            $params = [
+                'search' => $address,
+                'status' => 'A',
+                'type' => $type,
+                'city' => 'Toronto',
+                'minPrice' => $minPrice,
+                'resultsPerPage' => 12,
+                'sortBy' => 'createdOnDesc',
+            ];
 
             // Fetch properties
-            $apiResult = $this->ampreApi->fetchPropertiesWithCount();
-            $properties = $apiResult['properties'] ?? [];
-            
+            $apiResult = $this->repliersApi->searchListings($params);
+            $listings = $apiResult['listings'] ?? [];
+
             // Log for debugging
             Log::info("Homepage properties fetch for {$address} - {$transactionType}", [
-                'count' => count($properties),
+                'count' => count($listings),
                 'total' => $apiResult['count'] ?? 0
             ]);
-            
+
             // If no properties found at the address, try broader search
-            if (empty($properties)) {
+            if (empty($listings)) {
                 Log::info("No properties found at {$address}, trying broader search");
-                
-                // Reset and search for any Toronto properties as fallback
-                $this->ampreApi->resetFilters();
-                $this->ampreApi->setSelect([
-                    'ListingKey',
-                    'BedroomsTotal',
-                    'BathroomsTotalInteger',
-                    'UnparsedAddress',
-                    'ListPrice',
-                    'TransactionType',
-                    'City',
-                    'StateOrProvince',
-                    'PostalCode',
-                    'PropertySubType',
-                    'PropertyType',
-                    'StandardStatus',
-                    'LivingAreaRange',
-                    'AboveGradeFinishedArea',
-                    'ParkingTotal',
-                    'PublicRemarks',
-                    'ListOfficeName',
-                    'UnitNumber',
-                    'StreetNumber',
-                    'StreetName',
-                    'StreetSuffix'
-                ]);
-                
-                $this->ampreApi->setTop(12); // Limited to 12 for carousel display
-                $this->ampreApi->setSkip(0);
-                $this->ampreApi->addFilter('TransactionType', $transactionType);
-                $this->ampreApi->addFilter('StandardStatus', 'Active');
-                // Show all property types, not just condos
-                // $this->ampreApi->addFilter('PropertySubType', 'Condo Apartment');
-                
+
                 // Try to find properties on the same street (any number)
                 $streetName = implode(' ', array_slice(explode(' ', $address), 1));
+                $broaderMinPrice = ($transactionType === 'For Sale') ? 400000 : 2000;
+                $broaderMaxPrice = ($transactionType === 'For Sale') ? 2000000 : 5000;
+
+                $broaderParams = [
+                    'status' => 'A',
+                    'type' => $type,
+                    'city' => 'Toronto',
+                    'minPrice' => $broaderMinPrice,
+                    'maxPrice' => $broaderMaxPrice,
+                    'resultsPerPage' => 12,
+                    'sortBy' => 'priceDesc',
+                ];
+
                 if (!empty($streetName)) {
-                    $this->ampreApi->addCustomFilter("contains(UnparsedAddress, '{$streetName}')");
+                    $broaderParams['search'] = $streetName;
                 }
-                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-                
-                // Add reasonable price filter
-                if ($transactionType === 'For Sale') {
-                    $this->ampreApi->setPriceRange(400000, 2000000); // Premium condos
-                } else {
-                    $this->ampreApi->setPriceRange(2000, 5000); // Premium rentals
-                }
-                
-                $this->ampreApi->setOrderBy('ListPrice desc');
-                
-                $apiResult = $this->ampreApi->fetchPropertiesWithCount();
-                $properties = $apiResult['properties'] ?? [];
-                
+
+                $apiResult = $this->repliersApi->searchListings($broaderParams);
+                $listings = $apiResult['listings'] ?? [];
+
                 Log::info("Broader {$streetName} search - {$transactionType}", [
-                    'count' => count($properties),
+                    'count' => count($listings),
                     'total' => $apiResult['count'] ?? 0
                 ]);
             }
 
-            // Add images to properties
-            if (!empty($properties)) {
-                $properties = $this->addPropertyImages($properties);
-            }
-
             // Format properties for frontend
-            return $this->formatPropertiesForCarousel($properties, $transactionType);
+            return $this->formatRepliersListingsForCarousel($listings, $transactionType);
 
         } catch (Exception $e) {
             Log::error("Error fetching {$transactionType} properties: " . $e->getMessage());
@@ -506,172 +348,59 @@ class HomepagePropertiesController extends Controller
     }
 
     /**
-     * Add images to properties
+     * Format Repliers listings for carousel display
      */
-    private function addPropertyImages(array $properties)
-    {
-        if (empty($properties)) {
-            return $properties;
-        }
-
-        $listingKeys = array_column($properties, 'ListingKey');
-
-        try {
-            // Fetch images in smaller batches for better reliability
-            $batchSize = 3;
-            $imagesByKey = [];
-            
-            foreach (array_chunk($listingKeys, $batchSize) as $batch) {
-                $batchImages = $this->ampreApi->getPropertiesImages($batch);
-                $imagesByKey = array_merge($imagesByKey, $batchImages);
-                
-                // Log batch results for debugging
-                Log::info('Image batch fetched', [
-                    'batch' => $batch,
-                    'image_count' => count($batchImages)
-                ]);
-            }
-
-            foreach ($properties as $index => $property) {
-                $listingKey = $property['ListingKey'] ?? null;
-                $propertyImages = $imagesByKey[$listingKey] ?? [];
-
-                // Get the first valid image URL - be less strict with validation
-                $imageUrl = null;
-                foreach ($propertyImages as $img) {
-                    if (!empty($img['MediaURL'])) {
-                        // More lenient validation - just check if it's not empty
-                        $candidateUrl = trim($img['MediaURL']);
-                        if (strlen($candidateUrl) > 10) {
-                            $imageUrl = $candidateUrl;
-                            break;
-                        }
-                    }
-                }
-
-                $properties[$index]['MediaURL'] = $imageUrl;
-                $properties[$index]['Images'] = array_slice($propertyImages, 0, 10); // Show more images
-                
-                // Log image results for debugging
-                if ($imageUrl) {
-                    Log::info('Image found for property', [
-                        'listing_key' => $listingKey,
-                        'image_url' => substr($imageUrl, 0, 50) . '...'
-                    ]);
-                } else {
-                    Log::warning('No image found for property', [
-                        'listing_key' => $listingKey,
-                        'image_count' => count($propertyImages)
-                    ]);
-                }
-            }
-
-        } catch (Exception $e) {
-            Log::error('Error fetching property images: ' . $e->getMessage());
-            
-            foreach ($properties as $index => $property) {
-                $properties[$index]['MediaURL'] = null;
-                $properties[$index]['Images'] = [];
-            }
-        }
-
-        return $properties;
-    }
-
-    /**
-     * Check if URL is valid for an image
-     */
-    private function isValidImageUrl($url)
-    {
-        if (empty($url)) {
-            return false;
-        }
-        
-        // Check if it starts with http, https, or //
-        if (!str_starts_with($url, 'http://') && 
-            !str_starts_with($url, 'https://') && 
-            !str_starts_with($url, '//')) {
-            return false;
-        }
-        
-        // Check if URL is not just a placeholder or invalid format
-        if (strlen($url) < 10 || !filter_var($url, FILTER_VALIDATE_URL)) {
-            return false;
-        }
-        
-        return true;
-    }
-
-    /**
-     * Format properties for carousel display
-     */
-    private function formatPropertiesForCarousel(array $properties, string $transactionType)
+    private function formatRepliersListingsForCarousel(array $listings, string $transactionType)
     {
         $formatted = [];
         $isRental = in_array($transactionType, ['For Lease', 'For Rent']);
 
-        foreach ($properties as $property) {
-            // Try to get image from multiple sources
-            $imageUrl = null;
-            
-            // First try the fetched MediaURL (from addPropertyImages)
-            if (!empty($property['MediaURL'])) {
-                $imageUrl = $property['MediaURL'];
-            }
-            // If no fetched image, try the original MediaURL from API response
-            elseif (!empty($property['MediaURL'])) {
-                $imageUrl = $property['MediaURL'];
-            }
-            // If still no image, try from Images array
-            elseif (!empty($property['Images']) && is_array($property['Images'])) {
-                foreach ($property['Images'] as $img) {
-                    if (!empty($img['MediaURL'])) {
-                        $imageUrl = $img['MediaURL'];
-                        break;
-                    }
-                }
-            }
-            
+        foreach ($listings as $listing) {
+            // Get images from Repliers listing
+            $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+            $imageUrl = !empty($imageUrls) ? $imageUrls[0] : null;
+
+            $address = $listing['address']['unparsedAddress']
+                ?? (($listing['address']['streetNumber'] ?? '') . ' ' . ($listing['address']['streetName'] ?? '') . ' ' . ($listing['address']['streetSuffix'] ?? ''))
+                ?? '';
+
             $formatted[] = [
-                'id' => uniqid(), // Generate unique ID for React key
-                'listingKey' => $property['ListingKey'] ?? '',
-                'imageUrl' => $imageUrl, // Use the best available image URL - changed to imageUrl
-                'image' => $imageUrl, // Keep for backward compatibility
-                'images' => $property['Images'] ?? [],
-                'price' => $property['ListPrice'] ?? 0,
-                'propertyType' => $property['PropertySubType'] ?? 'Property',
-                'transactionType' => $property['TransactionType'] ?? $transactionType,
-                'bedrooms' => $property['BedroomsTotal'] ?? 0,
-                'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
-                'address' => $property['UnparsedAddress'] ?? '',
-                'city' => $property['City'] ?? '',
-                'postalCode' => $property['PostalCode'] ?? '',
-                'sqft' => $property['LivingAreaRange'] ?? $property['AboveGradeFinishedArea'] ?? 0,
-                'LivingAreaRange' => $property['LivingAreaRange'] ?? '',
-                'livingAreaRange' => $property['LivingAreaRange'] ?? '',
-                'AboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? '',
-                'parking' => $property['ParkingTotal'] ?? 0,
-                'description' => $property['PublicRemarks'] ?? '',
+                'id' => $listing['mlsNumber'] ?? uniqid(),
+                'listingKey' => $listing['mlsNumber'] ?? '',
+                'imageUrl' => $imageUrl,
+                'image' => $imageUrl,
+                'images' => $imageUrls,
+                'price' => $listing['listPrice'] ?? 0,
+                'propertyType' => $listing['details']['propertyType'] ?? 'Property',
+                'transactionType' => $listing['type'] ?? $transactionType,
+                'bedrooms' => $listing['details']['numBedrooms'] ?? 0,
+                'bathrooms' => $listing['details']['numBathrooms'] ?? 0,
+                'address' => trim($address),
+                'city' => $listing['address']['city'] ?? '',
+                'postalCode' => $listing['address']['zip'] ?? '',
+                'sqft' => $listing['details']['sqft'] ?? '',
+                'LivingAreaRange' => $listing['details']['sqft'] ?? '',
+                'livingAreaRange' => $listing['details']['sqft'] ?? '',
+                'parking' => $listing['details']['numParkingSpaces'] ?? 0,
+                'description' => $listing['details']['description'] ?? '',
                 'isRental' => $isRental,
-                'source' => 'mls', // Mark as real MLS data
-                // Add all MLS fields needed for formatters (both cases for compatibility)
-                'UnitNumber' => $property['UnitNumber'] ?? '',
-                'unitNumber' => $property['UnitNumber'] ?? '',
-                'StreetNumber' => $property['StreetNumber'] ?? '',
-                'streetNumber' => $property['StreetNumber'] ?? '',
-                'StreetName' => $property['StreetName'] ?? '',
-                'streetName' => $property['StreetName'] ?? '',
-                'StreetSuffix' => $property['StreetSuffix'] ?? '',
-                'streetSuffix' => $property['StreetSuffix'] ?? '',
-                'AboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? '',
-                'ParkingTotal' => $property['ParkingTotal'] ?? 0,
-                'parkingTotal' => $property['ParkingTotal'] ?? 0,
-                'ListOfficeName' => $property['ListOfficeName'] ?? '',
-                'listOfficeName' => $property['ListOfficeName'] ?? '',
-                'BedroomsTotal' => $property['BedroomsTotal'] ?? 0,
-                'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
-                'BathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0,
-                'bathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0
+                'source' => 'mls',
+                'UnitNumber' => $listing['address']['unitNumber'] ?? '',
+                'unitNumber' => $listing['address']['unitNumber'] ?? '',
+                'StreetNumber' => $listing['address']['streetNumber'] ?? '',
+                'streetNumber' => $listing['address']['streetNumber'] ?? '',
+                'StreetName' => $listing['address']['streetName'] ?? '',
+                'streetName' => $listing['address']['streetName'] ?? '',
+                'StreetSuffix' => $listing['address']['streetSuffix'] ?? '',
+                'streetSuffix' => $listing['address']['streetSuffix'] ?? '',
+                'ParkingTotal' => $listing['details']['numParkingSpaces'] ?? 0,
+                'parkingTotal' => $listing['details']['numParkingSpaces'] ?? 0,
+                'ListOfficeName' => $listing['office']['brokerageName'] ?? '',
+                'listOfficeName' => $listing['office']['brokerageName'] ?? '',
+                'BedroomsTotal' => $listing['details']['numBedrooms'] ?? 0,
+                'bedroomsTotal' => $listing['details']['numBedrooms'] ?? 0,
+                'BathroomsTotalInteger' => $listing['details']['numBathrooms'] ?? 0,
+                'bathroomsTotalInteger' => $listing['details']['numBathrooms'] ?? 0,
             ];
         }
 

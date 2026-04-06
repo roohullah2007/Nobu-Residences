@@ -169,17 +169,9 @@ const PluginStyleImageLoader = ({
           return;
         }
 
-        // For AMPRE images, convert HTTPS to HTTP to avoid SSL issues
-        let processedSrc = srcString;
-        if (srcString.includes('ampre.ca') && srcString.startsWith('https://')) {
-          // Convert to HTTP - AMPRE CDN works with HTTP
-          processedSrc = srcString.replace('https://', 'http://');
-          console.log('Converting AMPRE image to HTTP:', processedSrc.substring(0, 60) + '...');
-        }
-
         // Check if it's a full URL, relative URL, or starts with http/https
-        if (processedSrc.startsWith('http://') || processedSrc.startsWith('https://') || processedSrc.startsWith('//') || processedSrc.startsWith('/')) {
-          loadImage(processedSrc, 0);
+        if (srcString.startsWith('http://') || srcString.startsWith('https://') || srcString.startsWith('//') || srcString.startsWith('/')) {
+          loadImage(srcString, 0);
         } else {
           // Not a valid URL, show error state
           setImageState(prev => ({

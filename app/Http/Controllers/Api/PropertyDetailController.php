@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MLSProperty;
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -12,270 +12,272 @@ use Illuminate\Support\Facades\Cache;
 
 class PropertyDetailController extends Controller
 {
-    private AmpreApiService $ampreApi;
-    
-    public function __construct(AmpreApiService $ampreApi)
+    private RepliersApiService $repliersApi;
+
+    public function __construct(RepliersApiService $repliersApi)
     {
-        $this->ampreApi = $ampreApi;
+        $this->repliersApi = $repliersApi;
     }
-    
+
     /**
-     * Get property details by listing key
+     * Get property details by listing key (MLS number)
      */
     public function getPropertyDetail(Request $request): JsonResponse
     {
         $listingKey = $request->input('listingKey');
-        
+
         if (!$listingKey) {
             return response()->json(['error' => 'Listing key is required'], 400);
         }
-        
+
         try {
-            // Cache key for this property
-            $cacheKey = 'property_detail_' . $listingKey;
-            
-            // DEBUGGING: Temporarily disable cache to see fresh data
-            // $cachedData = Cache::get($cacheKey);
-            // if ($cachedData) {
-            //     return response()->json($cachedData);
-            // }
-            
-            // Fetch property details from AMPRE API
-            $property = $this->ampreApi->getPropertyByKey($listingKey);
-            
-            if (!$property) {
+            // First try to get from database (has full mls_data JSON)
+            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+
+            $listing = null;
+
+            if ($mlsProperty && !empty($mlsProperty->mls_data)) {
+                $listing = $mlsProperty->mls_data;
+            } else {
+                // Fallback: fetch from Repliers API
+                $listing = $this->repliersApi->getListingByMlsNumber($listingKey);
+            }
+
+            if (!$listing) {
                 return response()->json(['error' => 'Property not found'], 404);
             }
-            
-            // DEBUGGING: Log the raw property data to see what fields are available
-            Log::info('Raw property data from API:', [
-                'listingKey' => $listingKey,
-                'dateFields' => [
-                    'ListingContractDate' => $property['ListingContractDate'] ?? 'NOT_FOUND',
-                    'OnMarketDate' => $property['OnMarketDate'] ?? 'NOT_FOUND',
-                    'ModificationTimestamp' => $property['ModificationTimestamp'] ?? 'NOT_FOUND',
-                    'ListDate' => $property['ListDate'] ?? 'NOT_FOUND',
-                    'DaysOnMarket' => $property['DaysOnMarket'] ?? 'NOT_FOUND',
-                    'CumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? 'NOT_FOUND',
-                ],
-                'allKeys' => array_keys($property)
-            ]);
-            
-            // Fetch property images from DATABASE first (no API call)
-            $images = $this->getImagesFromDatabase($listingKey);
-            
-            // DEBUGGING: Log the formatted data being sent to frontend
-            $formattedProperty = $this->formatPropertyData($property);
-            Log::info('Formatted property data being sent to frontend:', [
-                'listingKey' => $listingKey,
-                'dateFieldsFormatted' => [
-                    'ListingContractDate' => $formattedProperty['ListingContractDate'] ?? 'NOT_FOUND',
-                    'listingContractDate' => $formattedProperty['listingContractDate'] ?? 'NOT_FOUND',
-                    'OnMarketDate' => $formattedProperty['OnMarketDate'] ?? 'NOT_FOUND',
-                    'onMarketDate' => $formattedProperty['onMarketDate'] ?? 'NOT_FOUND',
-                    'DaysOnMarket' => $formattedProperty['DaysOnMarket'] ?? 'NOT_FOUND',
-                    'daysOnMarket' => $formattedProperty['daysOnMarket'] ?? 'NOT_FOUND',
-                ]
-            ]);
-            
-            // Make sure the date is properly formatted and passed through
-            if ($formattedProperty['ListingContractDate']) {
-                Log::info('Found ListingContractDate in property data: ' . $formattedProperty['ListingContractDate']);
-            }
-            
-            // Try to find building data by matching address
-            $buildingData = null;
-            if (!empty($formattedProperty['address'])) {
-                // Extract building address from property address
-                $addressParts = explode(',', $formattedProperty['address']);
-                if (count($addressParts) > 0) {
-                    $buildingAddress = trim($addressParts[0]);
-                    // Remove unit number if present
-                    $buildingAddress = preg_replace('/^(\d+\s*-\s*)?/', '', $buildingAddress);
 
-                    // Try to find building by address
-                    $building = \App\Models\Building::with('amenities')
-                        ->where('address', 'LIKE', '%' . $buildingAddress . '%')
-                        ->first();
+            // Get images from database or listing data
+            $images = $this->getImagesForListing($listingKey, $listing);
 
-                    if ($building) {
-                        $buildingData = [
-                            'id' => $building->id,
-                            'name' => $building->name,
-                            'slug' => $building->slug,
-                            'address' => $building->address,
-                            'main_image' => $building->main_image,
-                            'units_for_sale' => $building->units_for_sale,
-                            'units_for_rent' => $building->units_for_rent,
-                            'amenities' => $building->amenities()->get()->map(function($amenity) {
-                                return [
-                                    'id' => $amenity->id,
-                                    'name' => $amenity->name,
-                                    'icon' => $amenity->icon,
-                                    'category' => $amenity->category
-                                ];
-                            })->toArray()
-                        ];
-                        Log::info('Found building for API property: ', ['building' => $building->name, 'amenities_count' => count($buildingData['amenities'])]);
-                    }
-                }
-            }
+            // Format property data for frontend
+            $formattedProperty = $this->formatPropertyData($listing);
 
-            // Format the response
+            // Try to find building data
+            $buildingData = $this->findBuildingData($formattedProperty);
+
             $responseData = [
                 'property' => $formattedProperty,
-                'images' => $this->formatImages($images, $listingKey),
-                'buildingData' => $buildingData
+                'images' => $images,
+                'buildingData' => $buildingData,
             ];
-            
-            // Cache for 5 minutes - DEBUGGING: Disable cache temporarily
-            // Cache::put($cacheKey, $responseData, 300);
-            
+
             return response()->json($responseData);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to fetch property detail: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to fetch property details'], 500);
         }
     }
-    
+
     /**
-     * Format property data for frontend
+     * Format Repliers listing data for frontend
      */
-    private function formatPropertyData($property): array
+    private function formatPropertyData(array $listing): array
     {
+        // Detect format: Repliers has nested 'address', AMPRE has flat 'City'
+        $isRepliers = isset($listing['address']) && is_array($listing['address']);
+
+        if ($isRepliers) {
+            $address = $listing['address'] ?? [];
+            $details = $listing['details'] ?? [];
+            $map = $listing['map'] ?? [];
+            $condominium = $listing['condominium'] ?? [];
+            $lot = $listing['lot'] ?? [];
+            $taxes = $listing['taxes'] ?? [];
+            $timestamps = $listing['timestamps'] ?? [];
+            $office = $listing['office'] ?? [];
+            $agents = $listing['agents'] ?? [];
+            $listAgent = $agents[0] ?? [];
+
+            $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+            if (!empty($address['unitNumber'])) {
+                $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+            }
+        } else {
+            // Old AMPRE flat format
+            $address = [];
+            $details = [];
+            $map = [];
+            $condominium = [];
+            $lot = [];
+            $taxes = [];
+            $timestamps = [];
+            $office = [];
+            $agents = [];
+            $listAgent = [];
+
+            $fullAddress = $listing['UnparsedAddress'] ?? '';
+        }
+
+        // Helper to get field from either format
+        $get = function(string $repliersPath, string $ampreKey, $default = '') use ($listing, $isRepliers, $address, $details, $map, $condominium, $office, $timestamps) {
+            if ($isRepliers) {
+                $parts = explode('.', $repliersPath);
+                $val = $listing;
+                foreach ($parts as $p) { $val = $val[$p] ?? null; if ($val === null) break; }
+                return $val ?? $default;
+            }
+            return $listing[$ampreKey] ?? $default;
+        };
+
         return [
-            'listingKey' => $property['ListingKey'] ?? '',
-            'address' => $property['UnparsedAddress'] ?? '',
-            'streetNumber' => $property['StreetNumber'] ?? '',
-            'streetName' => $property['StreetName'] ?? '',
-            'streetSuffix' => $property['StreetSuffix'] ?? '',
-            'unitNumber' => $property['UnitNumber'] ?? '',
-            'city' => $property['City'] ?? '',
-            'province' => $property['StateOrProvince'] ?? '',
-            'postalCode' => $property['PostalCode'] ?? '',
-            'country' => $property['Country'] ?? 'Canada',
-            
+            'listingKey' => $get('mlsNumber', 'ListingKey'),
+            'address' => $fullAddress,
+            'streetNumber' => $get('address.streetNumber', 'StreetNumber'),
+            'streetName' => $get('address.streetName', 'StreetName'),
+            'streetSuffix' => $get('address.streetSuffix', 'StreetSuffix'),
+            'unitNumber' => $get('address.unitNumber', 'UnitNumber'),
+            'city' => $get('address.city', 'City'),
+            'province' => $get('address.state', 'StateOrProvince', 'ON'),
+            'postalCode' => $get('address.zip', 'PostalCode'),
+            'country' => $get('address.country', 'Country', 'Canada'),
+
             // Pricing
-            'listPrice' => $property['ListPrice'] ?? 0,
-            'originalListPrice' => $property['OriginalListPrice'] ?? null,
-            'closePrice' => $property['ClosePrice'] ?? null,
-            
+            'listPrice' => $get('listPrice', 'ListPrice', 0),
+            'originalListPrice' => $get('originalPrice', 'OriginalListPrice'),
+            'closePrice' => $get('soldPrice', 'ClosePrice'),
+
             // Property details
-            'propertyType' => $property['PropertyType'] ?? '',
-            'propertySubType' => $property['PropertySubType'] ?? '',
-            'transactionType' => $property['TransactionType'] ?? 'For Sale',
-            'standardStatus' => $property['StandardStatus'] ?? '',
-            'mlsStatus' => $property['MlsStatus'] ?? '',
-            
+            'propertyType' => $get('details.propertyType', 'PropertyType'),
+            'propertySubType' => $isRepliers ? ($details['style'] ?? $details['propertyType'] ?? '') : ($listing['PropertySubType'] ?? ''),
+            'transactionType' => $isRepliers ? ucfirst($listing['type'] ?? 'Sale') : ($listing['TransactionType'] ?? 'For Sale'),
+            'standardStatus' => $isRepliers
+                ? $this->mapRepliersStatusToReadable($listing['status'] ?? 'A', $listing['lastStatus'] ?? '')
+                : ($listing['StandardStatus'] ?? 'Active'),
+            'mlsStatus' => $isRepliers ? ($listing['lastStatus'] ?? '') : ($listing['MlsStatus'] ?? ''),
+
             // Rooms and spaces
-            'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
-            'bathroomsTotal' => $property['BathroomsTotalInteger'] ?? 0,
-            'bathroomsFull' => $property['BathroomsFull'] ?? 0,
-            'bathroomsHalf' => $property['BathroomsHalf'] ?? 0,
-            'bathroomsThreeQuarter' => $property['BathroomsThreeQuarter'] ?? 0,
-            
+            'bedroomsTotal' => $isRepliers
+                ? (($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0))
+                : ($listing['BedroomsTotal'] ?? 0),
+            'bathroomsTotal' => $isRepliers
+                ? (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0))
+                : ($listing['BathroomsTotalInteger'] ?? 0),
+            'bathroomsFull' => $isRepliers ? ($details['numBathrooms'] ?? 0) : ($listing['BathroomsFull'] ?? 0),
+            'bathroomsHalf' => $isRepliers ? ($details['numBathroomsPlus'] ?? 0) : ($listing['BathroomsHalf'] ?? 0),
+            'bathroomsThreeQuarter' => 0,
+
             // Size and dimensions
-            'livingArea' => $property['LivingArea'] ?? null,
-            'livingAreaUnits' => $property['LivingAreaUnits'] ?? 'sqft',
-            'lotSizeArea' => $property['LotSizeArea'] ?? null,
-            'lotSizeUnits' => $property['LotSizeUnits'] ?? 'sqft',
-            'aboveGradeFinishedArea' => $property['AboveGradeFinishedArea'] ?? null,
-            'belowGradeFinishedArea' => $property['BelowGradeFinishedArea'] ?? null,
-            
-            // Year and dates - FIXED: Include all date fields for Days on Market
-            'yearBuilt' => $property['YearBuilt'] ?? null,
-            'ListingContractDate' => $property['ListingContractDate'] ?? null, // Keep original case
-            'listingContractDate' => $property['ListingContractDate'] ?? null, // Camel case version
-            'OnMarketDate' => $property['OnMarketDate'] ?? null, // Keep original case
-            'onMarketDate' => $property['OnMarketDate'] ?? null, // Camel case version
-            'OriginalOnMarketTimestamp' => $property['OriginalOnMarketTimestamp'] ?? null,
-            'originalOnMarketTimestamp' => $property['OriginalOnMarketTimestamp'] ?? null,
-            'ModificationTimestamp' => $property['ModificationTimestamp'] ?? null, // Keep original case
-            'modificationTimestamp' => $property['ModificationTimestamp'] ?? null, // Camel case version
-            'ListDate' => $property['ListDate'] ?? null, // Keep original case
-            'listDate' => $property['ListDate'] ?? null, // Camel case version
-            'CloseDate' => $property['CloseDate'] ?? null, // Keep original case
-            'closeDate' => $property['CloseDate'] ?? null, // Camel case version
-            'DaysOnMarket' => $property['DaysOnMarket'] ?? null, // Keep original case
-            'daysOnMarket' => $property['DaysOnMarket'] ?? null, // Camel case version
-            'CumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? null,
-            'cumulativeDaysOnMarket' => $property['CumulativeDaysOnMarket'] ?? null,
-            
+            'livingArea' => $isRepliers ? ($details['sqft'] ?? null) : ($listing['LivingAreaRange'] ?? $listing['LivingArea'] ?? $listing['AboveGradeFinishedArea'] ?? null),
+            'livingAreaUnits' => 'sqft',
+            'lotSizeArea' => $isRepliers ? ($lot['size'] ?? null) : ($listing['LotSizeArea'] ?? null),
+            'lotSizeUnits' => 'sqft',
+            'aboveGradeFinishedArea' => null,
+            'belowGradeFinishedArea' => null,
+
+            // Year and dates
+            'yearBuilt' => $get('details.yearBuilt', 'YearBuilt'),
+            'ListingContractDate' => $get('listDate', 'ListingContractDate'),
+            'listingContractDate' => $get('listDate', 'ListingContractDate'),
+            'OnMarketDate' => $get('listDate', 'OnMarketDate'),
+            'onMarketDate' => $get('listDate', 'OnMarketDate'),
+            'OriginalOnMarketTimestamp' => null,
+            'originalOnMarketTimestamp' => null,
+            'ModificationTimestamp' => $get('timestamps.listingUpdated', 'ModificationTimestamp'),
+            'modificationTimestamp' => $get('timestamps.listingUpdated', 'ModificationTimestamp'),
+            'ListDate' => $get('listDate', 'ListDate'),
+            'listDate' => $get('listDate', 'ListDate'),
+            'CloseDate' => $get('soldDate', 'CloseDate'),
+            'closeDate' => $get('soldDate', 'CloseDate'),
+            'DaysOnMarket' => $isRepliers ? ($listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? null) : ($listing['DaysOnMarket'] ?? null),
+            'daysOnMarket' => $isRepliers ? ($listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? null) : ($listing['DaysOnMarket'] ?? null),
+            'CumulativeDaysOnMarket' => $get('daysOnMarket', 'CumulativeDaysOnMarket'),
+            'cumulativeDaysOnMarket' => $get('daysOnMarket', 'CumulativeDaysOnMarket'),
+
             // Parking
-            'parkingTotal' => $property['ParkingTotal'] ?? 0,
-            'garageSpaces' => $property['GarageSpaces'] ?? 0,
-            'coveredSpaces' => $property['CoveredSpaces'] ?? 0,
-            'openParkingSpaces' => $property['OpenParkingSpaces'] ?? 0,
-            'parkingFeatures' => $property['ParkingFeatures'] ?? [],
-            
+            'parkingTotal' => $isRepliers ? ($details['numParkingSpaces'] ?? 0) : ($listing['ParkingTotal'] ?? 0),
+            'garageSpaces' => $isRepliers ? ($details['numGarageSpaces'] ?? 0) : ($listing['GarageSpaces'] ?? 0),
+            'coveredSpaces' => 0,
+            'openParkingSpaces' => 0,
+            'parkingFeatures' => [],
+
             // Description
-            'publicRemarks' => $property['PublicRemarks'] ?? '',
-            'privateRemarks' => $property['PrivateRemarks'] ?? '',
-            
+            'publicRemarks' => $isRepliers ? ($details['description'] ?? '') : ($listing['PublicRemarks'] ?? ''),
+            'privateRemarks' => '',
+
             // Features and amenities
-            'features' => $property['Features'] ?? [],
-            'appliances' => $property['Appliances'] ?? [],
-            'heating' => $property['Heating'] ?? [],
-            'cooling' => $property['Cooling'] ?? [],
-            'fireplaceFeatures' => $property['FireplaceFeatures'] ?? [],
-            'flooring' => $property['Flooring'] ?? [],
-            'interiorFeatures' => $property['InteriorFeatures'] ?? [],
-            'exteriorFeatures' => $property['ExteriorFeatures'] ?? [],
-            'poolFeatures' => $property['PoolFeatures'] ?? [],
-            'waterSource' => $property['WaterSource'] ?? [],
-            'sewer' => $property['Sewer'] ?? [],
-            'utilities' => $property['Utilities'] ?? [],
-            'view' => $property['View'] ?? [],
-            
+            'features' => [],
+            'appliances' => [],
+            'heating' => $isRepliers ? ($details['heating'] ?? '') : ($listing['Heating'] ?? ''),
+            'cooling' => $isRepliers ? ($details['airConditioning'] ?? '') : ($listing['Cooling'] ?? ''),
+            'fireplaceFeatures' => [],
+            'flooring' => [],
+            'interiorFeatures' => [],
+            'exteriorFeatures' => [],
+            'poolFeatures' => $details['swimmingPool'] ?? '',
+            'waterSource' => [],
+            'sewer' => [],
+            'utilities' => [],
+            'view' => [],
+
             // Building and construction
-            'architecturalStyle' => $property['ArchitecturalStyle'] ?? [],
-            'constructionMaterials' => $property['ConstructionMaterials'] ?? [],
-            'foundation' => $property['FoundationDetails'] ?? [],
-            'roof' => $property['Roof'] ?? [],
-            'stories' => $property['Stories'] ?? null,
-            'storiesTotal' => $property['StoriesTotal'] ?? null,
-            
+            'architecturalStyle' => $details['style'] ?? '',
+            'constructionMaterials' => $details['exteriorConstruction1'] ?? '',
+            'foundation' => [],
+            'roof' => [],
+            'stories' => $condominium['stories'] ?? null,
+            'storiesTotal' => $condominium['stories'] ?? null,
+
             // HOA and fees
-            'associationFee' => $property['AssociationFee'] ?? null,
-            'associationFeeFrequency' => $property['AssociationFeeFrequency'] ?? null,
-            'associationName' => $property['AssociationName'] ?? null,
-            'associationAmenities' => $property['AssociationAmenities'] ?? [],
-            
+            'associationFee' => $isRepliers
+                ? ($condominium['fees']['maintenance'] ?? $details['maintenanceFee'] ?? null)
+                : ($listing['AssociationFee'] ?? null),
+            'associationFeeFrequency' => $isRepliers ? 'Monthly' : ($listing['AssociationFeeFrequency'] ?? 'Monthly'),
+            'associationName' => $isRepliers ? ($condominium['condoCorp'] ?? null) : ($listing['AssociationName'] ?? null),
+            'associationAmenities' => $isRepliers ? ($condominium['amenities'] ?? []) : ($listing['AssociationAmenities'] ?? []),
+
             // Tax
-            'taxYear' => $property['TaxYear'] ?? null,
-            'taxAnnualAmount' => $property['TaxAnnualAmount'] ?? null,
-            'taxAssessedValue' => $property['TaxAssessedValue'] ?? null,
-            
+            'taxYear' => $isRepliers
+                ? (!empty($taxes) ? ($taxes['assessmentYear'] ?? (isset($taxes[0]) ? ($taxes[0]['assessmentYear'] ?? null) : null)) : null)
+                : ($listing['TaxYear'] ?? $listing['AssessmentYear'] ?? null),
+            'taxAnnualAmount' => $isRepliers
+                ? (!empty($taxes) ? ($taxes['annualAmount'] ?? (isset($taxes[0]) ? ($taxes[0]['annualAmount'] ?? null) : null)) : null)
+                : ($listing['TaxAnnualAmount'] ?? null),
+            'taxAssessedValue' => null,
+
             // Location
-            'latitude' => $property['Latitude'] ?? null,
-            'longitude' => $property['Longitude'] ?? null,
-            'directions' => $property['Directions'] ?? '',
-            'crossStreet' => $property['CrossStreet'] ?? '',
-            
+            'latitude' => $isRepliers ? ($map['latitude'] ?? null) : ($listing['Latitude'] ?? null),
+            'longitude' => $isRepliers ? ($map['longitude'] ?? null) : ($listing['Longitude'] ?? null),
+            'directions' => '',
+            'crossStreet' => $isRepliers ? ($address['majorIntersection'] ?? '') : ($listing['CrossStreet'] ?? ''),
+
             // Listing information
-            'listingId' => $property['ListingId'] ?? '',
-            'listOfficeName' => $property['ListOfficeName'] ?? '',
-            'listOfficePhone' => $property['ListOfficePhone'] ?? '',
-            'listAgentFullName' => $property['ListAgentFullName'] ?? '',
-            'listAgentDirectPhone' => $property['ListAgentDirectPhone'] ?? '',
-            'listAgentEmail' => $property['ListAgentEmail'] ?? '',
-            
+            'listingId' => $get('mlsNumber', 'ListingKey'),
+            'listOfficeName' => $isRepliers ? ($office['brokerageName'] ?? '') : ($listing['ListOfficeName'] ?? ''),
+            'listOfficePhone' => $listing['ListOfficePhone'] ?? '',
+            'listAgentFullName' => $isRepliers ? ($listAgent['name'] ?? '') : ($listing['ListAgentFullName'] ?? ''),
+            'listAgentDirectPhone' => $isRepliers ? ($listAgent['phone'] ?? '') : ($listing['ListAgentDirectPhone'] ?? ''),
+            'listAgentEmail' => $isRepliers ? ($listAgent['email'] ?? '') : ($listing['ListAgentEmail'] ?? ''),
+
             // Virtual tour
-            'virtualTourURLUnbranded' => $property['VirtualTourURLUnbranded'] ?? '',
-            
+            'virtualTourURLUnbranded' => $isRepliers ? ($details['virtualTourUrl'] ?? '') : ($listing['VirtualTourURLUnbranded'] ?? ''),
+
             // Additional info
-            'disclaimer' => $property['Disclaimer'] ?? '',
-            'disclosures' => $property['Disclosures'] ?? [],
-            'exclusions' => $property['Exclusions'] ?? '',
-            'inclusions' => $property['Inclusions'] ?? '',
-            'ownership' => $property['Ownership'] ?? '',
-            'possessionDate' => $property['PossessionDate'] ?? null,
-            'zoning' => $property['Zoning'] ?? '',
-            'zoningDescription' => $property['ZoningDescription'] ?? '',
+            'disclaimer' => '',
+            'disclosures' => [],
+            'exclusions' => '',
+            'inclusions' => '',
+            'ownership' => '',
+            'possessionDate' => $timestamps['possessionDate'] ?? null,
+            'zoning' => '',
+            'zoningDescription' => '',
+
+            // Additional fields
+            'boardId' => $listing['boardId'] ?? null,
+            'photoCount' => $listing['photoCount'] ?? 0,
+            'exposure' => $isRepliers ? ($condominium['exposure'] ?? $details['exposure'] ?? '') : ($listing['Exposure'] ?? ''),
+            'Exposure' => $isRepliers ? ($condominium['exposure'] ?? $details['exposure'] ?? '') : ($listing['Exposure'] ?? ''),
+            'pets' => $condominium['pets'] ?? '',
+            'locker' => $condominium['locker'] ?? '',
+            'balcony' => $details['balcony'] ?? '',
+            'den' => $details['den'] ?? '',
+            'elevator' => $details['elevator'] ?? '',
+            'basement' => $details['basement1'] ?? '',
+            'garage' => $details['garage'] ?? '',
         ];
     }
-    
+
     /**
      * Get nearby listings for a property
      */
@@ -283,344 +285,285 @@ class PropertyDetailController extends Controller
     {
         $listingKey = $request->input('listingKey');
         $limit = $request->input('limit', 6);
-        
+
         if (!$listingKey) {
             return response()->json(['error' => 'Listing key is required'], 400);
         }
-        
+
         try {
-            // Get the main property first to get its location
-            $property = $this->ampreApi->getPropertyByKey($listingKey);
-            
-            if (!$property) {
-                return response()->json(['error' => 'Property not found'], 404);
-            }
-            
-            $latitude = $property['Latitude'] ?? null;
-            $longitude = $property['Longitude'] ?? null;
-            
-            if (!$latitude || !$longitude) {
+            // Get the main property from database
+            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+
+            if (!$mlsProperty) {
                 return response()->json(['properties' => []]);
             }
-            
-            // Configure AMPRE API for nearby search
-            $this->ampreApi->resetFilters();
-            $this->ampreApi->setSelect([
-                'ListingKey', 'UnparsedAddress', 'StreetNumber', 'StreetName', 'StreetSuffix',
-                'UnitNumber', 'City', 'StateOrProvince', 'ListPrice', 'PropertyType',
-                'PropertySubType', 'TransactionType', 'BedroomsTotal', 'BathroomsTotalInteger',
-                'LivingArea', 'ParkingTotal', 'ListOfficeName', 'Latitude', 'Longitude',
-                'StandardStatus', 'MlsStatus'
+
+            $city = $mlsProperty->city ?? 'Toronto';
+
+            // Search for nearby listings in the same city
+            $result = $this->repliersApi->searchListings([
+                'city' => $city,
+                'status' => 'A',
+                'class' => 'condoProperty',
+                'type' => 'sale',
+                'resultsPerPage' => $limit + 5,
+                'sortBy' => 'updatedOnDesc',
             ]);
-            $this->ampreApi->setTop($limit + 5); // Get a few extra to filter out current property
 
-            // Add filters for nearby search
-            $this->ampreApi->addFilter('TransactionType', 'For Sale');
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
-
-            // Add property type filters
-            $propertyTypes = ['Apartment', 'Condo Apartment', 'Condo', 'Townhouse', 'House'];
-            $this->ampreApi->setFilterOr('PropertySubType', $propertyTypes);
-
-            // Get city from the current property for location filtering
-            $currentCity = $property['City'] ?? '';
-            if ($currentCity) {
-                $this->ampreApi->addCustomFilter("contains(City, '{$currentCity}')");
-            } else {
-                // Fallback to Toronto area
-                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-            }
-
-            // Fetch properties
-            $searchResults = $this->ampreApi->fetchProperties();
-            
-            if (empty($searchResults)) {
+            if (empty($result['listings'])) {
                 return response()->json(['properties' => []]);
             }
 
-            // Filter out the current property and format results
-            $nearbyProperties = array_filter($searchResults, function($prop) use ($listingKey) {
-                return ($prop['ListingKey'] ?? '') !== $listingKey;
+            // Filter out current property
+            $nearbyListings = array_filter($result['listings'], function ($l) use ($listingKey) {
+                return ($l['mlsNumber'] ?? '') !== $listingKey;
             });
 
-            // Limit results
-            $nearbyProperties = array_slice($nearbyProperties, 0, $limit);
+            $nearbyListings = array_slice($nearbyListings, 0, $limit);
 
-            // Add images to properties
-            $propertiesWithImages = $this->addPropertyImages($nearbyProperties);
+            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $nearbyListings);
 
-            // Format properties for frontend
-            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $propertiesWithImages);
-            
             return response()->json([
-                'properties' => $formattedProperties,
-                'count' => count($formattedProperties)
+                'properties' => array_values($formattedProperties),
+                'count' => count($formattedProperties),
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Failed to fetch nearby listings: ' . $e->getMessage());
-            return response()->json(['properties' => []], 200); // Return empty array instead of error
+            return response()->json(['properties' => []], 200);
         }
     }
-    
+
     /**
      * Get similar listings for a property
      */
     public function getSimilarListings(Request $request): JsonResponse
     {
         $listingKey = $request->input('listingKey');
-        $propertyType = $request->input('propertyType');
-        $propertySubType = $request->input('propertySubType');
         $limit = $request->input('limit', 6);
-        
+
         if (!$listingKey) {
             return response()->json(['error' => 'Listing key is required'], 400);
         }
-        
+
         try {
-            // Get the main property first to get its characteristics
-            $property = $this->ampreApi->getPropertyByKey($listingKey);
-            
-            if (!$property) {
-                return response()->json(['error' => 'Property not found'], 404);
-            }
-            
-            $currentPrice = $property['ListPrice'] ?? 0;
-            $currentBedrooms = $property['BedroomsTotal'] ?? 0;
-            $currentPropertyType = $propertySubType ?: ($propertyType ?: ($property['PropertySubType'] ?? $property['PropertyType'] ?? ''));
-            
-            // Configure AMPRE API for similar search
-            $this->ampreApi->resetFilters();
-            $this->ampreApi->setSelect([
-                'ListingKey', 'UnparsedAddress', 'StreetNumber', 'StreetName', 'StreetSuffix',
-                'UnitNumber', 'City', 'StateOrProvince', 'ListPrice', 'PropertyType',
-                'PropertySubType', 'TransactionType', 'BedroomsTotal', 'BathroomsTotalInteger',
-                'LivingArea', 'ParkingTotal', 'ListOfficeName', 'Latitude', 'Longitude',
-                'StandardStatus', 'MlsStatus'
-            ]);
-            $this->ampreApi->setTop($limit + 10); // Get extra to filter out current property
+            // Get from DB first for context
+            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+            $mlsData = $mlsProperty->mls_data ?? [];
 
-            // Add basic filters
-            $this->ampreApi->addFilter('TransactionType', 'For Sale');
-            $this->ampreApi->addFilter('StandardStatus', 'Active');
+            $boardId = $mlsData['boardId'] ?? null;
 
-            // Add property type filter
-            if ($currentPropertyType) {
-                $this->ampreApi->addFilter('PropertySubType', $currentPropertyType);
-            }
+            // Try Repliers similar endpoint if we have boardId
+            if ($boardId) {
+                $similarListings = $this->repliersApi->getSimilarListings($listingKey, $boardId, $limit);
 
-            // Add price range (±30%)
-            if ($currentPrice > 0) {
-                $priceRange = $currentPrice * 0.3;
-                $minPrice = max(0, $currentPrice - $priceRange);
-                $maxPrice = $currentPrice + $priceRange;
-                $this->ampreApi->setPriceRange($minPrice, $maxPrice);
-            }
+                if (!empty($similarListings)) {
+                    $formattedProperties = array_map([$this, 'formatPropertyForListing'], $similarListings);
 
-            // Add bedroom range (±1)
-            if ($currentBedrooms > 0) {
-                $this->ampreApi->addFilter('BedroomsTotal', max(0, $currentBedrooms - 1), 'ge');
-                $this->ampreApi->addFilter('BedroomsTotal', $currentBedrooms + 1, 'le');
-            }
-
-            // Get city from the current property for location filtering
-            $currentCity = $property['City'] ?? '';
-            if ($currentCity) {
-                $this->ampreApi->addCustomFilter("contains(City, '{$currentCity}')");
-            } else {
-                // Fallback to Toronto area
-                $this->ampreApi->addCustomFilter("contains(City, 'Toronto')");
-            }
-
-            // Sort by newest
-            $this->ampreApi->setOrderBy('ListingContractDate desc');
-
-            $searchResults = $this->ampreApi->fetchProperties();
-            
-            if (empty($searchResults)) {
-                return response()->json(['properties' => []]);
-            }
-
-            // Filter out the current property
-            $similarProperties = array_filter($searchResults, function($prop) use ($listingKey) {
-                return ($prop['ListingKey'] ?? '') !== $listingKey;
-            });
-
-            // Limit results
-            $similarProperties = array_slice($similarProperties, 0, $limit);
-
-            // Add images to properties
-            $propertiesWithImages = $this->addPropertyImages($similarProperties);
-
-            // Format properties for frontend
-            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $propertiesWithImages);
-            
-            return response()->json([
-                'properties' => $formattedProperties,
-                'count' => count($formattedProperties)
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch similar listings: ' . $e->getMessage());
-            return response()->json(['properties' => []], 200); // Return empty array instead of error
-        }
-    }
-    
-    /**
-     * Format property data for listing display
-     */
-    private function formatPropertyForListing($property): array
-    {
-        // Get image URL from property if available
-        $imageUrl = null;
-        if (isset($property['Images']) && !empty($property['Images'])) {
-            // Get the first valid image
-            foreach ($property['Images'] as $img) {
-                if (!empty($img['MediaURL'])) {
-                    $imageUrl = $img['MediaURL'];
-                    break;
+                    return response()->json([
+                        'properties' => array_values($formattedProperties),
+                        'count' => count($formattedProperties),
+                    ]);
                 }
             }
+
+            // Fallback: search for similar properties manually
+            $params = [
+                'status' => 'A',
+                'class' => 'condoProperty',
+                'type' => 'sale',
+                'resultsPerPage' => $limit + 5,
+                'sortBy' => 'updatedOnDesc',
+            ];
+
+            if ($mlsProperty) {
+                if ($mlsProperty->city) {
+                    $params['city'] = $mlsProperty->city;
+                }
+                if ($mlsProperty->price) {
+                    $params['minPrice'] = max(0, (int) ($mlsProperty->price * 0.7));
+                    $params['maxPrice'] = (int) ($mlsProperty->price * 1.3);
+                }
+                if ($mlsProperty->bedrooms) {
+                    $params['minBedrooms'] = max(0, $mlsProperty->bedrooms - 1);
+                    $params['maxBedrooms'] = $mlsProperty->bedrooms + 1;
+                }
+            }
+
+            $result = $this->repliersApi->searchListings($params);
+
+            $similarListings = array_filter($result['listings'] ?? [], function ($l) use ($listingKey) {
+                return ($l['mlsNumber'] ?? '') !== $listingKey;
+            });
+
+            $similarListings = array_slice($similarListings, 0, $limit);
+            $formattedProperties = array_map([$this, 'formatPropertyForListing'], $similarListings);
+
+            return response()->json([
+                'properties' => array_values($formattedProperties),
+                'count' => count($formattedProperties),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch similar listings: ' . $e->getMessage());
+            return response()->json(['properties' => []], 200);
+        }
+    }
+
+    /**
+     * Format a Repliers listing for property card display
+     */
+    private function formatPropertyForListing(array $listing): array
+    {
+        $address = $listing['address'] ?? [];
+        $details = $listing['details'] ?? [];
+        $map = $listing['map'] ?? [];
+        $images = $listing['images'] ?? [];
+
+        $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+        if (!empty($address['unitNumber'])) {
+            $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
         }
 
+        $imageUrl = !empty($images) ? $this->repliersApi->getImageUrl($images[0]) : null;
+
+        $allImages = array_map(function ($img, $index) {
+            return [
+                'MediaURL' => $this->repliersApi->getImageUrl($img),
+                'Order' => $index,
+            ];
+        }, $images, array_keys($images));
+
         return [
-            'listingKey' => $property['ListingKey'] ?? '',
-            'address' => $property['UnparsedAddress'] ?? '',
-            'streetNumber' => $property['StreetNumber'] ?? '',
-            'streetName' => $property['StreetName'] ?? '',
-            'streetSuffix' => $property['StreetSuffix'] ?? '',
-            'unitNumber' => $property['UnitNumber'] ?? '',
-            'city' => $property['City'] ?? '',
-            'province' => $property['StateOrProvince'] ?? '',
-            'price' => $property['ListPrice'] ?? 0,
-            'propertyType' => $property['PropertyType'] ?? '',
-            'propertySubType' => $property['PropertySubType'] ?? '',
-            'transactionType' => $property['TransactionType'] ?? 'For Sale',
-            'bedroomsTotal' => $property['BedroomsTotal'] ?? 0,
-            'bathroomsTotalInteger' => $property['BathroomsTotalInteger'] ?? 0,
-            'livingAreaRange' => $property['LivingArea'] ?? '',
-            'parkingTotal' => $property['ParkingTotal'] ?? 0,
-            'listOfficeName' => $property['ListOfficeName'] ?? '',
-            'latitude' => $property['Latitude'] ?? null,
-            'longitude' => $property['Longitude'] ?? null,
-            'standardStatus' => $property['StandardStatus'] ?? '',
-            'mlsStatus' => $property['MlsStatus'] ?? '',
+            'listingKey' => $listing['mlsNumber'] ?? '',
+            'address' => $fullAddress,
+            'streetNumber' => $address['streetNumber'] ?? '',
+            'streetName' => $address['streetName'] ?? '',
+            'streetSuffix' => $address['streetSuffix'] ?? '',
+            'unitNumber' => $address['unitNumber'] ?? '',
+            'city' => $address['city'] ?? '',
+            'province' => $address['state'] ?? 'ON',
+            'price' => $listing['listPrice'] ?? 0,
+            'propertyType' => $details['propertyType'] ?? '',
+            'propertySubType' => $details['style'] ?? '',
+            'transactionType' => ucfirst($listing['type'] ?? 'Sale'),
+            'bedroomsTotal' => ($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0),
+            'bathroomsTotalInteger' => ($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0),
+            'livingAreaRange' => $details['sqft'] ?? '',
+            'parkingTotal' => $details['numParkingSpaces'] ?? 0,
+            'listOfficeName' => $listing['office']['brokerageName'] ?? '',
+            'latitude' => $map['latitude'] ?? null,
+            'longitude' => $map['longitude'] ?? null,
+            'standardStatus' => $this->mapRepliersStatusToReadable($listing['status'] ?? 'A', $listing['lastStatus'] ?? ''),
+            'mlsStatus' => $listing['lastStatus'] ?? '',
             'imageUrl' => $imageUrl,
-            'MediaURL' => $imageUrl, // For PropertyCard compatibility
-            'images' => $property['Images'] ?? [],
+            'MediaURL' => $imageUrl,
+            'images' => $allImages,
         ];
     }
-    
+
     /**
-     * Format images data
+     * Get images for a listing from DB or listing data
      */
-    private function formatImages($imagesResponse, $listingKey): array
+    private function getImagesForListing(string $listingKey, array $listing): array
     {
-        if (empty($imagesResponse) || !isset($imagesResponse[$listingKey])) {
-            return [];
+        // Try database first
+        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+
+        if ($mlsProperty && !empty($mlsProperty->image_urls)) {
+            $images = [];
+            foreach ($mlsProperty->image_urls as $index => $url) {
+                $images[] = [
+                    'url' => $url,
+                    'caption' => '',
+                    'description' => '',
+                    'order' => $index,
+                    'modificationTimestamp' => null,
+                ];
+            }
+            return $images;
         }
-        
+
+        // Fall back to listing images from API
+        $listingImages = $listing['images'] ?? [];
         $images = [];
-        foreach ($imagesResponse[$listingKey] as $image) {
+        foreach ($listingImages as $index => $filename) {
             $images[] = [
-                'url' => $image['MediaURL'] ?? '',
-                'caption' => $image['ShortDescription'] ?? '',
-                'description' => $image['LongDescription'] ?? '',
-                'order' => $image['Order'] ?? 0,
-                'modificationTimestamp' => $image['ModificationTimestamp'] ?? null,
+                'url' => $this->repliersApi->getImageUrl($filename),
+                'caption' => '',
+                'description' => '',
+                'order' => $index,
+                'modificationTimestamp' => null,
             ];
         }
-        
-        // Sort by order
-        usort($images, function($a, $b) {
-            return $a['order'] - $b['order'];
-        });
-        
+
         return $images;
     }
 
     /**
-     * Get images from database for a single property
-     * DATABASE-ONLY: No API calls - uses images stored in mls_properties table
+     * Try to find building data by address
      */
-    private function getImagesFromDatabase(string $listingKey): array
+    private function findBuildingData(array $formattedProperty): ?array
     {
-        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-
-        if (!$mlsProperty || empty($mlsProperty->image_urls)) {
-            Log::debug('No images found in database for property', ['listingKey' => $listingKey]);
-            return [];
+        if (empty($formattedProperty['address'])) {
+            return null;
         }
 
-        // Format as expected by formatImages method: [$listingKey => [images]]
-        $images = [];
-        foreach ($mlsProperty->image_urls as $index => $url) {
-            $images[] = [
-                'MediaURL' => $url,
-                'ShortDescription' => '',
-                'LongDescription' => '',
-                'Order' => $index,
-                'ModificationTimestamp' => null,
-            ];
+        $addressParts = explode(',', $formattedProperty['address']);
+        if (count($addressParts) > 0) {
+            $buildingAddress = trim($addressParts[0]);
+            $buildingAddress = preg_replace('/^(\d+\s*-\s*)?/', '', $buildingAddress);
+
+            $building = \App\Models\Building::with('amenities')
+                ->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                ->first();
+
+            if ($building) {
+                return [
+                    'id' => $building->id,
+                    'name' => $building->name,
+                    'slug' => $building->slug,
+                    'address' => $building->address,
+                    'main_image' => $building->main_image,
+                    'units_for_sale' => $building->units_for_sale,
+                    'units_for_rent' => $building->units_for_rent,
+                    'amenities' => $building->amenities()->get()->map(function ($amenity) {
+                        return [
+                            'id' => $amenity->id,
+                            'name' => $amenity->name,
+                            'icon' => $amenity->icon,
+                            'category' => $amenity->category,
+                        ];
+                    })->toArray(),
+                ];
+            }
         }
 
-        Log::debug('Loaded images from database', [
-            'listingKey' => $listingKey,
-            'image_count' => count($images)
-        ]);
-
-        return [$listingKey => $images];
+        return null;
     }
 
     /**
-     * Add property images using DATABASE instead of API
-     * DATABASE-ONLY: No API calls - uses images stored in mls_properties table
+     * Map Repliers status codes to human-readable status
+     * Repliers uses: status "A" (active), "U" (unavailable)
+     * lastStatus: "Sld" (sold), "Lsd" (leased), "New", "Sc" (sold conditional), etc.
      */
-    private function addPropertyImages(array $properties): array
+    private function mapRepliersStatusToReadable(string $status, string $lastStatus = ''): string
     {
-        if (empty($properties)) {
-            return $properties;
+        $lastStatusLower = strtolower($lastStatus);
+
+        if (in_array($lastStatusLower, ['sld', 'sc'])) {
+            return 'Sold';
+        }
+        if (in_array($lastStatusLower, ['lsd', 'lc'])) {
+            return 'Leased';
+        }
+        if (in_array($lastStatusLower, ['exp'])) {
+            return 'Expired';
+        }
+        if (in_array($lastStatusLower, ['ter', 'sus'])) {
+            return 'Terminated';
         }
 
-        $listingKeys = array_column($properties, 'ListingKey');
-
-        if (empty($listingKeys)) {
-            return $properties;
-        }
-
-        try {
-            // Fetch images from DATABASE - single query for all properties
-            $mlsProperties = MLSProperty::whereIn('mls_id', $listingKeys)
-                ->whereNotNull('image_urls')
-                ->get()
-                ->keyBy('mls_id');
-
-            foreach ($properties as $index => $property) {
-                $listingKey = $property['ListingKey'] ?? null;
-                $mlsProperty = $mlsProperties->get($listingKey);
-
-                if ($mlsProperty && !empty($mlsProperty->image_urls)) {
-                    // Format images for property
-                    $propertyImages = array_map(function($url, $idx) {
-                        return ['MediaURL' => $url, 'Order' => $idx];
-                    }, $mlsProperty->image_urls, array_keys($mlsProperty->image_urls));
-
-                    $properties[$index]['Images'] = $propertyImages;
-                } else {
-                    $properties[$index]['Images'] = [];
-                }
-            }
-
-            Log::debug('Loaded images from database for properties', [
-                'requested' => count($listingKeys),
-                'found_with_images' => $mlsProperties->count()
-            ]);
-
-            return $properties;
-
-        } catch (\Exception $e) {
-            Log::error('Failed to fetch property images from database: ' . $e->getMessage());
-            return $properties; // Return properties without images if fetch fails
-        }
+        return strtoupper($status) === 'A' ? 'Active' : 'Inactive';
     }
 }

@@ -5,18 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use App\Models\Property;
 use App\Models\Building;
 use App\Models\MLSProperty;
 
 class OptimizedPropertyDetailController extends Controller
 {
-    protected $ampreApiService;
+    protected $repliersApi;
 
-    public function __construct(AmpreApiService $ampreApiService)
+    public function __construct(RepliersApiService $repliersApi)
     {
-        $this->ampreApiService = $ampreApiService;
+        $this->repliersApi = $repliersApi;
     }
 
     /**
@@ -95,7 +95,7 @@ class OptimizedPropertyDetailController extends Controller
     }
 
     /**
-     * Get property data from local or AMPRE
+     * Get property data from local database or Repliers API
      */
     private function getPropertyData($listingKey)
     {
@@ -107,10 +107,16 @@ class OptimizedPropertyDetailController extends Controller
             }
         }
 
-        // Try AMPRE API
-        $ampreProperty = $this->ampreApiService->getPropertyByKey($listingKey);
-        if ($ampreProperty) {
-            return $this->formatAmprePropertyData($ampreProperty);
+        // Try local MLS database first
+        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+        if ($mlsProperty && !empty($mlsProperty->mls_data)) {
+            return $this->formatRepliersPropertyData($mlsProperty->mls_data);
+        }
+
+        // Fallback to Repliers API
+        $repliersListing = $this->repliersApi->getListingByMlsNumber($listingKey);
+        if ($repliersListing) {
+            return $this->formatRepliersPropertyData($repliersListing);
         }
 
         return null;
@@ -242,50 +248,83 @@ class OptimizedPropertyDetailController extends Controller
     }
 
     /**
-     * Format AMPRE property data
+     * Format Repliers property data for display
      */
-    private function formatAmprePropertyData($property)
+    private function formatRepliersPropertyData($listing)
     {
+        $address = $listing['address'] ?? [];
+        $details = $listing['details'] ?? [];
+        $office = $listing['office'] ?? [];
+        $agents = $listing['agents'] ?? [];
+        $map = $listing['map'] ?? [];
+        $taxes = $listing['taxes'] ?? [];
+
+        $unparsedAddress = $address['unparsedAddress']
+            ?? trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+
+        $listAgent = !empty($agents) ? ($agents[0]['name'] ?? '') : '';
+        $taxAmount = !empty($taxes) ? ($taxes[0]['annualAmount'] ?? 0) : 0;
+
         return [
-            'listingKey' => $property['ListingKey'] ?? '',
-            'address' => $property['UnparsedAddress'] ?? '',
-            'price' => $property['ListPrice'] ?? 0,
-            'propertyType' => $property['PropertyType'] ?? '',
-            'propertySubType' => $property['PropertySubType'] ?? '',
-            'bedrooms' => $property['BedroomsTotal'] ?? 0,
-            'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
-            'livingAreaRange' => $property['LivingAreaRange'] ?? '',
-            'publicRemarks' => $property['PublicRemarks'] ?? '',
-            'listingContractDate' => $property['ListingContractDate'] ?? null,
-            'daysOnMarket' => $property['DaysOnMarket'] ?? 0,
-            'standardStatus' => $property['StandardStatus'] ?? '',
-            'mlsStatus' => $property['MlsStatus'] ?? '',
-            'listOfficeName' => $property['ListOfficeName'] ?? '',
-            'listAgentName' => $property['ListAgentFullName'] ?? '',
-            'city' => $property['City'] ?? '',
-            'stateProvince' => $property['StateOrProvince'] ?? '',
-            'postalCode' => $property['PostalCode'] ?? '',
-            'latitude' => $property['Latitude'] ?? null,
-            'longitude' => $property['Longitude'] ?? null,
-            'taxAnnualAmount' => $property['TaxAnnualAmount'] ?? 0,
-            'associationFee' => $property['AssociationFee'] ?? 0,
-            'parkingTotal' => $property['ParkingTotal'] ?? 0,
-            'exposure' => $property['Exposure'] ?? '',
-            'unitNumber' => $property['UnitNumber'] ?? '',
-            'streetNumber' => $property['StreetNumber'] ?? '',
-            'streetName' => $property['StreetName'] ?? '',
-            'streetSuffix' => $property['StreetSuffix'] ?? '',
+            'listingKey' => $listing['mlsNumber'] ?? '',
+            'address' => $unparsedAddress,
+            'price' => $listing['listPrice'] ?? 0,
+            'propertyType' => $details['propertyType'] ?? '',
+            'propertySubType' => $details['propertyType'] ?? '',
+            'bedrooms' => $details['numBedrooms'] ?? 0,
+            'bathrooms' => $details['numBathrooms'] ?? 0,
+            'livingAreaRange' => $details['sqft'] ?? '',
+            'publicRemarks' => $details['description'] ?? '',
+            'listingContractDate' => $listing['listDate'] ?? null,
+            'daysOnMarket' => $listing['daysOnMarket'] ?? 0,
+            'standardStatus' => $this->mapRepliersStatusReadable($listing['status'] ?? 'A', $listing['lastStatus'] ?? ''),
+            'mlsStatus' => $listing['lastStatus'] ?? '',
+            'listOfficeName' => $office['brokerageName'] ?? '',
+            'listAgentName' => $listAgent,
+            'city' => $address['city'] ?? '',
+            'stateProvince' => $address['state'] ?? '',
+            'postalCode' => $address['zip'] ?? '',
+            'latitude' => $map['latitude'] ?? null,
+            'longitude' => $map['longitude'] ?? null,
+            'taxAnnualAmount' => $taxAmount,
+            'associationFee' => $details['maintenanceFee'] ?? 0,
+            'parkingTotal' => $details['numParkingSpaces'] ?? 0,
+            'exposure' => $details['exposure'] ?? '',
+            'unitNumber' => $address['unitNumber'] ?? '',
+            'streetNumber' => $address['streetNumber'] ?? '',
+            'streetName' => $address['streetName'] ?? '',
+            'streetSuffix' => $address['streetSuffix'] ?? '',
             'details' => [
-                'type' => $property['PropertySubType'] ?? $property['PropertyType'] ?? '',
-                'bedrooms' => $property['BedroomsTotal'] ?? 0,
-                'bathrooms' => $property['BathroomsTotalInteger'] ?? 0,
-                'parking' => $property['ParkingTotal'] ?? 0,
-                'exposure' => $property['Exposure'] ?? '',
-                'maintenance' => $property['AssociationFee'] ?? 0,
-                'taxes' => $property['TaxAnnualAmount'] ?? 0,
-                'area' => $property['LivingAreaRange'] ?? '',
-                'description' => $property['PublicRemarks'] ?? ''
+                'type' => $details['propertyType'] ?? '',
+                'bedrooms' => $details['numBedrooms'] ?? 0,
+                'bathrooms' => $details['numBathrooms'] ?? 0,
+                'parking' => $details['numParkingSpaces'] ?? 0,
+                'exposure' => $details['exposure'] ?? '',
+                'maintenance' => $details['maintenanceFee'] ?? 0,
+                'taxes' => $taxAmount,
+                'area' => $details['sqft'] ?? '',
+                'description' => $details['description'] ?? ''
             ]
         ];
+    }
+
+    /**
+     * Map Repliers status codes to human-readable status
+     */
+    private function mapRepliersStatusReadable(string $status, string $lastStatus = ''): string
+    {
+        $lastStatusLower = strtolower($lastStatus);
+
+        if (in_array($lastStatusLower, ['sld', 'sc'])) {
+            return 'Sold';
+        }
+        if (in_array($lastStatusLower, ['lsd', 'lc'])) {
+            return 'Leased';
+        }
+        if (in_array($lastStatusLower, ['exp'])) {
+            return 'Expired';
+        }
+
+        return strtoupper($status) === 'A' ? 'Active' : 'Inactive';
     }
 }

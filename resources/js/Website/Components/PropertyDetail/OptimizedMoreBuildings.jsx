@@ -142,22 +142,10 @@ const OptimizedMoreBuildings = ({
         return listingsToProcess.map(listing => {
           const imageData = imagesData[listing.listingKey] || imageCache.get(`images_${listing.listingKey}`);
           if (imageData && imageData.image_url) {
-            let processedImageUrl = imageData.image_url;
-            if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-              processedImageUrl = processedImageUrl.replace('https://', 'http://');
-            }
-
-            const processedImages = (imageData.all_images || []).map(url => {
-              if (url && url.includes('ampre.ca')) {
-                return url.replace('https://', 'http://');
-              }
-              return url;
-            });
-
             return {
               ...listing,
-              imageUrl: processedImageUrl,
-              images: processedImages
+              imageUrl: imageData.image_url,
+              images: imageData.all_images || []
             };
           }
           return listing;

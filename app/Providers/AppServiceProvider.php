@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use App\Services\MLSIntegrationService;
 use App\Models\Setting;
 use Illuminate\Support\Facades\View;
@@ -16,12 +16,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(AmpreApiService::class, function ($app) {
-            return new AmpreApiService();
+        $this->app->singleton(RepliersApiService::class, function ($app) {
+            return new RepliersApiService();
         });
 
         $this->app->singleton(MLSIntegrationService::class, function ($app) {
-            return new MLSIntegrationService($app->make(AmpreApiService::class));
+            return new MLSIntegrationService($app->make(RepliersApiService::class));
         });
     }
 
@@ -36,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             // Try to get from database first, then fallback to config, then env
             $googleMapsApiKey = Setting::get('google_maps_api_key')
-                ?: config('ampre.google_maps_api_key')
+                ?: config('repliers.google_maps_api_key')
                 ?: config('maps.google-maps.api_key')
                 ?: env('GOOGLE_MAPS_API_KEY', '');
 

@@ -247,15 +247,9 @@ const usePropertyListings = (listingKey) => {
         setListings(prev => prev.map(listing => {
           const imageData = imagesData[listing.listingKey];
           if (imageData && imageData.image_url) {
-            // Process image URL to fix SSL issues
-            let processedImageUrl = imageData.image_url;
-            if (processedImageUrl && processedImageUrl.includes('ampre.ca')) {
-              processedImageUrl = processedImageUrl.replace('https://', 'http://');
-            }
-            
-            return { 
-              ...listing, 
-              imageUrl: processedImageUrl,
+            return {
+              ...listing,
+              imageUrl: imageData.image_url,
               images: imageData.all_images || []
             };
           }

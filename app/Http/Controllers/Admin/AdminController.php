@@ -84,19 +84,17 @@ class AdminController extends Controller
     public function apiKeys(): Response
     {
         $apiSettings = Setting::apiSettings()->get()->keyBy('key');
-        
+
         // Get API keys from database or config
-        $vowToken = $apiSettings->get('ampre_vow_token')?->value ?? config('ampre.vow_token');
-        $idxToken = $apiSettings->get('ampre_idx_token')?->value ?? config('ampre.idx_token');
+        $repliersApiKey = $apiSettings->get('repliers_api_key')?->value ?? config('repliers.api_key');
         $googleMapsKey = $apiSettings->get('google_maps_api_key')?->value ?? config('services.google_maps.key');
         $walkscoreKey = $apiSettings->get('walkscore_api_key')?->value ?? config('services.walkscore.key');
-        
+
         return Inertia::render('Admin/ApiKeys', [
             'title' => 'MLS API Configuration',
             'api_keys' => [
-                'ampre_api_url' => $apiSettings->get('ampre_api_url')?->value ?? config('ampre.api_url'),
-                'ampre_vow_token' => $this->maskApiKey($vowToken),
-                'ampre_idx_token' => $this->maskApiKey($idxToken),
+                'repliers_api_url' => $apiSettings->get('repliers_api_url')?->value ?? config('repliers.api_url'),
+                'repliers_api_key' => $this->maskApiKey($repliersApiKey),
                 'google_maps_api_key' => $this->maskApiKey($googleMapsKey),
                 'walkscore_api_key' => $this->maskApiKey($walkscoreKey),
             ],
@@ -135,13 +133,11 @@ class AdminController extends Controller
     private function getConnectionStatus(): array
     {
         // Check from database first, then fallback to config
-        $vowToken = Setting::get('ampre_vow_token') ?: config('ampre.vow_token');
-        $idxToken = Setting::get('ampre_idx_token') ?: config('ampre.idx_token');
+        $repliersApiKey = Setting::get('repliers_api_key') ?: config('repliers.api_key');
         $googleMapsKey = Setting::get('google_maps_api_key') ?: config('services.google_maps.key');
-        
+
         return [
-            'ampre_vow' => !empty($vowToken) ? 'configured' : 'not_configured',
-            'ampre_idx' => !empty($idxToken) ? 'configured' : 'not_configured', 
+            'repliers_api' => !empty($repliersApiKey) ? 'configured' : 'not_configured',
             'google_maps' => !empty($googleMapsKey) ? 'configured' : 'not_configured',
             'last_test' => Setting::get('api_last_test_date'),
         ];
@@ -153,12 +149,11 @@ class AdminController extends Controller
     public function updateApiKeys(UpdateApiKeysRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        
+
         // Update API settings in database
         $apiSettings = [
-            'ampre_api_url' => $validated['ampre_api_url'] ?? config('ampre.api_url'),
-            'ampre_vow_token' => $validated['ampre_vow_token'] ?? '',
-            'ampre_idx_token' => $validated['ampre_idx_token'] ?? '',
+            'repliers_api_url' => $validated['repliers_api_url'] ?? config('repliers.api_url'),
+            'repliers_api_key' => $validated['repliers_api_key'] ?? '',
             'google_maps_api_key' => $validated['google_maps_api_key'] ?? '',
             'walkscore_api_key' => $validated['walkscore_api_key'] ?? '',
         ];
@@ -167,7 +162,7 @@ class AdminController extends Controller
             if (!empty($value)) {
                 Setting::set($key, $value, [
                     'group' => 'api',
-                    'is_encrypted' => in_array($key, ['ampre_vow_token', 'ampre_idx_token', 'google_maps_api_key', 'walkscore_api_key'])
+                    'is_encrypted' => in_array($key, ['repliers_api_key', 'google_maps_api_key', 'walkscore_api_key'])
                 ]);
             }
         }
@@ -192,9 +187,8 @@ class AdminController extends Controller
 
         // Also update .env for immediate config access
         $this->updateEnvFile([
-            'AMPRE_API_URL' => $apiSettings['ampre_api_url'],
-            'AMPRE_VOW_TOKEN' => $apiSettings['ampre_vow_token'],
-            'AMPRE_IDX_TOKEN' => $apiSettings['ampre_idx_token'],
+            'REPLIERS_API_URL' => $apiSettings['repliers_api_url'],
+            'REPLIERS_API_KEY' => $apiSettings['repliers_api_key'],
             'GOOGLE_MAPS_API_KEY' => $apiSettings['google_maps_api_key'],
             'WALKSCORE_API_KEY' => $apiSettings['walkscore_api_key'],
         ]);
@@ -208,7 +202,7 @@ class AdminController extends Controller
     public function testApiConnection(Request $request)
     {
         $request->validate([
-            'api_type' => 'required|in:ampre,google_maps,walkscore'
+            'api_type' => 'required|in:repliers,google_maps,walkscore'
         ]);
 
         $apiType = $request->api_type;
@@ -216,21 +210,21 @@ class AdminController extends Controller
 
         try {
             switch ($apiType) {
-                case 'ampre':
-                    // Test AMPRE API connection
-                    $vowToken = Setting::get('ampre_vow_token') ?: config('ampre.vow_token');
-                    if (empty($vowToken)) {
-                        $result['message'] = 'AMPRE VOW token is not configured.';
+                case 'repliers':
+                    // Test Repliers API connection
+                    $apiKey = Setting::get('repliers_api_key') ?: config('repliers.api_key');
+                    if (empty($apiKey)) {
+                        $result['message'] = 'Repliers API key is not configured.';
                         break;
                     }
-                    
-                    $ampreService = app(\App\Services\AmpreApiService::class);
-                    $properties = $ampreService->setTop(1)->setSelect(['ListingKey'])->fetchProperties();
-                    
+
+                    $repliersService = app(\App\Services\RepliersApiService::class);
+                    $response = $repliersService->searchListings(['resultsPerPage' => 1]);
+
                     $result['success'] = true;
-                    $result['message'] = 'AMPRE API connection successful!';
-                    $result['data'] = ['property_count' => count($properties)];
-                    
+                    $result['message'] = 'Repliers API connection successful!';
+                    $result['data'] = ['listing_count' => $response['count'] ?? 0];
+
                     // Store last test date
                     Setting::set('api_last_test_date', now()->toDateTimeString(), [
                         'group' => 'api',
@@ -240,17 +234,17 @@ class AdminController extends Controller
 
                 case 'google_maps':
                     // Test Google Maps API (simple geocoding test)
-                    $googleKey = Setting::get('google_maps_api_key') ?: config('ampre.google_maps_api_key');
+                    $googleKey = Setting::get('google_maps_api_key') ?: config('repliers.google_maps_api_key');
                     if (empty($googleKey)) {
                         $result['message'] = 'Google Maps API key is not configured.';
                         break;
                     }
-                    
+
                     $response = \Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
                         'address' => 'Toronto, ON, Canada',
                         'key' => $googleKey
                     ]);
-                    
+
                     if ($response->successful() && $response->json('status') === 'OK') {
                         $result['success'] = true;
                         $result['message'] = 'Google Maps API connection successful!';
@@ -261,7 +255,7 @@ class AdminController extends Controller
 
                 case 'walkscore':
                     // Test WalkScore API
-                    $walkscoreKey = Setting::get('walkscore_api_key') ?: config('ampre.walkscore_api_key');
+                    $walkscoreKey = Setting::get('walkscore_api_key') ?: config('repliers.walkscore_api_key');
                     if (empty($walkscoreKey)) {
                         $result['message'] = 'WalkScore API key is not configured.';
                         break;

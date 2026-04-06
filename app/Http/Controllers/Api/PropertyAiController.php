@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\GeminiAIService;
-use App\Services\AmpreApiService;
+use App\Services\RepliersApiService;
 use App\Models\PropertyAiDescription;
 use App\Models\PropertyFaq;
 use App\Models\Property;
@@ -14,12 +14,12 @@ use Illuminate\Support\Facades\Log;
 class PropertyAiController extends Controller
 {
     protected $geminiService;
-    protected $ampreApi;
+    protected $repliersApi;
 
-    public function __construct(GeminiAIService $geminiService, AmpreApiService $ampreApi)
+    public function __construct(GeminiAIService $geminiService, RepliersApiService $repliersApi)
     {
         $this->geminiService = $geminiService;
-        $this->ampreApi = $ampreApi;
+        $this->repliersApi = $repliersApi;
     }
 
     /**
@@ -66,9 +66,9 @@ class PropertyAiController extends Controller
                 }
             }
 
-            // If not found locally, try AMPRE API
+            // If not found locally, try Repliers API
             if (!$propertyData) {
-                $propertyData = $this->ampreApi->getPropertyByKey($mlsId);
+                $propertyData = $this->repliersApi->getListingByMlsNumber($mlsId);
             }
 
             if (!$propertyData) {
@@ -146,9 +146,9 @@ class PropertyAiController extends Controller
                 }
             }
 
-            // If not found locally, try AMPRE API
+            // If not found locally, try Repliers API
             if (!$propertyData) {
-                $propertyData = $this->ampreApi->getPropertyByKey($mlsId);
+                $propertyData = $this->repliersApi->getListingByMlsNumber($mlsId);
             }
 
             if (!$propertyData) {
@@ -311,7 +311,7 @@ class PropertyAiController extends Controller
                 }
 
                 if (!$propertyData) {
-                    $propertyData = $this->ampreApi->getPropertyByKey($mlsId);
+                    $propertyData = $this->repliersApi->getListingByMlsNumber($mlsId);
                 }
 
                 if (!$propertyData) {

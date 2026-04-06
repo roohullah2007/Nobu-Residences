@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\EnhancedPropertyImagesController;
-use App\Http\Controllers\AmpreTestController;
+// AmpreTestController removed - using Repliers API now
 use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\PropertyEnquiryController;
 
@@ -469,16 +469,7 @@ Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildi
 //     Route::post('/property-images/clear-cache', [EnhancedPropertyImagesController::class, 'clearImageCache'])->name('api.property-images.clear-cache');
 // });
 
-// AMPRE API Test Routes (remove in production)
-Route::prefix('api/ampre/test')->group(function () {
-    Route::get('/config', [AmpreTestController::class, 'testConfig']);
-    Route::get('/properties', [AmpreTestController::class, 'testProperties']);
-    Route::get('/properties-with-count', [AmpreTestController::class, 'testPropertiesWithCount']);
-    Route::get('/price-range', [AmpreTestController::class, 'testPriceRange']);
-    Route::get('/or-filters', [AmpreTestController::class, 'testOrFilters']);
-    Route::get('/property/{listingKey}', [AmpreTestController::class, 'testPropertyByKey']);
-    Route::get('/request-url', [AmpreTestController::class, 'getRequestUrl']);
-});
+// Old AMPRE test routes removed - using Repliers API now
 
 
 // Test what's sent to edit page

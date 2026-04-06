@@ -50,13 +50,8 @@ const PropertyCard = ({ property }) => {
     }
   }
 
-  // Get property image and convert HTTPS to HTTP for AMPRE images
-  let imageUrl = property.MediaURL || property.imageUrl || property.image || '/images/no-image-placeholder.jpg';
-  
-  // Fix AMPRE SSL issues by converting HTTPS to HTTP
-  if (imageUrl && imageUrl.includes('ampre.ca') && imageUrl.startsWith('https://')) {
-    imageUrl = imageUrl.replace('https://', 'http://');
-  }
+  // Get property image
+  const imageUrl = property.MediaURL || property.imageUrl || property.image || '/images/no-image-placeholder.jpg';
 
   // Build property URL - use the simple redirect route that only needs listing key
   // The backend will handle the redirect to the proper SEO-friendly URL
@@ -87,12 +82,12 @@ const PropertyCard = ({ property }) => {
   };
 
   return (
-    <div className="flex flex-col w-[300px] min-h-0 idx-ampre-property-card bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative">
+    <div className="flex flex-col w-[300px] min-h-0 idx-property-card bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative">
       <Link href={propertyUrl} className="flex flex-col h-full text-inherit no-underline" onClick={handlePropertyClick}>
         {/* Image Container */}
         <div className="relative w-full h-[200px] property-image-container overflow-hidden bg-gray-100 rounded-t-xl">
           <div className="relative overflow-hidden w-full h-full property-image lazy-property-image transition-transform duration-300 group-hover:scale-105">
-            {/* Loading State - Enhanced IDX-AMPRE style */}
+            {/* Loading State */}
             {imageLoading && !imageError && (
               <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-100">
                 <div className="flex flex-col items-center gap-2">
@@ -128,10 +123,7 @@ const PropertyCard = ({ property }) => {
                 setImageError(false);
               }}
               onError={(e) => {
-                // Try HTTP version if HTTPS fails for AMPRE images
-                if (e.target.src.includes('ampre.ca') && e.target.src.startsWith('https://')) {
-                  e.target.src = e.target.src.replace('https://', 'http://');
-                } else if (!imageError) {
+                if (!imageError) {
                   // Set error state and try fallback
                   setImageError(true);
                   setImageLoading(false);
