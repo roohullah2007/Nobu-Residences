@@ -168,49 +168,98 @@ class GeminiAIService
     }
 
     /**
+     * Extract property info from both Repliers nested and AMPRE flat formats
+     */
+    private function extractPropertyInfo(array $data): array
+    {
+        $isRepliers = isset($data['address']) && is_array($data['address']);
+
+        if ($isRepliers) {
+            $address = $data['address'] ?? [];
+            $details = $data['details'] ?? [];
+            $condominium = $data['condominium'] ?? [];
+            return [
+                'propertyType' => $details['style'] ?? $details['propertyType'] ?? 'property',
+                'address' => trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? '')),
+                'bedrooms' => ($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0),
+                'bathrooms' => ($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0),
+                'sqft' => $details['sqft'] ?? '',
+                'price' => $data['listPrice'] ?? 0,
+                'city' => $address['city'] ?? '',
+                'neighborhood' => $address['neighborhood'] ?? $address['area'] ?? '',
+                'yearBuilt' => $details['yearBuilt'] ?? '',
+                'parking' => $details['numParkingSpaces'] ?? 0,
+                'listingType' => strtolower($data['type'] ?? 'sale') === 'lease' ? 'For Rent' : 'For Sale',
+                'description' => $details['description'] ?? '',
+                'maintenanceFee' => $condominium['fees']['maintenance'] ?? $details['maintenanceFee'] ?? 0,
+                'exposure' => $condominium['exposure'] ?? $details['exposure'] ?? '',
+                'amenities' => implode(', ', $condominium['amenities'] ?? []),
+                'features' => $details['heating'] ?? '',
+            ];
+        }
+
+        // AMPRE flat format
+        return [
+            'propertyType' => $data['PropertySubType'] ?? 'property',
+            'address' => $data['UnparsedAddress'] ?? '',
+            'bedrooms' => $data['BedroomsTotal'] ?? 0,
+            'bathrooms' => $data['BathroomsTotalInteger'] ?? 0,
+            'sqft' => $data['LivingArea'] ?? $data['LivingAreaRange'] ?? 0,
+            'price' => $data['ListPrice'] ?? 0,
+            'city' => $data['City'] ?? '',
+            'neighborhood' => $data['Area'] ?? '',
+            'yearBuilt' => $data['YearBuilt'] ?? '',
+            'parking' => $data['ParkingTotal'] ?? 0,
+            'listingType' => $data['TransactionType'] ?? 'For Sale',
+            'description' => $data['PublicRemarks'] ?? '',
+            'maintenanceFee' => $data['AssociationFee'] ?? 0,
+            'exposure' => $data['Exposure'] ?? '',
+            'amenities' => is_array($data['AssociationAmenities'] ?? '') ? implode(', ', $data['AssociationAmenities']) : '',
+            'features' => is_array($data['InteriorFeatures'] ?? '') ? implode(', ', $data['InteriorFeatures']) : '',
+        ];
+    }
+
+    /**
      * Create prompt for overview description
      */
     private function createOverviewPrompt(array $data): string
     {
-        $propertyType = $data['PropertySubType'] ?? 'property';
-        $address = $data['UnparsedAddress'] ?? '';
-        $bedrooms = $data['BedroomsTotal'] ?? 0;
-        $bathrooms = $data['BathroomsTotalInteger'] ?? 0;
-        $sqft = $data['LivingArea'] ?? 0;
-        $price = $data['ListPrice'] ?? 0;
-        $city = $data['City'] ?? '';
-        $neighborhood = $data['Area'] ?? '';
-        $yearBuilt = $data['YearBuilt'] ?? '';
-        $parking = $data['ParkingTotal'] ?? 0;
-        $listingType = $data['TransactionType'] ?? 'For Sale';
+        $info = $this->extractPropertyInfo($data);
 
-        $prompt = "Generate a concise, SEO-friendly property overview description in 1-2 paragraphs (maximum 150 words) for a {$propertyType} listing. ";
-        $prompt .= "Property details: ";
-        $prompt .= "Location: {$address}, {$city}";
+        $prompt = "Write a compelling property overview (2-3 paragraphs, 200-300 words) for this {$info['propertyType']} listing. ";
+        $prompt .= "Property details: Location: {$info['address']}, {$info['city']}";
 
-        if ($neighborhood) {
-            $prompt .= " in the {$neighborhood} neighborhood";
+        if ($info['neighborhood']) {
+            $prompt .= " in the {$info['neighborhood']} neighborhood";
         }
 
-        $prompt .= ". {$bedrooms} bedrooms, {$bathrooms} bathrooms";
+        $prompt .= ". {$info['bedrooms']} bedrooms, {$info['bathrooms']} bathrooms";
 
-        if ($sqft > 0) {
-            $prompt .= ", {$sqft} sq ft";
+        if ($info['sqft']) {
+            $prompt .= ", approximately {$info['sqft']} sq ft";
         }
 
-        if ($yearBuilt) {
-            $prompt .= ", built in {$yearBuilt}";
+        if ($info['yearBuilt']) {
+            $prompt .= ", built in {$info['yearBuilt']}";
         }
 
-        if ($parking > 0) {
-            $prompt .= ", {$parking} parking space(s)";
+        if ($info['parking'] > 0) {
+            $prompt .= ", {$info['parking']} parking space(s)";
         }
 
-        $prompt .= ". Listed {$listingType} at \$" . number_format($price) . ". ";
-        $prompt .= "Make it engaging and highlight the property's best features. ";
-        $prompt .= "Use natural language that would appeal to home buyers or renters. ";
-        $prompt .= "Include relevant keywords for SEO but keep it natural and readable. ";
-        $prompt .= "Do not include any markdown formatting, just plain text.";
+        if ($info['exposure']) {
+            $prompt .= ". {$info['exposure']} exposure";
+        }
+
+        $prompt .= ". Listed {$info['listingType']} at \$" . number_format($info['price']) . ". ";
+
+        if ($info['description']) {
+            $prompt .= "MLS remarks: " . substr($info['description'], 0, 500) . ". ";
+        }
+
+        $prompt .= "Write an engaging, professional description that highlights the property's best features, location benefits, and lifestyle appeal. ";
+        $prompt .= "Use natural language for home buyers/renters. Include SEO keywords naturally. ";
+        $prompt .= "Do not include any markdown formatting, just plain text paragraphs.";
 
         return $prompt;
     }
@@ -220,92 +269,54 @@ class GeminiAIService
      */
     private function createDetailedPrompt(array $data): string
     {
-        $propertyType = $data['PropertySubType'] ?? 'property';
-        $address = $data['UnparsedAddress'] ?? '';
-        $publicRemarks = $data['PublicRemarks'] ?? '';
-        $bedrooms = $data['BedroomsTotal'] ?? 0;
-        $bathrooms = $data['BathroomsTotalInteger'] ?? 0;
-        $sqft = $data['LivingArea'] ?? 0;
-        $lotSize = $data['LotSizeArea'] ?? 0;
-        $price = $data['ListPrice'] ?? 0;
-        $city = $data['City'] ?? '';
-        $neighborhood = $data['Area'] ?? '';
-        $yearBuilt = $data['YearBuilt'] ?? '';
-        $parking = $data['ParkingTotal'] ?? 0;
-        $parkingType = is_array($data['ParkingFeatures'] ?? '') ? implode(', ', $data['ParkingFeatures']) : ($data['ParkingFeatures'] ?? '');
-        $appliances = is_array($data['Appliances'] ?? '') ? implode(', ', $data['Appliances']) : ($data['Appliances'] ?? '');
-        $features = is_array($data['InteriorFeatures'] ?? '') ? implode(', ', $data['InteriorFeatures']) : ($data['InteriorFeatures'] ?? '');
-        $exteriorFeatures = is_array($data['ExteriorFeatures'] ?? '') ? implode(', ', $data['ExteriorFeatures']) : ($data['ExteriorFeatures'] ?? '');
-        $buildingAmenities = is_array($data['AssociationAmenities'] ?? '') ? implode(', ', $data['AssociationAmenities']) : ($data['AssociationAmenities'] ?? '');
-        $maintenanceFee = $data['AssociationFee'] ?? 0;
-        $taxes = $data['TaxAnnualAmount'] ?? 0;
-        $listingType = $data['TransactionType'] ?? 'For Sale';
+        $info = $this->extractPropertyInfo($data);
 
-        $prompt = "Write a concise property description (2 paragraphs, max 150 words) for this {$propertyType}. ";
+        $prompt = "Write a detailed, professional property description (3-4 paragraphs, 300-400 words) for this {$info['propertyType']}. ";
         $prompt .= "Property information: ";
-        $prompt .= "Location: {$address}, {$city}";
+        $prompt .= "Location: {$info['address']}, {$info['city']}";
 
-        if ($neighborhood) {
-            $prompt .= " in {$neighborhood}";
+        if ($info['neighborhood']) {
+            $prompt .= " in {$info['neighborhood']}";
         }
 
-        $prompt .= ". Configuration: {$bedrooms} bedrooms, {$bathrooms} bathrooms";
+        $prompt .= ". Configuration: {$info['bedrooms']} bedrooms, {$info['bathrooms']} bathrooms";
 
-        if ($sqft > 0) {
-            $prompt .= ", {$sqft} sq ft living area";
+        if ($info['sqft']) {
+            $prompt .= ", approximately {$info['sqft']} sq ft";
         }
 
-        if ($lotSize > 0) {
-            $prompt .= ", {$lotSize} sq ft lot";
+        if ($info['yearBuilt']) {
+            $prompt .= ". Built in {$info['yearBuilt']}";
         }
 
-        if ($yearBuilt) {
-            $prompt .= ". Built in {$yearBuilt}";
+        if ($info['parking'] > 0) {
+            $prompt .= ". Parking: {$info['parking']} space(s)";
         }
 
-        if ($parking > 0) {
-            $prompt .= ". Parking: {$parking} space(s)";
-            if ($parkingType) {
-                $prompt .= " ({$parkingType})";
-            }
+        if ($info['exposure']) {
+            $prompt .= ". Exposure: {$info['exposure']}";
         }
 
-        if ($appliances) {
-            $prompt .= ". Appliances: {$appliances}";
+        if ($info['amenities']) {
+            $prompt .= ". Building amenities: {$info['amenities']}";
         }
 
-        if ($features) {
-            $prompt .= ". Interior features: {$features}";
+        if ($info['maintenanceFee'] && $info['maintenanceFee'] > 0) {
+            $prompt .= ". Maintenance fee: \$" . number_format($info['maintenanceFee']) . "/month";
         }
 
-        if ($exteriorFeatures) {
-            $prompt .= ". Exterior features: {$exteriorFeatures}";
+        $prompt .= ". Listed {$info['listingType']} at \$" . number_format($info['price']) . ". ";
+
+        if ($info['description']) {
+            $prompt .= "Original MLS remarks: " . substr($info['description'], 0, 800) . ". ";
+            $prompt .= "Use these remarks as the foundation but enhance and expand them. ";
         }
 
-        if ($buildingAmenities) {
-            $prompt .= ". Building amenities: {$buildingAmenities}";
-        }
-
-        if ($maintenanceFee > 0) {
-            $prompt .= ". Maintenance fee: \$" . number_format($maintenanceFee) . "/month";
-        }
-
-        if ($taxes > 0) {
-            $prompt .= ". Annual taxes: \$" . number_format($taxes);
-        }
-
-        $prompt .= ". Listed {$listingType} at \$" . number_format($price) . ". ";
-
-        if ($publicRemarks) {
-            $prompt .= "Original remarks: {$publicRemarks}. ";
-            $prompt .= "Rewrite and enhance these remarks to be more engaging and SEO-friendly. ";
-        }
-
-        $prompt .= "Create an engaging description that highlights the property's best features, location advantages, and lifestyle benefits. ";
-        $prompt .= "Use natural, persuasive language that would appeal to potential buyers or renters. ";
-        $prompt .= "Include relevant SEO keywords naturally throughout the text. ";
-        $prompt .= "Focus on what makes this property special and desirable. ";
-        $prompt .= "Do not include any markdown formatting, just plain text.";
+        $prompt .= "Write a comprehensive, engaging description (3-4 paragraphs, 300-400 words) that covers: ";
+        $prompt .= "1) The property layout and features, 2) The building amenities and lifestyle, ";
+        $prompt .= "3) The neighborhood and location advantages, 4) Why this is a great opportunity. ";
+        $prompt .= "Use professional real estate language. Include SEO keywords naturally. ";
+        $prompt .= "Do not include any markdown formatting, just plain text paragraphs.";
 
         return $prompt;
     }

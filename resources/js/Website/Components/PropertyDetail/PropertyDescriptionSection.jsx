@@ -164,21 +164,9 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
     return description;
   };
 
-  // Get property description - prioritize real MLS description, then AI, then fallback
+  // Get property description - AI first (longer/better), MLS fallback
   const getDescription = () => {
-    // First: Always use real MLS description if available
-    const propertyRemarks = propertyData?.PublicRemarks || propertyData?.publicRemarks || propertyData?.description;
-    if (propertyRemarks && propertyRemarks.trim() && propertyRemarks.length > 50) {
-      return {
-        main: propertyRemarks,
-        amenities: '',
-        transportation: '',
-        isAiGenerated: false,
-        isLoading: false
-      };
-    }
-
-    // Second: Use AI-generated description if available
+    // First: Use AI-generated description if available (longer, more detailed)
     const aiDetailedContent = aiDescription?.detailed || backendAiDescription?.detailed;
     const aiOverviewContent = aiDescription?.overview || backendAiDescription?.overview;
     const aiContent = aiDetailedContent || aiOverviewContent;
@@ -197,14 +185,15 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
       };
     }
 
-    // Third: Use short MLS description if any
+    // Second: Use real MLS description while waiting for AI
+    const propertyRemarks = propertyData?.PublicRemarks || propertyData?.publicRemarks || propertyData?.description;
     if (propertyRemarks && propertyRemarks.trim()) {
       return {
         main: propertyRemarks,
         amenities: '',
         transportation: '',
         isAiGenerated: false,
-        isLoading: false
+        isLoading: waitingForAi
       };
     }
 
