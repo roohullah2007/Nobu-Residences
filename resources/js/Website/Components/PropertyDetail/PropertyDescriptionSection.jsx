@@ -164,17 +164,26 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
     return description;
   };
 
-  // Get property description (prioritize AI content)
+  // Get property description - prioritize real MLS description, then AI, then fallback
   const getDescription = () => {
-    // Check for AI content from multiple sources - PRIORITIZE DETAILED over OVERVIEW
+    // First: Always use real MLS description if available
+    const propertyRemarks = propertyData?.PublicRemarks || propertyData?.publicRemarks || propertyData?.description;
+    if (propertyRemarks && propertyRemarks.trim() && propertyRemarks.length > 50) {
+      return {
+        main: propertyRemarks,
+        amenities: '',
+        transportation: '',
+        isAiGenerated: false,
+        isLoading: false
+      };
+    }
+
+    // Second: Use AI-generated description if available
     const aiDetailedContent = aiDescription?.detailed || backendAiDescription?.detailed;
     const aiOverviewContent = aiDescription?.overview || backendAiDescription?.overview;
-
-    // Use detailed description if available, otherwise use overview
     const aiContent = aiDetailedContent || aiOverviewContent;
 
     if (aiContent) {
-      // Show loading indicator is no longer needed once we have AI content
       if (waitingForAi) {
         setWaitingForAi(false);
         setHasLoadedAi(true);
@@ -188,9 +197,8 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
       };
     }
 
-    // Try to use property remarks first if no AI content
-    const propertyRemarks = propertyData?.PublicRemarks || propertyData?.publicRemarks || propertyData?.description;
-    if (propertyRemarks && propertyRemarks.trim() && !waitingForAi) {
+    // Third: Use short MLS description if any
+    if (propertyRemarks && propertyRemarks.trim()) {
       return {
         main: propertyRemarks,
         amenities: '',
@@ -200,7 +208,7 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
       };
     }
 
-    // Show basic description as fallback (when waiting for AI or no content)
+    // Last: Generate basic description as fallback
     const basicDescription = generateBasicDescription();
     return {
       main: basicDescription,
