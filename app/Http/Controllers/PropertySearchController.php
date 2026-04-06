@@ -434,10 +434,15 @@ class PropertySearchController extends Controller
             $apiParams['maxPrice'] = $params['price_max'];
         }
 
-        // Bedroom/bathroom filters
+        // Bedroom filter - exact match (except 5+ which is minimum)
         if ($params['bedrooms'] > 0) {
-            $apiParams['minBedrooms'] = $params['bedrooms'];
+            $beds = (int) $params['bedrooms'];
+            $apiParams['minBedrooms'] = $beds;
+            if ($beds < 5) {
+                $apiParams['maxBedrooms'] = $beds;
+            }
         }
+        // Bathroom filter
         if ($params['bathrooms'] > 0) {
             $apiParams['minBaths'] = $params['bathrooms'];
         }
@@ -531,7 +536,8 @@ class PropertySearchController extends Controller
                 'ListingKey' => $listing['mlsNumber'] ?? '',
                 'ListPrice' => $listing['listPrice'] ?? 0,
                 'UnparsedAddress' => $fullAddress,
-                'BedroomsTotal' => ($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0),
+                'BedroomsTotal' => $details['numBedrooms'] ?? 0,
+                'BedroomsPlus' => $details['numBedroomsPlus'] ?? 0,
                 'BathroomsTotalInteger' => ($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0),
                 'AboveGradeFinishedArea' => $details['sqft'] ?? 0,
                 'LivingAreaRange' => $details['sqft'] ?? '',

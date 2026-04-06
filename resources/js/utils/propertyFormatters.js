@@ -222,10 +222,11 @@ export const buildCardFeatures = (property) => {
   }
   
   // For regular properties, use original logic
-  // Bedrooms
+  // Bedrooms (show as "2+1" if plus bedrooms exist)
   const bedrooms = property.bedrooms || property.BedroomsTotal || property.bedroomsTotal || 0;
+  const bedroomsPlus = property.BedroomsPlus || property.bedroomsPlus || property.BedroomsBelowGrade || 0;
   if (bedrooms > 0) {
-    features.push(bedrooms + 'BD');
+    features.push(bedroomsPlus > 0 ? `${bedrooms}+${bedroomsPlus}BD` : bedrooms + 'BD');
   }
   
   // Bathrooms
