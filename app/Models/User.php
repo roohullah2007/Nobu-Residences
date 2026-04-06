@@ -28,6 +28,7 @@ class User extends Authenticatable
         'bio',
         'is_active',
         'google_id',
+        'repliers_client_id',
         'avatar',
         'provider',
         'provider_id',

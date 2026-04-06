@@ -214,6 +214,173 @@ class RepliersApiService
         return array_map(fn($img) => $this->getImageUrl($img), $images);
     }
 
+    // =========================================================================
+    // Clients API
+    // =========================================================================
+
+    /**
+     * Create a client in Repliers (when user signs up)
+     */
+    public function createClient(array $userData): ?array
+    {
+        try {
+            $agentId = config('repliers.agent_id');
+            $body = [
+                'agentId' => $agentId,
+                'email' => $userData['email'] ?? '',
+                'fname' => $userData['first_name'] ?? $userData['name'] ?? '',
+                'lname' => $userData['last_name'] ?? '',
+                'phone' => $userData['phone'] ?? null,
+            ];
+
+            // Remove null values
+            $body = array_filter($body, fn($v) => $v !== null && $v !== '');
+
+            $response = $this->makeRequest('POST', '/clients', $body);
+            $data = $response->json();
+
+            Log::info('Repliers client created', ['clientId' => $data['clientId'] ?? null, 'email' => $userData['email']]);
+            return $data;
+        } catch (Exception $e) {
+            Log::error('Failed to create Repliers client', ['error' => $e->getMessage(), 'email' => $userData['email'] ?? '']);
+            return null;
+        }
+    }
+
+    /**
+     * Get a client from Repliers by client ID
+     */
+    public function getClient(string $clientId): ?array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/clients/{$clientId}");
+            return $response->json();
+        } catch (Exception $e) {
+            Log::warning('Failed to get Repliers client', ['clientId' => $clientId, 'error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    // =========================================================================
+    // Favourites API
+    // =========================================================================
+
+    /**
+     * Add a listing to favourites in Repliers
+     */
+    public function addFavourite(string $clientId, string $mlsNumber, int $boardId = 91): ?array
+    {
+        try {
+            $response = $this->makeRequest('POST', '/favorites', [
+                'clientId' => $clientId,
+                'mlsNumber' => $mlsNumber,
+                'boardId' => $boardId,
+            ]);
+
+            $data = $response->json();
+            Log::info('Repliers favourite added', ['clientId' => $clientId, 'mlsNumber' => $mlsNumber]);
+            return $data;
+        } catch (Exception $e) {
+            Log::error('Failed to add Repliers favourite', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Remove a listing from favourites in Repliers
+     */
+    public function removeFavourite(string $clientId, string $mlsNumber, int $boardId = 91): bool
+    {
+        try {
+            $this->makeRequest('DELETE', '/favorites', [
+                'clientId' => $clientId,
+                'mlsNumber' => $mlsNumber,
+                'boardId' => $boardId,
+            ]);
+
+            Log::info('Repliers favourite removed', ['clientId' => $clientId, 'mlsNumber' => $mlsNumber]);
+            return true;
+        } catch (Exception $e) {
+            Log::error('Failed to remove Repliers favourite', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Get all favourites for a client
+     */
+    public function getFavourites(string $clientId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', '/favorites', [
+                'clientId' => $clientId,
+            ]);
+
+            return $response->json()['favorites'] ?? [];
+        } catch (Exception $e) {
+            Log::warning('Failed to get Repliers favourites', ['clientId' => $clientId, 'error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    // =========================================================================
+    // Saved Searches API
+    // =========================================================================
+
+    /**
+     * Create a saved search in Repliers
+     */
+    public function createSavedSearch(string $clientId, array $searchParams, string $name = ''): ?array
+    {
+        try {
+            $body = [
+                'clientId' => $clientId,
+                'name' => $name ?: 'Saved Search',
+                'filters' => $searchParams,
+            ];
+
+            $response = $this->makeRequest('POST', '/saved-searches', $body);
+            $data = $response->json();
+
+            Log::info('Repliers saved search created', ['clientId' => $clientId]);
+            return $data;
+        } catch (Exception $e) {
+            Log::error('Failed to create Repliers saved search', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+
+    /**
+     * Delete a saved search from Repliers
+     */
+    public function deleteSavedSearch(string $savedSearchId): bool
+    {
+        try {
+            $this->makeRequest('DELETE', "/saved-searches/{$savedSearchId}");
+            return true;
+        } catch (Exception $e) {
+            Log::error('Failed to delete Repliers saved search', ['error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Get saved searches for a client
+     */
+    public function getSavedSearches(string $clientId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', '/saved-searches', [
+                'clientId' => $clientId,
+            ]);
+
+            return $response->json()['savedSearches'] ?? $response->json() ?? [];
+        } catch (Exception $e) {
+            Log::warning('Failed to get Repliers saved searches', ['clientId' => $clientId, 'error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
     /**
      * Set cache TTL
      */
@@ -245,6 +412,10 @@ class RepliersApiService
 
         if ($method === 'POST') {
             $response = $http->post($url, $params);
+        } elseif ($method === 'DELETE') {
+            $response = $http->delete($url, $params);
+        } elseif ($method === 'PUT') {
+            $response = $http->put($url, $params);
         } else {
             // Build query string manually to handle array params correctly
             // Repliers expects repeated params: city=Toronto&city=Vaughan (not city[]=...)

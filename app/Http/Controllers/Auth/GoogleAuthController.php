@@ -61,6 +61,22 @@ class GoogleAuthController extends Controller
                     'role' => 'user',
                     'email_verified_at' => now(),
                 ]);
+
+                // Create client in Repliers API
+                try {
+                    $repliersApi = app(\App\Services\RepliersApiService::class);
+                    $nameParts = explode(' ', $googleUser->name, 2);
+                    $clientData = $repliersApi->createClient([
+                        'email' => $googleUser->email,
+                        'first_name' => $nameParts[0] ?? $googleUser->name,
+                        'last_name' => $nameParts[1] ?? '',
+                    ]);
+                    if ($clientData && !empty($clientData['clientId'])) {
+                        $user->update(['repliers_client_id' => (string) $clientData['clientId']]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
+                }
             }
 
             Auth::login($user, true);
@@ -117,6 +133,22 @@ class GoogleAuthController extends Controller
                     'role' => 'user',
                     'email_verified_at' => now(),
                 ]);
+
+                // Create client in Repliers API
+                try {
+                    $repliersApi = app(\App\Services\RepliersApiService::class);
+                    $nameParts = explode(' ', $googleUser->name, 2);
+                    $clientData = $repliersApi->createClient([
+                        'email' => $googleUser->email,
+                        'first_name' => $nameParts[0] ?? $googleUser->name,
+                        'last_name' => $nameParts[1] ?? '',
+                    ]);
+                    if ($clientData && !empty($clientData['clientId'])) {
+                        $user->update(['repliers_client_id' => (string) $clientData['clientId']]);
+                    }
+                } catch (\Exception $e) {
+                    \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
+                }
             }
 
             Auth::login($user, true);

@@ -50,7 +50,7 @@ class SavedSearchController extends Controller
             ], 401);
         }
 
-        // Create the saved search
+        // Create the saved search (local DB)
         $savedSearch = SavedSearch::create([
             'user_id' => Auth::id(),
             'name' => $validated['name'],
@@ -59,6 +59,25 @@ class SavedSearchController extends Controller
             'frequency' => $validated['frequency'] ?? 1,
             'results_count' => 0
         ]);
+
+        // Also save to Repliers API
+        $user = Auth::user();
+        if ($user->repliers_client_id) {
+            try {
+                $repliersApi = app(\App\Services\RepliersApiService::class);
+                $repliersResult = $repliersApi->createSavedSearch(
+                    $user->repliers_client_id,
+                    $validated['search_params'],
+                    $validated['name']
+                );
+
+                if ($repliersResult && !empty($repliersResult['savedSearchId'])) {
+                    $savedSearch->update(['repliers_saved_search_id' => $repliersResult['savedSearchId']]);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to create Repliers saved search', ['error' => $e->getMessage()]);
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -98,6 +117,16 @@ class SavedSearchController extends Controller
     {
         $savedSearch = SavedSearch::where('user_id', Auth::id())
             ->findOrFail($id);
+
+        // Also delete from Repliers API
+        if (!empty($savedSearch->repliers_saved_search_id)) {
+            try {
+                $repliersApi = app(\App\Services\RepliersApiService::class);
+                $repliersApi->deleteSavedSearch($savedSearch->repliers_saved_search_id);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to delete Repliers saved search', ['error' => $e->getMessage()]);
+            }
+        }
 
         $savedSearch->delete();
 

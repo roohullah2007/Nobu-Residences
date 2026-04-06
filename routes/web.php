@@ -1,8 +1,7 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Api\EnhancedPropertyImagesController;
-// AmpreTestController removed - using Repliers API now
+// Image proxy and AMPRE test controllers removed - using Repliers CDN directly
 use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\PropertyEnquiryController;
 
@@ -74,7 +73,7 @@ Route::get('/school/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySlu
     ->where('schoolSlug', '[a-z0-9\-]+')
     ->name('school-detail');
 
-Route::get('/api/image-proxy', [\App\Http\Controllers\ImageProxyController::class, 'proxy'])->name('image-proxy');
+// Image proxy removed - Repliers CDN images work directly via HTTPS
 
 // Property Enquiry route
 Route::post('/property-enquiry', [PropertyEnquiryController::class, 'store'])->name('property.enquiry');
@@ -465,8 +464,7 @@ Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildi
 
 // Enhanced Property Images API Routes - DISABLED to use PropertyImageController instead
 // Route::prefix('api')->group(function () {
-//     Route::post('/property-images', [EnhancedPropertyImagesController::class, 'getPropertyImages'])->name('api.property-images');
-//     Route::post('/property-images/clear-cache', [EnhancedPropertyImagesController::class, 'clearImageCache'])->name('api.property-images.clear-cache');
+// Enhanced image routes removed - using Repliers CDN directly
 // });
 
 // Old AMPRE test routes removed - using Repliers API now

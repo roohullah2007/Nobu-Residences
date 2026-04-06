@@ -17,6 +17,8 @@ return [
 
     'cdn_url' => env('REPLIERS_CDN_URL', 'https://cdn.repliers.io'),
 
+    'agent_id' => env('REPLIERS_AGENT_ID', 107015),
+
     /*
     |--------------------------------------------------------------------------
     | Cache Configuration

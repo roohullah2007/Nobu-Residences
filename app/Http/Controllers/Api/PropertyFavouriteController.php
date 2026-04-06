@@ -337,9 +337,19 @@ class PropertyFavouriteController extends Controller
                 ->first();
 
             if ($existingFavourite) {
-                // Remove from favourites
+                // Remove from favourites (local DB)
                 $existingFavourite->delete();
-                
+
+                // Also remove from Repliers API
+                if ($user->repliers_client_id) {
+                    try {
+                        $repliersApi = app(\App\Services\RepliersApiService::class);
+                        $repliersApi->removeFavourite($user->repliers_client_id, $request->property_listing_key);
+                    } catch (\Exception $e) {
+                        \Log::warning('Failed to remove Repliers favourite', ['error' => $e->getMessage()]);
+                    }
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Property removed from favourites',
@@ -347,7 +357,7 @@ class PropertyFavouriteController extends Controller
                     'action' => 'removed'
                 ]);
             } else {
-                // Add to favourites
+                // Add to favourites (local DB)
                 $favourite = UserPropertyFavourite::create([
                     'user_id' => $user->id,
                     'property_listing_key' => $request->property_listing_key,
@@ -357,6 +367,16 @@ class PropertyFavouriteController extends Controller
                     'property_type' => $request->property_type,
                     'property_city' => $request->property_city,
                 ]);
+
+                // Also add to Repliers API
+                if ($user->repliers_client_id) {
+                    try {
+                        $repliersApi = app(\App\Services\RepliersApiService::class);
+                        $repliersApi->addFavourite($user->repliers_client_id, $request->property_listing_key);
+                    } catch (\Exception $e) {
+                        \Log::warning('Failed to add Repliers favourite', ['error' => $e->getMessage()]);
+                    }
+                }
 
                 return response()->json([
                     'success' => true,
