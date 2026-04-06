@@ -117,10 +117,11 @@ class RepliersApiService
 
     /**
      * Get a single listing by searching for its MLS number
-     * Useful when boardId is unknown
+     * Searches both active and sold/leased listings
      */
     public function getListingByMlsNumber(string $mlsNumber): ?array
     {
+        // Try active listings first
         $result = $this->searchListings([
             'search' => $mlsNumber,
             'resultsPerPage' => 1,
@@ -128,7 +129,20 @@ class RepliersApiService
 
         if (!empty($result['listings'])) {
             $listing = $result['listings'][0];
-            // Verify it's the right listing
+            if (($listing['mlsNumber'] ?? '') === $mlsNumber) {
+                return $listing;
+            }
+        }
+
+        // Try sold/unavailable listings
+        $result = $this->searchListings([
+            'search' => $mlsNumber,
+            'status' => 'U',
+            'resultsPerPage' => 1,
+        ]);
+
+        if (!empty($result['listings'])) {
+            $listing = $result['listings'][0];
             if (($listing['mlsNumber'] ?? '') === $mlsNumber) {
                 return $listing;
             }
