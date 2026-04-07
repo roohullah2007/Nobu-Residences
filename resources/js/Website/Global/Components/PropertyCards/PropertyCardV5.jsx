@@ -523,12 +523,6 @@ const PropertyCardV5 = ({
                     // Check MlsStatus first - handles both Repliers (Sld/Lsd) and AMPRE (Sold/Leased) formats
                     const mlsStatusLower = property.MlsStatus ? property.MlsStatus.toLowerCase() : '';
                     if (mlsStatusLower === 'sold' || mlsStatusLower === 'sld' || mlsStatusLower === 'sc') {
-                      const daysSince = getDaysSinceSold(property.soldDate);
-                      if (daysSince !== null && daysSince <= 30) {
-                        if (daysSince === 0) return 'Sold Today';
-                        if (daysSince === 1) return 'Sold Yesterday';
-                        return `Sold ${daysSince}d ago`;
-                      }
                       return 'Sold';
                     }
                     if (['leased', 'lsd', 'lc', 'rented', 'lease'].includes(mlsStatusLower)) {
@@ -540,12 +534,6 @@ const PropertyCardV5 = ({
                     if (standardStatusLower === 'sold' || standardStatusLower === 'closed') {
                       if (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent' || property.TransactionType === 'Leased') {
                         return 'Leased';
-                      }
-                      const daysSince = getDaysSinceSold(property.soldDate);
-                      if (daysSince !== null && daysSince <= 30) {
-                        if (daysSince === 0) return 'Sold Today';
-                        if (daysSince === 1) return 'Sold Yesterday';
-                        return `Sold ${daysSince}d ago`;
                       }
                       return 'Sold';
                     }
