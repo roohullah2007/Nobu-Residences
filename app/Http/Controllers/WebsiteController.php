@@ -1899,6 +1899,48 @@ class WebsiteController extends Controller
             \Log::error('Error fetching AI content:', ['error' => $e->getMessage()]);
         }
 
+        // Canonical-URL redirect: if this listing belongs to a known
+        // building, the URL should be
+        //   /{city}/{building-rich-slug}/unit-{unitNumber}-{listingKey}
+        // If the current request path doesn't match, 301-redirect to it.
+        if ($buildingData && !empty($buildingData['name'])) {
+            $slugify = function ($s) {
+                $s = strtolower((string) $s);
+                $s = preg_replace('/[^\w\s-]/', '', $s);
+                $s = preg_replace('/[\s_-]+/', '-', $s);
+                return trim($s, '-');
+            };
+
+            $cityForUrl = $buildingData['city'] ?? 'Toronto';
+            $citySlug = $slugify($cityForUrl) ?: 'toronto';
+
+            $slugParts = [$slugify($buildingData['name'])];
+            if (!empty($buildingData['street_address_1'])) {
+                $slugParts[] = $slugify($buildingData['street_address_1']);
+            }
+            if (!empty($buildingData['street_address_2'])) {
+                $slugParts[] = $slugify($buildingData['street_address_2']);
+            }
+            if (count($slugParts) === 1 && !empty($buildingData['address'])) {
+                foreach (preg_split('/\s*[,&]\s*/', $buildingData['address']) as $part) {
+                    if (trim($part) !== '') {
+                        $slugParts[] = $slugify($part);
+                    }
+                }
+            }
+            $buildingSlug = implode('-', array_filter($slugParts));
+
+            $unitNumber = $propertyData['UnitNumber'] ?? $propertyData['unitNumber'] ?? '';
+            $unitSegment = $unitNumber ? "unit-{$unitNumber}-{$listingKey}" : $listingKey;
+
+            $canonicalPath = "/{$citySlug}/{$buildingSlug}/{$unitSegment}";
+            $currentPath = '/' . ltrim(request()->path(), '/');
+
+            if ($buildingSlug && $canonicalPath !== $currentPath) {
+                return redirect($canonicalPath, 301);
+            }
+        }
+
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
             'listingKey' => $listingKey,
