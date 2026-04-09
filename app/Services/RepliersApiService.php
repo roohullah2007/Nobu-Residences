@@ -121,11 +121,16 @@ class RepliersApiService
      */
     public function getListingByMlsNumber(string $mlsNumber): ?array
     {
-        // Try active listings first
-        $result = $this->searchListings([
+        // Request all default fields PLUS the listing history (price history)
+        // so the property detail page can show prior list/sold prices.
+        $baseParams = [
             'search' => $mlsNumber,
             'resultsPerPage' => 1,
-        ]);
+            'fields' => '*,history',
+        ];
+
+        // Try active listings first
+        $result = $this->searchListings($baseParams);
 
         if (!empty($result['listings'])) {
             $listing = $result['listings'][0];
@@ -135,11 +140,7 @@ class RepliersApiService
         }
 
         // Try sold/unavailable listings
-        $result = $this->searchListings([
-            'search' => $mlsNumber,
-            'status' => 'U',
-            'resultsPerPage' => 1,
-        ]);
+        $result = $this->searchListings(array_merge($baseParams, ['status' => 'U']));
 
         if (!empty($result['listings'])) {
             $listing = $result['listings'][0];

@@ -2145,7 +2145,116 @@ class WebsiteController extends Controller
             'AboveGradeFinishedArea' => $sqft,
             'BuildingAreaTotal' => $sqft,
             'GrossFloorArea' => $sqft,
+            // Price history straight from the Repliers listing object.
+            // Each entry typically has: mlsNumber, listPrice, listDate,
+            // lastStatus, soldPrice, soldDate, daysOnMarket, type.
+            // If Repliers returned an empty history array (most common —
+            // history requires elevated API access), fall back to a single
+            // synthetic entry built from the current listing fields so the
+            // Price History section always has at least one row to render.
+            'priceHistory' => $isRepliersFormat
+                ? $this->buildPriceHistory($listing, $listingKey, $listPrice, $listDate, $soldPrice, $listing['soldDate'] ?? null, $mlsStatus, $daysOnMarket)
+                : [],
+            'PriceHistory' => $isRepliersFormat
+                ? $this->buildPriceHistory($listing, $listingKey, $listPrice, $listDate, $soldPrice, $listing['soldDate'] ?? null, $mlsStatus, $daysOnMarket)
+                : [],
         ];
+    }
+
+    /**
+     * Build a normalized price history array.
+     *
+     * Strategy:
+     * 1. If Repliers' `history` field is populated on the listing, use it.
+     * 2. Otherwise query Repliers for all prior listings at the same
+     *    streetNumber + streetName + unitNumber (status=U for sold/leased/
+     *    expired/terminated) — this is how Repliers actually represents
+     *    historical relistings.
+     * 3. Always merge in the current listing as one entry so the row for
+     *    the active listing is part of the timeline.
+     * 4. Sort newest-first by soldDate / listDate.
+     */
+    private function buildPriceHistory(array $listing, $mlsNumber, $listPrice, $listDate, $soldPrice, $soldDate, $lastStatus, $daysOnMarket): array
+    {
+        $entries = [];
+        $seen = [];
+
+        // 1. Repliers-provided history (if any)
+        $repliersHistory = $listing['history'] ?? $listing['historyTransactions'] ?? [];
+        if (is_array($repliersHistory)) {
+            foreach ($repliersHistory as $h) {
+                $key = ($h['mlsNumber'] ?? '') . '|' . ($h['listDate'] ?? '');
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $entries[] = $h;
+            }
+        }
+
+        // 2. Look up prior listings at the same address+unit
+        $address = $listing['address'] ?? [];
+        $streetNumber = $address['streetNumber'] ?? null;
+        $streetName = $address['streetName'] ?? null;
+        $unitNumber = $address['unitNumber'] ?? null;
+
+        if ($streetNumber && $streetName) {
+            try {
+                $api = app(\App\Services\RepliersApiService::class);
+                $params = [
+                    'class' => 'condoProperty',
+                    'streetNumber' => (string) $streetNumber,
+                    'streetName' => $streetName,
+                    'status' => 'U',
+                    'resultsPerPage' => 30,
+                    'sortBy' => 'updatedOnDesc',
+                ];
+                if ($unitNumber !== null && $unitNumber !== '') {
+                    $params['unitNumber'] = (string) $unitNumber;
+                }
+                $res = $api->searchListings($params);
+                foreach (($res['listings'] ?? []) as $h) {
+                    $key = ($h['mlsNumber'] ?? '') . '|' . ($h['listDate'] ?? '');
+                    if (isset($seen[$key])) continue;
+                    $seen[$key] = true;
+
+                    $entries[] = [
+                        'mlsNumber' => $h['mlsNumber'] ?? null,
+                        'listPrice' => $h['listPrice'] ?? null,
+                        'listDate' => $h['listDate'] ?? null,
+                        'soldPrice' => $h['soldPrice'] ?? null,
+                        'soldDate' => $h['soldDate'] ?? null,
+                        'lastStatus' => $h['lastStatus'] ?? null,
+                        'daysOnMarket' => $h['daysOnMarket'] ?? $h['simpleDaysOnMarket'] ?? null,
+                        'type' => $h['type'] ?? null,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('priceHistory address-lookup failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // 3. Always include the current listing as an entry
+        $currentKey = $mlsNumber . '|' . $listDate;
+        if (!isset($seen[$currentKey]) && ($listPrice || $soldPrice || $listDate)) {
+            $entries[] = [
+                'mlsNumber' => $mlsNumber,
+                'listPrice' => $listPrice ?: null,
+                'listDate' => $listDate ?: null,
+                'soldPrice' => $soldPrice ?: null,
+                'soldDate' => $soldDate ?: null,
+                'lastStatus' => $lastStatus ?: 'A',
+                'daysOnMarket' => $daysOnMarket ?: null,
+                'type' => $listing['type'] ?? null,
+            ];
+        }
+
+        // 4. Sort newest-first
+        usort($entries, function ($a, $b) {
+            $da = strtotime($a['soldDate'] ?? $a['listDate'] ?? 0);
+            $db = strtotime($b['soldDate'] ?? $b['listDate'] ?? 0);
+            return $db - $da;
+        });
+
+        return $entries;
     }
 
     /**

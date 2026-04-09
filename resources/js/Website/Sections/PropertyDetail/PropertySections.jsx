@@ -12,6 +12,7 @@ import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/Prop
 
 export default function PropertySections({
   propertyData,
+  propertyImages,
   auth,
   buildingData,
   aiDescription
@@ -34,8 +35,8 @@ export default function PropertySections({
 
      {/* Property Status and Navigation Tabs */}
       <PropertyStatusTabs property={propertyData} buildingData={buildingData} aiDescription={aiDescription} auth={auth} />
-      {/* Price History Section - Hidden for now */}
-      {/* <PriceHistory propertyData={propertyData} /> */}
+      {/* Price History Section — live from Repliers `history` field */}
+      <PriceHistory propertyData={propertyData} propertyImages={propertyImages} auth={auth} />
       
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />

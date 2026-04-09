@@ -1,110 +1,239 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const PriceHistory = ({ propertyData = null }) => {
-  // Get property image from propertyData - no fallback
-  const getPropertyImage = () => {
-    if (propertyData?.Images && Array.isArray(propertyData.Images) && propertyData.Images.length > 0) {
-      const firstImage = propertyData.Images[0];
-      if (firstImage?.MediaURL) {
-        return firstImage.MediaURL;
-      }
-    }
-    // No fallback - return null if no image
+/**
+ * Price History — driven by the `priceHistory` array attached to
+ * propertyData (sourced from Repliers via WebsiteController::buildPriceHistory).
+ *
+ * Each entry has: mlsNumber, listPrice, listDate, soldPrice, soldDate,
+ *   lastStatus, daysOnMarket, type.
+ *
+ * Layout matches the reference design:
+ *   [thumb] [date / time-ago]   [Status / Listed for $X on date]   [N days on market]
+ */
+const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null }) => {
+  const [expanded, setExpanded] = useState(false);
+  const isLoggedIn = !!auth?.user;
+
+  const pickFromImageList = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    const first = list[0];
+    if (typeof first === 'string') return first;
+    if (first?.MediaURL) return first.MediaURL;
+    if (first?.url) return first.url;
     return null;
   };
 
-  const propertyImage = getPropertyImage();
-  
-  return (
-    <div className="w-full p-4 rounded-xl border-gray-200 border shadow-sm max-w-[1280px] mx-auto">
-      {/* Price History */}
-      <div className="bg-white rounded-lg p-0">
-        <h2 className="text-[24px] font-bold mb-1 font-space-grotesk" style={{ color: '#293056' }}>Price History</h2>
-        <p className="text-gray-600 text-sm mb-4">Discover the price history for 3002 - 33 Mill Street</p>
-      </div>
+  const getPropertyImage = () => {
+    return (
+      pickFromImageList(propertyImages) ||
+      pickFromImageList(propertyData?.Images) ||
+      pickFromImageList(propertyData?.ImageObjects) ||
+      pickFromImageList(propertyData?.images) ||
+      propertyData?.MediaURL ||
+      propertyData?.imageUrl ||
+      propertyData?.image ||
+      null
+    );
+  };
 
-      {/* Login Requirement Box */}
-      <div className="border border-[#037888] rounded-lg font-medium px-4 py-2 text-sm mb-4 bg-[#EFF7F8]">
-        <p>Real estate boards require you to be signed in to access price history.
-          <a href="#" className="font-medium text-[#037888]"> Sign up</a> or
-          <a href="#" className="font-medium text-[#037888]"> Log in</a>
+  const propertyImage = getPropertyImage();
+
+  // Normalize and filter the raw history
+  const rawHistory =
+    propertyData?.priceHistory ||
+    propertyData?.PriceHistory ||
+    propertyData?.history ||
+    [];
+
+  const history = (Array.isArray(rawHistory) ? rawHistory : [])
+    .map((h) => ({
+      mlsNumber: h.mlsNumber || h.MlsNumber || h.listingKey || '',
+      listPrice: parseFloat(h.listPrice || h.ListPrice || 0) || 0,
+      listDate: h.listDate || h.ListDate || h.listingContractDate || null,
+      soldPrice: parseFloat(h.soldPrice || h.SoldPrice || h.closePrice || 0) || 0,
+      soldDate: h.soldDate || h.SoldDate || h.closeDate || null,
+      lastStatus: h.lastStatus || h.LastStatus || h.status || '',
+      daysOnMarket:
+        parseInt(h.daysOnMarket || h.DaysOnMarket || h.simpleDaysOnMarket || 0, 10) ||
+        null,
+      type: h.type || h.Type || '',
+    }))
+    .filter((h) => h.listDate || h.soldDate);
+
+  // Sort newest first
+  history.sort((a, b) => {
+    const da = new Date(a.soldDate || a.listDate || 0).getTime();
+    const db = new Date(b.soldDate || b.listDate || 0).getTime();
+    return db - da;
+  });
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    const date = new Date(d);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    });
+  };
+
+  const formatPrice = (n) =>
+    n
+      ? `$${Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      : '';
+
+  // Friendly relative time: "1 day ago" / "3 weeks ago" / "1 year ago"
+  const relativeTime = (d) => {
+    if (!d) return '';
+    const then = new Date(d).getTime();
+    if (isNaN(then)) return '';
+    const days = Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+    if (days <= 0) return 'today';
+    if (days === 1) return '1 day ago';
+    if (days < 30) return `${days} days ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return months === 1 ? '1 month ago' : `${months} months ago`;
+    const years = Math.floor(days / 365);
+    return years === 1 ? '1 year ago' : `${years} years ago`;
+  };
+
+  // Status code → display label + color class
+  const statusDisplay = (s) => {
+    const code = (s || '').toString().toLowerCase();
+    if (['sld', 'sold'].includes(code)) return { label: 'Sold', cls: 'text-emerald-600' };
+    if (['lsd', 'leased'].includes(code)) return { label: 'Leased', cls: 'text-emerald-600' };
+    if (['exp', 'expired'].includes(code)) return { label: 'Expired', cls: 'text-rose-600' };
+    if (['ter', 'terminated'].includes(code)) return { label: 'Terminated', cls: 'text-rose-600' };
+    if (['sus', 'suspended'].includes(code)) return { label: 'Suspended', cls: 'text-amber-600' };
+    if (['pc', 'price change'].includes(code)) return { label: 'Price Change', cls: 'text-blue-600' };
+    if (['new', 'a', 'active'].includes(code)) return { label: 'Listed', cls: 'text-[#293056]' };
+    return { label: s || 'Listed', cls: 'text-[#293056]' };
+  };
+
+  // Auth-gated visible slice
+  const previewCount = isLoggedIn ? (expanded ? history.length : 5) : 1;
+  const visibleHistory = history.slice(0, previewCount);
+
+  // Address subtitle ("813 - 15 Mercer Street")
+  const subtitleAddress = (() => {
+    const unit = propertyData?.UnitNumber || propertyData?.unitNumber || '';
+    const sn = propertyData?.StreetNumber || propertyData?.streetNumber || '';
+    const stName = propertyData?.StreetName || propertyData?.streetName || '';
+    const stSuf = propertyData?.StreetSuffix || propertyData?.streetSuffix || '';
+    const street = [sn, stName, stSuf].filter(Boolean).join(' ');
+    return unit ? `${unit} - ${street}` : street || propertyData?.address || '';
+  })();
+
+  return (
+    <div className="w-full p-6 rounded-2xl border border-gray-200 shadow-sm bg-white max-w-[1280px] mx-auto">
+      <div className="mb-5">
+        <h2
+          className="text-[28px] font-bold mb-1 font-space-grotesk"
+          style={{ color: '#293056' }}
+        >
+          Price History
+        </h2>
+        <p className="text-gray-500 text-sm">
+          Discover the price history for {subtitleAddress || 'this listing'}
         </p>
       </div>
 
-      {/* Price History Table */}
-      <div className="flex flex-col px-2 space-y-2 overflow-hidden">
-        {/* Unblurred Row */}
-        <div className="flex flex-col md:flex-row shadow-sm bg-[#F8F8F8] rounded-lg">
-          <div className="w-full md:w-[69px] p-3 md:py-3 md:px-2">
-            {propertyImage ? (
-              <img 
-                src={propertyImage} 
-                alt="Property" 
-                className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
-                onError={(e) => {
-                  // Hide image on error instead of showing fallback
-                  e.target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="w-full md:w-full h-[120px] md:h-[52px] bg-gray-200 rounded-lg flex items-center justify-center">
-                <span className="text-gray-400 text-xs">No image</span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 w-full space-y-3 md:space-y-0">
-            <div className="flex flex-col">
-              <div className="text-sm text-gray-600 mb-1">Jul 08, 2025</div>
-              <div className="text-sm text-gray-600">29 days ago</div>
-            </div>
-            <div className="flex flex-col">
-              <div className="text-red-500 font-medium text-sm mb-1">Expired</div>
-              <div className="text-sm text-gray-600">Listed for $749,900 on May 08, 2025</div>
-            </div>
-            <div className="flex items-center justify-start md:justify-center text-sm text-gray-600">
-              61 days on market
-            </div>
-          </div>
+      {history.length === 0 ? (
+        <div className="text-sm text-gray-500 py-6 text-center bg-gray-50 rounded-xl">
+          No price history available for this listing.
         </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {visibleHistory.map((entry, idx) => {
+            const status = statusDisplay(entry.lastStatus);
+            const wasSold = ['Sold', 'Leased'].includes(status.label);
+            const displayPrice = wasSold ? entry.soldPrice : entry.listPrice;
+            const displayDate = entry.listDate || entry.soldDate;
+            const eventDate = entry.soldDate || entry.listDate;
+            const blur = !isLoggedIn && idx > 0;
+            const blurCls = blur ? 'blur-sm select-none' : '';
 
-        {/* Blurred Row (Original) */}
-        <div className="flex flex-col md:flex-row shadow-sm bg-[#F8F8F8] rounded-lg">
-          <div className="w-full md:w-[69px] p-3 md:py-3 md:px-2">
-            {propertyImage ? (
-              <img 
-                src={propertyImage} 
-                alt="Property" 
-                className="w-full md:w-full h-[120px] md:h-[52px] object-cover rounded-lg"
-                onError={(e) => {
-                  // Hide image on error instead of showing fallback
-                  e.target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="w-full md:w-full h-[120px] md:h-[52px] bg-gray-200 rounded-lg flex items-center justify-center">
-                <span className="text-gray-400 text-xs">No image</span>
+            return (
+              <div
+                key={`${entry.mlsNumber || 'h'}-${idx}`}
+                className="flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
+              >
+                {/* Thumbnail */}
+                <div className="flex-shrink-0">
+                  {propertyImage ? (
+                    <img
+                      src={propertyImage}
+                      alt="Property"
+                      className="w-[72px] h-[60px] md:w-[80px] md:h-[68px] object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-[72px] h-[60px] md:w-[80px] md:h-[68px] bg-gray-200 rounded-lg flex items-center justify-center">
+                      <span className="text-gray-400 text-[10px] text-center px-1">
+                        No image
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Date column */}
+                <div className="flex flex-col min-w-[110px]">
+                  <div className={`text-sm font-semibold text-[#293056] ${blurCls}`}>
+                    {formatDate(eventDate) || '—'}
+                  </div>
+                  <div className={`text-xs text-gray-500 mt-0.5 ${blurCls}`}>
+                    {relativeTime(eventDate)}
+                  </div>
+                </div>
+
+                {/* Status + listed-for line */}
+                <div className="flex-1 flex flex-col min-w-0">
+                  <div className={`font-bold text-sm ${blur ? 'text-rose-600' : status.cls}`}>
+                    {blur ? 'Login Required' : status.label}
+                  </div>
+                  <div className="text-sm text-gray-600 mt-0.5">
+                    {wasSold ? 'Sold for ' : 'Listed for '}
+                    <span className={`font-semibold text-[#293056] ${blurCls}`}>
+                      {' '}
+                      {formatPrice(displayPrice) || 'N/A'}
+                    </span>
+                    {displayDate && (
+                      <>
+                        {' '}
+                        on{' '}
+                        <span className={blurCls}>{formatDate(displayDate)}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Days on market separator + value */}
+                <div className="hidden md:flex items-center gap-4 flex-shrink-0">
+                  <div className="h-10 w-px bg-gray-300" />
+                  <div className="text-sm text-gray-700 whitespace-nowrap">
+                    {entry.daysOnMarket
+                      ? `${entry.daysOnMarket} days on market`
+                      : 'Not Available'}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="flex flex-col md:flex-row md:space-x-4 md:justify-between md:items-center p-4 pt-0 md:pt-4 space-y-3 md:space-y-0">
-            <div className="flex flex-col md:justify-between">
-              <div className="bg-gray-200 mt-2 md:mt-4 rounded h-6 w-32 blur-sm"></div>
-            </div>
-            <div className="flex flex-col">
-              <div className="text-red-500 font-medium mb-1">Login Required</div>
-              <div className="text-sm">Listed for <span className="bg-gray-200 rounded px-4 md:px-10 blur-sm">price</span> on <span
-                  className="bg-gray-200 rounded px-4 md:px-10 blur-sm">date</span></div>
-            </div>
-            <div className="flex items-center justify-start md:justify-center text-sm">
-              <div className="md:ml-auto">Not Available</div>
-            </div>
-          </div>
-        </div>
+            );
+          })}
 
-        <button className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors">
-          View full listing history
-        </button>
-      </div>
+          {/* Footer button */}
+          {history.length > previewCount && (
+            <button
+              onClick={() => (isLoggedIn ? setExpanded((v) => !v) : (window.location.href = '/login'))}
+              className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
+            >
+              {isLoggedIn && expanded ? 'Hide full listing history' : 'View full listing history'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -337,6 +337,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
               {/* Property Sections */}
               <PropertySections
                 propertyData={displayData}
+                propertyImages={propertyImages}
                 auth={auth}
                 website={website}
                 buildingData={buildingData}
