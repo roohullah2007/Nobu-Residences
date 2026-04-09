@@ -237,130 +237,36 @@ class WebsiteController extends Controller
                 // Get building display data
                 $buildingData = $building->getDisplayData();
 
-                // Fetch MLS properties matching building's street addresses
-                $mlsPropertiesForSale = [];
-                $mlsPropertiesForRent = [];
+                // Build the list of street addresses to query (e.g.
+                // ["15 Mercer", "35 Mercer"]). Pull from street_address_1/2
+                // first, then fall back to splitting the main address on
+                // both "," and "&".
                 $streetAddresses = [];
-                $streetName = null;
-
-                // Parse street_address_1
-                if (!empty($building->street_address_1)) {
-                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $matches)) {
-                        $streetAddresses[] = $matches[1];
-                    }
+                if (!empty($building->street_address_1) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $m1)) {
+                    $streetAddresses[] = $m1[1];
                 }
-
-                // Parse street_address_2
-                if (!empty($building->street_address_2)) {
-                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $matches)) {
-                        $streetAddresses[] = $matches[1];
-                    }
+                if (!empty($building->street_address_2) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $m2)) {
+                    $streetAddresses[] = $m2[1];
                 }
-
-                // If no street addresses found from street_address_1/2, try parsing the main address field
                 if (empty($streetAddresses) && !empty($building->address)) {
-                    $addressParts = array_map('trim', explode(',', $building->address));
-                    foreach ($addressParts as $part) {
-                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', $part, $matches)) {
-                            $streetAddresses[] = $matches[1];
+                    foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
+                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $mP)) {
+                            $streetAddresses[] = $mP[1];
                         }
                     }
                 }
+                $streetAddresses = array_values(array_unique($streetAddresses));
 
-                // Extract just the street name for broader matching (fallback)
-                if (!empty($building->address)) {
-                    if (preg_match('/^\d+\s+([A-Za-z]+)/i', $building->address, $matches)) {
-                        $streetName = $matches[1];
-                    }
-                }
+                // Fetch live listings from Repliers (the local mls_properties
+                // table is empty) for both sale + lease, attaching the
+                // building's name + neighbourhood to each formatted listing.
+                $mlsPropertiesForSale = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'sale', $building);
+                $mlsPropertiesForRent = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'lease', $building);
 
-                // If we have street addresses, query MLS properties
-                $mlsQuery = null;
-                if (!empty($streetAddresses)) {
-                    $mlsQuery = \DB::table('mls_properties')
-                        ->where('is_active', true)
-                        ->where('status', 'active')
-                        ->where(function($query) use ($streetAddresses) {
-                            foreach ($streetAddresses as $streetAddr) {
-                                $query->orWhereRaw('LOWER(address) LIKE ?', [strtolower($streetAddr) . '%']);
-                            }
-                        })
-                        ->select([
-                            'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
-                            'square_footage', 'property_type', 'property_sub_type', 'image_urls',
-                            'has_images', 'listed_date'
-                        ])
-                        ->orderBy('listed_date', 'desc')
-                        ->limit(50)
-                        ->get();
-                }
-
-                // If no results from exact address match, try broader street name matching
-                if ((!$mlsQuery || $mlsQuery->isEmpty()) && !empty($streetName)) {
-                    $mlsQuery = \DB::table('mls_properties')
-                        ->where('is_active', true)
-                        ->where('status', 'active')
-                        ->whereRaw('LOWER(address) LIKE ?', ['%' . strtolower($streetName) . '%'])
-                        ->select([
-                            'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
-                            'square_footage', 'property_type', 'property_sub_type', 'image_urls',
-                            'has_images', 'listed_date'
-                        ])
-                        ->orderBy('listed_date', 'desc')
-                        ->limit(50)
-                        ->get();
-                }
-
-                // Split into For Sale and For Rent
-                if ($mlsQuery && !$mlsQuery->isEmpty()) {
-                    foreach ($mlsQuery as $property) {
-                        $imageUrls = json_decode($property->image_urls ?? '[]', true);
-                        $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
-
-                        $formattedProperty = [
-                            'ListingKey' => $property->mls_id,
-                            'listingKey' => $property->mls_id,
-                            'ListPrice' => (float)$property->price,
-                            'price' => (float)$property->price,
-                            'UnparsedAddress' => $property->address,
-                            'address' => $property->address,
-                            'BedroomsTotal' => (int)$property->bedrooms,
-                            'bedroomsTotal' => (int)$property->bedrooms,
-                            'bedrooms' => (int)$property->bedrooms,
-                            'BathroomsTotalInteger' => (int)$property->bathrooms,
-                            'bathroomsTotalInteger' => (int)$property->bathrooms,
-                            'bathrooms' => (int)$property->bathrooms,
-                            'AboveGradeFinishedArea' => $property->square_footage ?? 0,
-                            'BuildingAreaTotal' => $property->square_footage ?? '',
-                            'buildingAreaTotal' => $property->square_footage ?? '',
-                            'PropertySubType' => $property->property_sub_type ?? 'Condo Apartment',
-                            'propertyType' => $property->property_sub_type ?? 'Condo Apartment',
-                            'TransactionType' => $property->property_type,
-                            'transactionType' => $property->property_type === 'For Sale' ? 'Sale' : 'Rent',
-                            'isRental' => $property->property_type !== 'For Sale',
-                            'City' => $property->city ?? '',
-                            'city' => $property->city ?? '',
-                            'MediaURL' => $mediaUrl,
-                            'imageUrl' => $mediaUrl,
-                            'Images' => array_map(function($url) {
-                                return ['MediaURL' => $url];
-                            }, $imageUrls),
-                            'images' => $imageUrls,
-                            'has_images' => $property->has_images,
-                            'source' => 'mls',
-                            '_source' => 'mls_database',
-                            '_mls_property_id' => $property->id,
-                        ];
-
-                        if ($property->property_type === 'For Sale') {
-                            $mlsPropertiesForSale[] = $formattedProperty;
-                        } else {
-                            $mlsPropertiesForRent[] = $formattedProperty;
-                        }
-                    }
-                }
-
-                // Add MLS properties to building data
+                // Expose live counts so the building card shows real numbers
+                // instead of "0 for sale / 0 for rent".
+                $buildingData['units_for_sale'] = count($mlsPropertiesForSale);
+                $buildingData['units_for_rent'] = count($mlsPropertiesForRent);
                 $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
                 $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
 
@@ -443,9 +349,9 @@ class WebsiteController extends Controller
         $filters = $request->only([
             'search', 'forSale', 'bedType', 'minPrice', 'maxPrice', 'tab', 'page', 'sort'
         ]);
-        
+
         $searchTab = $filters['tab'] ?? 'listings';
-        
+
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => [
                 'user' => $request->user(),
@@ -453,6 +359,117 @@ class WebsiteController extends Controller
             'title' => 'Property Search',
             'filters' => $filters,
             'searchTab' => $searchTab
+        ]));
+    }
+
+    /**
+     * Parse a search slug like "2-bedroom-condos-for-sale" into structured
+     * filter values: bedrooms, property kind, sale|rent.
+     */
+    private function parseSearchSlug(string $slug): array
+    {
+        $bedrooms = null;
+        $kind = 'condos';
+        $isRent = false;
+
+        if (preg_match('/^(?:(\d+)-bedroom-)?(condos|houses|townhouses|apartments)-for-(sale|rent)$/i', $slug, $m)) {
+            if (!empty($m[1])) {
+                $bedrooms = (int) $m[1];
+            }
+            $kind = strtolower($m[2]);
+            $isRent = strtolower($m[3]) === 'rent';
+        }
+
+        $kindToSubType = [
+            'condos' => 'Condo Apartment',
+            'apartments' => 'Condo Apartment',
+            'townhouses' => 'Condo Townhouse',
+            'houses' => 'Detached',
+        ];
+
+        return [
+            'bedrooms' => $bedrooms,
+            'kind' => $kind,
+            'isRent' => $isRent,
+            'property_sub_type' => $kindToSubType[$kind] ?? 'Condo Apartment',
+        ];
+    }
+
+    /**
+     * City-only search landing page (e.g. /toronto/condos-for-sale).
+     */
+    public function searchByCity(Request $request, $city, $searchSlug)
+    {
+        $cityName = ucwords(str_replace('-', ' ', $city));
+        $parsed = $this->parseSearchSlug($searchSlug);
+        $isRent = $parsed['isRent'];
+
+        $initialFilters = [
+            'search' => $cityName,
+            'query' => $cityName,
+            'status' => $isRent ? 'For Rent' : 'For Sale',
+            'forSale' => $isRent ? 'For Rent' : 'For Sale',
+            'city' => $cityName,
+            'property_sub_type' => $parsed['property_sub_type'],
+            'property_type' => [$parsed['property_sub_type']],
+        ];
+        if ($parsed['bedrooms']) {
+            $initialFilters['bedrooms'] = $parsed['bedrooms'];
+            $initialFilters['bedType'] = $parsed['bedrooms'];
+        }
+
+        $title = ucfirst($parsed['kind']) . ' for ' . ($isRent ? 'Rent' : 'Sale') . " in $cityName";
+        if ($parsed['bedrooms']) {
+            $title = "{$parsed['bedrooms']}-Bedroom $title";
+        }
+
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => ['user' => $request->user()],
+            'title' => $title,
+            'filters' => $initialFilters,
+            'searchTab' => 'listings',
+            'initialSearchFilters' => $initialFilters,
+        ]));
+    }
+
+    /**
+     * Neighbourhood / area search landing page.
+     * Routes like /toronto/king-west/condos-for-sale render the Search page
+     * pre-filtered by city + neighbourhood + sale|rent (+ optional bedrooms/kind).
+     */
+    public function searchByArea(Request $request, $city, $neighbourhood, $searchSlug)
+    {
+        $cityName = ucwords(str_replace('-', ' ', $city));
+        $neighbourhoodName = ucwords(str_replace('-', ' ', $neighbourhood));
+        $parsed = $this->parseSearchSlug($searchSlug);
+        $isRent = $parsed['isRent'];
+
+        $initialFilters = [
+            'search' => $neighbourhoodName,
+            'query' => $neighbourhoodName,
+            'status' => $isRent ? 'For Rent' : 'For Sale',
+            'forSale' => $isRent ? 'For Rent' : 'For Sale',
+            'city' => $cityName,
+            'neighbourhood' => $neighbourhoodName,
+            'property_sub_type' => $parsed['property_sub_type'],
+            'property_type' => [$parsed['property_sub_type']],
+        ];
+        if ($parsed['bedrooms']) {
+            $initialFilters['bedrooms'] = $parsed['bedrooms'];
+            $initialFilters['bedType'] = $parsed['bedrooms'];
+        }
+
+        $title = ucfirst($parsed['kind']) . ' for ' . ($isRent ? 'Rent' : 'Sale') . " in $neighbourhoodName, $cityName";
+        if ($parsed['bedrooms']) {
+            $title = "{$parsed['bedrooms']}-Bedroom $title";
+        }
+
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => ['user' => $request->user()],
+            'title' => $title,
+            'filters' => $initialFilters,
+            'searchTab' => 'listings',
+            'initialSearchFilters' => $initialFilters,
         ]));
     }
 
@@ -1578,9 +1595,13 @@ class WebsiteController extends Controller
                     
                     // Try to match building by address for MLS properties
                     if (!empty($propertyData['address'])) {
-                        // Extract building address from full property address
-                        // Example: "15 Mercer Street 419, Toronto C01, ON M5V 1H2" -> "15 Mercer"
+                        // Extract building address from full property address.
+                        // Strip an optional unit prefix like "813 - " or
+                        // "Suite 813, " so we don't confuse the unit number
+                        // with the actual street number.
                         $fullAddress = $propertyData['address'];
+                        $fullAddress = preg_replace('/^\s*(?:unit|suite|apt|apartment)\s*\d+\s*[,\-]?\s*/i', '', $fullAddress);
+                        $fullAddress = preg_replace('/^\s*\d+\s*-\s*/', '', $fullAddress); // "813 - 15 Mercer..."
 
                         // Extract street number and street name (handle both "Street" and "St" etc)
                         if (preg_match('/^(\d+)\s+([A-Za-z]+)(?:\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Court|Ct|Place|Pl|Lane|Ln))?\s*(?:\d+)?(?:,|$)/i', $fullAddress, $matches)) {
@@ -1598,15 +1619,19 @@ class WebsiteController extends Controller
                             $allBuildings = \App\Models\Building::pluck('address', 'name');
                             \Log::info('All available buildings:', $allBuildings->toArray());
 
-                            // Find building by address - more flexible matching
-                            // Look for buildings that start with the same street number and contain the street base name
+                            // Find building by address - match against
+                            // street_address_1, street_address_2, AND the
+                            // joined address field (so we catch buildings
+                            // like NOBU which is at 15 Mercer + 35 Mercer).
+                            $needle = $streetNumber . ' ' . $streetBaseName;
                             $building = \App\Models\Building::with(['amenities' => function($query) {
                                 $query->orderBy('name');
                             }, 'maintenanceFeeAmenities'])
-                                ->where(function($query) use ($streetNumber, $streetBaseName) {
-                                    // Match "15 Mercer" in any form (St, Street, etc)
-                                    $query->where('address', 'LIKE', $streetNumber . ' ' . $streetBaseName . '%')
-                                          // Also try with just the street number and base name anywhere in address
+                                ->where(function($query) use ($streetNumber, $streetBaseName, $needle) {
+                                    $query->where('street_address_1', 'LIKE', $needle . '%')
+                                          ->orWhere('street_address_2', 'LIKE', $needle . '%')
+                                          ->orWhere('address', 'LIKE', $needle . '%')
+                                          ->orWhere('address', 'LIKE', '%' . $needle . '%')
                                           ->orWhere(function($q) use ($streetNumber, $streetBaseName) {
                                               $q->where('address', 'LIKE', '%' . $streetNumber . '%')
                                                 ->where('address', 'LIKE', '%' . $streetBaseName . '%');
@@ -2262,23 +2287,49 @@ class WebsiteController extends Controller
             }
         }
         
-        // If still not found, try to find by name
+        // If still not found, try to find by name (or by rich slug
+        // matching name+addresses, e.g. "nobu-residences-15-mercer-st-35-mercer-st").
         if (!$building) {
-            // Convert the slug back to potential building name for search
             $nameFromSlug = str_replace('-', ' ', $buildingSlug);
-            
+
             $building = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities', 'properties' => function($query) {
                 $query->where('status', 'active')
                       ->orderBy('created_at', 'desc')
                       ->limit(10);
             }])->where(function($query) use ($nameFromSlug, $buildingSlug) {
-                // Try exact name match first
                 $query->whereRaw('LOWER(name) = ?', [strtolower($nameFromSlug)])
-                      // Then try partial matches
                       ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($nameFromSlug) . '%'])
-                      // Also try with the slug format
                       ->orWhereRaw('LOWER(REPLACE(name, " ", "-")) = ?', [strtolower($buildingSlug)]);
             })->first();
+
+            // Rich-slug match: try matching the leading name slug only
+            // (everything before the first numeric token in the slug).
+            if (!$building && preg_match('/^([a-z\-]+?)-\d/', $buildingSlug, $m)) {
+                $namePrefix = str_replace('-', ' ', $m[1]);
+                $candidates = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities'])
+                    ->whereRaw('LOWER(name) LIKE ?', [strtolower($namePrefix) . '%'])
+                    ->get();
+                foreach ($candidates as $cand) {
+                    // Build the same rich slug from the candidate and compare
+                    $candParts = [\Str::slug($cand->name)];
+                    if (!empty($cand->street_address_1)) $candParts[] = \Str::slug($cand->street_address_1);
+                    if (!empty($cand->street_address_2)) $candParts[] = \Str::slug($cand->street_address_2);
+                    if (count($candParts) === 1 && !empty($cand->address)) {
+                        foreach (array_filter(array_map('trim', explode(',', $cand->address))) as $part) {
+                            $candParts[] = \Str::slug($part);
+                        }
+                    }
+                    $candSlug = implode('-', array_filter($candParts));
+                    if ($candSlug === $buildingSlug) {
+                        $building = $cand;
+                        break;
+                    }
+                }
+                // Looser fallback: just match the leading name prefix
+                if (!$building && $candidates->count() > 0) {
+                    $building = $candidates->first();
+                }
+            }
         }
         
         // If building not found, return 404
@@ -2329,12 +2380,10 @@ class WebsiteController extends Controller
         }
 
         // If no street addresses found from street_address_1/2, try parsing the main address field
-        // This handles buildings like "155 Dalhousie Street" that don't have separate street_address fields
+        // This handles buildings like "155 Dalhousie Street" or "15 Mercer St & 35 Mercer"
+        // where the addresses are joined by either "," or "&".
         if (empty($streetAddresses) && !empty($building->address)) {
-            // Try to extract all street addresses from comma-separated address
-            // e.g., "155 Dalhousie Street" -> "155 Dalhousie"
-            // e.g., "15 Mercer St, 35 Mercer" -> "15 Mercer" and "35 Mercer"
-            $addressParts = array_map('trim', explode(',', $building->address));
+            $addressParts = array_map('trim', preg_split('/\s*[,&]\s*/', $building->address));
             foreach ($addressParts as $part) {
                 if (preg_match('/^(\d+\s+[A-Za-z]+)/i', $part, $matches)) {
                     $streetAddresses[] = $matches[1];
@@ -2350,93 +2399,12 @@ class WebsiteController extends Controller
             }
         }
 
-        // If we have street addresses, query MLS properties
-        $mlsQuery = null;
-        if (!empty($streetAddresses)) {
-            $mlsQuery = \DB::table('mls_properties')
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->where(function($query) use ($streetAddresses) {
-                    foreach ($streetAddresses as $streetAddr) {
-                        // Match "15 Mercer" at the start of address (case insensitive)
-                        $query->orWhereRaw('LOWER(address) LIKE ?', [strtolower($streetAddr) . '%']);
-                    }
-                })
-                ->select([
-                    'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
-                    'square_footage', 'property_type', 'property_sub_type', 'image_urls',
-                    'has_images', 'listed_date'
-                ])
-                ->orderBy('listed_date', 'desc')
-                ->limit(50)
-                ->get();
-        }
-
-        // If no results from exact address match, try broader street name matching
-        if ((!$mlsQuery || $mlsQuery->isEmpty()) && !empty($streetName)) {
-            $mlsQuery = \DB::table('mls_properties')
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->whereRaw('LOWER(address) LIKE ?', ['%' . strtolower($streetName) . '%'])
-                ->select([
-                    'id', 'mls_id', 'address', 'city', 'price', 'bedrooms', 'bathrooms',
-                    'square_footage', 'property_type', 'property_sub_type', 'image_urls',
-                    'has_images', 'listed_date'
-                ])
-                ->orderBy('listed_date', 'desc')
-                ->limit(50)
-                ->get();
-        }
-
-        // Split into For Sale and For Rent - Format same as search page API
-        if ($mlsQuery && !$mlsQuery->isEmpty()) {
-            foreach ($mlsQuery as $property) {
-                $imageUrls = json_decode($property->image_urls ?? '[]', true);
-                $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
-
-                // Format properties exactly like PropertySearchController::convertMLSPropertyToApiFormat
-                $formattedProperty = [
-                    'ListingKey' => $property->mls_id,
-                    'listingKey' => $property->mls_id,
-                    'ListPrice' => (float)$property->price,
-                    'price' => (float)$property->price,
-                    'UnparsedAddress' => $property->address,
-                    'address' => $property->address,
-                    'BedroomsTotal' => (int)$property->bedrooms,
-                    'bedroomsTotal' => (int)$property->bedrooms,
-                    'bedrooms' => (int)$property->bedrooms,
-                    'BathroomsTotalInteger' => (int)$property->bathrooms,
-                    'bathroomsTotalInteger' => (int)$property->bathrooms,
-                    'bathrooms' => (int)$property->bathrooms,
-                    'AboveGradeFinishedArea' => $property->square_footage ?? 0,
-                    'BuildingAreaTotal' => $property->square_footage ?? '',
-                    'buildingAreaTotal' => $property->square_footage ?? '',
-                    'PropertySubType' => $property->property_sub_type ?? 'Condo Apartment',
-                    'propertyType' => $property->property_sub_type ?? 'Condo Apartment',
-                    'TransactionType' => $property->property_type,
-                    'transactionType' => $property->property_type === 'For Sale' ? 'Sale' : 'Rent',
-                    'isRental' => $property->property_type !== 'For Sale',
-                    'City' => $property->city ?? '',
-                    'city' => $property->city ?? '',
-                    'MediaURL' => $mediaUrl,
-                    'imageUrl' => $mediaUrl,
-                    'Images' => array_map(function($url) {
-                        return ['MediaURL' => $url];
-                    }, $imageUrls),
-                    'images' => $imageUrls,
-                    'has_images' => $property->has_images,
-                    'source' => 'mls',
-                    '_source' => 'mls_database',
-                    '_mls_property_id' => $property->id,
-                ];
-
-                if ($property->property_type === 'For Sale') {
-                    $mlsPropertiesForSale[] = $formattedProperty;
-                } else {
-                    $mlsPropertiesForRent[] = $formattedProperty;
-                }
-            }
-        }
+        // Fetch live listings for this building from the Repliers API. The
+        // local mls_properties table is often empty/stale, so the previous DB
+        // query returned nothing — leaving the For Sale / For Rent panels
+        // empty on the building page.
+        $mlsPropertiesForSale = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'sale', $building);
+        $mlsPropertiesForRent = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'lease', $building);
 
         // Add MLS properties to building data
         $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
@@ -2450,6 +2418,148 @@ class WebsiteController extends Controller
         ]));
     }
     
+    /**
+     * Fetch active listings for a building from the Repliers API.
+     * $streetAddresses is an array like ["15 Mercer", "35 Mercer"].
+     * $type is "sale" or "lease".
+     */
+    private function fetchBuildingListingsFromRepliers(array $streetAddresses, string $type, $building = null): array
+    {
+        if (empty($streetAddresses)) {
+            return [];
+        }
+
+        // Pre-compute building name + neighbourhood string once
+        $buildingName = $building->name ?? null;
+        $buildingNeighbourhood = null;
+        if ($building) {
+            $nbParts = array_filter([
+                $building->sub_neighbourhood ?? null,
+                $building->neighbourhood ?? null,
+                $building->city ?? null,
+            ]);
+            $buildingNeighbourhood = implode(', ', $nbParts) ?: null;
+        }
+        $buildingArr = $building ? [
+            'id' => $building->id,
+            'name' => $building->name,
+            'slug' => $building->slug,
+            'address' => $building->address,
+            'street_address_1' => $building->street_address_1,
+            'street_address_2' => $building->street_address_2,
+            'city' => $building->city,
+            'neighbourhood' => $building->neighbourhood,
+            'sub_neighbourhood' => $building->sub_neighbourhood,
+        ] : null;
+
+        try {
+            $repliersApi = app(\App\Services\RepliersApiService::class);
+            $results = [];
+            $seen = [];
+
+            foreach ($streetAddresses as $addr) {
+                if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) {
+                    continue;
+                }
+                $streetNumber = $m[1];
+                $streetName = $m[2];
+
+                $apiParams = [
+                    'class' => 'condoProperty',
+                    'status' => 'A',
+                    'type' => $type,
+                    'streetNumber' => $streetNumber,
+                    'streetName' => $streetName,
+                    'pageNum' => 1,
+                    'resultsPerPage' => 50,
+                ];
+
+                $response = $repliersApi->searchListings($apiParams);
+                $listings = $response['listings'] ?? [];
+
+                foreach ($listings as $listing) {
+                    $mlsNumber = $listing['mlsNumber'] ?? null;
+                    if (!$mlsNumber || isset($seen[$mlsNumber])) {
+                        continue;
+                    }
+                    $seen[$mlsNumber] = true;
+
+                    $address = $listing['address'] ?? [];
+                    $details = $listing['details'] ?? [];
+                    $map = $listing['map'] ?? [];
+                    $images = $listing['images'] ?? [];
+
+                    $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                    if (!empty($address['unitNumber'])) {
+                        $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+                    }
+
+                    $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+                    $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
+
+                    $isLease = $type === 'lease';
+                    $transactionDisplay = $isLease ? 'For Rent' : 'For Sale';
+
+                    $results[] = [
+                        'ListingKey' => $mlsNumber,
+                        'listingKey' => $mlsNumber,
+                        'ListPrice' => (float) ($listing['listPrice'] ?? 0),
+                        'price' => (float) ($listing['listPrice'] ?? 0),
+                        'UnparsedAddress' => $fullAddress,
+                        'address' => $fullAddress,
+                        'StreetNumber' => $address['streetNumber'] ?? '',
+                        'streetNumber' => $address['streetNumber'] ?? '',
+                        'StreetName' => $address['streetName'] ?? '',
+                        'streetName' => $address['streetName'] ?? '',
+                        'StreetSuffix' => $address['streetSuffix'] ?? '',
+                        'streetSuffix' => $address['streetSuffix'] ?? '',
+                        'UnitNumber' => $address['unitNumber'] ?? '',
+                        'unitNumber' => $address['unitNumber'] ?? '',
+                        'BedroomsTotal' => (int) ($details['numBedrooms'] ?? 0),
+                        'bedroomsTotal' => (int) ($details['numBedrooms'] ?? 0),
+                        'bedrooms' => (int) ($details['numBedrooms'] ?? 0),
+                        'BathroomsTotalInteger' => (int) (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0)),
+                        'bathroomsTotalInteger' => (int) (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0)),
+                        'bathrooms' => (int) (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0)),
+                        'AboveGradeFinishedArea' => $details['sqft'] ?? 0,
+                        'BuildingAreaTotal' => $details['sqft'] ?? '',
+                        'buildingAreaTotal' => $details['sqft'] ?? '',
+                        'PropertySubType' => $details['style'] ?? $details['propertyType'] ?? 'Condo Apartment',
+                        'propertyType' => $details['style'] ?? $details['propertyType'] ?? 'Condo Apartment',
+                        'TransactionType' => $transactionDisplay,
+                        'transactionType' => $isLease ? 'Rent' : 'Sale',
+                        'isRental' => $isLease,
+                        'City' => $address['city'] ?? '',
+                        'city' => $address['city'] ?? '',
+                        'Latitude' => $map['latitude'] ?? '',
+                        'Longitude' => $map['longitude'] ?? '',
+                        'MediaURL' => $mediaUrl,
+                        'imageUrl' => $mediaUrl,
+                        'Images' => array_map(fn($url) => ['MediaURL' => $url], $imageUrls),
+                        'images' => $imageUrls,
+                        'has_images' => !empty($imageUrls),
+                        'source' => 'repliers',
+                        '_source' => 'repliers_api',
+                        'building_name' => $buildingName,
+                        'buildingName' => $buildingName,
+                        'building_neighbourhood' => $buildingNeighbourhood,
+                        'buildingNeighbourhood' => $buildingNeighbourhood,
+                        'building' => $buildingArr,
+                    ];
+                }
+            }
+
+            return $results;
+        } catch (\Throwable $e) {
+            \Log::warning('fetchBuildingListingsFromRepliers failed', [
+                'error' => $e->getMessage(),
+                'addresses' => $streetAddresses,
+                'type' => $type,
+            ]);
+            return [];
+        }
+    }
+
     /**
      * Display the school detail page
      * Handles both numeric IDs (from database) and Google Place IDs

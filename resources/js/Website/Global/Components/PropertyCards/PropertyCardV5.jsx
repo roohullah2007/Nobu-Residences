@@ -629,6 +629,50 @@ const PropertyCardV5 = ({
               {displayAddress}
             </div>
 
+            {/* Building name + neighbourhood — shown when this listing belongs to a known building */}
+            {property.source !== 'building' && (property.building_name || property.buildingName) && (() => {
+              const buildingName = property.building_name || property.buildingName;
+              const b = property.building || {};
+              const slugify = (s) => (s || '').toString().toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+              const cityName = b.city || property.city || '';
+              const isRent = property.isRental || /rent|lease/i.test(property.transactionType || property.TransactionType || '');
+              const linkType = isRent ? 'rent' : 'sale';
+              const buildLink = (label) => {
+                if (!cityName || !label) return null;
+                return `/${slugify(cityName)}/${slugify(label)}/condos-for-${linkType}`;
+              };
+              const neighbourhoodLinks = [
+                b.sub_neighbourhood ? { label: b.sub_neighbourhood, href: buildLink(b.sub_neighbourhood) } : null,
+                b.neighbourhood ? { label: b.neighbourhood, href: buildLink(b.neighbourhood) } : null,
+                cityName ? { label: cityName, href: buildLink(cityName) } : null,
+              ].filter((x) => x && x.href);
+
+              const handleAreaClick = (e, href) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = href;
+              };
+
+              return (
+                <div className="flex flex-wrap items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
+                  <span className="font-semibold">{buildingName}</span>
+                  {neighbourhoodLinks.length > 0 && <span className="text-gray-500">&nbsp;in&nbsp;</span>}
+                  {neighbourhoodLinks.map((link, i) => (
+                    <span key={link.href}>
+                      <a
+                        href={link.href}
+                        onClick={(e) => handleAreaClick(e, link.href)}
+                        className="text-[#293056] hover:underline"
+                      >
+                        {link.label}
+                      </a>
+                      {i < neighbourhoodLinks.length - 1 && <span className="text-gray-500">,&nbsp;</span>}
+                    </span>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Developer/Builder Name for Buildings */}
             {property.source === 'building' && property.developer && (
               <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600`}>

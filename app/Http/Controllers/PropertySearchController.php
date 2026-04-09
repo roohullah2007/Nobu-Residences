@@ -578,6 +578,11 @@ class PropertySearchController extends Controller
             ];
         }
 
+        // Enrich each listing with the matching building (if any) so the
+        // frontend can build URLs like /toronto/{building-slug}/unit-... and
+        // show the "Nobu Residences in King West, Downtown, Toronto" line.
+        $formattedProperties = $this->attachBuildingInfoToListings($formattedProperties);
+
         $totalTime = round((microtime(true) - $startTime) * 1000, 2);
         Log::info('Repliers API Search', [
             'params' => $apiParams,
@@ -590,6 +595,75 @@ class PropertySearchController extends Controller
             'properties' => $formattedProperties,
             'count' => $totalCount,
         ];
+    }
+
+    /**
+     * Look up the matching Building (if any) for each listing by
+     * streetNumber + streetName and attach a compact building payload.
+     * Uses a per-call cache so each unique street is only queried once.
+     */
+    private function attachBuildingInfoToListings(array $properties): array
+    {
+        if (empty($properties)) return $properties;
+
+        // Build the unique set of (streetNumber, streetBaseName) pairs
+        $needles = [];
+        foreach ($properties as $p) {
+            $sn = trim((string)($p['StreetNumber'] ?? ''));
+            $stName = trim((string)($p['StreetName'] ?? ''));
+            if ($sn === '' || $stName === '') continue;
+            $key = strtolower($sn . '|' . $stName);
+            $needles[$key] = ['number' => $sn, 'name' => $stName];
+        }
+        if (empty($needles)) return $properties;
+
+        // One query per unique street — cheap and predictable
+        $buildingCache = [];
+        foreach ($needles as $key => $n) {
+            $needle = $n['number'] . ' ' . $n['name'];
+            $b = \App\Models\Building::where('street_address_1', 'LIKE', $needle . '%')
+                ->orWhere('street_address_2', 'LIKE', $needle . '%')
+                ->orWhere('address', 'LIKE', $needle . '%')
+                ->first();
+            if ($b) {
+                $buildingCache[$key] = [
+                    'id' => $b->id,
+                    'name' => $b->name,
+                    'slug' => $b->slug,
+                    'address' => $b->address,
+                    'street_address_1' => $b->street_address_1,
+                    'street_address_2' => $b->street_address_2,
+                    'city' => $b->city,
+                    'neighbourhood' => $b->neighbourhood,
+                    'sub_neighbourhood' => $b->sub_neighbourhood,
+                ];
+            }
+        }
+
+        // Attach to each listing
+        foreach ($properties as &$p) {
+            $sn = trim((string)($p['StreetNumber'] ?? ''));
+            $stName = trim((string)($p['StreetName'] ?? ''));
+            if ($sn === '' || $stName === '') continue;
+            $key = strtolower($sn . '|' . $stName);
+            if (!empty($buildingCache[$key])) {
+                $b = $buildingCache[$key];
+                $nbParts = array_filter([
+                    $b['sub_neighbourhood'] ?? null,
+                    $b['neighbourhood'] ?? null,
+                    $b['city'] ?? null,
+                ]);
+                $p['building'] = $b;
+                $p['building_name'] = $b['name'];
+                $p['buildingName'] = $b['name'];
+                $p['building_neighbourhood'] = $nbParts ? implode(', ', $nbParts) : null;
+                $p['buildingNeighbourhood'] = $p['building_neighbourhood'];
+                $p['building_slug'] = $b['slug'];
+            }
+        }
+        unset($p);
+
+        return $properties;
     }
 
     /**

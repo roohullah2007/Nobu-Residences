@@ -65,6 +65,29 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 
+// Neighbourhood / area search URLs.
+// Examples:
+//   /toronto/king-west/condos-for-sale
+//   /toronto/king-west/condos-for-rent
+//   /toronto/king-west/2-bedroom-condos-for-sale
+//   /toronto/king-west/townhouses-for-sale
+Route::get('/{city}/{neighbourhood}/{searchSlug}', [WebsiteController::class, 'searchByArea'])
+    ->where([
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'neighbourhood' => '[a-z0-9\-]+',
+        'searchSlug' => '(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)',
+    ])
+    ->name('search.area');
+
+// City-only search URLs e.g. /toronto/condos-for-sale, /mississauga/houses-for-sale
+// (registered before the 2-segment building route so it wins the match)
+Route::get('/{city}/{searchSlug}', [WebsiteController::class, 'searchByCity'])
+    ->where([
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'searchSlug' => '(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)',
+    ])
+    ->name('search.city');
+
 // Building routes - both formats supported
 Route::get('/building/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])->name('building-detail');
 
@@ -457,10 +480,19 @@ require __DIR__.'/auth.php';
 Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
     ->where([
         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z0-9\-]*',  // Must start with lowercase letter and exclude reserved words
-        'street' => '[a-z0-9\-]+', 
+        'street' => '[a-z0-9\-]+',
         'buildingSlug' => '.*'
     ])
     ->name('building-detail-seo');
+
+// New 2-segment SEO building URL: /{city}/{rich-building-slug}
+// e.g. /toronto/nobu-residences-15-mercer-st-35-mercer-st
+Route::get('/{city}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
+    ->where([
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage|blog|blogs|developer|developers|search|rent|sale|contact|privacy|terms|saved-searches|compare-listings|property)[a-z][a-z\-]*',
+        'buildingSlug' => '[a-z0-9\-]+',
+    ])
+    ->name('building-detail-city-slug');
 
 // Enhanced Property Images API Routes - DISABLED to use PropertyImageController instead
 // Route::prefix('api')->group(function () {

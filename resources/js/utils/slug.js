@@ -71,22 +71,43 @@ export const extractBuildingId = (slug) => {
  */
 export const createSEOBuildingUrl = (building) => {
   if (!building) return '/building/unknown';
-  
-  const { name, slug, address, city, id } = building;
-  
-  // If building has a slug, use it
+
+  const {
+    name,
+    slug,
+    address,
+    street_address_1,
+    street_address_2,
+    city,
+    id,
+  } = building;
+
+  // Build the rich combined slug: nameSlug-addr1Slug-addr2Slug
+  // e.g. "nobu-residences-15-mercer-st-35-mercer-st"
+  const parts = [];
+  if (name) parts.push(createSlug(name));
+
+  if (street_address_1) parts.push(createSlug(street_address_1));
+  if (street_address_2) parts.push(createSlug(street_address_2));
+
+  // Fallback: if we don't have separate street_address_* fields but the
+  // main address contains multiple streets joined by "," or "&"
+  // (e.g. "15 Mercer St & 35 Mercer"), split and slug each one.
+  if (!street_address_1 && !street_address_2 && address) {
+    address
+      .split(/\s*[,&]\s*/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .forEach((p) => parts.push(createSlug(p)));
+  }
+
+  if (city && parts.length > 0) {
+    return `/${createSlug(city)}/${parts.filter(Boolean).join('-')}`;
+  }
+
+  // Legacy fallbacks
   if (slug) {
     return `/building/${slug}`;
   }
-  
-  // If we have city and address data, create SEO URL
-  if (city && address) {
-    const citySlug = createSlug(city);
-    const streetSlug = createSlug(address);
-    const nameSlug = createSlug(name || 'building');
-    return `/${citySlug}/${streetSlug}/${nameSlug}`;
-  }
-  
-  // Fallback to simple format with name slug
   return createBuildingUrl(name, id, { slug });
 };

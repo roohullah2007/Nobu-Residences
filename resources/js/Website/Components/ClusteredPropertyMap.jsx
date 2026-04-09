@@ -21,6 +21,7 @@ const ClusteredPropertyMap = ({
   const markerClustererRef = useRef(null);
   const infoWindowRef = useRef(null);
   const drawnPolygonRef = useRef(null);
+  const lockedClusterRef = useRef(null);
   const drawPointsRef = useRef([]);
   const previewPolylineRef = useRef(null);
   const rubberLineRef = useRef(null);
@@ -228,23 +229,23 @@ const ClusteredPropertyMap = ({
       marker.addListener('click', () => {
         const href = coord.mls_id ? `/property/${coord.mls_id}` : '#';
         const imageHtml = coord.image
-          ? `<div style="width:100%;height:140px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
-          : `<div style="width:100%;height:140px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
+          ? `<div style="width:100%;height:160px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
+          : `<div style="width:100%;height:160px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
 
         const content = `
-          <a href="${href}" style="display:block;width:240px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;border-radius:10px;overflow:hidden;background:#fff;">
+          <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
             ${imageHtml}
-            <div style="padding:10px 12px 12px 12px;">
-              <div style="font-weight:700;font-size:18px;color:#111827;margin-bottom:4px;">
+            <div style="padding:14px 14px 16px 14px;">
+              <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">
                 ${formatPrice(coord.price)}
               </div>
-              <div style="font-size:13px;color:#374151;line-height:1.3;margin-bottom:4px;">
+              <div style="font-size:14px;color:#0f172a;line-height:1.35;margin-bottom:2px;">
                 ${coord.address || 'Address not available'}
               </div>
-              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
+              <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">
                 ${coord.city || ''}
               </div>
-              <div style="font-size:12px;color:#374151;display:flex;gap:10px;">
+              <div style="font-size:13px;color:#0f172a;display:flex;gap:14px;align-items:center;">
                 <span>${coord.beds || 0} bd</span>
                 <span>${coord.baths || 0} ba</span>
                 ${coord.type ? `<span>${coord.type}</span>` : ''}
@@ -291,13 +292,87 @@ const ClusteredPropertyMap = ({
           }
         },
         onClusterClick: (event, cluster, map) => {
-          // Zoom in when cluster is clicked
+          // Lock the map to ONLY show the listings inside this cluster.
+          // Capture the underlying property markers from the cluster.
+          const clusterMarkers = cluster.markers || [];
+          const lockedCoords = clusterMarkers
+            .map((m) => m._propertyData)
+            .filter(Boolean);
+
+          if (lockedCoords.length === 0) return;
+
+          // Compute tight bounds around the cluster's markers.
           const bounds = new window.google.maps.LatLngBounds();
-          cluster.markers.forEach(marker => {
-            bounds.extend(marker.getPosition());
+          clusterMarkers.forEach((m) => bounds.extend(m.getPosition()));
+
+          // Tear down the current clusterer + markers so we can re-render
+          // only the locked subset.
+          if (markerClustererRef.current) {
+            markerClustererRef.current.clearMarkers();
+            markerClustererRef.current = null;
+          }
+          markersRef.current.forEach((mk) => mk.setMap(null));
+          markersRef.current = [];
+
+          // Mark as locked so the idle/filter effects don't refetch.
+          lockedClusterRef.current = lockedCoords;
+          setHasDrawnPolygon(true); // reuse the same flag so Reset is enabled
+
+          // Re-add ONLY the locked markers (no clustering — show each one).
+          const lockedMarkers = lockedCoords.map((coord) => {
+            const mk = new window.google.maps.Marker({
+              position: { lat: coord.lat, lng: coord.lng },
+              icon: createMarkerIcon(coord.price),
+              map,
+              title: coord.address,
+              zIndex: 100,
+            });
+            mk._propertyData = coord;
+            mk.addListener('mouseover', () => {
+              mk.setIcon(createMarkerIcon(coord.price, true));
+              mk.setZIndex(200);
+            });
+            mk.addListener('mouseout', () => {
+              mk.setIcon(createMarkerIcon(coord.price, false));
+              mk.setZIndex(100);
+            });
+            mk.addListener('click', () => {
+              const href = coord.mls_id ? `/property/${coord.mls_id}` : '#';
+              const imageHtml = coord.image
+                ? `<div style="width:100%;height:160px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
+                : `<div style="width:100%;height:160px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
+              const content = `
+                <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
+                  ${imageHtml}
+                  <div style="padding:14px 14px 16px 14px;">
+                    <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">${formatPrice(coord.price)}</div>
+                    <div style="font-size:14px;color:#0f172a;line-height:1.35;margin-bottom:2px;">${coord.address || 'Address not available'}</div>
+                    <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">${coord.city || ''}</div>
+                    <div style="font-size:13px;color:#0f172a;display:flex;gap:14px;align-items:center;">
+                      <span>${coord.beds || 0} bd</span>
+                      <span>${coord.baths || 0} ba</span>
+                      ${coord.type ? `<span>${coord.type}</span>` : ''}
+                    </div>
+                  </div>
+                </a>
+              `;
+              if (!infoWindowRef.current) {
+                infoWindowRef.current = new window.google.maps.InfoWindow({ maxWidth: 280, pixelOffset: new window.google.maps.Size(0, -5) });
+              }
+              infoWindowRef.current.setContent(content);
+              infoWindowRef.current.open(map, mk);
+            });
+            return mk;
           });
-          map.fitBounds(bounds);
-          map.setZoom(Math.min(map.getZoom() + 2, 18));
+          markersRef.current = lockedMarkers;
+
+          setMarkerStats({ displayed: lockedCoords.length, total: lockedCoords.length });
+          if (onMarkerCountChange) {
+            onMarkerCountChange(lockedCoords.length, lockedCoords.length);
+          }
+
+          // Zoom tightly around the locked markers.
+          map.fitBounds(bounds, 60);
         }
       });
     } else {
@@ -341,17 +416,37 @@ const ClusteredPropertyMap = ({
     });
   };
 
-  // Clear drawn polygon from the map
+  // Clear drawn polygon and/or cluster lock from the map
   const clearDrawnPolygon = useCallback(() => {
     if (drawnPolygonRef.current) {
       drawnPolygonRef.current.setMap(null);
       drawnPolygonRef.current = null;
     }
+    const wasLocked = !!lockedClusterRef.current;
+    lockedClusterRef.current = null;
     setHasDrawnPolygon(false);
+
+    if (wasLocked && mapInstanceRef.current) {
+      // Force a fresh viewport-based fetch now that the lock is gone.
+      const map = mapInstanceRef.current;
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      if (bounds) {
+        const viewportBounds = {
+          north: bounds.getNorthEast().lat(),
+          south: bounds.getSouthWest().lat(),
+          east: bounds.getNorthEast().lng(),
+          west: bounds.getSouthWest().lng(),
+        };
+        lastBoundsRef.current = null;
+        updateMarkers(viewportBounds, zoom);
+      }
+    }
+
     if (onPolygonDraw) {
       onPolygonDraw(null);
     }
-  }, [onPolygonDraw]);
+  }, [onPolygonDraw, updateMarkers]);
 
   // Remove preview polyline + vertex markers used while drawing
   const clearDrawingPreview = useCallback(() => {
@@ -596,9 +691,9 @@ const ClusteredPropertyMap = ({
 
         // Listen for map idle (user stopped moving/zooming)
         map.addListener('idle', () => {
-          // While a polygon is active, lock the search to that polygon —
-          // don't refetch markers based on the visible viewport.
-          if (drawnPolygonRef.current) return;
+          // While a polygon or a cluster lock is active, don't refetch
+          // markers based on the visible viewport.
+          if (drawnPolygonRef.current || lockedClusterRef.current) return;
 
           const bounds = map.getBounds();
           const zoom = map.getZoom();
@@ -715,6 +810,8 @@ const ClusteredPropertyMap = ({
   // Re-fetch when filters change
   useEffect(() => {
     if (mapLoaded && mapInstanceRef.current) {
+      // While locked to a cluster's listings, don't refetch.
+      if (lockedClusterRef.current) return;
       const zoom = mapInstanceRef.current.getZoom();
 
       // If a polygon was drawn, search inside the polygon (not the visible

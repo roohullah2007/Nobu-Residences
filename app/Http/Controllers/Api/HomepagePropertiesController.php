@@ -39,29 +39,23 @@ class HomepagePropertiesController extends Controller
             $homePage = $website ? $website->pages()->where('page_type', 'home')->first() : null;
             $mlsSettings = $homePage ? ($homePage->content['mls_settings'] ?? []) : [];
 
-            // Default addresses: 15 Mercer and 35 Mercer (NOBU Residences)
-            $defaultAddresses = $mlsSettings['default_building_addresses'] ?? ['15 Mercer', '35 Mercer'];
-            if (!is_array($defaultAddresses)) {
-                // Parse single address like "15 Mercer Street" to "15 Mercer"
-                $address = $mlsSettings['default_building_address'] ?? '15 Mercer Street';
-                if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($address), $matches)) {
-                    $defaultAddresses = [$matches[1]];
-                } else {
-                    $defaultAddresses = ['15 Mercer', '35 Mercer'];
-                }
-            }
+            // Resolve the default building so we can use ALL of its street
+            // addresses (e.g. NOBU Residences = 15 Mercer + 35 Mercer) and
+            // attach the building name/neighbourhood to each listing.
+            $defaultBuilding = $this->resolveDefaultBuilding($mlsSettings);
+            $defaultAddresses = $this->buildingStreetAddresses($defaultBuilding, $mlsSettings);
 
             $forSaleProperties = [];
             $forRentProperties = [];
 
-            // Fetch For Sale properties from local database
+            // Fetch For Sale properties live from Repliers API
             if ($type === 'sale' || $type === 'both') {
-                $forSaleProperties = $this->fetchPropertiesFromDB('For Sale', $defaultAddresses);
+                $forSaleProperties = $this->fetchHomepagePropertiesFromRepliers('sale', $defaultAddresses, $defaultBuilding);
             }
 
-            // Fetch For Rent properties from local database
+            // Fetch For Rent properties live from Repliers API
             if ($type === 'rent' || $type === 'both') {
-                $forRentProperties = $this->fetchPropertiesFromDB('For Rent', $defaultAddresses);
+                $forRentProperties = $this->fetchHomepagePropertiesFromRepliers('lease', $defaultAddresses, $defaultBuilding);
             }
 
             return response()->json([
@@ -83,6 +77,130 @@ class HomepagePropertiesController extends Controller
                     'forRent' => []
                 ]
             ], 500);
+        }
+    }
+
+    /**
+     * Find the building configured for the home page (by id, name, or address).
+     * Falls back to looking up "NOBU" by name.
+     */
+    private function resolveDefaultBuilding(array $mlsSettings)
+    {
+        try {
+            if (!empty($mlsSettings['default_building_id'])) {
+                $b = \App\Models\Building::find($mlsSettings['default_building_id']);
+                if ($b) return $b;
+            }
+            if (!empty($mlsSettings['default_building_name'])) {
+                $b = \App\Models\Building::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($mlsSettings['default_building_name']) . '%'])->first();
+                if ($b) return $b;
+            }
+            // Fall back to NOBU Residences (the default the home page is built around)
+            return \App\Models\Building::whereRaw('LOWER(name) LIKE ?', ['%nobu%'])->first();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Return all street-address strings for a building (e.g. ["15 Mercer", "35 Mercer"]).
+     * Splits the main address on "," and "&" if separate fields aren't set.
+     */
+    private function buildingStreetAddresses($building, array $mlsSettings = []): array
+    {
+        $addresses = [];
+        if ($building) {
+            foreach ([$building->street_address_1 ?? null, $building->street_address_2 ?? null] as $a) {
+                if ($a && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($a), $m)) {
+                    $addresses[] = $m[1];
+                }
+            }
+            if (empty($addresses) && !empty($building->address)) {
+                foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
+                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $m)) {
+                        $addresses[] = $m[1];
+                    }
+                }
+            }
+        }
+        if (empty($addresses)) {
+            // Fall back to the legacy mls_settings keys, then to NOBU defaults
+            $configured = $mlsSettings['default_building_addresses'] ?? null;
+            if (is_array($configured) && !empty($configured)) {
+                $addresses = $configured;
+            } else {
+                $single = $mlsSettings['default_building_address'] ?? null;
+                if ($single) {
+                    foreach (preg_split('/\s*[,&]\s*/', $single) as $part) {
+                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $m)) {
+                            $addresses[] = $m[1];
+                        }
+                    }
+                }
+            }
+        }
+        if (empty($addresses)) {
+            $addresses = ['15 Mercer', '35 Mercer'];
+        }
+        return array_values(array_unique($addresses));
+    }
+
+    /**
+     * Fetch active listings for the homepage carousel from the Repliers API.
+     * Mirrors WebsiteController::fetchBuildingListingsFromRepliers — calls
+     * Repliers with streetNumber + streetName filters for each address so the
+     * carousel reflects live MLS data instead of the (often empty) local DB.
+     *
+     * @param string $type 'sale' or 'lease'
+     * @param array  $streetAddresses e.g. ['15 Mercer', '35 Mercer']
+     * @param object|null $building Optional building model to attach name/neighbourhood
+     */
+    private function fetchHomepagePropertiesFromRepliers(string $type, array $streetAddresses, $building = null): array
+    {
+        try {
+            $merged = [];
+            $seen = [];
+            $transactionType = $type === 'lease' ? 'For Rent' : 'For Sale';
+
+            foreach ($streetAddresses as $addr) {
+                if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) {
+                    continue;
+                }
+                $streetNumber = $m[1];
+                $streetName = preg_replace('/\s+(St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Blvd|Boulevard|Ct|Court|Pl|Place|Ln|Lane|Way)$/i', '', $m[2]);
+
+                $apiParams = [
+                    'class' => 'condoProperty',
+                    'status' => 'A',
+                    'type' => $type,
+                    'streetNumber' => $streetNumber,
+                    'streetName' => $streetName,
+                    'pageNum' => 1,
+                    'resultsPerPage' => 12,
+                    'sortBy' => 'createdOnDesc',
+                ];
+
+                $apiResult = $this->repliersApi->searchListings($apiParams);
+                $listings = $apiResult['listings'] ?? [];
+
+                foreach ($listings as $listing) {
+                    $key = $listing['mlsNumber'] ?? null;
+                    if (!$key || isset($seen[$key])) continue;
+                    $seen[$key] = true;
+                    $merged[] = $listing;
+                }
+            }
+
+            Log::info("Homepage Repliers fetch", [
+                'type' => $type,
+                'addresses' => $streetAddresses,
+                'count' => count($merged),
+            ]);
+
+            return $this->formatRepliersListingsForCarousel($merged, $transactionType, $building);
+        } catch (Exception $e) {
+            Log::error("Error fetching homepage properties from Repliers ({$type}): " . $e->getMessage());
+            return [];
         }
     }
 
@@ -350,10 +468,27 @@ class HomepagePropertiesController extends Controller
     /**
      * Format Repliers listings for carousel display
      */
-    private function formatRepliersListingsForCarousel(array $listings, string $transactionType)
+    private function formatRepliersListingsForCarousel(array $listings, string $transactionType, $building = null)
     {
         $formatted = [];
         $isRental = in_array($transactionType, ['For Lease', 'For Rent']);
+
+        // Pre-compute building name + neighbourhood string once
+        $buildingName = $building->name ?? null;
+        $buildingNeighbourhood = null;
+        if ($building) {
+            $parts = array_filter([
+                $building->sub_neighbourhood ?? null,
+                $building->neighbourhood ?? null,
+                $building->city ?? null,
+            ]);
+            $buildingNeighbourhood = implode(', ', $parts) ?: null;
+        }
+        $buildingSlug = $building->slug ?? null;
+        $buildingId = $building->id ?? null;
+        $buildingStreet1 = $building->street_address_1 ?? null;
+        $buildingStreet2 = $building->street_address_2 ?? null;
+        $buildingAddress = $building->address ?? null;
 
         foreach ($listings as $listing) {
             // Get images from Repliers listing
@@ -401,6 +536,25 @@ class HomepagePropertiesController extends Controller
                 'bedroomsTotal' => $listing['details']['numBedrooms'] ?? 0,
                 'BathroomsTotalInteger' => $listing['details']['numBathrooms'] ?? 0,
                 'bathroomsTotalInteger' => $listing['details']['numBathrooms'] ?? 0,
+                // Building info — used by listing cards to show
+                // "Nobu Residences in King West, Downtown, Toronto"
+                'building_name' => $buildingName,
+                'buildingName' => $buildingName,
+                'building_neighbourhood' => $buildingNeighbourhood,
+                'buildingNeighbourhood' => $buildingNeighbourhood,
+                'building_slug' => $buildingSlug,
+                'building_id' => $buildingId,
+                'building' => $building ? [
+                    'id' => $buildingId,
+                    'name' => $buildingName,
+                    'slug' => $buildingSlug,
+                    'address' => $buildingAddress,
+                    'street_address_1' => $buildingStreet1,
+                    'street_address_2' => $buildingStreet2,
+                    'city' => $building->city ?? null,
+                    'neighbourhood' => $building->neighbourhood ?? null,
+                    'sub_neighbourhood' => $building->sub_neighbourhood ?? null,
+                ] : null,
             ];
         }
 

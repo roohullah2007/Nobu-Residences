@@ -66,10 +66,20 @@ class BuildingController extends Controller
         
         $perPage = $request->input('per_page', 12);
         $buildings = $query->paginate($perPage);
-        
+
+        // Enrich each building with live units_for_sale / units_for_rent
+        // counts from the Repliers API (cached for 10 minutes per building).
+        $items = collect($buildings->items())->map(function ($b) {
+            $arr = $b->toArray();
+            $counts = $this->getBuildingListingCounts($b);
+            $arr['units_for_sale'] = $counts['sale'];
+            $arr['units_for_rent'] = $counts['rent'];
+            return $arr;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $buildings->items(),
+            'data' => $items,
             'pagination' => [
                 'total' => $buildings->total(),
                 'per_page' => $buildings->perPage(),
@@ -79,6 +89,69 @@ class BuildingController extends Controller
                 'to' => $buildings->lastItem(),
             ]
         ]);
+    }
+
+    /**
+     * Get live for-sale / for-rent counts for a building from the Repliers API.
+     * Cached for 10 minutes per building to avoid hammering the API.
+     */
+    private function getBuildingListingCounts(Building $building): array
+    {
+        $cacheKey = 'building_listing_counts:' . $building->id;
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function () use ($building) {
+            $addresses = [];
+            foreach ([$building->street_address_1 ?? null, $building->street_address_2 ?? null] as $a) {
+                if ($a && preg_match('/^(\d+)\s+([A-Za-z]+)/i', trim($a), $m)) {
+                    $addresses[] = ['number' => $m[1], 'name' => $m[2]];
+                }
+            }
+            if (empty($addresses) && !empty($building->address)) {
+                // Split on both "," and "&" since buildings often store
+                // addresses like "15 Mercer St & 35 Mercer".
+                $parts = preg_split('/\s*[,&]\s*/', $building->address);
+                foreach (array_filter(array_map('trim', $parts)) as $part) {
+                    if (preg_match('/^(\d+)\s+([A-Za-z]+)/i', $part, $m)) {
+                        $addresses[] = ['number' => $m[1], 'name' => $m[2]];
+                    }
+                }
+            }
+
+            $sale = 0;
+            $rent = 0;
+            if (empty($addresses)) {
+                return ['sale' => 0, 'rent' => 0];
+            }
+
+            try {
+                $api = app(\App\Services\RepliersApiService::class);
+                foreach ($addresses as $addr) {
+                    foreach (['sale', 'lease'] as $t) {
+                        $res = $api->searchListings([
+                            'class' => 'condoProperty',
+                            'status' => 'A',
+                            'type' => $t,
+                            'streetNumber' => $addr['number'],
+                            'streetName' => $addr['name'],
+                            'pageNum' => 1,
+                            'resultsPerPage' => 1,
+                        ]);
+                        $count = (int) ($res['count'] ?? 0);
+                        if ($t === 'sale') {
+                            $sale += $count;
+                        } else {
+                            $rent += $count;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Building listing count fetch failed', [
+                    'building_id' => $building->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return ['sale' => $sale, 'rent' => $rent];
+        });
     }
     
     /**

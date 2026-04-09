@@ -316,32 +316,77 @@ export default function PropertyHeader({
               <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0">
                 {getTitle()}
               </h1>
-              {/* Location Breadcrumb for Buildings and Properties with Buildings */}
-              {getLocationBreadcrumb() && (
-                <h2 className="font-work-sans text-lg text-[#293056] mb-2">
-                  <span>
-                    {getLocationBreadcrumb().map((part, index) => (
-                      <span key={part.type}>
-                        {/* All location parts are now clickable taxonomies */}
-                        <Link
-                          href={part.type === 'city'
-                            ? `/search?query=${encodeURIComponent(part.label)}`
-                            : part.type === 'neighbourhood'
-                            ? `/search?neighbourhood=${encodeURIComponent(part.label)}`
-                            : `/search?sub_neighbourhood=${encodeURIComponent(part.label)}`
-                          }
-                          className="underline hover:text-[#1f2441] transition-colors"
-                        >
-                          {part.label}
-                        </Link>
-                        {index < getLocationBreadcrumb().length - 1 && (
-                          <span className="text-gray-400">, </span>
-                        )}
-                      </span>
-                    ))}
-                  </span>
-                </h2>
-              )}
+              {/* Building + neighbourhood breadcrumb — single line:
+                  "Nobu Residences in King West, Downtown, Toronto" */}
+              {(() => {
+                const breadcrumb = getLocationBreadcrumb();
+                const slugify = (s) => (s || '').toString().toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+                const buildingCity = (type === 'building' ? data?.city : (buildingData?.city || data?.city || data?.City)) || 'Toronto';
+                const citySlug = slugify(buildingCity) || 'toronto';
+                const isRent = (data?.isRental === true) || /rent|lease/i.test((data?.transactionType || data?.TransactionType || '').toString());
+                const linkType = isRent ? 'rent' : 'sale';
+
+                const buildAreaHref = (part) => {
+                  const slug = slugify(part.label);
+                  if (!slug) return '#';
+                  if (part.type === 'city') return `/${slug}/condos-for-${linkType}`;
+                  return `/${citySlug}/${slug}/condos-for-${linkType}`;
+                };
+
+                // Building name link (only for property pages with a known building)
+                // Strip a trailing city name from the building name so we
+                // show "Nobu Residences" instead of "NOBU Residences Toronto".
+                let buildingHref = null;
+                let buildingDisplayName = null;
+                if (type === 'property' && buildingData?.name) {
+                  buildingDisplayName = buildingData.name.replace(
+                    new RegExp(`\\s+${buildingCity}$`, 'i'),
+                    ''
+                  ).trim();
+                  const slugParts = [slugify(buildingData.name)];
+                  if (buildingData.street_address_1) slugParts.push(slugify(buildingData.street_address_1));
+                  if (buildingData.street_address_2) slugParts.push(slugify(buildingData.street_address_2));
+                  if (slugParts.length === 1 && buildingData.address) {
+                    buildingData.address.split(/\s*[,&]\s*/).filter(Boolean).forEach(p => slugParts.push(slugify(p)));
+                  }
+                  buildingHref = `/${citySlug}/${slugParts.filter(Boolean).join('-')}`;
+                }
+
+                if (!buildingHref && !breadcrumb) return null;
+
+                return (
+                  <h2 className="font-work-sans text-lg text-[#293056] mb-2">
+                    <span>
+                      {buildingHref && (
+                        <>
+                          <Link
+                            href={buildingHref}
+                            className="font-semibold underline hover:text-[#1f2441] transition-colors"
+                          >
+                            {buildingDisplayName || buildingData.name}
+                          </Link>
+                          {breadcrumb && breadcrumb.length > 0 && (
+                            <span className="text-gray-500">&nbsp;in&nbsp;</span>
+                          )}
+                        </>
+                      )}
+                      {breadcrumb && breadcrumb.map((part, index) => (
+                        <span key={part.type}>
+                          <Link
+                            href={buildAreaHref(part)}
+                            className="underline hover:text-[#1f2441] transition-colors"
+                          >
+                            {part.label}
+                          </Link>
+                          {index < breadcrumb.length - 1 && (
+                            <span className="text-gray-400">, </span>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                  </h2>
+                );
+              })()}
               <div className="font-work-sans font-medium text-lg leading-[27px] text-[#293056] tracking-tight underline">
                 {getSubtitle()}
               </div>

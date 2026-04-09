@@ -114,75 +114,102 @@ export default function RealEstateLinksSection() {
     ]
   };
 
-  // Parse link text and create search parameters
+  // Slugify a string for URL segments (e.g. "King West" -> "king-west")
+  const slugify = (s) =>
+    (s || '')
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  // Parse the descriptive link text and produce a SEO-friendly URL.
+  // Example outputs:
+  //   "Condos for sale in King West"  ->  /toronto/king-west/condos-for-sale
+  //   "2 bedroom condos for sale in King West"
+  //                                    ->  /toronto/king-west/2-bedroom-condos-for-sale?beds=2-2,2.1-2.9
+  //   "Houses for sale in Mississauga" ->  /mississauga/condos-for-sale (city-only) — but we treat
+  //                                        Mississauga as the city slug since the location IS the city.
+  //   "Townhouses for sale in Markham" ->  /markham/townhouses-for-sale
   const parseSearchLink = (linkText) => {
-    const params = new URLSearchParams();
     const text = linkText.toLowerCase();
 
-    // Parse bedrooms
+    // Bedrooms
     const bedMatch = text.match(/(\d+)\s*(?:bed|bedroom)/i);
-    if (bedMatch) {
-      params.append('bedrooms', bedMatch[1]);
-    }
+    const beds = bedMatch ? parseInt(bedMatch[1], 10) : null;
 
-    // Parse property type - must match backend expectations
-    if (text.includes('condo')) {
-      params.append('property_sub_type', 'Condo Apartment');
-    } else if (text.includes('apartment')) {
-      params.append('property_sub_type', 'Condo Apartment');
-    } else if (text.includes('townhouse')) {
-      params.append('property_sub_type', 'Condo Townhouse');
-    } else if (text.includes('house')) {
-      params.append('property_sub_type', 'Detached');
-    }
+    // Property "kind" segment
+    let kindSegment = 'condos';
+    if (text.includes('townhouse')) kindSegment = 'townhouses';
+    else if (text.includes('house')) kindSegment = 'houses';
+    else if (text.includes('apartment')) kindSegment = 'apartments';
+    else if (text.includes('condo')) kindSegment = 'condos';
 
-    // Parse price range/type
-    if (text.includes('luxury')) {
-      params.append('min_price', '1000000');
-    } else if (text.includes('cheap')) {
-      params.append('max_price', '500000');
-    }
-
-    // Parse sale/rent/sold/leased
+    // Sale vs rent vs sold/leased
+    let txnSegment = 'for-sale';
+    let statusFilter = null;
     if (text.includes('sold')) {
-      params.append('property_type', 'For Sale');
-      params.append('property_status', 'Sold');
+      txnSegment = 'for-sale';
+      statusFilter = 'Sold';
     } else if (text.includes('leased')) {
-      params.append('property_type', 'For Rent');
-      params.append('property_status', 'Leased');
-    } else if (text.includes('for sale')) {
-      params.append('property_type', 'For Sale');
+      txnSegment = 'for-rent';
+      statusFilter = 'Leased';
     } else if (text.includes('for rent')) {
-      params.append('property_type', 'For Rent');
-    } else {
-      // Default to For Sale if not specified
-      params.append('property_type', 'For Sale');
+      txnSegment = 'for-rent';
     }
 
-    // Extract location - everything after "in"
+    // Extract location ("everything after 'in '")
     const locationMatch = text.match(/in\s+(.+)$/i);
-    if (locationMatch) {
-      const location = locationMatch[1].trim();
-      params.append('location', location);
-      // Set search_type to global to search in all fields (city, address, postal)
-      params.append('search_type', 'global');
+    const locationLabel = locationMatch ? locationMatch[1].trim() : '';
+    const locationSlug = slugify(locationLabel);
+
+    // Cities we treat as their own URL prefix (otherwise the location is a
+    // neighbourhood inside Toronto).
+    const knownCities = new Set([
+      'toronto', 'mississauga', 'oakville', 'burlington', 'milton', 'brampton',
+      'caledon', 'vaughan', 'richmond-hill', 'markham', 'aurora', 'pickering',
+      'ajax', 'whitby', 'oshawa', 'etobicoke', 'scarborough', 'north-york',
+    ]);
+
+    let citySlug = 'toronto';
+    let neighbourhoodSlug = '';
+    if (knownCities.has(locationSlug)) {
+      citySlug = locationSlug;
+    } else if (locationSlug) {
+      neighbourhoodSlug = locationSlug;
     }
 
-    return params.toString();
+    // Build the descriptive last segment, prefixing with bedroom count when
+    // relevant: "2-bedroom-condos-for-sale", "condos-for-sale", etc.
+    const bedroomPrefix = beds ? `${beds}-bedroom-` : '';
+    const lastSegment = `${bedroomPrefix}${kindSegment}-${txnSegment}`;
+
+    // Bedroom query string in the format the user requested:
+    //   beds=2-2,2.1-2.9   (covers exact 2-bed and 2 + den variants)
+    const search = new URLSearchParams();
+    if (beds) {
+      search.append('beds', `${beds}-${beds},${beds}.1-${beds}.9`);
+    }
+    if (statusFilter) {
+      search.append('property_status', statusFilter);
+    }
+
+    const path = neighbourhoodSlug
+      ? `/${citySlug}/${neighbourhoodSlug}/${lastSegment}`
+      : `/${citySlug}/${lastSegment}`;
+
+    const qs = search.toString();
+    return qs ? `${path}?${qs}` : path;
   };
 
   // Generate search URL
-  const generateSearchUrl = (linkText) => {
-    const searchParams = parseSearchLink(linkText);
-    return `/search?${searchParams}`;
-  };
+  const generateSearchUrl = (linkText) => parseSearchLink(linkText);
 
-  // Handle link click
+  // Handle link click — let the SEO route handle it via Inertia
   const handleLinkClick = (e, linkText) => {
     e.preventDefault();
-    const searchParams = parseSearchLink(linkText);
-    // Navigate to search page with parameters using Inertia router
-    router.get(`/search?${searchParams}`);
+    router.get(parseSearchLink(linkText));
   };
 
   // Render link component

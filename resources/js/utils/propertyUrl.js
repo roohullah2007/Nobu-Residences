@@ -1,10 +1,33 @@
+import { createSEOBuildingUrl } from './slug';
+
 /**
  * Generate SEO-friendly URL for a property
  * Format: /{city}/{streetNumber-streetName-streetSuffix-city}/unit-{unitNumber}-{listingKey}
  * Example: /barrie/6-toronto-street-barrie/unit-604-S12960990
+ *
+ * If a `building` is provided as the second argument, the URL uses the
+ * building's rich slug as the middle segment instead, e.g.
+ *   /toronto/nobu-residences-15-mercer-st-35-mercer-st/unit-3708-C12652876
  */
-export const generatePropertyUrl = (property) => {
+export const generatePropertyUrl = (property, building = null) => {
     if (!property) return '/';
+
+    // Auto-pick building from the listing payload if not passed explicitly
+    if (!building && property.building && (property.building.name || property.building.slug)) {
+        building = property.building;
+    }
+
+    // If we know which building this listing belongs to, route through the
+    // building's rich slug so the URL is /{city}/{building-slug}/unit-...
+    if (building) {
+        const listingKey = property.ListingKey || property.listingKey || property.mls_id || property.mlsNumber || '';
+        const unitNumber = property.UnitNumber || property.unitNumber || '';
+        const listingSlug = unitNumber ? `unit-${unitNumber}-${listingKey}` : listingKey;
+        const buildingUrl = createSEOBuildingUrl(building);
+        if (buildingUrl && !buildingUrl.startsWith('/building/unknown')) {
+            return `${buildingUrl}/${listingSlug}`;
+        }
+    }
 
     // Get listing key
     const listingKey = property.ListingKey ||
