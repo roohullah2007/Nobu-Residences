@@ -707,17 +707,12 @@ export default function EnhancedPropertySearch({
     performSearch(newFilters, true, activeTab);
   };
 
-  // Handle polygon drawn on map - triggers a new search with the polygon area
+  // Handle polygon drawn on map - only refreshes the map markers for that
+  // area (via ClusteredPropertyMap's own /api/map-coordinates fetch). We do
+  // NOT call performSearch, so the rest of the page doesn't reload.
   const handlePolygonDraw = (bounds) => {
     setDrawnPolygon(bounds);
-    if (bounds) {
-      // Trigger search with drawn area bounds
-      const newParams = { ...searchFilters, viewport_bounds: bounds };
-      performSearch(newParams, true, activeTab);
-    } else {
-      // Area cleared - search without bounds
-      performSearch(searchFilters, true, activeTab);
-    }
+    setSearchFilters((prev) => ({ ...prev, viewport_bounds: bounds || undefined }));
   };
 
   const handleSaveSearch = async () => {
@@ -1636,10 +1631,8 @@ export default function EnhancedPropertySearch({
                   className="w-full h-[600px]"
                   onPropertyClick={(coord) => {
                     console.log('Property clicked:', coord.mls_id);
-                    // Navigate to property detail
-                    if (coord.mls_id) {
-                      window.location.href = `/property/${coord.mls_id}`;
-                    }
+                    // Marker click only opens the card popup; navigation
+                    // happens when the user clicks the card itself.
                   }}
                   onMarkerCountChange={(displayed, total) => {
                     console.log(`Map showing ${displayed} of ${total} properties`);
@@ -1793,10 +1786,7 @@ export default function EnhancedPropertySearch({
                       className="w-full h-full"
                       onPropertyClick={(coord) => {
                         console.log('Property clicked:', coord.mls_id);
-                        // Navigate to property detail
-                        if (coord.mls_id) {
-                          window.location.href = `/property/${coord.mls_id}`;
-                        }
+                        // Marker click only opens the card popup.
                       }}
                       onMarkerCountChange={(displayed, total) => {
                         console.log(`Mixed view map showing ${displayed} of ${total} properties`);

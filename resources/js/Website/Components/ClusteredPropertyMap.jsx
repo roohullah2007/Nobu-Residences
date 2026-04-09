@@ -20,8 +20,15 @@ const ClusteredPropertyMap = ({
   const markersRef = useRef([]);
   const markerClustererRef = useRef(null);
   const infoWindowRef = useRef(null);
-  const drawingManagerRef = useRef(null);
   const drawnPolygonRef = useRef(null);
+  const drawPointsRef = useRef([]);
+  const previewPolylineRef = useRef(null);
+  const rubberLineRef = useRef(null);
+  const previewMarkersRef = useRef([]);
+  const drawClickListenerRef = useRef(null);
+  const drawMoveListenerRef = useRef(null);
+  const drawDblClickListenerRef = useRef(null);
+  const prevMapOptionsRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +62,7 @@ const ClusteredPropertyMap = ({
         ...searchFilters,
         viewport_bounds: bounds,
         zoom_level: zoom,
-        limit: 2000 // Request all properties in viewport (up to 2000)
+        limit: 100 // Show at most 100 listings on the map at once
       };
 
       const response = await fetch('/api/map-coordinates', {
@@ -159,7 +166,14 @@ const ClusteredPropertyMap = ({
       west: Math.round(bounds.west * 1000) / 1000
     };
 
-    const boundsKey = `${roundedBounds.north}_${roundedBounds.south}_${roundedBounds.east}_${roundedBounds.west}_${zoom}`;
+    // Preserve polygon coords (Repliers `map` param) when present so the
+    // backend filters by the drawn polygon instead of the visible viewport.
+    if (bounds.polygon) {
+      roundedBounds.polygon = bounds.polygon;
+    }
+
+    const polyKey = bounds.polygon ? `_p${bounds.polygon.length}_${bounds.polygon[0]?.[0]}_${bounds.polygon[0]?.[1]}` : '';
+    const boundsKey = `${roundedBounds.north}_${roundedBounds.south}_${roundedBounds.east}_${roundedBounds.west}_${zoom}${polyKey}`;
 
     // Skip if bounds haven't changed significantly
     if (lastBoundsRef.current === boundsKey) {
@@ -210,36 +224,40 @@ const ClusteredPropertyMap = ({
         marker.setZIndex(100);
       });
 
-      // Add click listener to show info window
+      // Add click listener to show property card popup
       marker.addListener('click', () => {
+        const href = coord.mls_id ? `/property/${coord.mls_id}` : '#';
+        const imageHtml = coord.image
+          ? `<div style="width:100%;height:140px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
+          : `<div style="width:100%;height:140px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
+
         const content = `
-          <div style="padding: 10px; min-width: 220px; font-family: Arial, sans-serif;">
-            <div style="font-weight: bold; font-size: 18px; color: #007cba; margin-bottom: 6px;">
-              ${formatPrice(coord.price)}
+          <a href="${href}" style="display:block;width:240px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;border-radius:10px;overflow:hidden;background:#fff;">
+            ${imageHtml}
+            <div style="padding:10px 12px 12px 12px;">
+              <div style="font-weight:700;font-size:18px;color:#111827;margin-bottom:4px;">
+                ${formatPrice(coord.price)}
+              </div>
+              <div style="font-size:13px;color:#374151;line-height:1.3;margin-bottom:4px;">
+                ${coord.address || 'Address not available'}
+              </div>
+              <div style="font-size:12px;color:#6b7280;margin-bottom:8px;">
+                ${coord.city || ''}
+              </div>
+              <div style="font-size:12px;color:#374151;display:flex;gap:10px;">
+                <span>${coord.beds || 0} bd</span>
+                <span>${coord.baths || 0} ba</span>
+                ${coord.type ? `<span>${coord.type}</span>` : ''}
+              </div>
             </div>
-            <div style="font-size: 14px; color: #333; margin-bottom: 4px;">
-              ${coord.address || 'Address not available'}
-            </div>
-            <div style="font-size: 13px; color: #666; margin-bottom: 8px;">
-              ${coord.city || ''}
-            </div>
-            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">
-              ${coord.beds || '?'} bed${coord.beds !== 1 ? 's' : ''} | ${coord.baths || '?'} bath${coord.baths !== 1 ? 's' : ''}
-              ${coord.type ? ` | ${coord.type}` : ''}
-            </div>
-            <a href="/property/${coord.mls_id}"
-               style="display: inline-block; padding: 8px 16px; background: #007cba; color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500;">
-              View Details
-            </a>
-          </div>
+          </a>
         `;
 
         infoWindowRef.current.setContent(content);
         infoWindowRef.current.open(mapInstanceRef.current, marker);
-
-        if (onPropertyClick) {
-          onPropertyClick(coord);
-        }
+        // NOTE: do not call onPropertyClick here — clicking the marker
+        // should only open the card. Navigation happens when the user
+        // clicks the card itself (the wrapping <a>).
       });
 
       return marker;
@@ -335,124 +353,215 @@ const ClusteredPropertyMap = ({
     }
   }, [onPolygonDraw]);
 
-  // Toggle drawing mode
-  const toggleDrawingMode = useCallback(() => {
-    if (!drawingManagerRef.current) return;
-
-    if (isDrawingMode) {
-      // Disable drawing mode
-      drawingManagerRef.current.setDrawingMode(null);
-      setIsDrawingMode(false);
-    } else {
-      // Clear any existing polygon first
-      clearDrawnPolygon();
-      // Enable polygon drawing
-      drawingManagerRef.current.setDrawingMode(window.google.maps.drawing.OverlayType.POLYGON);
-      setIsDrawingMode(true);
+  // Remove preview polyline + vertex markers used while drawing
+  const clearDrawingPreview = useCallback(() => {
+    if (previewPolylineRef.current) {
+      previewPolylineRef.current.setMap(null);
+      previewPolylineRef.current = null;
     }
-  }, [isDrawingMode, clearDrawnPolygon]);
+    if (rubberLineRef.current) {
+      rubberLineRef.current.setMap(null);
+      rubberLineRef.current = null;
+    }
+    previewMarkersRef.current.forEach((m) => m.setMap(null));
+    previewMarkersRef.current = [];
+    drawPointsRef.current = [];
+  }, []);
 
-  // Initialize Drawing Manager on the map
-  const initDrawingManager = useCallback((map) => {
-    if (!window.google?.maps?.drawing) {
-      console.warn('Google Maps Drawing library not loaded');
-      return;
+  // Stop drawing mode. If commit && >=3 points, create the final polygon.
+  const stopDrawing = useCallback((commit) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (drawClickListenerRef.current) {
+      window.google.maps.event.removeListener(drawClickListenerRef.current);
+      drawClickListenerRef.current = null;
+    }
+    if (drawMoveListenerRef.current) {
+      window.google.maps.event.removeListener(drawMoveListenerRef.current);
+      drawMoveListenerRef.current = null;
+    }
+    if (drawDblClickListenerRef.current) {
+      window.google.maps.event.removeListener(drawDblClickListenerRef.current);
+      drawDblClickListenerRef.current = null;
     }
 
-    const drawingManager = new window.google.maps.drawing.DrawingManager({
-      drawingMode: null, // Start with drawing disabled
-      drawingControl: false, // We use our own UI button
-      polygonOptions: {
-        fillColor: '#007cba',
-        fillOpacity: 0.15,
-        strokeColor: '#007cba',
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
-        clickable: true,
-        editable: true,
-        zIndex: 1,
-      },
+    // Restore map options (cursor, doubleClickZoom)
+    if (prevMapOptionsRef.current) {
+      map.setOptions(prevMapOptionsRef.current);
+      prevMapOptionsRef.current = null;
+    }
+
+    const points = drawPointsRef.current.slice();
+    clearDrawingPreview();
+    setIsDrawingMode(false);
+
+    if (!commit || points.length < 3) return;
+
+    // Build the final polygon
+    const polygon = new window.google.maps.Polygon({
+      paths: points,
+      fillColor: '#2563eb',
+      fillOpacity: 0.1,
+      strokeColor: '#2563eb',
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      clickable: false,
+      editable: false,
+      zIndex: 1,
     });
+    polygon.setMap(map);
 
-    drawingManager.setMap(map);
-    drawingManagerRef.current = drawingManager;
+    // Replace any previously drawn polygon
+    if (drawnPolygonRef.current) {
+      drawnPolygonRef.current.setMap(null);
+    }
+    drawnPolygonRef.current = polygon;
+    setHasDrawnPolygon(true);
 
-    // Listen for polygon complete
-    window.google.maps.event.addListener(drawingManager, 'polygoncomplete', (polygon) => {
-      // Clear any previously drawn polygon
-      if (drawnPolygonRef.current) {
-        drawnPolygonRef.current.setMap(null);
-      }
-      drawnPolygonRef.current = polygon;
-      setHasDrawnPolygon(true);
+    // Build coords [[lng,lat],...] closed ring
+    const coordinates = points.map((p) => [p.lng(), p.lat()]);
+    coordinates.push(coordinates[0]);
 
-      // Disable drawing mode after polygon is drawn
-      drawingManager.setDrawingMode(null);
-      setIsDrawingMode(false);
+    // Bounding box
+    const bounds = new window.google.maps.LatLngBounds();
+    points.forEach((p) => bounds.extend(p));
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
 
-      // Extract coordinates as GeoJSON
-      const path = polygon.getPath();
-      const coordinates = [];
-      for (let i = 0; i < path.getLength(); i++) {
-        const point = path.getAt(i);
-        coordinates.push([point.lng(), point.lat()]);
-      }
-      // Close the polygon ring
-      if (coordinates.length > 0) {
-        coordinates.push(coordinates[0]);
-      }
-
-      // Calculate bounding box of the drawn polygon for search
-      const bounds = new window.google.maps.LatLngBounds();
-      for (let i = 0; i < path.getLength(); i++) {
-        bounds.extend(path.getAt(i));
-      }
-      const ne = bounds.getNorthEast();
-      const sw = bounds.getSouthWest();
-      const searchBounds = {
+    if (onPolygonDraw) {
+      onPolygonDraw({
         north: ne.lat(),
         south: sw.lat(),
         east: ne.lng(),
         west: sw.lng(),
-      };
+        polygon: coordinates,
+      });
+    }
+  }, [clearDrawingPreview, onPolygonDraw]);
 
-      console.log('Polygon drawn, bounds:', searchBounds);
+  // Redraw the in-progress preview polyline + vertex markers
+  const redrawPreview = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const pts = drawPointsRef.current;
 
-      if (onPolygonDraw) {
-        onPolygonDraw(searchBounds);
+    if (!previewPolylineRef.current) {
+      previewPolylineRef.current = new window.google.maps.Polyline({
+        path: pts,
+        strokeColor: '#2563eb',
+        strokeOpacity: 0.9,
+        strokeWeight: 2,
+        clickable: false,
+        map,
+      });
+    } else {
+      previewPolylineRef.current.setPath(pts);
+    }
+
+    // Add vertex markers for each new point
+    while (previewMarkersRef.current.length < pts.length) {
+      const idx = previewMarkersRef.current.length;
+      const isFirst = idx === 0;
+      const marker = new window.google.maps.Marker({
+        position: pts[idx],
+        map,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: isFirst ? 7 : 5,
+          fillColor: isFirst ? '#2563eb' : '#ffffff',
+          fillOpacity: 1,
+          strokeColor: '#2563eb',
+          strokeWeight: 2,
+        },
+        clickable: false,
+        zIndex: 10,
+      });
+      previewMarkersRef.current.push(marker);
+    }
+  }, []);
+
+  // Toggle drawing mode (manual click-to-draw, no DrawingManager dependency)
+  const toggleDrawingMode = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (isDrawingMode) {
+      stopDrawing(false);
+      return;
+    }
+
+    // Remove any existing polygon (without firing onPolygonDraw(null))
+    if (drawnPolygonRef.current) {
+      drawnPolygonRef.current.setMap(null);
+      drawnPolygonRef.current = null;
+      setHasDrawnPolygon(false);
+    }
+
+    // Save & override map options for drawing
+    prevMapOptionsRef.current = {
+      draggableCursor: null,
+      disableDoubleClickZoom: false,
+    };
+    map.setOptions({
+      draggableCursor: 'crosshair',
+      disableDoubleClickZoom: true,
+    });
+
+    drawPointsRef.current = [];
+    setIsDrawingMode(true);
+
+    drawMoveListenerRef.current = map.addListener('mousemove', (e) => {
+      const pts = drawPointsRef.current;
+      if (pts.length === 0) return;
+      const last = pts[pts.length - 1];
+      const path = [last, e.latLng];
+      if (!rubberLineRef.current) {
+        const dashSymbol = {
+          path: 'M 0,-1 0,1',
+          strokeColor: '#2563eb',
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          scale: 3,
+        };
+        rubberLineRef.current = new window.google.maps.Polyline({
+          path,
+          strokeOpacity: 0,
+          icons: [{ icon: dashSymbol, offset: '0', repeat: '10px' }],
+          clickable: false,
+          map,
+          zIndex: 5,
+        });
+      } else {
+        rubberLineRef.current.setPath(path);
+      }
+    });
+
+    drawClickListenerRef.current = map.addListener('click', (e) => {
+      const pts = drawPointsRef.current;
+
+      // If user clicks near the first vertex (in screen pixels) and we have
+      // at least 3 points, close the polygon and trigger the search.
+      if (pts.length >= 3) {
+        const projection = map.getProjection();
+        if (projection) {
+          const scale = Math.pow(2, map.getZoom());
+          const firstPx = projection.fromLatLngToPoint(pts[0]);
+          const clickPx = projection.fromLatLngToPoint(e.latLng);
+          const dx = (firstPx.x - clickPx.x) * scale;
+          const dy = (firstPx.y - clickPx.y) * scale;
+          const distPx = Math.sqrt(dx * dx + dy * dy);
+          if (distPx <= 16) {
+            stopDrawing(true);
+            return;
+          }
+        }
       }
 
-      // Listen for edits to update bounds
-      const updateBounds = () => {
-        const newBounds = new window.google.maps.LatLngBounds();
-        for (let i = 0; i < path.getLength(); i++) {
-          newBounds.extend(path.getAt(i));
-        }
-        const newNe = newBounds.getNorthEast();
-        const newSw = newBounds.getSouthWest();
-        if (onPolygonDraw) {
-          onPolygonDraw({
-            north: newNe.lat(),
-            south: newSw.lat(),
-            east: newNe.lng(),
-            west: newSw.lng(),
-          });
-        }
-      };
-      window.google.maps.event.addListener(path, 'set_at', updateBounds);
-
-      window.google.maps.event.addListener(path, 'insert_at', () => {
-        const updatedCoords = [];
-        for (let i = 0; i < path.getLength(); i++) {
-          const pt = path.getAt(i);
-          updatedCoords.push([pt.lng(), pt.lat()]);
-        }
-        if (updatedCoords.length > 0) updatedCoords.push(updatedCoords[0]);
-        const updatedGeoJson = JSON.stringify({ type: 'Polygon', coordinates: [updatedCoords] });
-        if (onPolygonDraw) onPolygonDraw(updatedGeoJson);
-      });
+      pts.push(e.latLng);
+      redrawPreview();
     });
-  }, [onPolygonDraw, clearDrawnPolygon]);
+  }, [isDrawingMode, redrawPreview, stopDrawing]);
 
   // Initialize map
   const handleMapContainerReady = useCallback((mapDiv) => {
@@ -485,11 +594,12 @@ const ClusteredPropertyMap = ({
         mapInstanceRef.current = map;
         setMapLoaded(true);
 
-        // Initialize Drawing Manager for polygon search
-        initDrawingManager(map);
-
         // Listen for map idle (user stopped moving/zooming)
         map.addListener('idle', () => {
+          // While a polygon is active, lock the search to that polygon —
+          // don't refetch markers based on the visible viewport.
+          if (drawnPolygonRef.current) return;
+
           const bounds = map.getBounds();
           const zoom = map.getZoom();
 
@@ -521,7 +631,7 @@ const ClusteredPropertyMap = ({
     } else {
       initMap();
     }
-  }, [initialCenter, initialZoom, debouncedUpdate, initDrawingManager]);
+  }, [initialCenter, initialZoom, debouncedUpdate]);
 
   // Load Google Maps script
   const loadGoogleMapsScript = (callback) => {
@@ -533,9 +643,14 @@ const ClusteredPropertyMap = ({
     }
 
     if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      const checkInterval = setInterval(() => {
+      const checkInterval = setInterval(async () => {
         if (window.google && window.google.maps) {
           clearInterval(checkInterval);
+          // Ensure drawing library is available even if the existing
+          // script tag did not include &libraries=drawing.
+          if (!window.google.maps.drawing && window.google.maps.importLibrary) {
+            try { await window.google.maps.importLibrary('drawing'); } catch (e) {}
+          }
           callback();
         }
       }, 100);
@@ -557,34 +672,61 @@ const ClusteredPropertyMap = ({
     document.head.appendChild(script);
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount only (empty deps so it doesn't tear down the
+  // polygon/markers every time searchFilters or debouncedUpdate change).
   useEffect(() => {
     return () => {
-      clearMarkers();
-      if (debouncedUpdate) {
-        debouncedUpdate.cancel();
-      }
+      markersRef.current.forEach((m) => m.setMap(null));
+      markersRef.current = [];
       if (markerClustererRef.current) {
         markerClustererRef.current.clearMarkers();
         markerClustererRef.current = null;
       }
-      if (drawingManagerRef.current) {
-        drawingManagerRef.current.setMap(null);
-        drawingManagerRef.current = null;
+      if (drawClickListenerRef.current) {
+        window.google?.maps?.event?.removeListener(drawClickListenerRef.current);
+        drawClickListenerRef.current = null;
       }
+      if (drawMoveListenerRef.current) {
+        window.google?.maps?.event?.removeListener(drawMoveListenerRef.current);
+        drawMoveListenerRef.current = null;
+      }
+      if (rubberLineRef.current) {
+        rubberLineRef.current.setMap(null);
+        rubberLineRef.current = null;
+      }
+      if (drawDblClickListenerRef.current) {
+        window.google?.maps?.event?.removeListener(drawDblClickListenerRef.current);
+        drawDblClickListenerRef.current = null;
+      }
+      if (previewPolylineRef.current) {
+        previewPolylineRef.current.setMap(null);
+        previewPolylineRef.current = null;
+      }
+      previewMarkersRef.current.forEach((m) => m.setMap(null));
+      previewMarkersRef.current = [];
       if (drawnPolygonRef.current) {
         drawnPolygonRef.current.setMap(null);
         drawnPolygonRef.current = null;
       }
     };
-  }, [clearMarkers, debouncedUpdate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Re-fetch when filters change
   useEffect(() => {
     if (mapLoaded && mapInstanceRef.current) {
-      const bounds = mapInstanceRef.current.getBounds();
       const zoom = mapInstanceRef.current.getZoom();
 
+      // If a polygon was drawn, search inside the polygon (not the visible
+      // viewport) so the markers reflect the drawn area.
+      const polygonBounds = searchFilters?.viewport_bounds;
+      if (polygonBounds && polygonBounds.polygon) {
+        lastBoundsRef.current = null;
+        updateMarkers(polygonBounds, zoom);
+        return;
+      }
+
+      const bounds = mapInstanceRef.current.getBounds();
       if (bounds) {
         const viewportBounds = {
           north: bounds.getNorthEast().lat(),
@@ -618,35 +760,41 @@ const ClusteredPropertyMap = ({
 
   return (
     <div className={`${className} relative rounded-lg overflow-hidden border bg-gray-50`} style={{ minHeight: '400px' }}>
-      {/* Draw Area / Clear controls */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+      {/* Draw / Reset controls */}
+      <div className="absolute top-4 left-4 z-10 flex flex-row gap-2">
         <button
           onClick={toggleDrawingMode}
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-semibold shadow-sm transition-colors ${
             isDrawingMode
-              ? 'bg-[#007cba] text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
+              ? 'bg-[#1e293b] text-white border-[#1e293b]'
+              : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-50'
           }`}
           title="Draw a polygon to search within an area"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+            <path d="M2 2l7.586 7.586"></path>
+            <circle cx="11" cy="11" r="2"></circle>
           </svg>
-          {isDrawingMode ? 'Drawing...' : 'Draw Area'}
+          {isDrawingMode ? 'Drawing...' : 'Draw'}
         </button>
-        {hasDrawnPolygon && (
-          <button
-            onClick={clearDrawnPolygon}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm font-medium bg-white text-red-600 hover:bg-red-50 transition-colors"
-            title="Clear the drawn area"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Clear Area
-          </button>
-        )}
+        <button
+          onClick={clearDrawnPolygon}
+          disabled={!hasDrawnPolygon && !isDrawingMode}
+          className="flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-800 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Reset the drawn area"
+        >
+          Reset
+        </button>
       </div>
+
+      {/* Drawing hint */}
+      {isDrawingMode && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-black/75 text-white rounded-full px-4 py-2 text-sm font-medium shadow-lg pointer-events-none">
+          Click on the map to add points — click the first point to close the area
+        </div>
+      )}
 
       {/* Stats overlay */}
       <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg px-3 py-2">

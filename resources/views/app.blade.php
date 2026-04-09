@@ -16,7 +16,7 @@
             window.googleMapsApiKey = "{{ $googleMapsApiKey ?? '' }}";
         </script>
         @if($googleMapsApiKey ?? false)
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=places&loading=async"></script>
+        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=places,drawing&loading=async"></script>
         @endif
         @routes
         @viteReactRefresh

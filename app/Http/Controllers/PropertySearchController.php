@@ -480,7 +480,17 @@ class PropertySearchController extends Controller
         // Viewport/polygon/radius search
         if (!empty($params['viewport_bounds'])) {
             $bounds = $params['viewport_bounds'];
-            if (isset($bounds['lat'], $bounds['long'], $bounds['radius'])) {
+            if (!empty($bounds['polygon']) && is_array($bounds['polygon']) && count($bounds['polygon']) >= 3) {
+                // Repliers API polygon search: map=[[[lng,lat],[lng,lat],...]]
+                $ring = array_values(array_map(function ($pt) {
+                    return [(float) $pt[0], (float) $pt[1]];
+                }, $bounds['polygon']));
+                // Ensure ring is closed
+                if ($ring[0] !== end($ring)) {
+                    $ring[] = $ring[0];
+                }
+                $apiParams['map'] = json_encode([[$ring]]);
+            } elseif (isset($bounds['lat'], $bounds['long'], $bounds['radius'])) {
                 // Radius search from drawn circle or center point
                 $apiParams['lat'] = $bounds['lat'];
                 $apiParams['long'] = $bounds['long'];
@@ -3019,6 +3029,75 @@ class PropertySearchController extends Controller
         try {
             $this->cleanOutputBuffer();
 
+            $searchParams = $request->input('search_params', []);
+            $viewportBounds = $searchParams['viewport_bounds'] ?? null;
+            $zoomLevel = (int)($searchParams['zoom_level'] ?? 10);
+
+            // Delegate to the same Repliers API call used by the main search
+            // grid so the map and the listings stay in sync. This already
+            // supports polygon search via viewport_bounds.polygon.
+            $apiSearchParams = $searchParams;
+            $apiSearchParams['page'] = 1;
+            $apiSearchParams['page_size'] = 100;
+            // Provide defaults the API params builder expects
+            $apiSearchParams['price_min'] = $apiSearchParams['price_min'] ?? 0;
+            $apiSearchParams['price_max'] = $apiSearchParams['price_max'] ?? 0;
+            $apiSearchParams['bedrooms'] = $apiSearchParams['bedrooms'] ?? 0;
+            $apiSearchParams['bathrooms'] = $apiSearchParams['bathrooms'] ?? 0;
+            $apiSearchParams['property_type'] = $apiSearchParams['property_type'] ?? [];
+
+            $apiResult = $this->fetchPropertiesFromRepliersAPI($apiSearchParams);
+            $properties = $apiResult['properties'] ?? [];
+            $totalCount = $apiResult['count'] ?? count($properties);
+
+            $coordinates = [];
+            foreach ($properties as $p) {
+                $lat = (float) ($p['Latitude'] ?? 0);
+                $lng = (float) ($p['Longitude'] ?? 0);
+                if (!$lat || !$lng) continue;
+
+                $coordinates[] = [
+                    'id' => $p['ListingKey'] ?? null,
+                    'mls_id' => $p['ListingKey'] ?? null,
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'price' => (int) ($p['ListPrice'] ?? 0),
+                    'address' => $p['UnparsedAddress'] ?? '',
+                    'city' => $p['City'] ?? '',
+                    'beds' => (int) ($p['BedroomsTotal'] ?? 0),
+                    'baths' => (int) ($p['BathroomsTotalInteger'] ?? 0),
+                    'type' => $p['PropertySubType'] ?? '',
+                    'hasImage' => !empty($p['MediaURL']),
+                    'image' => $p['MediaURL'] ?? null,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'coordinates' => $coordinates,
+                    'total' => $totalCount,
+                    'displayed' => count($coordinates),
+                    'zoom_level' => $zoomLevel,
+                    'has_more' => $totalCount > count($coordinates),
+                ],
+            ]);
+
+        } catch (Exception $e) {
+            Log::error('Map coordinates error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch map coordinates: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Legacy local-DB map coordinates (kept for reference / fallback)
+     */
+    private function getMapCoordinatesFromLocalDb(Request $request)
+    {
+        try {
             $searchParams = $request->input('search_params', []);
             $viewportBounds = $searchParams['viewport_bounds'] ?? null;
             $zoomLevel = (int)($searchParams['zoom_level'] ?? 10);
