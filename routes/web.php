@@ -65,6 +65,14 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 
+// Building full price history page — temporarily hidden
+// Route::get('/{city}/{buildingSlug}/price-history', [WebsiteController::class, 'buildingPriceHistory'])
+//     ->where([
+//         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+//         'buildingSlug' => '[a-z0-9\-]+',
+//     ])
+//     ->name('building.price-history');
+
 // Neighbourhood / area search URLs.
 // Examples:
 //   /toronto/king-west/condos-for-sale

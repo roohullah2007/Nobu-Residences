@@ -10,7 +10,13 @@ import React, { useState } from 'react';
  * Layout matches the reference design:
  *   [thumb] [date / time-ago]   [Status / Listed for $X on date]   [N days on market]
  */
-const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null }) => {
+const PriceHistory = ({
+  propertyData = null,
+  propertyImages = null,
+  auth = null,
+  showAll = false,
+  building = null,
+}) => {
   const [expanded, setExpanded] = useState(false);
   const isLoggedIn = !!auth?.user;
 
@@ -57,6 +63,11 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
         parseInt(h.daysOnMarket || h.DaysOnMarket || h.simpleDaysOnMarket || 0, 10) ||
         null,
       type: h.type || h.Type || '',
+      // Per-entry address + image — present in building-level history
+      // (each entry is a different unit in the building).
+      address: h.address || null,
+      unitNumber: h.unitNumber || null,
+      image: h.image || null,
     }))
     .filter((h) => h.listDate || h.soldDate);
 
@@ -111,8 +122,14 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
     return { label: s || 'Listed', cls: 'text-[#293056]' };
   };
 
-  // Auth-gated visible slice
-  const previewCount = isLoggedIn ? (expanded ? history.length : 5) : 1;
+  // Auth-gated visible slice (or show all when explicitly requested)
+  const previewCount = showAll
+    ? history.length
+    : isLoggedIn
+      ? expanded
+        ? history.length
+        : 5
+      : 1;
   const visibleHistory = history.slice(0, previewCount);
 
   // Address subtitle ("813 - 15 Mercer Street")
@@ -151,7 +168,9 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
             const displayPrice = wasSold ? entry.soldPrice : entry.listPrice;
             const displayDate = entry.listDate || entry.soldDate;
             const eventDate = entry.soldDate || entry.listDate;
-            const blur = !isLoggedIn && idx > 0;
+            // Logged-out users see the section but every row's data is
+            // blurred until they sign in.
+            const blur = !isLoggedIn;
             const blurCls = blur ? 'blur-sm select-none' : '';
 
             return (
@@ -159,11 +178,11 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
                 key={`${entry.mlsNumber || 'h'}-${idx}`}
                 className="flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — prefer per-entry image (building view) */}
                 <div className="flex-shrink-0">
-                  {propertyImage ? (
+                  {(entry.image || propertyImage) ? (
                     <img
-                      src={propertyImage}
+                      src={entry.image || propertyImage}
                       alt="Property"
                       className="w-[72px] h-[60px] md:w-[80px] md:h-[68px] object-cover rounded-lg"
                       onError={(e) => {
@@ -208,6 +227,11 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
                       </>
                     )}
                   </div>
+                  {entry.address && (
+                    <div className={`text-xs text-gray-500 mt-0.5 truncate ${blurCls}`}>
+                      {entry.address}
+                    </div>
+                  )}
                 </div>
 
                 {/* Days on market separator + value */}
@@ -223,15 +247,47 @@ const PriceHistory = ({ propertyData = null, propertyImages = null, auth = null 
             );
           })}
 
-          {/* Footer button */}
-          {history.length > previewCount && (
-            <button
-              onClick={() => (isLoggedIn ? setExpanded((v) => !v) : (window.location.href = '/login'))}
-              className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
-            >
-              {isLoggedIn && expanded ? 'Hide full listing history' : 'View full listing history'}
-            </button>
-          )}
+          {/* Footer button — temporarily hidden */}
+          {false && !showAll && history.length > previewCount && (() => {
+            // If this PriceHistory is rendered on a building detail page
+            // (propertyData looks like a building — has slug/name/address but
+            // no listingKey), link to the dedicated building price-history
+            // page instead of expanding inline.
+            const looksLikeBuilding =
+              !!propertyData?.slug &&
+              !!propertyData?.name &&
+              !propertyData?.listingKey &&
+              !propertyData?.ListingKey;
+
+            if (looksLikeBuilding) {
+              const slugify = (s) => (s || '').toString().toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+              const cityForUrl = propertyData?.city || 'Toronto';
+              const slugParts = [slugify(propertyData.name)];
+              if (propertyData.street_address_1) slugParts.push(slugify(propertyData.street_address_1));
+              if (propertyData.street_address_2) slugParts.push(slugify(propertyData.street_address_2));
+              if (slugParts.length === 1 && propertyData.address) {
+                propertyData.address.split(/\s*[,&]\s*/).filter(Boolean).forEach((p) => slugParts.push(slugify(p)));
+              }
+              const href = `/${slugify(cityForUrl)}/${slugParts.filter(Boolean).join('-')}/price-history`;
+              return (
+                <a
+                  href={href}
+                  className="block w-full text-center border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
+                >
+                  View full price history
+                </a>
+              );
+            }
+
+            return (
+              <button
+                onClick={() => (isLoggedIn ? setExpanded((v) => !v) : (window.location.href = '/login'))}
+                className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
+              >
+                {isLoggedIn && expanded ? 'Hide full listing history' : 'View full listing history'}
+              </button>
+            );
+          })()}
         </div>
       )}
     </div>

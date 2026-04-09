@@ -290,10 +290,11 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
             <div className="md:w-[950px]">
 
               {/* Building Sections */}
-              <BuildingSections 
+              <BuildingSections
                 buildingData={effectiveBuildingData}
                 sampleSaleProperties={sampleSaleProperties}
                 sampleRentProperties={sampleRentProperties}
+                auth={auth}
               />
               
               {/* Global Viewing Request Modal */}

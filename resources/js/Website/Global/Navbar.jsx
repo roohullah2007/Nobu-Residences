@@ -262,7 +262,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                                         </svg>
                                     </button>
                                 </Dropdown.Trigger>
-                                <Dropdown.Content align="right" width="56">
+                                <Dropdown.Content align="right" width="56" contentClasses="py-1 bg-white">
                                     <Dropdown.Link href={buildUrl("/user/dashboard")}>
                                         <div className="flex items-center gap-3">
                                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

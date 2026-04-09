@@ -14,7 +14,8 @@ import DeveloperBuildings from '@/Website/Components/PropertyDetail/DeveloperBui
 export default function BuildingSections({
   buildingData,
   sampleSaleProperties,
-  sampleRentProperties
+  sampleRentProperties,
+  auth
 }) {
   // Debug: Log building data to see MLS properties
   console.log('[BuildingSections] ========= DEBUG v2 =========');
@@ -31,10 +32,11 @@ export default function BuildingSections({
       {/* Building Status and Navigation Tabs */}
       <BuildingStatusTabs building={buildingData} />
 
-      {/* Price History Section - Hidden for now */}
-      {/* <div data-price-history>
-        <PriceHistory propertyData={buildingData} />
-      </div> */}
+      {/* Price History Section — temporarily hidden
+      <div data-price-history>
+        <PriceHistory propertyData={buildingData} auth={auth} />
+      </div>
+      */}
 
       {/* The Merchandise Lofts Section */}
 

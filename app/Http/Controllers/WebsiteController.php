@@ -269,6 +269,7 @@ class WebsiteController extends Controller
                 $buildingData['units_for_rent'] = count($mlsPropertiesForRent);
                 $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
                 $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
+                $buildingData['priceHistory'] = $this->fetchBuildingPriceHistory($streetAddresses);
 
                 return Inertia::render('BuildingDetail', [
                     'buildingData' => $buildingData,
@@ -2557,6 +2558,10 @@ class WebsiteController extends Controller
         $mlsPropertiesForSale = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'sale', $building);
         $mlsPropertiesForRent = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'lease', $building);
 
+        // Aggregated price history across every unit in this building's
+        // streets — used by the Price History section on the building page.
+        $buildingData['priceHistory'] = $this->fetchBuildingPriceHistory($streetAddresses);
+
         // Add MLS properties to building data
         $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
         $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
@@ -2569,6 +2574,170 @@ class WebsiteController extends Controller
         ]));
     }
     
+    /**
+     * Full price history page for a building.
+     * Route: /{city}/{buildingSlug}/price-history
+     */
+    public function buildingPriceHistory(Request $request, $city, $buildingSlug)
+    {
+        // Reuse the same lookup buildingDetail uses
+        $building = Building::where('slug', $buildingSlug)->first();
+
+        if (!$building) {
+            $buildingId = $this->extractBuildingIdFromSlug($buildingSlug);
+            if ($this->isValidUuid($buildingId)) {
+                $building = Building::find($buildingId);
+            }
+        }
+
+        if (!$building && preg_match('/^([a-z\-]+?)-\d/', $buildingSlug, $m)) {
+            $namePrefix = str_replace('-', ' ', $m[1]);
+            $candidates = Building::whereRaw('LOWER(name) LIKE ?', [strtolower($namePrefix) . '%'])->get();
+            foreach ($candidates as $cand) {
+                $candParts = [\Str::slug($cand->name)];
+                if (!empty($cand->street_address_1)) $candParts[] = \Str::slug($cand->street_address_1);
+                if (!empty($cand->street_address_2)) $candParts[] = \Str::slug($cand->street_address_2);
+                if (count($candParts) === 1 && !empty($cand->address)) {
+                    foreach (array_filter(array_map('trim', preg_split('/\s*[,&]\s*/', $cand->address))) as $part) {
+                        $candParts[] = \Str::slug($part);
+                    }
+                }
+                if (implode('-', array_filter($candParts)) === $buildingSlug) {
+                    $building = $cand;
+                    break;
+                }
+            }
+            if (!$building && $candidates->count() > 0) {
+                $building = $candidates->first();
+            }
+        }
+
+        if (!$building) {
+            abort(404, 'Building not found');
+        }
+
+        // Build the street address list (15 Mercer + 35 Mercer for NOBU)
+        $streetAddresses = [];
+        if (!empty($building->street_address_1) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $m1)) {
+            $streetAddresses[] = $m1[1];
+        }
+        if (!empty($building->street_address_2) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $m2)) {
+            $streetAddresses[] = $m2[1];
+        }
+        if (empty($streetAddresses) && !empty($building->address)) {
+            foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
+                if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $mP)) {
+                    $streetAddresses[] = $mP[1];
+                }
+            }
+        }
+        $streetAddresses = array_values(array_unique($streetAddresses));
+
+        $priceHistory = $this->fetchBuildingPriceHistory($streetAddresses);
+
+        return Inertia::render('BuildingPriceHistory', array_merge($this->getWebsiteSettings(), [
+            'auth' => ['user' => $request->user()],
+            'title' => 'Price History — ' . $building->name,
+            'building' => [
+                'id' => $building->id,
+                'name' => $building->name,
+                'slug' => $building->slug,
+                'address' => $building->address,
+                'street_address_1' => $building->street_address_1,
+                'street_address_2' => $building->street_address_2,
+                'city' => $building->city,
+                'neighbourhood' => $building->neighbourhood,
+                'sub_neighbourhood' => $building->sub_neighbourhood,
+                'main_image' => $building->main_image,
+            ],
+            'priceHistory' => $priceHistory,
+        ]));
+    }
+
+    /**
+     * Fetch aggregated price history for a building — every sold/leased/
+     * expired/terminated listing across all of the building's streets.
+     * Each entry has: mlsNumber, listPrice, listDate, soldPrice, soldDate,
+     * lastStatus, daysOnMarket, type, address, image.
+     */
+    private function fetchBuildingPriceHistory(array $streetAddresses): array
+    {
+        if (empty($streetAddresses)) return [];
+
+        try {
+            $api = app(\App\Services\RepliersApiService::class);
+            $entries = [];
+            $seen = [];
+
+            foreach ($streetAddresses as $addr) {
+                if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) continue;
+                $streetNumber = $m[1];
+                $streetName = $m[2];
+
+                $res = $api->searchListings([
+                    'class' => 'condoProperty',
+                    'streetNumber' => $streetNumber,
+                    'streetName' => $streetName,
+                    'status' => 'U',
+                    'pageNum' => 1,
+                    'resultsPerPage' => 100,
+                    'sortBy' => 'updatedOnDesc',
+                ]);
+
+                foreach (($res['listings'] ?? []) as $l) {
+                    $key = ($l['mlsNumber'] ?? '') . '|' . ($l['listDate'] ?? '');
+                    if (isset($seen[$key])) continue;
+                    $seen[$key] = true;
+
+                    $address = $l['address'] ?? [];
+                    $images = $l['images'] ?? [];
+                    $imageUrl = !empty($images[0])
+                        ? $api->getImageUrl($images[0])
+                        : null;
+
+                    $unit = $address['unitNumber'] ?? '';
+                    $street = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                    $fullAddress = $unit ? ($unit . ' - ' . $street) : $street;
+
+                    $details = $l['details'] ?? [];
+                    $entries[] = [
+                        'mlsNumber' => $l['mlsNumber'] ?? null,
+                        'listPrice' => $l['listPrice'] ?? null,
+                        'listDate' => $l['listDate'] ?? null,
+                        'soldPrice' => $l['soldPrice'] ?? null,
+                        'soldDate' => $l['soldDate'] ?? null,
+                        'lastStatus' => $l['lastStatus'] ?? null,
+                        'daysOnMarket' => $l['daysOnMarket'] ?? $l['simpleDaysOnMarket'] ?? null,
+                        'type' => $l['type'] ?? null,
+                        'unitNumber' => $unit,
+                        'address' => $fullAddress,
+                        'image' => $imageUrl,
+                        'bedrooms' => $details['numBedrooms'] ?? null,
+                        'bedroomsPlus' => $details['numBedroomsPlus'] ?? null,
+                        'bathrooms' => isset($details['numBathrooms']) ? ($details['numBathrooms'] + ($details['numBathroomsPlus'] ?? 0)) : null,
+                        'sqft' => $details['sqft'] ?? null,
+                        'parking' => $details['numParkingSpaces'] ?? null,
+                    ];
+                }
+            }
+
+            // Sort newest-first by sold/list date
+            usort($entries, function ($a, $b) {
+                $da = strtotime($a['soldDate'] ?? $a['listDate'] ?? 0);
+                $db = strtotime($b['soldDate'] ?? $b['listDate'] ?? 0);
+                return $db - $da;
+            });
+
+            return $entries;
+        } catch (\Throwable $e) {
+            \Log::warning('fetchBuildingPriceHistory failed', [
+                'error' => $e->getMessage(),
+                'addresses' => $streetAddresses,
+            ]);
+            return [];
+        }
+    }
+
     /**
      * Fetch active listings for a building from the Repliers API.
      * $streetAddresses is an array like ["15 Mercer", "35 Mercer"].

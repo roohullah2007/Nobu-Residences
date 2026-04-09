@@ -347,7 +347,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
             {/* Right sidebar */}
             <div className="max-w-[309px] md:flex hidden w-full">
-              <div className="space-y-4">
+              <div className="flex flex-col gap-6 w-full">
                 {/* Login/Signup Card for Non-Authenticated Users */}
                 {!auth?.user && (
                   <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
