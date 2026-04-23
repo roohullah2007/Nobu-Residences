@@ -301,4 +301,86 @@ class Building extends Model
         ];
     }
 
+    /**
+     * Parse a Canadian street address into Repliers-style {number, name}.
+     * Handles multi-word street names ("Lake Shore") by stripping the trailing
+     * suffix ("Blvd", "Street", ...) and direction ("W", "East", ...).
+     */
+    public static function parseStreetAddress(?string $address): ?array
+    {
+        if (!$address) return null;
+        if (!preg_match('/^(\d+)\s+(.+)$/u', trim($address), $m)) return null;
+        $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
+        $rest = preg_replace(
+            '/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i',
+            '',
+            $rest
+        );
+        $name = trim($rest);
+        return $name === '' ? null : ['number' => $m[1], 'name' => $name];
+    }
+
+    /**
+     * Live for-sale / for-rent counts from the Repliers API for the building's
+     * street address(es). Cached per building for 10 minutes.
+     */
+    public function getLiveListingCounts(): array
+    {
+        return \Illuminate\Support\Facades\Cache::remember(
+            'building_listing_counts:' . $this->id,
+            600,
+            function () {
+                $addresses = [];
+                foreach ([$this->street_address_1 ?? null, $this->street_address_2 ?? null] as $a) {
+                    if ($parsed = self::parseStreetAddress($a)) {
+                        $addresses[] = $parsed;
+                    }
+                }
+                if (empty($addresses) && !empty($this->address)) {
+                    $parts = preg_split('/\s*[,&]\s*/', $this->address);
+                    foreach (array_filter(array_map('trim', $parts)) as $part) {
+                        if ($parsed = self::parseStreetAddress($part)) {
+                            $addresses[] = $parsed;
+                        }
+                    }
+                }
+
+                $sale = 0;
+                $rent = 0;
+                if (empty($addresses)) {
+                    return ['sale' => 0, 'rent' => 0];
+                }
+
+                try {
+                    $api = app(\App\Services\RepliersApiService::class);
+                    foreach ($addresses as $addr) {
+                        foreach (['sale', 'lease'] as $t) {
+                            $params = [
+                                'class' => 'condoProperty',
+                                'status' => 'A',
+                                'type' => $t,
+                                'streetNumber' => $addr['number'],
+                                'streetName' => $addr['name'],
+                                'pageNum' => 1,
+                                'resultsPerPage' => 1,
+                            ];
+                            if (!empty($this->city)) {
+                                $params['city'] = $this->city;
+                            }
+                            $count = (int) ($api->searchListings($params)['count'] ?? 0);
+                            if ($t === 'sale') $sale += $count; else $rent += $count;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Building listing count fetch failed', [
+                        'building_id' => $this->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+
+                return ['sale' => $sale, 'rent' => $rent];
+            }
+        );
+    }
+
 }

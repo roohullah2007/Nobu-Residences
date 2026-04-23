@@ -240,18 +240,27 @@ class WebsiteController extends Controller
                 // Build the list of street addresses to query (e.g.
                 // ["15 Mercer", "35 Mercer"]). Pull from street_address_1/2
                 // first, then fall back to splitting the main address on
-                // both "," and "&".
+                // both "," and "&". Multi-word street names like
+                // "Lake Shore Blvd W" must keep "Lake Shore" intact so the
+                // downstream Repliers lookup matches.
+                $parseAddress = function (string $a): ?string {
+                    if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
+                    $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
+                    $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
+                    $name = trim($rest);
+                    return $name === '' ? null : $m[1] . ' ' . $name;
+                };
                 $streetAddresses = [];
-                if (!empty($building->street_address_1) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $m1)) {
-                    $streetAddresses[] = $m1[1];
+                if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
+                    $streetAddresses[] = $p;
                 }
-                if (!empty($building->street_address_2) && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $m2)) {
-                    $streetAddresses[] = $m2[1];
+                if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
+                    $streetAddresses[] = $p;
                 }
                 if (empty($streetAddresses) && !empty($building->address)) {
                     foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
-                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $mP)) {
-                            $streetAddresses[] = $mP[1];
+                        if ($p = $parseAddress($part)) {
+                            $streetAddresses[] = $p;
                         }
                     }
                 }
@@ -2516,39 +2525,40 @@ class WebsiteController extends Controller
         $streetAddresses = [];
         $streetName = null;
 
-        // Parse street_address_1 (e.g., "15 Mercer St" -> "15 Mercer")
-        if (!empty($building->street_address_1)) {
-            // Extract street number and name without suffix (St, Street, Ave, etc.)
-            if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_1), $matches)) {
-                $streetAddresses[] = $matches[1];
-            }
+        // Parse address parts. The previous /^(\d+\s+[A-Za-z]+)/i regex only
+        // captured the FIRST word of the street name, so multi-word streets
+        // like "Lake Shore Blvd W" became just "Lake" — and Repliers stores
+        // streetName as "Lake Shore" (without suffix), so the lookup returned 0.
+        $parseAddress = function (string $a): ?string {
+            if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
+            $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
+            $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
+            $name = trim($rest);
+            return $name === '' ? null : $m[1] . ' ' . $name;
+        };
+
+        if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
+            $streetAddresses[] = $p;
+        }
+        if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
+            $streetAddresses[] = $p;
         }
 
-        // Parse street_address_2 (e.g., "35 Mercer" -> "35 Mercer")
-        if (!empty($building->street_address_2)) {
-            if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($building->street_address_2), $matches)) {
-                $streetAddresses[] = $matches[1];
-            }
-        }
-
-        // If no street addresses found from street_address_1/2, try parsing the main address field
-        // This handles buildings like "155 Dalhousie Street" or "15 Mercer St & 35 Mercer"
-        // where the addresses are joined by either "," or "&".
+        // Fall back to the main address field (e.g. "15 Mercer St & 35 Mercer"
+        // or "155 Dalhousie Street").
         if (empty($streetAddresses) && !empty($building->address)) {
-            $addressParts = array_map('trim', preg_split('/\s*[,&]\s*/', $building->address));
-            foreach ($addressParts as $part) {
-                if (preg_match('/^(\d+\s+[A-Za-z]+)/i', $part, $matches)) {
-                    $streetAddresses[] = $matches[1];
+            $parts = array_map('trim', preg_split('/\s*[,&]\s*/', $building->address));
+            foreach ($parts as $part) {
+                if ($p = $parseAddress($part)) {
+                    $streetAddresses[] = $p;
                 }
             }
         }
 
-        // Extract just the street name for broader matching (fallback)
-        // e.g., "77 Bloor Street West" -> "Bloor"
-        if (!empty($building->address)) {
-            if (preg_match('/^\d+\s+([A-Za-z]+)/i', $building->address, $matches)) {
-                $streetName = $matches[1];
-            }
+        // Just the street name (no number) — used as a broader fallback elsewhere.
+        if (!empty($building->address) && ($p = $parseAddress($building->address))) {
+            // $p is "<num> <name>" — strip the leading number
+            $streetName = preg_replace('/^\d+\s+/', '', $p);
         }
 
         // Fetch live listings for this building from the Repliers API. The

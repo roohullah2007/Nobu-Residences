@@ -55,6 +55,8 @@ class RepliersApiService
                 'page' => $data['page'] ?? 1,
                 'numPages' => $data['numPages'] ?? 0,
                 'pageSize' => $data['pageSize'] ?? count($data['listings'] ?? []),
+                'aggregates' => $data['aggregates'] ?? null,
+                'statistics' => $data['statistics'] ?? null,
             ];
         });
     }
@@ -73,6 +75,8 @@ class RepliersApiService
             'page' => $data['page'] ?? 1,
             'numPages' => $data['numPages'] ?? 0,
             'pageSize' => $data['pageSize'] ?? count($data['listings'] ?? []),
+            'aggregates' => $data['aggregates'] ?? null,
+            'statistics' => $data['statistics'] ?? null,
         ];
     }
 

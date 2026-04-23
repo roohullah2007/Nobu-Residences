@@ -351,14 +351,11 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Fetch properties directly from Repliers API
-     * Buildings still come from local DB
+     * Build the Repliers GET /listings query params from our internal search shape.
+     * Shared by the listings grid and the map cluster endpoint.
      */
-    private function fetchPropertiesFromRepliersAPI(array $params): array
+    private function buildRepliersListingsParams(array $params): array
     {
-        $startTime = microtime(true);
-
-        // Build Repliers API params
         $apiParams = [
             'pageNum' => $params['page'] ?? 1,
             'resultsPerPage' => $params['page_size'] ?? 16,
@@ -389,7 +386,6 @@ class PropertySearchController extends Controller
         // Location/search query
         if (!empty($params['query'])) {
             $query = trim($params['query']);
-            // Check if it's a city name
             $gtaCities = config('repliers.gta_cities', []);
             $matchedCity = null;
             foreach ($gtaCities as $city) {
@@ -401,14 +397,11 @@ class PropertySearchController extends Controller
             if ($matchedCity) {
                 $apiParams['city'] = $matchedCity;
             } else {
-                // Use as search term (address, neighborhood, etc.)
                 $apiParams['search'] = $query;
             }
         }
 
-        // Property type filter
         if (!empty($params['property_type']) && count($params['property_type']) > 0) {
-            // Map display names to Repliers style values
             $styleMap = [
                 'Condo Apartment' => 'Apartment',
                 'Condo Townhouse' => 'Stacked Townhouse',
@@ -426,46 +419,38 @@ class PropertySearchController extends Controller
             }
         }
 
-        // Price filters
-        if ($params['price_min'] > 0) {
+        if (($params['price_min'] ?? 0) > 0) {
             $apiParams['minPrice'] = $params['price_min'];
         }
-        if ($params['price_max'] > 0 && $params['price_max'] < 10000000) {
+        if (($params['price_max'] ?? 0) > 0 && $params['price_max'] < 10000000) {
             $apiParams['maxPrice'] = $params['price_max'];
         }
 
-        // Bedroom filter - exact match (except 5+ which is minimum)
-        if ($params['bedrooms'] > 0) {
+        if (($params['bedrooms'] ?? 0) > 0) {
             $beds = (int) $params['bedrooms'];
             $apiParams['minBedrooms'] = $beds;
             if ($beds < 5) {
                 $apiParams['maxBedrooms'] = $beds;
             }
         }
-        // Bathroom filter
-        if ($params['bathrooms'] > 0) {
+        if (($params['bathrooms'] ?? 0) > 0) {
             $apiParams['minBaths'] = $params['bathrooms'];
         }
 
-        // Days on market filter
         if (!empty($params['days_on_market']) && $params['days_on_market'] !== 'Any') {
             $days = (int) $params['days_on_market'];
             if (($apiParams['status'] ?? 'A') === 'U') {
-                // For sold/leased, use maxDaysOnMarket
                 $apiParams['maxDaysOnMarket'] = $days;
             } else {
-                // For active listings, use minListDate to filter recent listings
                 $apiParams['minListDate'] = now()->subDays($days)->format('Y-m-d');
             }
         }
 
-        // Keywords search (appended to existing search)
         if (!empty($params['keywords'])) {
             $existingSearch = $apiParams['search'] ?? '';
             $apiParams['search'] = trim($existingSearch . ' ' . $params['keywords']);
         }
 
-        // Sort mapping
         $sortMap = [
             'newest' => 'createdOnDesc',
             'price-high' => 'listPriceDesc',
@@ -476,44 +461,92 @@ class PropertySearchController extends Controller
         ];
         $apiParams['sortBy'] = $sortMap[$params['sort'] ?? 'newest'] ?? 'createdOnDesc';
 
-        // Viewport/polygon search
-        // Viewport/polygon/radius search
         if (!empty($params['viewport_bounds'])) {
             $bounds = $params['viewport_bounds'];
             if (!empty($bounds['polygon']) && is_array($bounds['polygon']) && count($bounds['polygon']) >= 3) {
-                // Repliers API polygon search: map=[[[lng,lat],[lng,lat],...]]
                 $ring = array_values(array_map(function ($pt) {
                     return [(float) $pt[0], (float) $pt[1]];
                 }, $bounds['polygon']));
-                // Ensure ring is closed
                 if ($ring[0] !== end($ring)) {
                     $ring[] = $ring[0];
                 }
                 $apiParams['map'] = json_encode([[$ring]]);
             } elseif (isset($bounds['lat'], $bounds['long'], $bounds['radius'])) {
-                // Radius search from drawn circle or center point
                 $apiParams['lat'] = $bounds['lat'];
                 $apiParams['long'] = $bounds['long'];
                 $apiParams['radius'] = $bounds['radius'];
             } elseif (isset($bounds['north'], $bounds['south'], $bounds['east'], $bounds['west'])) {
-                // Convert viewport bounds to center + radius
                 $n = (float) $bounds['north'];
                 $s = (float) $bounds['south'];
                 $e = (float) $bounds['east'];
                 $w = (float) $bounds['west'];
                 $centerLat = ($n + $s) / 2;
                 $centerLng = ($e + $w) / 2;
-                // Calculate radius in km (haversine approximation)
-                $latDiff = abs($n - $s) * 111.32; // ~111km per degree lat
+                $latDiff = abs($n - $s) * 111.32;
                 $lngDiff = abs($e - $w) * 111.32 * cos(deg2rad($centerLat));
                 $radius = max($latDiff, $lngDiff) / 2;
-                $radius = min(max($radius, 1), 50); // Clamp between 1-50km
+                $radius = min(max($radius, 1), 50);
 
                 $apiParams['lat'] = round($centerLat, 6);
                 $apiParams['long'] = round($centerLng, 6);
                 $apiParams['radius'] = round($radius, 1);
             }
         }
+
+        return $apiParams;
+    }
+
+    /**
+     * Ray-casting point-in-polygon test. Polygon is an array of [lng, lat] pairs.
+     */
+    private function isPointInPolygon(float $lat, float $lng, array $polygon): bool
+    {
+        $count = count($polygon);
+        if ($count < 3) return false;
+        $inside = false;
+        for ($i = 0, $j = $count - 1; $i < $count; $j = $i++) {
+            [$xi, $yi] = $polygon[$i]; // [lng, lat]
+            [$xj, $yj] = $polygon[$j];
+            if ((($yi > $lat) !== ($yj > $lat)) &&
+                ($lng < ($xj - $xi) * ($lat - $yi) / (($yj - $yi) ?: 1e-12) + $xi)) {
+                $inside = !$inside;
+            }
+        }
+        return $inside;
+    }
+
+    /**
+     * Map a Google Maps zoom level to a Repliers clusterPrecision (geohash bits).
+     * Higher precision = smaller geohash cells = more, finer clusters.
+     *
+     * Tuned against Toronto-wide condo data (~11k listings) and the 200-cluster
+     * Repliers cap. Three bands:
+     *   zoom ≤ 13: precision = zoom (≤200 clusters even on a GTA-wide viewport,
+     *              so coverage stays at 100%)
+     *   zoom 14-17: precision = zoom + 3 (street-level detail)
+     *   zoom ≥ 18: precision = zoom + 5 (building-level — almost every cluster
+     *              ends up small enough to inline + expand to price markers)
+     */
+    private function clusterPrecisionForZoom(int $zoomLevel): int
+    {
+        if ($zoomLevel <= 13) {
+            return max(7, $zoomLevel);
+        }
+        if ($zoomLevel <= 17) {
+            return min(22, $zoomLevel + 2);
+        }
+        return min(28, $zoomLevel + 5);
+    }
+
+    /**
+     * Fetch properties directly from Repliers API
+     * Buildings still come from local DB
+     */
+    private function fetchPropertiesFromRepliersAPI(array $params): array
+    {
+        $startTime = microtime(true);
+
+        $apiParams = $this->buildRepliersListingsParams($params);
 
         // Call Repliers API
         $repliersApi = app(\App\Services\RepliersApiService::class);
@@ -3095,8 +3128,13 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Get map coordinates for clustering - returns up to 1000 lightweight property markers
-     * Optimized for map performance with minimal data transfer
+     * Get map markers for the search map.
+     *
+     * Uses Repliers' server-side clustering (cluster=true) so a single response
+     * represents ALL listings in the visible bounds — not just the first 100.
+     * Returns:
+     *   coordinates: single-listing markers (rendered as price tags)
+     *   clusters:    multi-listing groups (rendered as count circles)
      */
     public function getMapCoordinates(Request $request)
     {
@@ -3104,56 +3142,161 @@ class PropertySearchController extends Controller
             $this->cleanOutputBuffer();
 
             $searchParams = $request->input('search_params', []);
-            $viewportBounds = $searchParams['viewport_bounds'] ?? null;
             $zoomLevel = (int)($searchParams['zoom_level'] ?? 10);
 
-            // Delegate to the same Repliers API call used by the main search
-            // grid so the map and the listings stay in sync. This already
-            // supports polygon search via viewport_bounds.polygon.
-            $apiSearchParams = $searchParams;
-            $apiSearchParams['page'] = 1;
-            $apiSearchParams['page_size'] = 100;
-            // Provide defaults the API params builder expects
-            $apiSearchParams['price_min'] = $apiSearchParams['price_min'] ?? 0;
-            $apiSearchParams['price_max'] = $apiSearchParams['price_max'] ?? 0;
-            $apiSearchParams['bedrooms'] = $apiSearchParams['bedrooms'] ?? 0;
-            $apiSearchParams['bathrooms'] = $apiSearchParams['bathrooms'] ?? 0;
-            $apiSearchParams['property_type'] = $apiSearchParams['property_type'] ?? [];
+            // Defaults the param builder expects
+            $searchParams['price_min'] = $searchParams['price_min'] ?? 0;
+            $searchParams['price_max'] = $searchParams['price_max'] ?? 0;
+            $searchParams['bedrooms'] = $searchParams['bedrooms'] ?? 0;
+            $searchParams['bathrooms'] = $searchParams['bathrooms'] ?? 0;
+            $searchParams['property_type'] = $searchParams['property_type'] ?? [];
+            $searchParams['page'] = 1;
+            // page_size is irrelevant — listings=false suppresses the listings array
+            $searchParams['page_size'] = 1;
 
-            $apiResult = $this->fetchPropertiesFromRepliersAPI($apiSearchParams);
-            $properties = $apiResult['properties'] ?? [];
-            $totalCount = $apiResult['count'] ?? count($properties);
+            $apiParams = $this->buildRepliersListingsParams($searchParams);
+
+            // Repliers filters spatially via either (lat,long,radius) or `map`
+            // polygons. We use the viewport so clusters reflect the visible
+            // area, and post-filter cluster centres against the GTA polygon
+            // below — Repliers' mapOperator=AND currently behaves like OR
+            // for disjoint polygons, so we can't combine the two upstream.
+            $gtaPolygon = config('repliers.gta_polygon');
+
+            $apiParams['cluster'] = 'true';
+            $apiParams['clusterPrecision'] = $this->clusterPrecisionForZoom($zoomLevel);
+            $apiParams['clusterLimit'] = 200;
+            // How many listings per cluster Repliers should inline. Higher
+            // = more clusters that we can split into individual price markers
+            // on the frontend, but heavier payload. Scale up at higher zooms
+            // where the viewport is small so total payload stays bounded.
+            //   zoom ≤ 13: 5  (city/region — keep clusters compact)
+            //   zoom 14-17: 25 (district/street — expand most groups)
+            //   zoom ≥ 18: 100 (building level — show every individual unit)
+            if ($zoomLevel >= 18) {
+                $clusterListingsThreshold = 100;
+            } elseif ($zoomLevel >= 14) {
+                $clusterListingsThreshold = 25;
+            } else {
+                $clusterListingsThreshold = 5;
+            }
+            $apiParams['clusterListingsThreshold'] = $clusterListingsThreshold;
+            $apiParams['clusterFields'] = 'mlsNumber,listPrice,address,map,details.numBedrooms,details.numBathrooms,details.style,images[1]';
+            $apiParams['listings'] = 'false';
+
+            $repliersApi = app(\App\Services\RepliersApiService::class);
+            $result = $repliersApi->searchListings($apiParams);
+
+            $totalCount = $result['count'] ?? 0;
+            $rawClusters = $result['aggregates']['map']['clusters'] ?? [];
 
             $coordinates = [];
-            foreach ($properties as $p) {
-                $lat = (float) ($p['Latitude'] ?? 0);
-                $lng = (float) ($p['Longitude'] ?? 0);
+            $clusters = [];
+
+            $formatListing = function (array $listing, float $fallbackLat, float $fallbackLng) use ($repliersApi): array {
+                $address = $listing['address'] ?? [];
+                $details = $listing['details'] ?? [];
+                $map = $listing['map'] ?? [];
+                $images = $listing['images'] ?? [];
+                $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                if (!empty($address['unitNumber'])) {
+                    $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+                }
+                return [
+                    'id' => $listing['mlsNumber'] ?? null,
+                    'mls_id' => $listing['mlsNumber'] ?? null,
+                    'lat' => (float) ($map['latitude'] ?? $fallbackLat),
+                    'lng' => (float) ($map['longitude'] ?? $fallbackLng),
+                    'price' => (int) ($listing['listPrice'] ?? 0),
+                    'address' => $fullAddress,
+                    'city' => $address['city'] ?? '',
+                    'beds' => (int) ($details['numBedrooms'] ?? 0),
+                    'baths' => (int) ($details['numBathrooms'] ?? 0),
+                    'type' => $details['style'] ?? '',
+                    'hasImage' => !empty($images),
+                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                ];
+            };
+
+            foreach ($rawClusters as $cluster) {
+                $count = (int) ($cluster['count'] ?? 0);
+                $loc = $cluster['location'] ?? [];
+                $lat = (float) ($loc['latitude'] ?? 0);
+                $lng = (float) ($loc['longitude'] ?? 0);
                 if (!$lat || !$lng) continue;
 
-                $coordinates[] = [
-                    'id' => $p['ListingKey'] ?? null,
-                    'mls_id' => $p['ListingKey'] ?? null,
+                // Drop clusters whose centre is outside the GTA boundary.
+                if (!empty($gtaPolygon) && !$this->isPointInPolygon($lat, $lng, $gtaPolygon)) {
+                    continue;
+                }
+
+                $listings = $cluster['listings'] ?? [];
+
+                // When inline listings are present (cluster size <= the
+                // clusterListingsThreshold we requested), expand them into
+                // individual price markers. For listings stacked at the
+                // same exact lat/lng (multiple units of one building),
+                // nudge each one outward so they don't sit on top of
+                // each other and remain individually clickable.
+                if ($count > 0 && count($listings) === $count) {
+                    $byPoint = [];
+                    foreach ($listings as $l) {
+                        $key = round((float) ($l['map']['latitude'] ?? 0), 5)
+                            . ',' . round((float) ($l['map']['longitude'] ?? 0), 5);
+                        $byPoint[$key] ??= [];
+                        $byPoint[$key][] = $l;
+                    }
+                    foreach ($byPoint as $group) {
+                        $n = count($group);
+                        foreach ($group as $i => $l) {
+                            $coord = $formatListing($l, $lat, $lng);
+                            if ($n > 1) {
+                                $angle = ($i / $n) * 2 * M_PI;
+                                // ~22m radial offset so stacked units fan out visibly
+                                $coord['lat'] += 0.0002 * cos($angle);
+                                $coord['lng'] += 0.00027 * sin($angle);
+                            }
+                            $coordinates[] = $coord;
+                        }
+                    }
+                    continue;
+                }
+
+                // Larger cluster — render as a count circle the user can
+                // click to zoom in.
+                $bounds = $cluster['bounds'] ?? [];
+                $clusters[] = [
                     'lat' => $lat,
                     'lng' => $lng,
-                    'price' => (int) ($p['ListPrice'] ?? 0),
-                    'address' => $p['UnparsedAddress'] ?? '',
-                    'city' => $p['City'] ?? '',
-                    'beds' => (int) ($p['BedroomsTotal'] ?? 0),
-                    'baths' => (int) ($p['BathroomsTotalInteger'] ?? 0),
-                    'type' => $p['PropertySubType'] ?? '',
-                    'hasImage' => !empty($p['MediaURL']),
-                    'image' => $p['MediaURL'] ?? null,
+                    'count' => $count,
+                    'bounds' => [
+                        'north' => (float) ($bounds['top_left']['latitude'] ?? $lat),
+                        'south' => (float) ($bounds['bottom_right']['latitude'] ?? $lat),
+                        'east'  => (float) ($bounds['bottom_right']['longitude'] ?? $lng),
+                        'west'  => (float) ($bounds['top_left']['longitude'] ?? $lng),
+                    ],
                 ];
             }
+
+            // Drop individual price markers that landed outside GTA too.
+            if (!empty($gtaPolygon) && !empty($coordinates)) {
+                $coordinates = array_values(array_filter(
+                    $coordinates,
+                    fn($c) => $this->isPointInPolygon((float) $c['lat'], (float) $c['lng'], $gtaPolygon)
+                ));
+            }
+
+            $displayed = count($coordinates) + array_sum(array_column($clusters, 'count'));
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'coordinates' => $coordinates,
+                    'clusters' => $clusters,
                     'total' => $totalCount,
-                    'displayed' => count($coordinates),
+                    'displayed' => $displayed,
                     'zoom_level' => $zoomLevel,
-                    'has_more' => $totalCount > count($coordinates),
+                    'has_more' => false,
                 ],
             ]);
 

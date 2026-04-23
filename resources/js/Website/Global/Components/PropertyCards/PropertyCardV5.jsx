@@ -404,8 +404,9 @@ const PropertyCardV5 = ({
 
   // Dynamic height calculation based on content
   // Only apply minimum height if we have minimal content
+  // Buildings size naturally to their content — no forced min-height
   const hasMinimalContent = contentSections.length <= 3;
-  const dynamicMinHeight = hasMinimalContent ? 'min-h-[380px]' : 'min-h-0';
+  const dynamicMinHeight = (hasMinimalContent && property.source !== 'building') ? 'min-h-[380px]' : 'min-h-0';
 
   // Size configurations - Updated with dynamic height
   const sizeConfig = {
@@ -682,16 +683,10 @@ const PropertyCardV5 = ({
 
             {/* Features or Building Stats - Only show if exists */}
             {property.source === 'building' ? (
-              /* Building Stats - Units, Floors, Year Built */
-              (property.totalUnits || property.floors || property.sqft) && (
-                <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
-                  {[
-                    property.totalUnits ? `${property.totalUnits} Units` : null,
-                    property.floors ? `${property.floors} Floors` : null,
-                    property.sqft ? property.sqft : null
-                  ].filter(Boolean).join(' | ')}
-                </div>
-              )
+              /* Condos for Sale and Rent */
+              <div className={`flex items-center justify-start w-full min-h-8 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
+                {`${property.unitsForSale ?? 0} Condos for Sale | ${property.unitsForRent ?? 0} Condos for Rent`}
+              </div>
             ) : (
               /* Property Features - Beds, Baths, etc */
               features && (

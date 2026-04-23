@@ -901,6 +901,11 @@ export default function EnhancedPropertySearch({
       totalUnits: building.total_units,
       floors: building.floors,
       status: building.status,
+      // Live for-sale / for-rent counts from /api/buildings-search.
+      // PropertyCardV5 reads these as `${unitsForSale} Condos for Sale | ${unitsForRent} Condos for Rent`.
+      // Without these the card renders "0 Condos for Sale | 0 Condos for Rent".
+      unitsForSale: building.units_for_sale,
+      unitsForRent: building.units_for_rent,
       // Map coordinates for building markers (ensure proper case)
       Latitude: building.latitude || building.Latitude,
       Longitude: building.longitude || building.Longitude,

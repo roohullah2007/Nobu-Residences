@@ -72,6 +72,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | GTA bounding polygon — used to restrict the map view to GTA listings.
+    | Coordinates are [longitude, latitude] (GeoJSON order). The polygon must
+    | be closed (first point repeated as last). This is a coarse hull around
+    | the Greater Toronto Area municipalities listed above.
+    |--------------------------------------------------------------------------
+    */
+
+    'gta_polygon' => [
+        [-79.95, 44.05], // NW (Caledon)
+        [-79.50, 44.30], // N  (King / Newmarket)
+        [-79.10, 44.40], // NE (Georgina / Lake Simcoe shore)
+        [-78.85, 44.05], // E  (Brock / Uxbridge)
+        [-78.75, 43.85], // ESE (Oshawa)
+        [-78.85, 43.55], // SE (Pickering)
+        [-79.40, 43.40], // S  (Lake Ontario, south of Toronto Islands)
+        [-79.95, 43.30], // SW (Burlington shore)
+        [-79.95, 44.05], // close
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Google Maps Integration
     |--------------------------------------------------------------------------
     */

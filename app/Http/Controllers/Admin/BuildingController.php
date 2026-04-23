@@ -528,15 +528,23 @@ class BuildingController extends Controller
             
             // Format buildings for response
             $formattedBuildings = $buildings->map(function($building) {
+                // Live counts from Repliers MLS — without these the card
+                // renders "0 Condos for Sale | 0 Condos for Rent" because
+                // the mapper below would output undefined fields.
+                $counts = $building->getLiveListingCounts();
                 return [
                     'id' => $building->id,
                     'name' => $building->name,
                     'address' => $building->address,
+                    'street_address_1' => $building->street_address_1,
+                    'street_address_2' => $building->street_address_2,
                     'city' => $building->city,
                     'province' => $building->province,
                     'postal_code' => $building->postal_code,
                     'price_range' => $building->price_range,
                     'total_units' => $building->total_units,
+                    'units_for_sale' => $counts['sale'],
+                    'units_for_rent' => $counts['rent'],
                     'floors' => $building->floors,
                     'status' => $building->status,
                     'year_built' => $building->year_built,

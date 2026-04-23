@@ -71,7 +71,7 @@ class BuildingController extends Controller
         // counts from the Repliers API (cached for 10 minutes per building).
         $items = collect($buildings->items())->map(function ($b) {
             $arr = $b->toArray();
-            $counts = $this->getBuildingListingCounts($b);
+            $counts = $b->getLiveListingCounts();
             $arr['units_for_sale'] = $counts['sale'];
             $arr['units_for_rent'] = $counts['rent'];
             return $arr;
@@ -92,6 +92,32 @@ class BuildingController extends Controller
     }
 
     /**
+     * Parse a Canadian street address into Repliers-style {number, name}.
+     * Handles multi-word street names (e.g. "Lake Shore") by stripping the
+     * trailing suffix ("Blvd", "Street", ...) and direction ("W", "East", ...).
+     * Returns null if the address can't be parsed.
+     */
+    private function parseStreetAddress(?string $address): ?array
+    {
+        if (!$address) return null;
+        if (!preg_match('/^(\d+)\s+(.+)$/u', trim($address), $m)) return null;
+        $number = $m[1];
+        $rest = $m[2];
+
+        // Strip trailing direction
+        $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);
+        // Strip trailing street suffix
+        $rest = preg_replace(
+            '/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i',
+            '',
+            $rest
+        );
+
+        $name = trim($rest);
+        return $name === '' ? null : ['number' => $number, 'name' => $name];
+    }
+
+    /**
      * Get live for-sale / for-rent counts for a building from the Repliers API.
      * Cached for 10 minutes per building to avoid hammering the API.
      */
@@ -101,17 +127,17 @@ class BuildingController extends Controller
         return \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function () use ($building) {
             $addresses = [];
             foreach ([$building->street_address_1 ?? null, $building->street_address_2 ?? null] as $a) {
-                if ($a && preg_match('/^(\d+)\s+([A-Za-z]+)/i', trim($a), $m)) {
-                    $addresses[] = ['number' => $m[1], 'name' => $m[2]];
+                if ($parsed = $this->parseStreetAddress($a)) {
+                    $addresses[] = $parsed;
                 }
             }
             if (empty($addresses) && !empty($building->address)) {
-                // Split on both "," and "&" since buildings often store
-                // addresses like "15 Mercer St & 35 Mercer".
+                // Buildings often store joined addresses like "15 Mercer St & 35 Mercer"
+                // or "15 Mercer St, 35 Mercer".
                 $parts = preg_split('/\s*[,&]\s*/', $building->address);
                 foreach (array_filter(array_map('trim', $parts)) as $part) {
-                    if (preg_match('/^(\d+)\s+([A-Za-z]+)/i', $part, $m)) {
-                        $addresses[] = ['number' => $m[1], 'name' => $m[2]];
+                    if ($parsed = $this->parseStreetAddress($part)) {
+                        $addresses[] = $parsed;
                     }
                 }
             }
@@ -126,7 +152,7 @@ class BuildingController extends Controller
                 $api = app(\App\Services\RepliersApiService::class);
                 foreach ($addresses as $addr) {
                     foreach (['sale', 'lease'] as $t) {
-                        $res = $api->searchListings([
+                        $params = [
                             'class' => 'condoProperty',
                             'status' => 'A',
                             'type' => $t,
@@ -134,7 +160,11 @@ class BuildingController extends Controller
                             'streetName' => $addr['name'],
                             'pageNum' => 1,
                             'resultsPerPage' => 1,
-                        ]);
+                        ];
+                        if (!empty($building->city)) {
+                            $params['city'] = $building->city;
+                        }
+                        $res = $api->searchListings($params);
                         $count = (int) ($res['count'] ?? 0);
                         if ($t === 'sale') {
                             $sale += $count;

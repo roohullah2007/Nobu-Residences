@@ -53,9 +53,12 @@ const ClusteredPropertyMap = ({
     return '$' + Math.round(price / 1000) + 'K';
   };
 
-  // Fetch map coordinates from API
+  // Fetch map markers (server-clustered) from API.
+  // Returns { coordinates, clusters } where:
+  //   - coordinates: single-listing markers (rendered as price tags)
+  //   - clusters:    multi-listing groups (rendered as count circles)
   const fetchMapCoordinates = useCallback(async (bounds, zoom) => {
-    if (!bounds) return [];
+    if (!bounds) return { coordinates: [], clusters: [] };
 
     setIsLoading(true);
     try {
@@ -63,7 +66,6 @@ const ClusteredPropertyMap = ({
         ...searchFilters,
         viewport_bounds: bounds,
         zoom_level: zoom,
-        limit: 100 // Show at most 100 listings on the map at once
       };
 
       const response = await fetch('/api/map-coordinates', {
@@ -92,13 +94,16 @@ const ClusteredPropertyMap = ({
           onMarkerCountChange(result.data.displayed, result.data.total);
         }
 
-        return result.data.coordinates || [];
+        return {
+          coordinates: result.data.coordinates || [],
+          clusters: result.data.clusters || [],
+        };
       }
 
-      return [];
+      return { coordinates: [], clusters: [] };
     } catch (error) {
       console.error('Error fetching map coordinates:', error);
-      return [];
+      return { coordinates: [], clusters: [] };
     } finally {
       setIsLoading(false);
     }
@@ -182,16 +187,15 @@ const ClusteredPropertyMap = ({
     }
     lastBoundsRef.current = boundsKey;
 
-    // Fetch coordinates from API
-    const coordinates = await fetchMapCoordinates(roundedBounds, zoom);
+    // Fetch markers (server-clustered) from API
+    const { coordinates, clusters } = await fetchMapCoordinates(roundedBounds, zoom);
 
-    if (!coordinates || coordinates.length === 0) {
-      clearMarkers();
+    // Clear existing markers (and any old client-side clusterer)
+    clearMarkers();
+
+    if ((!coordinates || coordinates.length === 0) && (!clusters || clusters.length === 0)) {
       return;
     }
-
-    // Clear existing markers
-    clearMarkers();
 
     // Create info window if not exists
     if (!infoWindowRef.current) {
@@ -201,50 +205,41 @@ const ClusteredPropertyMap = ({
       });
     }
 
-    // Create new markers for each property
-    const newMarkers = coordinates.map((coord) => {
+    const map = mapInstanceRef.current;
+    const allMarkers = [];
+
+    // 1. Single-listing markers (price tags)
+    coordinates.forEach((coord) => {
       const marker = new window.google.maps.Marker({
         position: { lat: coord.lat, lng: coord.lng },
         icon: createMarkerIcon(coord.price),
         title: coord.address,
         optimized: true,
-        zIndex: 100
+        zIndex: 100,
+        map,
       });
-
-      // Store coordinate data on marker for later use
       marker._propertyData = coord;
 
-      // Add hover effect
       marker.addListener('mouseover', () => {
         marker.setIcon(createMarkerIcon(coord.price, true));
         marker.setZIndex(200);
       });
-
       marker.addListener('mouseout', () => {
         marker.setIcon(createMarkerIcon(coord.price, false));
         marker.setZIndex(100);
       });
-
-      // Add click listener to show property card popup
       marker.addListener('click', () => {
         const href = coord.mls_id ? `/property/${coord.mls_id}` : '#';
         const imageHtml = coord.image
           ? `<div style="width:100%;height:160px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
           : `<div style="width:100%;height:160px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
-
         const content = `
           <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
             ${imageHtml}
             <div style="padding:14px 14px 16px 14px;">
-              <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">
-                ${formatPrice(coord.price)}
-              </div>
-              <div style="font-size:14px;color:#0f172a;line-height:1.35;margin-bottom:2px;">
-                ${coord.address || 'Address not available'}
-              </div>
-              <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">
-                ${coord.city || ''}
-              </div>
+              <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">${formatPrice(coord.price)}</div>
+              <div style="font-size:14px;color:#0f172a;line-height:1.35;margin-bottom:2px;">${coord.address || 'Address not available'}</div>
+              <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">${coord.city || ''}</div>
               <div style="font-size:13px;color:#0f172a;display:flex;gap:14px;align-items:center;">
                 <span>${coord.beds || 0} bd</span>
                 <span>${coord.baths || 0} ba</span>
@@ -253,137 +248,45 @@ const ClusteredPropertyMap = ({
             </div>
           </a>
         `;
-
         infoWindowRef.current.setContent(content);
-        infoWindowRef.current.open(mapInstanceRef.current, marker);
-        // NOTE: do not call onPropertyClick here — clicking the marker
-        // should only open the card. Navigation happens when the user
-        // clicks the card itself (the wrapping <a>).
+        infoWindowRef.current.open(map, marker);
       });
 
-      return marker;
+      allMarkers.push(marker);
     });
 
-    markersRef.current = newMarkers;
-
-    // Initialize or update MarkerClusterer
-    if (window.markerClusterer && window.markerClusterer.MarkerClusterer) {
-      // Clear existing clusterer
-      if (markerClustererRef.current) {
-        markerClustererRef.current.clearMarkers();
-      }
-
-      // Create new clusterer with markers
-      markerClustererRef.current = new window.markerClusterer.MarkerClusterer({
-        map: mapInstanceRef.current,
-        markers: newMarkers,
-        algorithm: new window.markerClusterer.SuperClusterAlgorithm({
-          maxZoom: 16,
-          radius: 80
-        }),
-        renderer: {
-          render: ({ count, position }) => {
-            return new window.google.maps.Marker({
-              position,
-              icon: createClusterIcon(count),
-              label: null,
-              zIndex: Number(window.google.maps.Marker.MAX_ZINDEX) + count
-            });
-          }
-        },
-        onClusterClick: (event, cluster, map) => {
-          // Lock the map to ONLY show the listings inside this cluster.
-          // Capture the underlying property markers from the cluster.
-          const clusterMarkers = cluster.markers || [];
-          const lockedCoords = clusterMarkers
-            .map((m) => m._propertyData)
-            .filter(Boolean);
-
-          if (lockedCoords.length === 0) return;
-
-          // Compute tight bounds around the cluster's markers.
-          const bounds = new window.google.maps.LatLngBounds();
-          clusterMarkers.forEach((m) => bounds.extend(m.getPosition()));
-
-          // Tear down the current clusterer + markers so we can re-render
-          // only the locked subset.
-          if (markerClustererRef.current) {
-            markerClustererRef.current.clearMarkers();
-            markerClustererRef.current = null;
-          }
-          markersRef.current.forEach((mk) => mk.setMap(null));
-          markersRef.current = [];
-
-          // Mark as locked so the idle/filter effects don't refetch.
-          lockedClusterRef.current = lockedCoords;
-          setHasDrawnPolygon(true); // reuse the same flag so Reset is enabled
-
-          // Re-add ONLY the locked markers (no clustering — show each one).
-          const lockedMarkers = lockedCoords.map((coord) => {
-            const mk = new window.google.maps.Marker({
-              position: { lat: coord.lat, lng: coord.lng },
-              icon: createMarkerIcon(coord.price),
-              map,
-              title: coord.address,
-              zIndex: 100,
-            });
-            mk._propertyData = coord;
-            mk.addListener('mouseover', () => {
-              mk.setIcon(createMarkerIcon(coord.price, true));
-              mk.setZIndex(200);
-            });
-            mk.addListener('mouseout', () => {
-              mk.setIcon(createMarkerIcon(coord.price, false));
-              mk.setZIndex(100);
-            });
-            mk.addListener('click', () => {
-              const href = coord.mls_id ? `/property/${coord.mls_id}` : '#';
-              const imageHtml = coord.image
-                ? `<div style="width:100%;height:160px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
-                : `<div style="width:100%;height:160px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
-              const content = `
-                <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
-                  ${imageHtml}
-                  <div style="padding:14px 14px 16px 14px;">
-                    <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">${formatPrice(coord.price)}</div>
-                    <div style="font-size:14px;color:#0f172a;line-height:1.35;margin-bottom:2px;">${coord.address || 'Address not available'}</div>
-                    <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">${coord.city || ''}</div>
-                    <div style="font-size:13px;color:#0f172a;display:flex;gap:14px;align-items:center;">
-                      <span>${coord.beds || 0} bd</span>
-                      <span>${coord.baths || 0} ba</span>
-                      ${coord.type ? `<span>${coord.type}</span>` : ''}
-                    </div>
-                  </div>
-                </a>
-              `;
-              if (!infoWindowRef.current) {
-                infoWindowRef.current = new window.google.maps.InfoWindow({ maxWidth: 280, pixelOffset: new window.google.maps.Size(0, -5) });
-              }
-              infoWindowRef.current.setContent(content);
-              infoWindowRef.current.open(map, mk);
-            });
-            return mk;
-          });
-          markersRef.current = lockedMarkers;
-
-          setMarkerStats({ displayed: lockedCoords.length, total: lockedCoords.length });
-          if (onMarkerCountChange) {
-            onMarkerCountChange(lockedCoords.length, lockedCoords.length);
-          }
-
-          // Zoom tightly around the locked markers.
-          map.fitBounds(bounds, 60);
-        }
+    // 2. Multi-listing cluster circles. Clicking zooms into the cluster's bounds.
+    clusters.forEach((cluster) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: cluster.lat, lng: cluster.lng },
+        icon: createClusterIcon(cluster.count),
+        title: `${cluster.count} listings`,
+        optimized: true,
+        zIndex: Number(window.google.maps.Marker.MAX_ZINDEX) + cluster.count,
+        map,
       });
-    } else {
-      // Fallback: add markers directly to map without clustering
-      newMarkers.forEach(marker => {
-        marker.setMap(mapInstanceRef.current);
-      });
-    }
 
-    console.log(`Map updated with ${newMarkers.length} property markers (clustered)`);
-  }, [fetchMapCoordinates, clearMarkers, onPropertyClick]);
+      marker.addListener('click', () => {
+        // Always drill in by ~3 zoom levels per click. fitBounds alone is
+        // unreliable here: large city-area clusters (e.g. 3000 listings
+        // covering 8x19km) translate back to roughly the same zoom we're
+        // already at, so clicking would feel like nothing happened.
+        // Forcing a zoom step guarantees the next idle event refetches
+        // with a higher precision and reveals smaller groups / individual
+        // price markers.
+        const currentZoom = map.getZoom();
+        const targetZoom = Math.min(currentZoom + 3, 21);
+        map.setCenter({ lat: cluster.lat, lng: cluster.lng });
+        map.setZoom(targetZoom);
+      });
+
+      allMarkers.push(marker);
+    });
+
+    markersRef.current = allMarkers;
+
+    console.log(`Map updated: ${coordinates.length} listings + ${clusters.length} clusters`);
+  }, [fetchMapCoordinates, clearMarkers]);
 
   // Debounced update function
   const debouncedUpdate = useCallback(
@@ -669,8 +572,8 @@ const ClusteredPropertyMap = ({
       }
 
       try {
-        // Load MarkerClusterer library
-        await loadMarkerClusterer();
+        // Clustering is done server-side now (Repliers cluster API),
+        // so we no longer load the MarkerClusterer library.
 
         const map = new window.google.maps.Map(mapDiv, {
           center: initialCenter,
@@ -688,6 +591,24 @@ const ClusteredPropertyMap = ({
 
         mapInstanceRef.current = map;
         setMapLoaded(true);
+
+        // Draw the GTA boundary so users can see the area we cover.
+        // Coordinates mirror config('repliers.gta_polygon') on the backend.
+        const gtaPath = [
+          { lat: 44.05, lng: -79.95 }, { lat: 44.30, lng: -79.50 },
+          { lat: 44.40, lng: -79.10 }, { lat: 44.05, lng: -78.85 },
+          { lat: 43.85, lng: -78.75 }, { lat: 43.55, lng: -78.85 },
+          { lat: 43.40, lng: -79.40 }, { lat: 43.30, lng: -79.95 },
+        ];
+        new window.google.maps.Polygon({
+          paths: gtaPath,
+          strokeColor: '#0f172a',
+          strokeOpacity: 0.7,
+          strokeWeight: 2,
+          fillOpacity: 0,
+          clickable: false,
+          map,
+        });
 
         // Listen for map idle (user stopped moving/zooming)
         map.addListener('idle', () => {
@@ -893,7 +814,7 @@ const ClusteredPropertyMap = ({
         </div>
       )}
 
-      {/* Stats overlay */}
+      {/* Stats overlay — total listings in the current viewport */}
       <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg px-3 py-2">
         <div className="text-sm font-medium text-gray-700">
           {isLoading ? (
@@ -902,19 +823,10 @@ const ClusteredPropertyMap = ({
               Loading...
             </span>
           ) : (
-            <>
-              {markerStats.displayed} of {markerStats.total.toLocaleString()} properties
-            </>
+            <>{markerStats.total.toLocaleString()} {markerStats.total === 1 ? 'listing' : 'listings'}</>
           )}
         </div>
       </div>
-
-      {/* Zoom hint */}
-      {markerStats.displayed > 0 && markerStats.displayed < markerStats.total && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white rounded-full px-4 py-2 text-sm">
-          Zoom in to see more properties
-        </div>
-      )}
 
       <GoogleMapContainer
         onMapReady={handleMapContainerReady}
