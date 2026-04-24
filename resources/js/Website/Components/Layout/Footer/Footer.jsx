@@ -148,9 +148,12 @@ const Footer = ({ website, siteName, year }) => {
                                     <div className="flex flex-col gap-2">
                                         {/* Phone with responsive styles */}
                                         {phone && (
-                                            <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] text-white">
+                                            <a
+                                                href={`tel:${String(phone).replace(/[^0-9+]/g, '')}`}
+                                                className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] text-white hover:underline"
+                                            >
                                                 {phone}
-                                            </p>
+                                            </a>
                                         )}
                                         {/* Email with responsive styles */}
                                         {email && (

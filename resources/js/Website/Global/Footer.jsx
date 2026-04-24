@@ -241,9 +241,13 @@ const Footer = ({
                             <div className="flex flex-col gap-2">
                                 {/* Phone with responsive styles */}
                                 {showPhone && displayContactInfo?.phone && (
-                                    <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em]" style={{ color: footerText }}>
+                                    <a
+                                        href={`tel:${String(displayContactInfo.phone).replace(/[^0-9+]/g, '')}`}
+                                        className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] hover:underline"
+                                        style={{ color: footerText }}
+                                    >
                                         {displayContactInfo.phone}
-                                    </p>
+                                    </a>
                                 )}
                                 {/* Email with responsive styles */}
                                 {showEmail && displayContactInfo?.email && (
