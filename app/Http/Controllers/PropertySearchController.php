@@ -383,7 +383,13 @@ class PropertySearchController extends Controller
             }
         }
 
-        // Location/search query
+        // Location/search query. Three forms handled here:
+        //   1) Exact GTA city name ("Toronto", "Mississauga"…) → city filter
+        //   2) Street address with leading number ("189 Queen Street East",
+        //      "15 Mercer St") → streetNumber + streetName (Repliers treats
+        //      these as exact matches, where free-text `search` often
+        //      misses on suffix/direction variations).
+        //   3) Anything else (neighbourhood, keyword) → free-text `search`.
         if (!empty($params['query'])) {
             $query = trim($params['query']);
             $gtaCities = config('repliers.gta_cities', []);
@@ -396,6 +402,30 @@ class PropertySearchController extends Controller
             }
             if ($matchedCity) {
                 $apiParams['city'] = $matchedCity;
+            } elseif (preg_match('/^(\d+)\s+(.+)/', $query, $m)) {
+                $num = $m[1];
+                $rest = trim($m[2]);
+                // Strip trailing direction (East/West/N/S etc.) first —
+                // Repliers stores it separately from streetName.
+                $rest = preg_replace(
+                    '/\s*(North|South|East|West|N|S|E|W|NE|NW|SE|SW)\.?\s*$/i',
+                    '',
+                    $rest
+                );
+                // Then strip the trailing street-type suffix so "Queen
+                // Street" → "Queen", matching Repliers' streetName column.
+                $name = preg_replace(
+                    '/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way|Cres|Crescent|Terr|Terrace)\.?\s*$/i',
+                    '',
+                    $rest
+                );
+                $name = trim($name);
+                if ($name !== '') {
+                    $apiParams['streetNumber'] = [$num];
+                    $apiParams['streetName'] = [$name];
+                } else {
+                    $apiParams['search'] = $query;
+                }
             } else {
                 $apiParams['search'] = $query;
             }
@@ -407,7 +437,7 @@ class PropertySearchController extends Controller
         // Vaughan, etc.) are still reachable by typing them into the search
         // box. Without this default, Repliers would return all of Ontario
         // and the count balloons to ~10k.
-        if (empty($apiParams['city']) && empty($apiParams['streetNumber'])) {
+        if (empty($apiParams['city'])) {
             $apiParams['city'] = 'Toronto';
         }
 
@@ -460,7 +490,14 @@ class PropertySearchController extends Controller
             }
         }
 
-        if (!empty($params['property_type']) && count($params['property_type']) > 0) {
+        // When the user has scoped to an exact address (either via a
+        // "189 Queen Street East" query or via building_id/street_addresses
+        // for a building page), skip the style filter entirely. That
+        // default style=Apartment was hiding lofts, townhouses, and
+        // bachelor units at the same address — users searching for a
+        // specific building want every unit type there.
+        $hasAddressScope = !empty($apiParams['streetNumber']);
+        if (!$hasAddressScope && !empty($params['property_type']) && count($params['property_type']) > 0) {
             $styleMap = [
                 'Condo Apartment' => 'Apartment',
                 'Condo Townhouse' => 'Stacked Townhouse',
@@ -637,6 +674,33 @@ class PropertySearchController extends Controller
 
             $transactionType = strtolower($listing['type'] ?? 'sale') === 'lease' ? 'For Rent' : 'For Sale';
 
+            // "Just Listed" flag — true for active listings entered in the
+            // last 7 days. Matches condos.ca's treatment where the badge
+            // replaces the generic For Sale/For Rent pill for fresh stock.
+            // Determined by daysOnMarket + excluding closed statuses. We
+            // check lastStatus AND listDate fallback (daysOnMarket is
+            // sometimes 0/missing on brand-new feeds).
+            $isJustListed = false;
+            $lastStatusLower = strtolower($listing['lastStatus'] ?? '');
+            $isClosed = in_array($lastStatusLower, ['sld', 'sc', 'lsd', 'lc', 'exp', 'sus', 'ter', 'dft', 'cs'], true);
+            $days = null;
+            if (isset($listing['daysOnMarket']) && is_numeric($listing['daysOnMarket'])) {
+                $days = (int) $listing['daysOnMarket'];
+            } elseif (isset($listing['simpleDaysOnMarket']) && is_numeric($listing['simpleDaysOnMarket'])) {
+                $days = (int) $listing['simpleDaysOnMarket'];
+            } elseif (!empty($listing['listDate'])) {
+                try {
+                    $listedAt = new \DateTime($listing['listDate']);
+                    $now = new \DateTime();
+                    $days = (int) $now->diff($listedAt)->days;
+                } catch (\Throwable $e) {
+                    $days = null;
+                }
+            }
+            if (!$isClosed && $days !== null && $days >= 0 && $days <= 7) {
+                $isJustListed = true;
+            }
+
             $formattedProperties[] = [
                 'ListingKey' => $listing['mlsNumber'] ?? '',
                 'ListPrice' => $listing['listPrice'] ?? 0,
@@ -663,6 +727,7 @@ class PropertySearchController extends Controller
                 'StreetSuffix' => $address['streetSuffix'] ?? '',
                 'ListingContractDate' => $listing['listDate'] ?? '',
                 'DaysOnMarket' => $listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? 0,
+                'IsJustListed' => $isJustListed,
                 'PublicRemarks' => $details['description'] ?? '',
                 'ListOfficeName' => $office['brokerageName'] ?? '',
                 'AssociationFee' => $condominium['fees']['maintenance'] ?? $details['maintenanceFee'] ?? null,

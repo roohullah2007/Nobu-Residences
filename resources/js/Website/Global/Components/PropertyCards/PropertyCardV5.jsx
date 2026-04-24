@@ -512,33 +512,22 @@ const PropertyCardV5 = ({
             >
               {/* Top row - Sale and Property Type chips - Swapped positions */}
               <div className="flex justify-between items-center gap-2.5 h-8">
-                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm border border-gray-200 status-badge ${
+                <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm border status-badge ${
                   (() => {
                     const ms = (property.MlsStatus || '').toLowerCase();
                     const ss = (property.StandardStatus || '').toLowerCase();
                     const tt = (property.TransactionType || '').toLowerCase();
-                    if (['sold', 'sld', 'sc'].includes(ms) || ss === 'sold' || tt === 'sold') return 'bg-red-600 text-white border-red-600';
-                    if (['leased', 'lsd', 'lc'].includes(ms) || ss === 'leased' || tt === 'leased') return 'bg-orange-500 text-white border-orange-500';
-                    return 'bg-white text-[#293056]';
+                    const isSold = ['sold', 'sld', 'sc'].includes(ms) || ss === 'sold' || tt === 'sold';
+                    const isLeased = ['leased', 'lsd', 'lc'].includes(ms) || ss === 'leased' || tt === 'leased';
+                    if (isSold) return 'bg-red-600 text-white border-red-600';
+                    if (isLeased) return 'bg-orange-500 text-white border-orange-500';
+                    // Active + fresh → dark navy "Just Listed" badge
+                    if (property.IsJustListed) return 'bg-[#293056] text-white border-[#293056]';
+                    return 'bg-white text-[#293056] border-gray-200';
                   })()
                 }`}>
-                  {/* Priority: MlsStatus for Sold/Leased, then formatted_status, then TransactionType */}
+                  {/* Priority: Sold/Leased → Just Listed (if fresh) → formatted_status → TransactionType */}
                   {(() => {
-                    // Helper function to calculate days since sold
-                    const getDaysSinceSold = (soldDate) => {
-                      if (!soldDate) return null;
-                      try {
-                        const sold = new Date(soldDate);
-                        const now = new Date();
-                        const diffTime = Math.abs(now - sold);
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        return diffDays;
-                      } catch (e) {
-                        return null;
-                      }
-                    };
-
-                    // Check MlsStatus first - handles both Repliers (Sld/Lsd) and AMPRE (Sold/Leased) formats
                     const mlsStatusLower = property.MlsStatus ? property.MlsStatus.toLowerCase() : '';
                     if (mlsStatusLower === 'sold' || mlsStatusLower === 'sld' || mlsStatusLower === 'sc') {
                       return 'Sold';
@@ -547,7 +536,6 @@ const PropertyCardV5 = ({
                       return 'Leased';
                     }
 
-                    // Check StandardStatus
                     const standardStatusLower = property.StandardStatus ? property.StandardStatus.toLowerCase() : '';
                     if (standardStatusLower === 'sold' || standardStatusLower === 'closed') {
                       if (property.TransactionType === 'For Lease' || property.TransactionType === 'For Rent' || property.TransactionType === 'Leased') {
@@ -559,16 +547,17 @@ const PropertyCardV5 = ({
                       return 'Leased';
                     }
 
-                    // Check TransactionType directly for Sold/Leased
                     if (property.TransactionType === 'Sold') return 'Sold';
                     if (property.TransactionType === 'Leased') return 'Leased';
 
-                    // Use formatted_status from backend if available
+                    // Fresh active listing → show "Just Listed" instead of
+                    // the generic For Sale/For Rent pill.
+                    if (property.IsJustListed) return 'Just Listed';
+
                     if (property.formatted_status) {
                       return property.formatted_status;
                     }
 
-                    // Fallback to TransactionType for active listings
                     return property.TransactionType || (property.isRental ? 'For Rent' : 'For Sale');
                   })()}
                 </span>

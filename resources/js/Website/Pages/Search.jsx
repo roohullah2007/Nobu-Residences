@@ -854,6 +854,8 @@ export default function EnhancedPropertySearch({
       StandardStatus: property.StandardStatus,     // IMPORTANT: Include StandardStatus
       MlsStatus: property.MlsStatus,              // IMPORTANT: Include MlsStatus
       formatted_status: property.formatted_status, // IMPORTANT: Include formatted_status
+      IsJustListed: property.IsJustListed || false,
+      DaysOnMarket: property.DaysOnMarket,
       city: property.City,
       province: property.StateOrProvince,
       source: 'mls',
