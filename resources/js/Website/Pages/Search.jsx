@@ -244,6 +244,7 @@ export default function EnhancedPropertySearch({
     building_id: buildingId || filters.building_id || '',
     street_number: streetNumber || filters.street_number || '',
     street_name: streetName || filters.street_name || '',
+    street_addresses: urlParams.get('street_addresses') || filters.street_addresses || '',
     price_min: parseInt(urlParams.get('price_min')) || filters.minPrice || parseInt(urlParams.get('min_price')) || 0,
     price_max: parseInt(urlParams.get('price_max')) || filters.maxPrice || parseInt(urlParams.get('max_price')) || 10000000, // Default max price 10M
     bedrooms: filters.bedType || parseInt(urlParams.get('bedrooms')) || 0,
@@ -327,14 +328,31 @@ export default function EnhancedPropertySearch({
     url.searchParams.set('page', pageParam);
     if (websiteParam) url.searchParams.set('website', websiteParam);
 
-    // Add query/location to URL
-    if (params.query) {
+    // Add query/location to URL — but skip it on neighbourhood landing pages
+    // like /toronto/yorkville/condos-for-sale where the path already encodes
+    // the area. Otherwise the URL bloats to ?query=Yorkville on top of the
+    // path that already says "yorkville".
+    const pathEncodesArea = /^\/[a-z][a-z-]*\/[a-z0-9-]+\/(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)\/?$/.test(window.location.pathname);
+    if (params.query && !pathEncodesArea) {
       url.searchParams.set('query', params.query);
     }
 
     // Add other relevant params
     if (params.status && params.status !== 'For Sale') {
       url.searchParams.set('status', params.status);
+    }
+
+    // Preserve building scoping in the URL so the user (and any bookmark)
+    // can see what's being filtered. Without this the URL collapses to just
+    // ?status=For+Rent and the building context vanishes after first fetch.
+    if (params.building_id) {
+      url.searchParams.set('building_id', params.building_id);
+    }
+    if (params.street_addresses) {
+      url.searchParams.set('street_addresses', params.street_addresses);
+    } else if (params.street_number && params.street_name) {
+      url.searchParams.set('street_number', params.street_number);
+      url.searchParams.set('street_name', params.street_name);
     }
 
     // Update the URL without reloading
@@ -376,6 +394,7 @@ export default function EnhancedPropertySearch({
         // Include street_number and street_name if present
         if (params.street_number) mappedParams.street_number = params.street_number;
         if (params.street_name) mappedParams.street_name = params.street_name;
+        if (params.street_addresses) mappedParams.street_addresses = params.street_addresses;
         if (params.mercer_buildings) mappedParams.mercer_buildings = params.mercer_buildings;
 
         searchParams = {
@@ -522,7 +541,8 @@ export default function EnhancedPropertySearch({
         statusFromTransaction = 'For Sale';
       }
       
-      // Default to Condo Apartment if no property type specified
+      // Default to Condo Apartment so the headline count matches the
+      // condos.ca "Listings" total for condo apartments in Toronto (~5.6k).
       let propertyTypes = ['Condo Apartment'];
       if (propertySubType) {
         propertyTypes = [propertySubType];
@@ -1891,8 +1911,8 @@ export default function EnhancedPropertySearch({
               </div>
             )}
             
-            {/* Pagination - IDX-AMPRE style */}
-            {total > 16 && (
+            {/* Pagination - IDX-AMPRE style. Hidden in map-only view. */}
+            {total > 16 && viewType !== 'map' && (
               <div className="pagination-grid-container mt-12">
                 <div className="pagination-wrapper flex justify-center items-center gap-2">
                   {/* Previous Button */}

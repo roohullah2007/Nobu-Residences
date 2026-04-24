@@ -367,9 +367,18 @@ export default function DeveloperDetail({
                                         <p className="font-work-sans text-[#101323]/80 text-xs sm:text-sm mt-1">
                                             {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || 'Property.ca Inc, Brokerage'}
                                         </p>
-                                        <p className="font-work-sans text-[#101323] font-bold text-xs sm:text-sm mt-2">
-                                            {website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532'}
-                                        </p>
+                                        {(() => {
+                                            const phone = website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone || '647-490-1532';
+                                            const telHref = `tel:${String(phone).replace(/[^+\d]/g, '')}`;
+                                            return (
+                                                <a
+                                                    href={telHref}
+                                                    className="inline-block font-work-sans text-[#101323] font-bold text-xs sm:text-sm mt-2 hover:text-[#292E56] hover:underline"
+                                                >
+                                                    {phone}
+                                                </a>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Contact Button */}

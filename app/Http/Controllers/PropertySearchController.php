@@ -401,6 +401,65 @@ class PropertySearchController extends Controller
             }
         }
 
+        // Default to Toronto only when no specific city/area scope is set.
+        // Matches condos.ca's default and keeps the headline count meaningful
+        // for the dominant condo market — wider GTA cities (Mississauga,
+        // Vaughan, etc.) are still reachable by typing them into the search
+        // box. Without this default, Repliers would return all of Ontario
+        // and the count balloons to ~10k.
+        if (empty($apiParams['city']) && empty($apiParams['streetNumber'])) {
+            $apiParams['city'] = 'Toronto';
+        }
+
+        // Building scoping — accepts either ?building_id=<uuid> (we load the
+        // Building and pull its street addresses) or ?street_addresses=
+        // "15 Mercer St,35 Mercer" (we use the addresses directly, no DB
+        // lookup required so the URL alone is sufficient). Multi-tower
+        // buildings need every address fanned out to the Repliers query as
+        // arrays which Repliers ORs together.
+        $rawAddresses = [];
+        if (!empty($params['street_addresses'])) {
+            $rawAddresses = array_filter(array_map('trim', explode(',', $params['street_addresses'])));
+        }
+        if (empty($rawAddresses) && !empty($params['building_id'])) {
+            $building = Building::find($params['building_id']);
+            if ($building) {
+                $rawAddresses = array_filter([
+                    $building->street_address_1 ?? null,
+                    $building->street_address_2 ?? null,
+                    $building->address ?? null,
+                ]);
+            }
+        }
+
+        if (!empty($rawAddresses)) {
+            $streetNumbers = [];
+            $streetNames = [];
+            foreach ($rawAddresses as $addr) {
+                if (!preg_match('/^(\d+)\s+(.+)/', trim($addr), $m)) {
+                    continue;
+                }
+                $num = $m[1];
+                $name = preg_replace(
+                    '/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way)\.?\s*$/i',
+                    '',
+                    trim($m[2])
+                );
+                $key = $num . '|' . strtolower($name);
+                if (isset($streetNumbers[$key])) continue;
+                $streetNumbers[$key] = $num;
+                $streetNames[$key] = $name;
+            }
+
+            if (!empty($streetNumbers)) {
+                $apiParams['streetNumber'] = array_values($streetNumbers);
+                $apiParams['streetName'] = array_values($streetNames);
+                // Drop the generic free-text search so it doesn't narrow
+                // the address-scoped query down further.
+                unset($apiParams['search']);
+            }
+        }
+
         if (!empty($params['property_type']) && count($params['property_type']) > 0) {
             $styleMap = [
                 'Condo Apartment' => 'Apartment',
@@ -519,23 +578,26 @@ class PropertySearchController extends Controller
      * Map a Google Maps zoom level to a Repliers clusterPrecision (geohash bits).
      * Higher precision = smaller geohash cells = more, finer clusters.
      *
-     * Tuned against Toronto-wide condo data (~11k listings) and the 200-cluster
-     * Repliers cap. Three bands:
-     *   zoom ≤ 13: precision = zoom (≤200 clusters even on a GTA-wide viewport,
-     *              so coverage stays at 100%)
-     *   zoom 14-17: precision = zoom + 3 (street-level detail)
-     *   zoom ≥ 18: precision = zoom + 5 (building-level — almost every cluster
-     *              ends up small enough to inline + expand to price markers)
+     * Tuned against Toronto-wide condo data (~11k listings) and the 500-cluster
+     * Repliers cap. Three bands — chunky at zoom-out (condos.ca-style big
+     * neighbourhood bubbles), fine at mid-zoom so groups split, individual
+     * price bubbles at zoom-in:
+     *   zoom ≤ 13: precision = zoom + 2 (GTA-wide — a few dozen chunky
+     *              bubbles with high listing counts per cluster)
+     *   zoom 14-17: precision = zoom + 6 (street-level — small 2-4 point
+     *              clusters that split further as the user zooms in)
+     *   zoom ≥ 18: precision = zoom + 8 (building-level — every individual
+     *              unit expands to a price marker)
      */
     private function clusterPrecisionForZoom(int $zoomLevel): int
     {
         if ($zoomLevel <= 13) {
-            return max(7, $zoomLevel);
+            return max(9, $zoomLevel + 2);
         }
         if ($zoomLevel <= 17) {
-            return min(22, $zoomLevel + 2);
+            return min(24, $zoomLevel + 6);
         }
-        return min(28, $zoomLevel + 5);
+        return min(30, $zoomLevel + 8);
     }
 
     /**
@@ -2946,6 +3008,7 @@ class PropertySearchController extends Controller
             'bathrooms' => 0,
             'sort' => 'newest',
             'building_id' => '', // Building ID for multi-address building searches
+            'street_addresses' => '', // Comma-separated addresses, e.g. "15 Mercer St,35 Mercer"
             'viewport_bounds' => null,
             'days_on_market' => '',
             'keywords' => '',
@@ -3165,20 +3228,19 @@ class PropertySearchController extends Controller
 
             $apiParams['cluster'] = 'true';
             $apiParams['clusterPrecision'] = $this->clusterPrecisionForZoom($zoomLevel);
-            $apiParams['clusterLimit'] = 200;
-            // How many listings per cluster Repliers should inline. Higher
-            // = more clusters that we can split into individual price markers
-            // on the frontend, but heavier payload. Scale up at higher zooms
-            // where the viewport is small so total payload stays bounded.
-            //   zoom ≤ 13: 5  (city/region — keep clusters compact)
-            //   zoom 14-17: 25 (district/street — expand most groups)
+            $apiParams['clusterLimit'] = 500;
+            // How many listings per cluster Repliers should inline. A cluster
+            // with inline listings expands into individual price markers on
+            // the frontend; anything larger stays a count bubble. We keep
+            // the threshold at 1 for everything short of the building zoom
+            // so small groups render as "2", "4" bubbles instead of
+            // overlapping price pins — much cleaner at street level.
+            //   zoom ≤ 17: 1   (solitary listings only; groups stay bubbles)
             //   zoom ≥ 18: 100 (building level — show every individual unit)
             if ($zoomLevel >= 18) {
                 $clusterListingsThreshold = 100;
-            } elseif ($zoomLevel >= 14) {
-                $clusterListingsThreshold = 25;
             } else {
-                $clusterListingsThreshold = 5;
+                $clusterListingsThreshold = 1;
             }
             $apiParams['clusterListingsThreshold'] = $clusterListingsThreshold;
             $apiParams['clusterFields'] = 'mlsNumber,listPrice,address,map,details.numBedrooms,details.numBathrooms,details.style,images[1]';
@@ -3193,11 +3255,19 @@ class PropertySearchController extends Controller
             $coordinates = [];
             $clusters = [];
 
-            $formatListing = function (array $listing, float $fallbackLat, float $fallbackLng) use ($repliersApi): array {
+            // Returns null when the listing has no real lat/lng — we'd rather
+            // drop the pin than anchor it at the cluster centroid, which puts
+            // bubbles on the wrong block.
+            $formatListing = function (array $listing) use ($repliersApi): ?array {
                 $address = $listing['address'] ?? [];
                 $details = $listing['details'] ?? [];
                 $map = $listing['map'] ?? [];
                 $images = $listing['images'] ?? [];
+                $lat = isset($map['latitude']) ? (float) $map['latitude'] : 0.0;
+                $lng = isset($map['longitude']) ? (float) $map['longitude'] : 0.0;
+                if (!$lat || !$lng) {
+                    return null;
+                }
                 $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
                 if (!empty($address['unitNumber'])) {
                     $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
@@ -3205,8 +3275,8 @@ class PropertySearchController extends Controller
                 return [
                     'id' => $listing['mlsNumber'] ?? null,
                     'mls_id' => $listing['mlsNumber'] ?? null,
-                    'lat' => (float) ($map['latitude'] ?? $fallbackLat),
-                    'lng' => (float) ($map['longitude'] ?? $fallbackLng),
+                    'lat' => $lat,
+                    'lng' => $lng,
                     'price' => (int) ($listing['listPrice'] ?? 0),
                     'address' => $fullAddress,
                     'city' => $address['city'] ?? '',
@@ -3248,13 +3318,20 @@ class PropertySearchController extends Controller
                     }
                     foreach ($byPoint as $group) {
                         $n = count($group);
+                        // Tight fan-out so units stay visually on top of
+                        // their own building footprint instead of drifting
+                        // into adjacent blocks. Scales mildly with unit count
+                        // but caps at ~35m so the halo never leaves the lot.
+                        $radius = min(0.00032, 0.00018 + 0.00002 * max(0, $n - 2));
                         foreach ($group as $i => $l) {
-                            $coord = $formatListing($l, $lat, $lng);
+                            $coord = $formatListing($l);
+                            if ($coord === null) {
+                                continue;
+                            }
                             if ($n > 1) {
                                 $angle = ($i / $n) * 2 * M_PI;
-                                // ~22m radial offset so stacked units fan out visibly
-                                $coord['lat'] += 0.0002 * cos($angle);
-                                $coord['lng'] += 0.00027 * sin($angle);
+                                $coord['lat'] += $radius * cos($angle);
+                                $coord['lng'] += ($radius * 1.35) * sin($angle);
                             }
                             $coordinates[] = $coord;
                         }

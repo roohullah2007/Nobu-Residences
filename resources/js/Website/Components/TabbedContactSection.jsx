@@ -149,9 +149,12 @@ export default function TabbedContactSection({ auth, website, pageContent }) {
                                 </svg>
                             </div>
                         </div>
-                        <span className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
+                        <a
+                            href={`tel:${String(contactInfo.phone || '').replace(/[^+\d]/g, '')}`}
+                            className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none hover:underline"
+                        >
                             {contactInfo.phone}
-                        </span>
+                        </a>
                     </div>
 
                     {/* Address */}

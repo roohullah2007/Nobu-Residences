@@ -2242,13 +2242,25 @@ class WebsiteController extends Controller
             }
         }
 
-        // 3. Always include the current listing as an entry
-        $currentKey = $mlsNumber . '|' . $listDate;
-        if (!isset($seen[$currentKey]) && ($listPrice || $soldPrice || $listDate)) {
+        // 3. Always include the current listing as an entry. The Repliers
+        // `listDate` field is not always populated (notably for off-market or
+        // freshly imported listings); without a date the React filter drops
+        // the row and the section shows "No price history available". Fall
+        // back through every other timestamp Repliers gives us so the current
+        // listing is always represented.
+        $effectiveListDate = $listDate
+            ?: ($listing['timestamps']['listingEntryDate'] ?? null)
+            ?: ($listing['timestamps']['listingUpdated'] ?? null)
+            ?: ($listing['originalEntryTimestamp'] ?? null)
+            ?: ($listing['updatedOn'] ?? null)
+            ?: ($listing['createdOn'] ?? null);
+
+        $currentKey = $mlsNumber . '|' . $effectiveListDate;
+        if (!isset($seen[$currentKey]) && ($listPrice || $soldPrice || $effectiveListDate)) {
             $entries[] = [
                 'mlsNumber' => $mlsNumber,
                 'listPrice' => $listPrice ?: null,
-                'listDate' => $listDate ?: null,
+                'listDate' => $effectiveListDate ?: null,
                 'soldPrice' => $soldPrice ?: null,
                 'soldDate' => $soldDate ?: null,
                 'lastStatus' => $lastStatus ?: 'A',

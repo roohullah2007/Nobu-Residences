@@ -491,9 +491,18 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                   {(website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage) && (
                     <p className="text-gray-500 text-sm text-left">{website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage}</p>
                   )}
-                  {(website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone) && (
-                    <p className="text-gray-700 text-sm font-semibold text-left">{website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone}</p>
-                  )}
+                  {(website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone) && (() => {
+                    const phone = website?.agent_info?.agent_phone || website?.contact_info?.agent?.phone;
+                    const telHref = `tel:${String(phone).replace(/[^+\d]/g, '')}`;
+                    return (
+                      <a
+                        href={telHref}
+                        className="text-gray-700 text-sm font-semibold text-left hover:text-[#293056] hover:underline"
+                      >
+                        {phone}
+                      </a>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

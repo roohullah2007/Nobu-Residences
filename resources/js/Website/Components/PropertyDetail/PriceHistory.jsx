@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 
 /**
  * Price History — driven by the `priceHistory` array attached to
@@ -18,7 +19,11 @@ const PriceHistory = ({
   building = null,
 }) => {
   const [expanded, setExpanded] = useState(false);
-  const isLoggedIn = !!auth?.user;
+  // Always trust Inertia's shared auth as the source of truth — the `auth`
+  // prop only works when every parent in the tree remembers to pass it down,
+  // and a missed hop silently re-locks the gate for signed-in users.
+  const sharedAuth = usePage().props?.auth;
+  const isLoggedIn = !!(auth?.user || sharedAuth?.user);
 
   const pickFromImageList = (list) => {
     if (!Array.isArray(list) || list.length === 0) return null;
@@ -69,7 +74,11 @@ const PriceHistory = ({
       unitNumber: h.unitNumber || null,
       image: h.image || null,
     }))
-    .filter((h) => h.listDate || h.soldDate);
+    // Keep any entry that carries something worth showing. We used to require
+    // a date, but Repliers occasionally omits dates on the active listing —
+    // a row with a price + status is still useful, just rendered without a
+    // date stamp.
+    .filter((h) => h.listDate || h.soldDate || h.listPrice || h.soldPrice);
 
   // Sort newest first
   history.sort((a, b) => {

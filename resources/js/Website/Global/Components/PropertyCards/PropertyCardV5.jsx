@@ -230,8 +230,11 @@ const PropertyCardV5 = ({
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      // Redirect to login
-      window.location.href = '/login';
+      if (typeof onLoginRequired === 'function') {
+        onLoginRequired();
+      } else {
+        window.location.href = '/login';
+      }
       return;
     }
 
@@ -450,6 +453,10 @@ const PropertyCardV5 = ({
   // Use existing auth state
   const isLoggedIn = isAuthenticated;
 
+  // Sold/leased prices are gated for guests — the price slot renders a
+  // "Login Required" pill instead of the dollar amount until they sign in.
+  const lockSoldPrice = isSoldOrLeased && !isLoggedIn;
+
   const handleClick = (e) => {
     // Require login for sold/leased listings
     if (isSoldOrLeased && !isLoggedIn) {
@@ -476,23 +483,33 @@ const PropertyCardV5 = ({
         className="flex flex-col h-full text-inherit no-underline"
         onClick={handleClick}
       >
-        {/* Card Image - Enhanced with IDX-AMPRE Loading */}
+        {/* Card Image. Guests on sold/leased cards see the photo at a
+            light ~30% blur via an inline filter on a wrapper div; logged-
+            in users see it crisp. */}
         <div className={`relative w-full ${config.image} overflow-hidden bg-gray-100 rounded-t-xl`}>
-          <PluginStyleImageLoader
-            src={property.imageUrl}
-            alt={`${property.propertyType || 'Property'} in ${property.address}`}
-            className="w-full h-full property-image lazy-property-image transition-transform duration-300 group-hover:scale-105"
-            enableLazyLoading={true}
-            rootMargin="200px"
-            threshold={0.01}
-            enableBlurEffect={true}
-            priority="normal"
-            data-listing-key={property.listingKey}
-          />
+          <div
+            className="w-full h-full"
+            style={lockSoldPrice ? { filter: 'blur(2px)' } : undefined}
+          >
+            <PluginStyleImageLoader
+              src={property.imageUrl}
+              alt={`${property.propertyType || 'Property'} in ${property.address}`}
+              className="w-full h-full property-image lazy-property-image transition-transform duration-300 group-hover:scale-105"
+              enableLazyLoading={true}
+              rootMargin="200px"
+              threshold={0.01}
+              enableBlurEffect={true}
+              priority="normal"
+              data-listing-key={property.listingKey}
+            />
+          </div>
 
           {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
           {property.source !== 'building' && (
-            <div className="absolute inset-2 flex flex-col justify-between">
+            <div
+              className="absolute inset-2 flex flex-col justify-between"
+              style={lockSoldPrice ? { filter: 'blur(2px)' } : undefined}
+            >
               {/* Top row - Sale and Property Type chips - Swapped positions */}
               <div className="flex justify-between items-center gap-2.5 h-8">
                 <span className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm border border-gray-200 status-badge ${
@@ -616,17 +633,27 @@ const PropertyCardV5 = ({
           )}
         </div>
 
-        {/* Card Content - Dynamic layout based on content amount */}
+        {/* Card Content - Dynamic layout based on content amount.
+            For sold/leased listings shown to guests we blur each sibling
+            value individually (address, features, brokerage, MLS#) while
+            keeping the price row crisp so the sold price stays the only
+            readable piece of information — matches the condos.ca gate. */}
         <div className={`flex flex-col flex-grow items-start ${config.content} box-border`}>
-          {/* Building Name or Price - Conditional display */}
+          {/* Building Name or Price — for sold/leased listings we keep the
+              price crisp (matches condos.ca's treatment); the gate lives
+              over the image area instead. */}
           <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.source === 'building' ? (property.name || 'Building') : formattedPrice}
+            {property.source === 'building' ? (
+              property.name || 'Building'
+            ) : (
+              formattedPrice
+            )}
           </div>
 
           {/* Property Details - Compact layout without excessive spacing */}
           <div className="flex flex-col items-start gap-2 w-full">
             {/* Address */}
-            <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056] line-clamp-2`}>
+            <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056] line-clamp-2 ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
               {displayAddress}
             </div>
 
@@ -655,7 +682,7 @@ const PropertyCardV5 = ({
               };
 
               return (
-                <div className="flex flex-wrap items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
+                <div className={`flex flex-wrap items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056] ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
                   <span className="font-semibold">{buildingName}</span>
                   {neighbourhoodLinks.length > 0 && <span className="text-gray-500">&nbsp;in&nbsp;</span>}
                   {neighbourhoodLinks.map((link, i) => (
@@ -690,7 +717,7 @@ const PropertyCardV5 = ({
             ) : (
               /* Property Features - Beds, Baths, etc */
               features && (
-                <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
+                <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056] ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
                   {features}
                 </div>
               )
@@ -698,14 +725,14 @@ const PropertyCardV5 = ({
 
             {/* Brokerage Name - Only show for properties, not buildings */}
             {property.source !== 'building' && brokerageName && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
+              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600 ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
                 {brokerageName}
               </div>
             )}
 
             {/* MLS Number - Hide for buildings, only show if exists */}
             {property.source !== 'building' && property.listingKey && (
-              <div className="flex items-center justify-start w-full min-h-8">
+              <div className={`flex items-center justify-start w-full min-h-8 ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
                 <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>
                   {property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`}
                 </div>
@@ -714,6 +741,37 @@ const PropertyCardV5 = ({
           </div>
         </div>
       </a>
+
+      {/* Sold/leased login wall — anchored to the image area (top 200px).
+          IMPORTANT: do NOT use ${config.image} here — that class expands
+          to include `property-image-container`, which carries a solid
+          `background: #f7fafc` rule in idx-ampre-styles.css that would
+          paint over the photo. A bare `h-[200px]` keeps the overlay
+          transparent so the image shows through behind the buttons. */}
+      {lockSoldPrice && (
+        <div className="absolute inset-x-0 top-0 h-[200px] z-20 flex flex-col items-center justify-center gap-2.5 px-4 pointer-events-none">
+          <a
+            href="/login"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (typeof onLoginRequired === 'function') {
+                e.preventDefault();
+                onLoginRequired();
+              }
+            }}
+            className="pointer-events-auto w-32 text-center px-5 py-2 rounded-full bg-[#293056] text-white text-sm font-semibold shadow-md hover:bg-[#1f2545] transition-colors"
+          >
+            Sign In
+          </a>
+          <a
+            href="/register"
+            onClick={(e) => e.stopPropagation()}
+            className="pointer-events-auto w-32 text-center px-5 py-2 rounded-full bg-white text-[#293056] text-sm font-semibold border border-[#293056] shadow-md hover:bg-gray-50 transition-colors"
+          >
+            Sign Up
+          </a>
+        </div>
+      )}
     </div>
   );
 };

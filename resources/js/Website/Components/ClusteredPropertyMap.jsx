@@ -2,6 +2,29 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
 import { debounce } from 'lodash';
 
+// condos.ca-style muted tiles: light grey base, soft green parks, pale blue
+// water, and hidden POI clutter so price bubbles dominate the view.
+const CONDOS_MAP_STYLE = [
+  { elementType: 'geometry', stylers: [{ color: '#f3f4f6' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#6b7280' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.neighborhood', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#d7ead5' }, { visibility: 'on' }] },
+  { featureType: 'poi.park', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#e5e7eb' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#d1d5db' }] },
+  { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#cfe3ef' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#7fa9c3' }] },
+];
+
 /**
  * ClusteredPropertyMap - High-performance map component for displaying 500+ property markers
  * Uses MarkerClusterer for grouping nearby markers into clusters
@@ -129,20 +152,31 @@ const ClusteredPropertyMap = ({
     };
   };
 
-  // Create cluster icon
+  // Create cluster icon — condos.ca-style teal bubble with soft drop shadow
   const createClusterIcon = (count) => {
     const size = count < 10 ? 40 : count < 100 ? 50 : 60;
-    const bgColor = count < 10 ? '#007cba' : count < 100 ? '#0056b3' : '#003d82';
+    // Slightly deeper teal for larger clusters so they read as "more".
+    const bgColor = count < 10 ? '#2e7a8b' : count < 100 ? '#236676' : '#1a5260';
+    const fontSize = count < 10 ? 15 : count < 100 ? 14 : 13;
+    const pad = 4;
+    const box = size + pad * 2;
 
     return {
       url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-        <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${bgColor}" stroke="white" stroke-width="3"/>
-          <text x="${size/2}" y="${size/2 + 5}" text-anchor="middle" fill="white" font-size="${count < 100 ? 14 : 12}" font-weight="bold" font-family="Arial, sans-serif">${count}</text>
+        <svg width="${box}" height="${box}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="s" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.25"/>
+            </filter>
+          </defs>
+          <g filter="url(#s)">
+            <circle cx="${box/2}" cy="${box/2}" r="${size/2}" fill="${bgColor}" stroke="white" stroke-width="2"/>
+          </g>
+          <text x="${box/2}" y="${box/2 + fontSize/3}" text-anchor="middle" fill="white" font-size="${fontSize}" font-weight="700" font-family="'Work Sans','Helvetica Neue',Arial,sans-serif">${count}</text>
         </svg>
       `)}`,
-      scaledSize: new window.google.maps.Size(size, size),
-      anchor: new window.google.maps.Point(size/2, size/2)
+      scaledSize: new window.google.maps.Size(box, box),
+      anchor: new window.google.maps.Point(box/2, box/2)
     };
   };
 
@@ -586,7 +620,9 @@ const ClusteredPropertyMap = ({
           rotateControl: false,
           fullscreenControl: true,
           scrollwheel: true,
-          gestureHandling: 'greedy'
+          gestureHandling: 'greedy',
+          clickableIcons: false,
+          styles: CONDOS_MAP_STYLE,
         });
 
         mapInstanceRef.current = map;

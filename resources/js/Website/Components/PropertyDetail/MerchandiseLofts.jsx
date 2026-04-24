@@ -192,6 +192,14 @@ export default function MerchandiseLofts({ propertyData }) {
 
   const buildingId = buildingData?.id;
 
+  // Comma-joined street addresses ("15 Mercer St,35 Mercer") so the search
+  // URL is human-readable and the controller can resolve the listings without
+  // a Building DB lookup.
+  const buildingStreetAddresses = [
+    buildingData?.street_address_1,
+    buildingData?.street_address_2,
+  ].filter(Boolean).join(',');
+
   return (
     <section>
       <div className="mx-auto md:h-[268px] max-w-[1280px]">
@@ -246,31 +254,39 @@ export default function MerchandiseLofts({ propertyData }) {
               
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
-                {buildingId ? (
+                {buildingId ? (() => {
+                  const baseQuery = new URLSearchParams({ building_id: buildingId });
+                  if (buildingStreetAddresses) {
+                    baseQuery.set('street_addresses', buildingStreetAddresses);
+                  }
+                  const rentHref = `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Rent')}`;
+                  const saleHref = `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Sale')}`;
+                  return (
                   <>
-                    <Link 
-                      href={`/search?building_id=${buildingId}&transaction_type=rent`}
+                    <Link
+                      href={rentHref}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-orange-400 rounded-full text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
                       {mlsCounts.for_rent || 0} Condos for Rent
                     </Link>
-                    <Link 
-                      href={`/search?building_id=${buildingId}&transaction_type=sale`}
+                    <Link
+                      href={saleHref}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
                       {mlsCounts.for_sale || 0} Condos for Sale
                     </Link>
                   </>
-                ) : (
+                  );
+                })() : (
                   <>
-                    <Link 
-                      href="/toronto/for-rent"
+                    <Link
+                      href={`/search?status=${encodeURIComponent('For Rent')}`}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-orange-400 rounded-full text-orange-600 bg-orange-50 hover:bg-orange-100 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
                       {mlsCounts.for_rent || 0} Condos for Rent
                     </Link>
-                    <Link 
-                      href="/toronto/for-sale"
+                    <Link
+                      href={`/search?status=${encodeURIComponent('For Sale')}`}
                       className="flex-1 px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-full text-gray-700 hover:bg-gray-50 transition-colors duration-200 font-medium text-sm md:text-base text-center"
                     >
                       {mlsCounts.for_sale || 0} Condos for Sale

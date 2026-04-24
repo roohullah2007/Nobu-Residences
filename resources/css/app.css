@@ -108,11 +108,15 @@ html, body {
     font-family: 'Red Hat Display', sans-serif;
 }
 
-/* Hide default select dropdown arrows */
+/* Hide default select dropdown arrows. The `background-image: none` is
+   important: @tailwindcss/forms injects an SVG chevron via background-image,
+   which would otherwise stack with our custom chevron overlays (e.g. in
+   FiltersModal) and render two arrows side by side. */
 select {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
+    background-image: none;
 }
 
 /* Ensure buttons are clickable and not selectable */

@@ -456,9 +456,18 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                                                     "absolute w-4 h-4 left-2 top-2"
                                                                 )}
                                                             </div>
-                                                            <span className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none">
-                                                                {website?.agent_info?.agent_phone || website?.contact_info?.phone}
-                                                            </span>
+                                                            {(() => {
+                                                                const phone = website?.agent_info?.agent_phone || website?.contact_info?.phone;
+                                                                const telHref = `tel:${String(phone).replace(/[^+\d]/g, '')}`;
+                                                                return (
+                                                                    <a
+                                                                        href={telHref}
+                                                                        className="w-full md:w-[102px] font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-6 flex items-center tracking-[-0.03em] text-[#293056] flex-none hover:underline"
+                                                                    >
+                                                                        {phone}
+                                                                    </a>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     )}
 
