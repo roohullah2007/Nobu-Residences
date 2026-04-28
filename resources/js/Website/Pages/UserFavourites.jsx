@@ -42,6 +42,15 @@ export default function UserFavourites({ auth, website }) {
         return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`;
     };
 
+    // Older favourites stored `images` as an array of objects
+    // (`[{MediaURL: '...'}]`) instead of plain URL strings, so the previous
+    // resolver returned the object itself and the <img src> rendered blank.
+    const pickImageUrl = (img) => {
+        if (!img) return null;
+        if (typeof img === 'string') return img;
+        return img.MediaURL || img.url || img.Uri || img.uri || null;
+    };
+
     const fetchFavourites = async () => {
         setIsLoading(true);
         try {
@@ -93,15 +102,12 @@ export default function UserFavourites({ auth, website }) {
                         // Additional data
                         savedDate: formatTimeAgo(fav.favourited_at),
                         source: 'mls',
-                        // Try multiple sources for image
-                        imageUrl: propertyData.images?.[0] ||
-                                 propertyData.imageUrl ||
-                                 propertyData.MediaURL ||
-                                 fav.property_data?.MediaURL ||
-                                 fav.property_data?.images?.[0] ||
-                                 fav.property_data?.imageUrl ||
-                                 propertyData.Photos?.[0]?.Uri ||
-                                 propertyData.Photos?.[0]?.MediaURL ||
+                        // Try multiple sources for image. Stored shapes vary —
+                        // strings, {MediaURL: '...'}, {url: '...'}, {Uri: '...'}.
+                        imageUrl: pickImageUrl(propertyData.images?.[0]) ||
+                                 pickImageUrl(propertyData.imageUrl) ||
+                                 pickImageUrl(propertyData.MediaURL) ||
+                                 pickImageUrl(propertyData.Photos?.[0]) ||
                                  null,
                         originalPropertyData: fav
                     };

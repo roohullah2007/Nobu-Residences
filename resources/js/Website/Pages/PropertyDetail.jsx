@@ -44,6 +44,11 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
   // Login modal state
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [loginInitialTab, setLoginInitialTab] = useState('login');
+  const openLoginModal = (tab = 'login') => {
+    setLoginInitialTab(tab);
+    setLoginModalOpen(true);
+  };
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
@@ -327,7 +332,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
               propertyImages={propertyImages}
               propertyData={displayData}
               auth={auth}
-              onLoginClick={() => setLoginModalOpen(true)}
+              onLoginClick={() => openLoginModal('login')}
             />
           </div>
 
@@ -342,6 +347,8 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                 website={website}
                 buildingData={buildingData}
                 aiDescription={aiDescription}
+                onLoginClick={() => openLoginModal('login')}
+                onSignupClick={() => openLoginModal('register')}
               />
             </div>
 
@@ -359,7 +366,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                         Create a free account to save properties and get exclusive access to property details
                       </p>
                       <button
-                        onClick={() => setLoginModalOpen(true)}
+                        onClick={() => openLoginModal('login')}
                         className="w-full py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
                         style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                       >
@@ -395,6 +402,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
+        initialTab={loginInitialTab}
       />
     </MainLayout>
   );

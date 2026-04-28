@@ -15,7 +15,9 @@ export default function BuildingSections({
   buildingData,
   sampleSaleProperties,
   sampleRentProperties,
-  auth
+  auth,
+  onLoginClick,
+  onSignupClick,
 }) {
   // Debug: Log building data to see MLS properties
   console.log('[BuildingSections] ========= DEBUG v2 =========');
@@ -49,6 +51,8 @@ export default function BuildingSections({
           propertyType="Condo Apartment"
           transactionType="For Sale"
           buildingData={buildingData}
+          onLoginRequired={onLoginClick}
+          onSignupRequired={onSignupClick}
         />
       </div>
 
@@ -59,6 +63,8 @@ export default function BuildingSections({
           propertyType="Condo Apartment"
           transactionType="For Rent"
           buildingData={buildingData}
+          onLoginRequired={onLoginClick}
+          onSignupRequired={onSignupClick}
         />
       </div>
 

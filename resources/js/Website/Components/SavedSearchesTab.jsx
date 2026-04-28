@@ -214,11 +214,11 @@ export default function SavedSearchesTab() {
       </div>
 
       {savedSearches.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {savedSearches.map((search) => {
             const formatted = formatSavedSearch(search);
             return (
-              <div key={search.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div key={search.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <h3 className="font-medium text-gray-900 mb-1">{search.name}</h3>

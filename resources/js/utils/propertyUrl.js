@@ -56,7 +56,15 @@ export const generatePropertyUrl = (property, building = null) => {
     if (streetSuffix) addressParts.push(streetSuffix.toLowerCase());
     if (citySlug) addressParts.push(citySlug);
 
-    let addressSlug = addressParts.join('-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-');
+    // Important: convert whitespace to dashes BEFORE stripping non-alphanumerics.
+    // Otherwise multi-word street names like "Inn On The Park" collapse to
+    // "innonthepark" and the route can't resolve the property URL.
+    let addressSlug = addressParts
+        .join('-')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
 
     // Fallback if no address components
     if (!addressSlug) {

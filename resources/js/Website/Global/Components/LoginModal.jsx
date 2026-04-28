@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
-const LoginModal = ({ isOpen, onClose, website = {} }) => {
+const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) => {
   const { googleOAuthEnabled } = usePage().props;
-  const [activeTab, setActiveTab] = useState('register');
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Sync the tab whenever the modal is (re)opened, so callers like the
+  // sold-card "Sign In" button can land users directly on the login tab.
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Heart, Share, FacebookIcon, TwitterIcon, EmailIcon, LinkIcon } from '@/Website/Components/Icons';
 import usePropertyFavourite from '@/hooks/usePropertyFavourite';
 import { Link, usePage } from '@inertiajs/react';
+import LoginModal from '@/Website/Global/Components/LoginModal';
 
 export default function PropertyHeader({
   data,
@@ -11,6 +12,7 @@ export default function PropertyHeader({
 }) {
   const [showShareDropdown, setShowShareDropdown] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState('login');
 
   // Use the favourite hook instead of local state
   const { isFavourited, toggleFavourite, isLoading: favouriteLoading, isAuthenticated } = usePropertyFavourite(data, auth);
@@ -157,13 +159,18 @@ export default function PropertyHeader({
   const handleFavouriteClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!isAuthenticated) {
+      setAuthModalTab('login');
       setShowAuthPrompt(true);
       return;
     }
-    
-    await toggleFavourite();
+
+    const result = await toggleFavourite();
+    if (result?.requires_auth) {
+      setAuthModalTab('login');
+      setShowAuthPrompt(true);
+    }
   };
 
   // Get display values based on type
@@ -491,46 +498,14 @@ export default function PropertyHeader({
         />
       )}
 
-      {/* Authentication Prompt Modal */}
-      {showAuthPrompt && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <Heart className="w-6 h-6 text-red-500" filled={true} />
-              <h3 className="text-xl font-bold text-[#293056]">
-                Save to Favourites
-              </h3>
-            </div>
-            
-            <p className="text-gray-600 mb-6">
-              Create a free account to save your favourite properties and access them anytime.
-            </p>
-            
-            <div className="flex flex-col gap-3">
-              <Link
-                href="/register"
-                className="w-full py-3 px-4 rounded-lg font-medium text-center hover:opacity-90 transition-all"
-                style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
-              >
-                Create Free Account
-              </Link>
-              <Link
-                href="/login"
-                className="w-full py-3 px-4 border rounded-lg font-medium text-center hover:bg-gray-50 transition-colors"
-                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
-              >
-                Sign In
-              </Link>
-              <button
-                onClick={() => setShowAuthPrompt(false)}
-                className="w-full py-2 px-4 text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Shared global LoginModal — same one used by every other auth-gate
+          on the site (sold cards, price history, save-search, etc.) */}
+      <LoginModal
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        website={currentWebsite}
+        initialTab={authModalTab}
+      />
     </>
   );
 }

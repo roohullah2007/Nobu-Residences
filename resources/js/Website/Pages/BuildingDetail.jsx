@@ -45,6 +45,11 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
 
   // Login modal state
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [loginInitialTab, setLoginInitialTab] = useState('login');
+  const openLoginModal = (tab = 'login') => {
+    setLoginInitialTab(tab);
+    setLoginModalOpen(true);
+  };
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
@@ -295,6 +300,8 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                 sampleSaleProperties={sampleSaleProperties}
                 sampleRentProperties={sampleRentProperties}
                 auth={auth}
+                onLoginClick={() => openLoginModal('login')}
+                onSignupClick={() => openLoginModal('register')}
               />
               
               {/* Global Viewing Request Modal */}
@@ -320,7 +327,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                         Create a free account to save buildings and get exclusive access to property details
                       </p>
                       <button
-                        onClick={() => setLoginModalOpen(true)}
+                        onClick={() => openLoginModal('login')}
                         className="w-full py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
                         style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                       >
@@ -346,9 +353,10 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
       <MobileBottomBar />
       
       {/* Login Modal */}
-      <LoginModal 
+      <LoginModal
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
+        initialTab={loginInitialTab}
       />
     </MainLayout>
   );

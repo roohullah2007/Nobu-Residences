@@ -19,13 +19,54 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        // Get the default website
-        $website = \App\Models\Website::where('is_default', true)->first();
+        // MainLayout expects the same structured `website` shape that
+        // WebsiteController::getWebsiteSettings() produces. Passing the raw
+        // model instead skips the brand_colors/contact_info/agent_info
+        // accessors and the page falls back to default styling — which is
+        // why /profile previously rendered with a different look than the
+        // rest of the site.
+        $website = \App\Models\Website::with('agentInfo')
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first()
+            ?? \App\Models\Website::with('agentInfo')->first();
+
+        $websiteData = null;
+        $headerLinks = null;
+        if ($website) {
+            $homePage = $website->homePage();
+            $homePageContent = $homePage?->content ?? null;
+            if ($homePageContent) {
+                $contentData = is_string($homePageContent) ? json_decode($homePageContent, true) : $homePageContent;
+                $headerLinks = $contentData['header_links'] ?? null;
+            }
+
+            $websiteData = [
+                'id' => $website->id,
+                'name' => $website->name,
+                'slug' => $website->slug,
+                'logo_url' => $website->logo_url,
+                'logo_width' => $website->logo_width,
+                'logo_height' => $website->logo_height,
+                'brand_colors' => $website->getBrandColors(),
+                'fonts' => $website->fonts,
+                'meta_title' => $website->meta_title,
+                'meta_description' => $website->meta_description,
+                'favicon_url' => $website->favicon_url,
+                'contact_info' => $website->getContactInfo(),
+                'social_media' => $website->getSocialMedia(),
+                'agent_info' => $website->agentInfo,
+                'header_links' => $headerLinks,
+            ];
+        }
 
         return Inertia::render('Profile/UserProfile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
-            'website' => $website,
+            'website' => $websiteData,
+            'siteName' => $website?->name ?? 'Nobu Residences',
+            'siteUrl' => $website?->domain ?? request()->getHost(),
+            'year' => date('Y'),
         ]);
     }
 

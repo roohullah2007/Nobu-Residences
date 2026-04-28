@@ -4,7 +4,9 @@ import { usePage } from '@inertiajs/react';
 
 const ComparableSales = ({
   title = "Comparable Sales",
-  propertyData = null
+  propertyData = null,
+  onLoginRequired,
+  onSignupRequired,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
@@ -182,6 +184,8 @@ const ComparableSales = ({
                   property={property}
                   size="default"
                   className="w-[300px]"
+                  onLoginRequired={onLoginRequired}
+                  onSignupRequired={onSignupRequired}
                 />
               </div>
             ))}
@@ -208,6 +212,8 @@ const ComparableSales = ({
                           property={property}
                           size="default"
                           className="w-[300px]"
+                          onLoginRequired={onLoginRequired}
+                          onSignupRequired={onSignupRequired}
                         />
                       </div>
                     ))}

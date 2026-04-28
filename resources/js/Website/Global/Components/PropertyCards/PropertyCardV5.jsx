@@ -39,6 +39,7 @@ const PropertyCardV5 = ({
   showCompareButton = true,
   onCompareChange,
   onLoginRequired,
+  onSignupRequired,
 }) => {
   const { auth } = usePage().props;
   const [isFavourited, setIsFavourited] = useState(false);
@@ -754,7 +755,16 @@ const PropertyCardV5 = ({
           </a>
           <a
             href="/register"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (typeof onSignupRequired === 'function') {
+                e.preventDefault();
+                onSignupRequired();
+              } else if (typeof onLoginRequired === 'function') {
+                e.preventDefault();
+                onLoginRequired();
+              }
+            }}
             className="pointer-events-auto w-32 text-center px-5 py-2 rounded-full bg-white text-[#293056] text-sm font-semibold border border-[#293056] shadow-md hover:bg-gray-50 transition-colors"
           >
             Sign Up

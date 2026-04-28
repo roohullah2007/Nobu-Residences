@@ -127,6 +127,38 @@ class Building extends Model
         'deleted_at',
     ];
 
+    // Old records stored absolute dev URLs like
+    // "http://127.0.0.1:8000/images/buildings/foo.jpeg". Those break the
+    // moment the app runs on a different host/port (production, a colleague's
+    // machine, `php artisan serve` on another port, or even `localhost` vs
+    // `127.0.0.1`). Strip the host so the browser resolves the path against
+    // the current origin.
+    protected function stripLocalHost(?string $url): ?string
+    {
+        if (! $url) {
+            return $url;
+        }
+        return preg_replace(
+            '#^https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0)(?::\d+)?#i',
+            '',
+            $url
+        );
+    }
+
+    public function getMainImageAttribute($value)
+    {
+        return $this->stripLocalHost($value);
+    }
+
+    public function getImagesAttribute($value)
+    {
+        $images = is_string($value) ? json_decode($value, true) : $value;
+        if (! is_array($images)) {
+            return $images;
+        }
+        return array_map(fn ($u) => is_string($u) ? $this->stripLocalHost($u) : $u, $images);
+    }
+
     /**
      * Get the developer that owns this building
      */

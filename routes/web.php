@@ -58,7 +58,7 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
     ->where([
         'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
-        'listingKey' => '(?:unit-\d+-)?[A-Z][0-9]+' // MLS ID or unit-{num}-{MLS ID}
+        'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+' // MLS ID or unit-{unitNumber}-{MLS ID}; unit numbers can be alphanumeric (e.g. PL01, TH3, 4A)
     ])
     ->name('property-detail');
 

@@ -20,6 +20,212 @@ class PropertyDetailController extends Controller
     }
 
     /**
+     * Hydrate a list of MLS keys into compare-friendly objects for the
+     * /compare-listings page. The page only stores keys client-side
+     * (localStorage); this endpoint fetches the live Repliers details so
+     * Beds/Baths/Size/Fees/Tax/Exposure/etc. are accurate at view time.
+     */
+    public function compareDetails(Request $request): JsonResponse
+    {
+        $keys = $request->input('keys', []);
+        if (! is_array($keys)) {
+            return response()->json(['items' => []]);
+        }
+        $keys = array_values(array_unique(array_filter(array_map('strval', $keys))));
+        if (empty($keys)) {
+            return response()->json(['items' => []]);
+        }
+        // Cap to a reasonable number; the UI compares 3 at a time.
+        $keys = array_slice($keys, 0, 6);
+
+        $items = [];
+        foreach ($keys as $key) {
+            try {
+                $listing = null;
+                $mlsProperty = MLSProperty::where('mls_id', $key)->first();
+                if ($mlsProperty && ! empty($mlsProperty->mls_data)) {
+                    $listing = $mlsProperty->mls_data;
+                } else {
+                    $listing = $this->repliersApi->getListingByMlsNumber($key);
+                }
+                if (! $listing) {
+                    continue;
+                }
+                $items[] = $this->formatCompareItem($listing);
+            } catch (\Throwable $e) {
+                Log::warning('compareDetails: failed to hydrate', ['key' => $key, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return response()->json(['items' => $items]);
+    }
+
+    private function formatCompareItem(array $listing): array
+    {
+        $isRepliers = isset($listing['address']) && is_array($listing['address']);
+
+        $address = $isRepliers ? ($listing['address'] ?? []) : [];
+        $details = $isRepliers ? ($listing['details'] ?? []) : [];
+        $condo = $isRepliers ? ($listing['condominium'] ?? []) : [];
+        $fees = $isRepliers ? ($condo['fees'] ?? []) : [];
+        $taxes = $isRepliers ? ($listing['taxes'] ?? []) : [];
+
+        // Normalise tax (Repliers can return it as either an associative or
+        // numerically-indexed array depending on the listing).
+        $taxAmount = null;
+        $taxYear = null;
+        if (! empty($taxes)) {
+            if (isset($taxes[0])) {
+                $taxAmount = $taxes[0]['annualAmount'] ?? null;
+                $taxYear = $taxes[0]['assessmentYear'] ?? null;
+            } else {
+                $taxAmount = $taxes['annualAmount'] ?? null;
+                $taxYear = $taxes['assessmentYear'] ?? null;
+            }
+        } elseif (! $isRepliers) {
+            $taxAmount = $listing['TaxAnnualAmount'] ?? null;
+            $taxYear = $listing['TaxYear'] ?? $listing['AssessmentYear'] ?? null;
+        }
+
+        $listingKey = $isRepliers
+            ? ($listing['mlsNumber'] ?? '')
+            : ($listing['ListingKey'] ?? $listing['MLSNumber'] ?? '');
+
+        $unitNumber = $isRepliers ? ($address['unitNumber'] ?? '') : ($listing['UnitNumber'] ?? '');
+        $streetNumber = $isRepliers ? ($address['streetNumber'] ?? '') : ($listing['StreetNumber'] ?? '');
+        $streetName = $isRepliers ? ($address['streetName'] ?? '') : ($listing['StreetName'] ?? '');
+        $streetSuffix = $isRepliers ? ($address['streetSuffix'] ?? '') : ($listing['StreetSuffix'] ?? '');
+        $city = $isRepliers ? ($address['city'] ?? '') : ($listing['City'] ?? '');
+
+        $street = trim($streetNumber.' '.$streetName.' '.$streetSuffix);
+        $shortAddress = $unitNumber ? "$unitNumber - $street" : $street;
+
+        $bedrooms = $isRepliers
+            ? (int) (($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0))
+            : (int) ($listing['BedroomsTotal'] ?? 0);
+        $bathrooms = $isRepliers
+            ? (int) (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0))
+            : (int) ($listing['BathroomsTotalInteger'] ?? 0);
+
+        // Repliers `sqft` may be a range like "700-799" or a number.
+        $sqftRaw = $isRepliers
+            ? ($details['sqft'] ?? null)
+            : ($listing['LivingArea'] ?? $listing['LivingAreaRange'] ?? null);
+        $sqftAvg = $this->averageSqft($sqftRaw);
+
+        $listPrice = $isRepliers ? ($listing['listPrice'] ?? 0) : ($listing['ListPrice'] ?? 0);
+        $maintenanceFee = $isRepliers
+            ? ($fees['maintenance'] ?? $details['maintenanceFee'] ?? null)
+            : ($listing['AssociationFee'] ?? null);
+        $exposure = $isRepliers
+            ? ($condo['exposure'] ?? $details['exposure'] ?? '')
+            : ($listing['Exposure'] ?? '');
+        $parking = (int) ($isRepliers ? ($details['numParkingSpaces'] ?? 0) : ($listing['ParkingTotal'] ?? 0));
+        $balcony = $isRepliers ? ($details['balcony'] ?? '') : '';
+        $locker = $isRepliers ? ($condo['locker'] ?? '') : '';
+        $furnished = $isRepliers ? ($details['furnished'] ?? '') : '';
+
+        $imageUrl = '';
+        if (! empty($listing['images']) && is_array($listing['images'])) {
+            $first = $listing['images'][0] ?? null;
+            if (is_string($first)) {
+                $imageUrl = str_starts_with($first, 'http')
+                    ? $first
+                    : $this->repliersApi->getImageUrl($first);
+            }
+        } elseif (! empty($listing['MediaURL'])) {
+            $imageUrl = $listing['MediaURL'];
+        }
+
+        $building = $this->findBuildingData(['address' => $shortAddress]);
+
+        $type = $isRepliers ? ($listing['type'] ?? 'Sale') : ($listing['TransactionType'] ?? 'For Sale');
+        $transactionType = (strtolower($type) === 'lease' || strtolower($type) === 'for lease')
+            ? 'For Lease' : 'For Sale';
+
+        $lastStatus = $isRepliers ? ($listing['lastStatus'] ?? '') : ($listing['MlsStatus'] ?? '');
+
+        return [
+            'listingKey' => $listingKey,
+            'imageUrl' => $imageUrl,
+            'shortAddress' => $shortAddress,
+            'unitNumber' => $unitNumber,
+            'street' => $street,
+            'city' => $city,
+            'transactionType' => $transactionType,
+            'lastStatus' => $lastStatus,
+            'propertyType' => $isRepliers ? ($details['propertyType'] ?? '') : ($listing['PropertyType'] ?? ''),
+
+            'listPrice' => $listPrice ? (float) $listPrice : null,
+            'bedrooms' => $bedrooms,
+            'bathrooms' => $bathrooms,
+            'sqft' => $sqftRaw,
+            'sqftAvg' => $sqftAvg,
+            'pricePerSqft' => ($listPrice && $sqftAvg) ? round($listPrice / $sqftAvg) : null,
+            'maintenanceFee' => $maintenanceFee !== null ? (float) $maintenanceFee : null,
+            'taxAnnualAmount' => $taxAmount !== null ? (float) $taxAmount : null,
+            'taxYear' => $taxYear,
+            'daysOnMarket' => $isRepliers
+                ? ($listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? null)
+                : ($listing['DaysOnMarket'] ?? null),
+            'exposure' => $exposure,
+            'exposureShort' => $this->shortExposure($exposure),
+            'parking' => $parking,
+            'balcony' => $balcony,
+            'hasOutdoorSpace' => $balcony !== '' && strcasecmp($balcony, 'None') !== 0,
+            'locker' => $locker,
+            'hasLocker' => $locker !== '' && strcasecmp($locker, 'None') !== 0,
+            'furnished' => $furnished,
+            'isFurnished' => $furnished !== '' && ! in_array(strtolower((string) $furnished), ['', 'no', 'none', 'unfurnished'], true),
+            'hydroIncluded' => isset($fees['hydroIncl']) ? (bool) $fees['hydroIncl'] : null,
+            'waterIncluded' => isset($fees['waterIncl']) ? (bool) $fees['waterIncl'] : null,
+            'heatIncluded' => isset($fees['heatIncl']) ? (bool) $fees['heatIncl'] : null,
+
+            'yearBuilt' => $isRepliers ? ($details['yearBuilt'] ?? null) : ($listing['YearBuilt'] ?? null),
+            'condoCorp' => $condo['condoCorp'] ?? null,
+            'amenities' => $isRepliers ? ($condo['amenities'] ?? []) : [],
+            'neighborhood' => $isRepliers ? ($address['neighborhood'] ?? '') : '',
+            'building' => $building,
+        ];
+    }
+
+    private function averageSqft($raw): ?int
+    {
+        if ($raw === null || $raw === '' || $raw === false) return null;
+        if (is_numeric($raw)) return (int) $raw;
+        if (is_string($raw) && preg_match('/(\d+)\s*-\s*(\d+)/', $raw, $m)) {
+            return (int) round((((int) $m[1]) + ((int) $m[2])) / 2);
+        }
+        if (is_string($raw) && preg_match('/(\d+)/', $raw, $m)) {
+            return (int) $m[1];
+        }
+        return null;
+    }
+
+    private function shortExposure(?string $val): string
+    {
+        if (! $val) return '';
+        $cleaned = strtoupper(preg_replace('/[^A-Za-z]/', '', $val));
+        // "NorthWest" → "NW"; "North" → "N"
+        $map = ['NORTH' => 'N', 'SOUTH' => 'S', 'EAST' => 'E', 'WEST' => 'W'];
+        $out = '';
+        $i = 0;
+        while ($i < strlen($cleaned)) {
+            $matched = false;
+            foreach ($map as $word => $letter) {
+                if (substr($cleaned, $i, strlen($word)) === $word) {
+                    $out .= $letter;
+                    $i += strlen($word);
+                    $matched = true;
+                    break;
+                }
+            }
+            if (! $matched) { $i++; }
+        }
+        return $out !== '' ? $out : $val;
+    }
+
+    /**
      * Get property details by listing key (MLS number)
      */
     public function getPropertyDetail(Request $request): JsonResponse

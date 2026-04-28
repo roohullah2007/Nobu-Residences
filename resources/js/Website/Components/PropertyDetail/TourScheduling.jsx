@@ -2,9 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
 
 const TourSchedulingComponent = ({ website, propertyData }) => {
-  const { globalWebsite } = usePage().props;
+  const { globalWebsite, auth } = usePage().props;
   const currentWebsite = website || globalWebsite;
   const brandColors = currentWebsite?.brand_colors || {};
+
+  // Logged-in users shouldn't have to retype info we already have. We
+  // prefill from their profile and hide the matching field — but if a
+  // field is missing on the profile (e.g. no phone yet), we still render
+  // it so they can supply it.
+  const isLoggedIn = !!auth?.user;
+  const profileName = (auth?.user?.name || '').trim();
+  const profileEmail = (auth?.user?.email || '').trim();
+  const profilePhone = (auth?.user?.phone || '').trim();
+  const hideName = isLoggedIn && profileName !== '';
+  const hideEmail = isLoggedIn && profileEmail !== '';
+  const hidePhone = isLoggedIn && profilePhone !== '';
 
   const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
   const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
@@ -23,18 +35,35 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
   const placeholderRef = useRef(null);
   
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: profileName,
+    email: profileEmail,
+    phone: profilePhone,
     message: ''
   });
 
   const [questionFormData, setQuestionFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: profileName,
+    email: profileEmail,
+    phone: profilePhone,
     question: ''
   });
+
+  // When auth state arrives after the initial render (e.g. after the
+  // login modal closes) refresh the prefilled values.
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      name: prev.name || profileName,
+      email: prev.email || profileEmail,
+      phone: prev.phone || profilePhone,
+    }));
+    setQuestionFormData(prev => ({
+      ...prev,
+      name: prev.name || profileName,
+      email: prev.email || profileEmail,
+      phone: prev.phone || profilePhone,
+    }));
+  }, [profileName, profileEmail, profilePhone]);
 
   // Generate dates array - starts from TOMORROW (no same-day booking)
   const generateDates = () => {
@@ -547,44 +576,50 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
             </div>
 
             <div>
-              <div className="mb-4">
-                <label htmlFor="name" className="block text-gray-700 mb-1 font-medium">Full Name</label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hideName && (
+                <div className="mb-4">
+                  <label htmlFor="name" className="block text-gray-700 mb-1 font-medium">Full Name</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
-              <div className="mb-4">
-                <label htmlFor="email" className="block text-gray-700 mb-1 font-medium">Email Address</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hideEmail && (
+                <div className="mb-4">
+                  <label htmlFor="email" className="block text-gray-700 mb-1 font-medium">Email Address</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
-              <div className="mb-4">
-                <label htmlFor="phone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hidePhone && (
+                <div className="mb-4">
+                  <label htmlFor="phone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="mb-4">
                 <label htmlFor="message" className="block text-gray-700 mb-1 font-medium">Additional Notes (Optional)</label>
@@ -650,44 +685,50 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
             </p>
 
             <form onSubmit={handleQuestionSubmit}>
-              <div className="mb-4">
-                <label htmlFor="questionName" className="block text-gray-700 mb-1 font-medium">Full Name</label>
-                <input
-                  type="text"
-                  id="questionName"
-                  name="name"
-                  value={questionFormData.name}
-                  onChange={handleQuestionInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hideName && (
+                <div className="mb-4">
+                  <label htmlFor="questionName" className="block text-gray-700 mb-1 font-medium">Full Name</label>
+                  <input
+                    type="text"
+                    id="questionName"
+                    name="name"
+                    value={questionFormData.name}
+                    onChange={handleQuestionInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
-              <div className="mb-4">
-                <label htmlFor="questionEmail" className="block text-gray-700 mb-1 font-medium">Email Address</label>
-                <input
-                  type="email"
-                  id="questionEmail"
-                  name="email"
-                  value={questionFormData.email}
-                  onChange={handleQuestionInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hideEmail && (
+                <div className="mb-4">
+                  <label htmlFor="questionEmail" className="block text-gray-700 mb-1 font-medium">Email Address</label>
+                  <input
+                    type="email"
+                    id="questionEmail"
+                    name="email"
+                    value={questionFormData.email}
+                    onChange={handleQuestionInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
-              <div className="mb-4">
-                <label htmlFor="questionPhone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                <input
-                  type="tel"
-                  id="questionPhone"
-                  name="phone"
-                  value={questionFormData.phone}
-                  onChange={handleQuestionInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                  required
-                />
-              </div>
+              {!hidePhone && (
+                <div className="mb-4">
+                  <label htmlFor="questionPhone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="questionPhone"
+                    name="phone"
+                    value={questionFormData.phone}
+                    onChange={handleQuestionInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="mb-4">
                 <label htmlFor="question" className="block text-gray-700 mb-1 font-medium">Your Question</label>

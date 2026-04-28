@@ -10,7 +10,9 @@ const MoreBuildings = ({
   propertyType: filterPropertyType = null,
   transactionType: filterTransactionType = null,
   buildingData = null,
-  fetchType = null // 'buildings' for backend buildings, null for MLS properties
+  fetchType = null, // 'buildings' for backend buildings, null for MLS properties
+  onLoginRequired,
+  onSignupRequired,
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
@@ -888,6 +890,8 @@ const MoreBuildings = ({
                             window.location.href = `/property/${building.listingKey || building.ListingKey}`;
                           }
                         }}
+                        onLoginRequired={onLoginRequired}
+                        onSignupRequired={onSignupRequired}
                       />
                     </div>
                   ))}
@@ -927,6 +931,8 @@ const MoreBuildings = ({
                       window.location.href = `/property/${building.listingKey}`;
                     }
                   }}
+                  onLoginRequired={onLoginRequired}
+                  onSignupRequired={onSignupRequired}
                 />
               </div>
             ))}
@@ -961,6 +967,8 @@ const MoreBuildings = ({
                             }
                           }}
                           className="w-[300px]"
+                          onLoginRequired={onLoginRequired}
+                          onSignupRequired={onSignupRequired}
                         />
                       </div>
                     ))}

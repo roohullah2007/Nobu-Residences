@@ -15,7 +15,9 @@ export default function PropertySections({
   propertyImages,
   auth,
   buildingData,
-  aiDescription
+  aiDescription,
+  onLoginClick,
+  onSignupClick,
 }) {
   // Log AI description and FAQs for debugging (minimal logging)
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function PropertySections({
      {/* Property Status and Navigation Tabs */}
       <PropertyStatusTabs property={propertyData} buildingData={buildingData} aiDescription={aiDescription} auth={auth} />
       {/* Price History Section — live from Repliers `history` field */}
-      <PriceHistory propertyData={propertyData} propertyImages={propertyImages} auth={auth} />
+      <PriceHistory propertyData={propertyData} propertyImages={propertyImages} auth={auth} onLoginClick={onLoginClick} />
       
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />
@@ -90,12 +92,16 @@ export default function PropertySections({
           : "Nearby Listings"
         }
         propertyData={propertyData}
+        onLoginRequired={onLoginClick}
+        onSignupRequired={onSignupClick}
       />
 
       {/* Comparable Sales Section - Show sold properties instead of similar listings */}
       <ComparableSales
         title="Comparable Sales"
         propertyData={propertyData}
+        onLoginRequired={onLoginClick}
+        onSignupRequired={onSignupClick}
       />
       
       {/* Properties For Sale Section - Using Global PropertyCarousel

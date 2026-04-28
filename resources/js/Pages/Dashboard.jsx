@@ -254,11 +254,11 @@ export default function Dashboard({ auth, website }) {
                                     </Link>
                                 </div>
                             ) : (
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     {savedSearches.map((search) => (
                                         <div
                                             key={search.id}
-                                            className="group bg-gray-50 hover:bg-white border border-gray-100 hover:border-gray-200 rounded-xl p-5 transition-all duration-200 hover:shadow-sm"
+                                            className="group bg-gray-50 hover:bg-white border border-gray-200 hover:border-gray-300 rounded-xl p-5 transition-all duration-200 hover:shadow-sm"
                                         >
                                             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                                 <div className="flex-1 min-w-0">

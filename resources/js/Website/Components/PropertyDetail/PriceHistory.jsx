@@ -17,6 +17,7 @@ const PriceHistory = ({
   auth = null,
   showAll = false,
   building = null,
+  onLoginClick = null,
 }) => {
   const [expanded, setExpanded] = useState(false);
   // Always trust Inertia's shared auth as the source of truth — the `auth`
@@ -182,10 +183,33 @@ const PriceHistory = ({
             const blur = !isLoggedIn;
             const blurCls = blur ? 'blur-sm select-none' : '';
 
+            const handleLockedClick = () => {
+              if (typeof onLoginClick === 'function') {
+                onLoginClick();
+              } else {
+                window.location.href = '/login';
+              }
+            };
+
             return (
               <div
                 key={`${entry.mlsNumber || 'h'}-${idx}`}
-                className="flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
+                role={blur ? 'button' : undefined}
+                tabIndex={blur ? 0 : undefined}
+                onClick={blur ? handleLockedClick : undefined}
+                onKeyDown={
+                  blur
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleLockedClick();
+                        }
+                      }
+                    : undefined
+                }
+                className={`flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4 ${
+                  blur ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''
+                }`}
               >
                 {/* Thumbnail — prefer per-entry image (building view) */}
                 <div className="flex-shrink-0">

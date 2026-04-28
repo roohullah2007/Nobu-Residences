@@ -58,8 +58,8 @@ export const usePropertyFavourite = (property, auth) => {
 
   const toggleFavourite = async () => {
     if (!isAuthenticated) {
-      // Redirect to login
-      window.location.href = '/login';
+      // Don't navigate away — return a flag so the caller can open the
+      // shared LoginModal in-place. This keeps the user's scroll/state.
       return { success: false, requires_auth: true };
     }
 

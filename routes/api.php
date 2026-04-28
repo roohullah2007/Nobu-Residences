@@ -72,6 +72,7 @@ Route::get('/mls/property-images/{listingKey}', [PropertyImageController::class,
 Route::prefix('properties')->group(function () {
     Route::get('/nearby-listings', [PropertyDetailController::class, 'getNearbyListings']);
     Route::get('/similar-listings', [PropertyDetailController::class, 'getSimilarListings']);
+    Route::post('/compare-details', [PropertyDetailController::class, 'compareDetails']);
 });
 
 // Alternative routes for compatibility

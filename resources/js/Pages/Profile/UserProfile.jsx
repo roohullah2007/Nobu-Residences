@@ -8,7 +8,7 @@ import TextInput from '@/Components/TextInput';
 import { Transition } from '@headlessui/react';
 import MainLayout from '@/Website/Global/MainLayout';
 
-export default function UserProfile({ auth, mustVerifyEmail, status, website }) {
+export default function UserProfile({ auth, mustVerifyEmail, status, website, siteName, siteUrl, year }) {
     const user = auth.user;
     const [photoPreview, setPhotoPreview] = useState(null);
     const [activeTab, setActiveTab] = useState('profile');
@@ -130,7 +130,7 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website }) 
     };
 
     return (
-        <MainLayout auth={auth} website={website}>
+        <MainLayout auth={auth} website={website} siteName={siteName} siteUrl={siteUrl} year={year}>
             <Head title="Profile Settings" />
 
             {/* Main Content */}
