@@ -135,7 +135,7 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
 
             {/* Main Content */}
             <div className="min-h-screen bg-gray-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 md:pt-32 pb-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-8 pb-12">
                     {/* Tabs Navigation */}
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="border-b border-gray-200">
