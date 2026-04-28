@@ -1500,8 +1500,11 @@ class WebsiteController extends Controller
      */
     public function propertyDetail($city, $address, $listingKey)
     {
-        // Extract MLS number from new URL format: unit-604-S12960990 -> S12960990
-        if (preg_match('/^unit-\d+-([A-Z]\d+)$/i', $listingKey, $matches)) {
+        // Extract MLS number from new URL format: unit-604-S12960990 -> S12960990.
+        // Unit numbers can contain letters too (PL01, TH3, 4A) — must allow
+        // [A-Za-z0-9] not just \d, otherwise we leave the prefix attached and
+        // Repliers returns null, which leaves the page stuck on "Loading…".
+        if (preg_match('/^unit-[A-Za-z0-9]+-([A-Z]\d+)$/i', $listingKey, $matches)) {
             $listingKey = $matches[1];
         }
 
