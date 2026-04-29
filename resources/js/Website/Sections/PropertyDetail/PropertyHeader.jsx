@@ -75,7 +75,7 @@ export default function PropertyHeader({ propertyData, isFavorited, onToggleFavo
                 </button>
                 
                 {showShareDropdown && (
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] z-50">
+                  <div className="absolute top-full left-0 md:left-auto md:right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] z-50">
                     <div className="py-1">
                     <button 
                     onClick={() => handleShare('Facebook')}

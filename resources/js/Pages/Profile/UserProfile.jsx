@@ -12,7 +12,26 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
     const user = auth.user;
     const [photoPreview, setPhotoPreview] = useState(null);
     const [activeTab, setActiveTab] = useState('profile');
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const photoInput = useRef();
+
+    const EyeIcon = ({ open }) => (
+        open ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+        ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.77 19.77 0 0 1 5.06-5.94"></path>
+                <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.86 19.86 0 0 1-3.17 4.19"></path>
+                <path d="M14.12 14.12A3 3 0 1 1 9.88 9.88"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+        )
+    );
 
     // Profile Information Form
     const profileForm = useForm({
@@ -391,13 +410,24 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
                                             <label htmlFor="current_password" className="block text-sm font-medium text-gray-700 font-work-sans mb-2">
                                                 Current Password
                                             </label>
-                                            <input
-                                                id="current_password"
-                                                type="password"
-                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
-                                                value={passwordForm.data.current_password}
-                                                onChange={(e) => passwordForm.setData('current_password', e.target.value)}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    id="current_password"
+                                                    type={showCurrentPassword ? 'text' : 'password'}
+                                                    className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
+                                                    value={passwordForm.data.current_password}
+                                                    onChange={(e) => passwordForm.setData('current_password', e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCurrentPassword(prev => !prev)}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                                                    aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                                                    tabIndex={-1}
+                                                >
+                                                    <EyeIcon open={showCurrentPassword} />
+                                                </button>
+                                            </div>
                                             <InputError className="mt-2" message={passwordForm.errors.current_password} />
                                         </div>
 
@@ -405,13 +435,24 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
                                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 font-work-sans mb-2">
                                                 New Password
                                             </label>
-                                            <input
-                                                id="password"
-                                                type="password"
-                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
-                                                value={passwordForm.data.password}
-                                                onChange={(e) => passwordForm.setData('password', e.target.value)}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    id="password"
+                                                    type={showNewPassword ? 'text' : 'password'}
+                                                    className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
+                                                    value={passwordForm.data.password}
+                                                    onChange={(e) => passwordForm.setData('password', e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowNewPassword(prev => !prev)}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                                                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                                                    tabIndex={-1}
+                                                >
+                                                    <EyeIcon open={showNewPassword} />
+                                                </button>
+                                            </div>
                                             <InputError className="mt-2" message={passwordForm.errors.password} />
                                         </div>
 
@@ -419,13 +460,24 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
                                             <label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 font-work-sans mb-2">
                                                 Confirm Password
                                             </label>
-                                            <input
-                                                id="password_confirmation"
-                                                type="password"
-                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
-                                                value={passwordForm.data.password_confirmation}
-                                                onChange={(e) => passwordForm.setData('password_confirmation', e.target.value)}
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    id="password_confirmation"
+                                                    type={showConfirmPassword ? 'text' : 'password'}
+                                                    className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
+                                                    value={passwordForm.data.password_confirmation}
+                                                    onChange={(e) => passwordForm.setData('password_confirmation', e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowConfirmPassword(prev => !prev)}
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                                                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                                                    tabIndex={-1}
+                                                >
+                                                    <EyeIcon open={showConfirmPassword} />
+                                                </button>
+                                            </div>
                                             <InputError className="mt-2" message={passwordForm.errors.password_confirmation} />
                                         </div>
                                     </div>

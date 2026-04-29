@@ -25,9 +25,9 @@ const Footer = ({ website, siteName, year }) => {
                         {/* Left Content */}
                         <div className="flex flex-col items-start gap-6 md:gap-8">
                             {/* Get in touch button with responsive styles */}
-                            <div className="flex flex-row items-start p-0 gap-2 w-[117px] h-8 bg-[#F5F5F5] rounded-full">
-                                <div className="flex flex-row justify-center items-center py-1.5 px-4 gap-2 w-[117px] h-8">
-                                    <span className="w-[85px] h-6 font-work-sans font-medium text-sm leading-6 text-center text-[#293056]">
+                            <div className="inline-flex items-center bg-[#F5F5F5] rounded-full">
+                                <div className="flex justify-center items-center py-1.5 px-4">
+                                    <span className="font-work-sans font-medium text-sm leading-6 text-center whitespace-nowrap text-[#293056]">
                                         Get in touch
                                     </span>
                                 </div>

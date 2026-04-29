@@ -412,7 +412,7 @@ export default function PropertyHeader({
                 </button>
                 
                 {showShareDropdown && (
-                  <div className="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[200px] z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full left-0 md:left-auto md:right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[200px] z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
                     <div className="py-2">
                       <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100">
                         Share this {type}

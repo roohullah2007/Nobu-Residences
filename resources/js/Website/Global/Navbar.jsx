@@ -8,6 +8,17 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
+    // Lock body scroll while the mobile menu is open so the page underneath
+    // doesn't move when the user scrolls the menu.
+    useEffect(() => {
+        if (!mobileMenuOpen) return;
+        const previous = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previous;
+        };
+    }, [mobileMenuOpen]);
+
     // Get globalWebsite from page props for reliable access to website data
     const { globalWebsite } = usePage().props;
     const effectiveWebsite = website?.id ? website : globalWebsite;
@@ -318,15 +329,14 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                         onClick={() => setMobileMenuOpen(false)}
                     />
                     
-                    {/* Menu Container */}
-                    <div className="relative h-full flex flex-col">
-                        {/* Top spacing to account for navbar */}
-                        <div className="h-20" />
-                        
+                    {/* Menu Container — centered vertically on mobile so the
+                        full sheet (including the Log In footer) sits inside
+                        the viewport regardless of viewport height. */}
+                    <div className="relative h-full flex items-center justify-center p-4">
                         {/* Navigation Menu */}
-                        <div className="mx-4 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                        <div className="w-full max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                             {/* Menu Header */}
-                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                            <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center flex-shrink-0">
                                 <h3 className="font-space-grotesk font-semibold text-gray-900 text-lg">
                                     Navigation
                                 </h3>
@@ -341,9 +351,10 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                                     </svg>
                                 </button>
                             </div>
-                            
-                            {/* Menu Items */}
-                            <div className="py-2">
+
+                            {/* Menu Items (scroll internally so the footer
+                                action button always stays in view). */}
+                            <div className="py-2 flex-1 overflow-y-auto overscroll-contain">
                                 {navLinks.map((link) => (
                                     <Link
                                         key={link.id}
@@ -358,7 +369,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                             </div>
                             
                             {/* Action Button */}
-                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+                            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
                                 {auth?.user ? (
                                     <div className="space-y-3">
                                         {/* User Profile Section */}
