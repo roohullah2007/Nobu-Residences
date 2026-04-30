@@ -2,16 +2,17 @@ import React from 'react';
 import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import PriceHistory from '@/Website/Components/PropertyDetail/PriceHistory';
+import PriceHistorySearchInput from '@/Website/Components/PriceHistorySearchInput';
 
 /**
  * Full price history page for a single listing.
  * Route: /price-history/{listingKey}
  *
  * Universal target for the "View full price history" button — works for
- * any listing (condos, houses, etc.) regardless of whether it's been
- * matched to a building. Reuses the same `PriceHistory` component used
- * inline on the property detail page, with `showAll` so every entry is
- * rendered without the inline preview cap.
+ * any listing regardless of whether it's been matched to a building.
+ * Includes the same autocomplete search input as the /price-history
+ * landing page, pre-filled with this listing's address so the user can
+ * pivot to another listing's history without leaving the page.
  */
 export default function PropertyPriceHistory({
   auth,
@@ -22,7 +23,7 @@ export default function PropertyPriceHistory({
   priceHistory = [],
   website,
 }) {
-  // Compose a friendly subtitle ("813 - 15 Mercer Street")
+  // "813 - 15 Mercer Street"
   const subtitleAddress = (() => {
     const unit = property?.unitNumber || '';
     const street = [property?.streetNumber, property?.streetName, property?.streetSuffix]
@@ -32,8 +33,15 @@ export default function PropertyPriceHistory({
     return composed || property?.address || '';
   })();
 
-  // The PriceHistory component reads `priceHistory` off `propertyData`,
-  // plus the address fields used to render the section subtitle.
+  // Pre-fill the search box with the bare street address (no unit) so
+  // the autocomplete returns useful matches at the same building/street.
+  const prefillQuery = (() => {
+    const street = [property?.streetNumber, property?.streetName, property?.streetSuffix]
+      .filter(Boolean)
+      .join(' ');
+    return street || property?.address || '';
+  })();
+
   const propertyData = {
     listingKey: property?.listingKey,
     UnitNumber: property?.unitNumber,
@@ -64,6 +72,10 @@ export default function PropertyPriceHistory({
           <p className="text-sm text-gray-600 mb-6">
             Full price history for {subtitleAddress || 'this listing'}
           </p>
+
+          <div className="mb-8">
+            <PriceHistorySearchInput initialQuery={prefillQuery} />
+          </div>
 
           <PriceHistory
             propertyData={propertyData}

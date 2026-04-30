@@ -73,6 +73,12 @@ Route::get('/{city}/{buildingSlug}/price-history', [WebsiteController::class, 'b
     ])
     ->name('building.price-history');
 
+// Price history search landing — registered BEFORE the listingKey route so
+// a bare /price-history hits this handler instead of 404'ing on the
+// parameterized one.
+Route::get('/price-history', [WebsiteController::class, 'priceHistorySearch'])
+    ->name('price-history.search');
+
 // Per-listing full price history page (universal fallback used by the
 // "View full price history" button on every property detail page)
 Route::get('/price-history/{listingKey}', [WebsiteController::class, 'propertyPriceHistory'])
@@ -131,6 +137,7 @@ Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySear
 Route::post('/api/map-coordinates', [\App\Http\Controllers\PropertySearchController::class, 'getMapCoordinates']);
 Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
 Route::get('/api/address-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getAddressSuggestions']);
+Route::get('/api/price-history-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getPriceHistorySuggestions']);
 Route::get('/api/city-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getCitySuggestions']);
 Route::post('/api/save-search', [\App\Http\Controllers\SavedSearchController::class, 'store'])->middleware('auth');
 Route::get('/api/saved-searches', [\App\Http\Controllers\SavedSearchController::class, 'index'])->middleware('auth');

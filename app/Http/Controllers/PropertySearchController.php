@@ -3154,6 +3154,67 @@ class PropertySearchController extends Controller
      * Get address suggestions from MLS database for autocomplete
      * Uses FULLTEXT index for fast search performance
      */
+    /**
+     * Suggestions for the /price-history search input.
+     * Like getAddressSuggestions but returns the listingKey for each match
+     * so the UI can route directly to /price-history/{listingKey}.
+     * Matches by MLS number prefix (when the query starts with a letter+digits)
+     * or by address full-text.
+     */
+    public function getPriceHistorySuggestions(Request $request)
+    {
+        try {
+            $query = trim($request->input('q', ''));
+            $limit = min((int) $request->input('limit', 8), 20);
+
+            if (strlen($query) < 2) {
+                return response()->json(['suggestions' => []]);
+            }
+
+            $isMlsLike = (bool) preg_match('/^[A-Za-z]\d+$/', $query);
+
+            $builder = MLSProperty::where('is_active', true)->whereNull('deleted_at');
+
+            if ($isMlsLike) {
+                // Direct MLS lookup — most precise
+                $builder->where('mls_id', 'like', strtoupper($query) . '%');
+            } else {
+                // Address-based search using FULLTEXT for speed; falls back
+                // to LIKE for very short / single-word queries that the
+                // boolean parser rejects.
+                $words = preg_split('/\s+/', $query);
+                $fulltextQuery = implode(' ', array_map(fn($w) => '+' . $w . '*', $words));
+                $builder->whereRaw(
+                    "MATCH(address, city, postal_code) AGAINST(? IN BOOLEAN MODE)",
+                    [$fulltextQuery]
+                );
+            }
+
+            $suggestions = $builder
+                ->select('mls_id', 'address', 'city', 'province', 'postal_code', 'image_urls')
+                ->orderByDesc('updated_date')
+                ->limit($limit)
+                ->get()
+                ->map(function ($p) {
+                    $images = $p->image_urls ?? [];
+                    return [
+                        'listingKey' => $p->mls_id,
+                        'address' => $p->address,
+                        'city' => $p->city,
+                        'province' => $p->province,
+                        'postalCode' => $p->postal_code,
+                        'image' => is_array($images) && !empty($images) ? $images[0] : null,
+                        'href' => '/price-history/' . $p->mls_id,
+                    ];
+                });
+
+            return response()->json(['suggestions' => $suggestions]);
+        } catch (Exception $e) {
+            Log::error('Price history suggestions error: ' . $e->getMessage());
+            return response()->json(['suggestions' => [], 'error' => $e->getMessage()], 500);
+        }
+    }
+
     public function getAddressSuggestions(Request $request)
     {
         try {

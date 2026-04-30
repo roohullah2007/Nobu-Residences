@@ -2709,6 +2709,21 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Price history search landing page.
+     * Route: /price-history
+     *
+     * Lets the user search by address or MLS number; on selection the
+     * client navigates to /price-history/{listingKey}.
+     */
+    public function priceHistorySearch(Request $request)
+    {
+        return Inertia::render('PriceHistorySearch', array_merge($this->getWebsiteSettings(), [
+            'auth' => ['user' => $request->user()],
+            'title' => 'Price History Search',
+        ]));
+    }
+
+    /**
      * Per-listing full price history page.
      * Route: /price-history/{listingKey}
      *
