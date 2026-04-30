@@ -68,10 +68,18 @@ Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailR
 // Building full price history page
 Route::get('/{city}/{buildingSlug}/price-history', [WebsiteController::class, 'buildingPriceHistory'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage|price-history)[a-z][a-z\-]*',
         'buildingSlug' => '[a-z0-9\-]+',
     ])
     ->name('building.price-history');
+
+// Per-listing full price history page (universal fallback used by the
+// "View full price history" button on every property detail page)
+Route::get('/price-history/{listingKey}', [WebsiteController::class, 'propertyPriceHistory'])
+    ->where([
+        'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+',
+    ])
+    ->name('property.price-history');
 
 // Neighbourhood / area search URLs.
 // Examples:

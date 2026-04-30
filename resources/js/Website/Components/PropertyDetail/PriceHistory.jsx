@@ -254,8 +254,9 @@ const PriceHistory = ({
 
           {/* Footer button — always shown (unless caller already requested
               showAll). Resolves to a link to the building's dedicated full
-              price-history page whenever we have building info to build the
-              URL from; otherwise falls back to inline expand/collapse. */}
+              price-history page when we have building info; otherwise falls
+              back to the universal /price-history/{listingKey} page so the
+              button always goes somewhere useful. */}
           {!showAll && (() => {
             const slugify = (s) =>
               (s || '')
@@ -277,6 +278,7 @@ const PriceHistory = ({
 
             const buildingSource = looksLikeBuilding ? propertyData : building;
 
+            let href = null;
             if (buildingSource && (buildingSource.slug || buildingSource.name)) {
               const cityForUrl = buildingSource.city || 'Toronto';
               const slugParts = [];
@@ -289,7 +291,22 @@ const PriceHistory = ({
                   .filter(Boolean)
                   .forEach((p) => slugParts.push(slugify(p)));
               }
-              const href = `/${slugify(cityForUrl)}/${slugParts.filter(Boolean).join('-')}/price-history`;
+              href = `/${slugify(cityForUrl)}/${slugParts.filter(Boolean).join('-')}/price-history`;
+            } else {
+              // No building context — fall back to the per-listing
+              // price-history page. Works for any property type.
+              const listingKey =
+                propertyData?.listingKey ||
+                propertyData?.ListingKey ||
+                propertyData?.mlsNumber ||
+                propertyData?.MlsNumber ||
+                null;
+              if (listingKey) {
+                href = `/price-history/${listingKey}`;
+              }
+            }
+
+            if (href) {
               return (
                 <a
                   href={href}
@@ -300,20 +317,16 @@ const PriceHistory = ({
               );
             }
 
-            // No building context — keep the inline expand/collapse toggle,
-            // but only when there's actually more data to reveal.
-            if (history.length > PREVIEW_LIMIT) {
-              return (
-                <button
-                  onClick={() => setExpanded((v) => !v)}
-                  className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
-                >
-                  {expanded ? 'Hide full listing history' : 'View full listing history'}
-                </button>
-              );
-            }
-
-            return null;
+            // Last-resort fallback: no building, no listingKey — just
+            // expand inline so the button is never a dead end.
+            return (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1"
+              >
+                {expanded ? 'Hide full listing history' : 'View full listing history'}
+              </button>
+            );
           })()}
         </div>
       )}

@@ -2207,7 +2207,12 @@ class WebsiteController extends Controller
             }
         }
 
-        // 2. Look up prior listings at the same address+unit
+        // 2. Look up prior listings at the same address+unit. Used to skip
+        // the property `class` filter and only search status `U` (sold/
+        // expired) — that missed history for non-condo properties and
+        // active relistings at the same address. Now we run two queries
+        // (sold/expired, then active) without a class filter so every
+        // listing type gets its full history.
         $address = $listing['address'] ?? [];
         $streetNumber = $address['streetNumber'] ?? null;
         $streetName = $address['streetName'] ?? null;
@@ -2216,33 +2221,53 @@ class WebsiteController extends Controller
         if ($streetNumber && $streetName) {
             try {
                 $api = app(\App\Services\RepliersApiService::class);
-                $params = [
-                    'class' => 'condoProperty',
+                $baseParams = [
                     'streetNumber' => (string) $streetNumber,
                     'streetName' => $streetName,
-                    'status' => 'U',
                     'resultsPerPage' => 30,
                     'sortBy' => 'updatedOnDesc',
                 ];
                 if ($unitNumber !== null && $unitNumber !== '') {
-                    $params['unitNumber'] = (string) $unitNumber;
+                    $baseParams['unitNumber'] = (string) $unitNumber;
                 }
-                $res = $api->searchListings($params);
-                foreach (($res['listings'] ?? []) as $h) {
-                    $key = ($h['mlsNumber'] ?? '') . '|' . ($h['listDate'] ?? '');
-                    if (isset($seen[$key])) continue;
-                    $seen[$key] = true;
 
-                    $entries[] = [
-                        'mlsNumber' => $h['mlsNumber'] ?? null,
-                        'listPrice' => $h['listPrice'] ?? null,
-                        'listDate' => $h['listDate'] ?? null,
-                        'soldPrice' => $h['soldPrice'] ?? null,
-                        'soldDate' => $h['soldDate'] ?? null,
-                        'lastStatus' => $h['lastStatus'] ?? null,
-                        'daysOnMarket' => $h['daysOnMarket'] ?? $h['simpleDaysOnMarket'] ?? null,
-                        'type' => $h['type'] ?? null,
-                    ];
+                $absorb = function (array $listings) use (&$entries, &$seen) {
+                    foreach ($listings as $h) {
+                        $key = ($h['mlsNumber'] ?? '') . '|' . ($h['listDate'] ?? '');
+                        if (isset($seen[$key])) continue;
+                        $seen[$key] = true;
+
+                        $entries[] = [
+                            'mlsNumber' => $h['mlsNumber'] ?? null,
+                            'listPrice' => $h['listPrice'] ?? null,
+                            'listDate' => $h['listDate'] ?? null,
+                            'soldPrice' => $h['soldPrice'] ?? null,
+                            'soldDate' => $h['soldDate'] ?? null,
+                            'lastStatus' => $h['lastStatus'] ?? null,
+                            'daysOnMarket' => $h['daysOnMarket'] ?? $h['simpleDaysOnMarket'] ?? null,
+                            'type' => $h['type'] ?? null,
+                        ];
+                    }
+                };
+
+                // Sold/leased/expired/terminated history
+                $unavailable = $api->searchListings($baseParams + ['status' => 'U']);
+                $absorb($unavailable['listings'] ?? []);
+
+                // Currently-active listings at the same address (excludes
+                // the current listing in the React layer via mlsNumber).
+                $active = $api->searchListings($baseParams + ['status' => 'A']);
+                $absorb($active['listings'] ?? []);
+
+                // If unit-specific search came up empty AND we filtered by
+                // unit, retry without the unit filter — some MLS feeds
+                // record the unit on the active listing but not on the
+                // historical ones, so a unit-strict query drops them.
+                if (count($entries) <= count($repliersHistory)
+                    && isset($baseParams['unitNumber'])) {
+                    unset($baseParams['unitNumber']);
+                    $unavailableLoose = $api->searchListings($baseParams + ['status' => 'U']);
+                    $absorb($unavailableLoose['listings'] ?? []);
                 }
             } catch (\Throwable $e) {
                 \Log::warning('priceHistory address-lookup failed', ['error' => $e->getMessage()]);
@@ -2678,6 +2703,78 @@ class WebsiteController extends Controller
                 'neighbourhood' => $building->neighbourhood,
                 'sub_neighbourhood' => $building->sub_neighbourhood,
                 'main_image' => $building->main_image,
+            ],
+            'priceHistory' => $priceHistory,
+        ]));
+    }
+
+    /**
+     * Per-listing full price history page.
+     * Route: /price-history/{listingKey}
+     *
+     * Used as the universal target for the "View full price history" button
+     * on every property detail page — works for any listing regardless of
+     * whether it's been matched to a building.
+     */
+    public function propertyPriceHistory(Request $request, $listingKey)
+    {
+        // Same SEO-URL stripping the propertyDetail route does.
+        if (preg_match('/^unit-[A-Za-z0-9]+-([A-Z]\d+)$/i', $listingKey, $matches)) {
+            $listingKey = $matches[1];
+        }
+
+        $repliersApi = app(\App\Services\RepliersApiService::class);
+        $listing = $repliersApi->getListingByMlsNumber($listingKey);
+
+        if (!$listing) {
+            abort(404, 'Listing not found');
+        }
+
+        $address = $listing['address'] ?? [];
+        $details = $listing['details'] ?? [];
+
+        $listPrice = (float) ($listing['listPrice'] ?? 0);
+        $soldPrice = isset($listing['soldPrice']) ? (float) $listing['soldPrice'] : null;
+        $listDate = $listing['listDate'] ?? null;
+        $soldDate = $listing['soldDate'] ?? null;
+        $lastStatus = $listing['lastStatus'] ?? '';
+        $daysOnMarket = $listing['daysOnMarket'] ?? $listing['simpleDaysOnMarket'] ?? null;
+
+        $priceHistory = $this->buildPriceHistory(
+            $listing,
+            $listingKey,
+            $listPrice,
+            $listDate,
+            $soldPrice,
+            $soldDate,
+            $lastStatus,
+            $daysOnMarket
+        );
+
+        $images = $listing['images'] ?? [];
+        $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+
+        $unitNumber = $address['unitNumber'] ?? '';
+        $streetNumber = $address['streetNumber'] ?? '';
+        $streetName = $address['streetName'] ?? '';
+        $streetSuffix = $address['streetSuffix'] ?? '';
+        $unparsedAddress = trim(implode(' ', array_filter([$streetNumber, $streetName, $streetSuffix])));
+        $title = trim(($unitNumber ? "$unitNumber - " : '') . $unparsedAddress) ?: 'Listing';
+
+        return Inertia::render('PropertyPriceHistory', array_merge($this->getWebsiteSettings(), [
+            'auth' => ['user' => $request->user()],
+            'title' => 'Price History — ' . $title,
+            'listingKey' => $listingKey,
+            'property' => [
+                'listingKey' => $listingKey,
+                'address' => $unparsedAddress,
+                'unitNumber' => $unitNumber,
+                'streetNumber' => $streetNumber,
+                'streetName' => $streetName,
+                'streetSuffix' => $streetSuffix,
+                'city' => $address['city'] ?? '',
+                'imageUrl' => $imageUrls[0] ?? null,
+                'images' => $imageUrls,
             ],
             'priceHistory' => $priceHistory,
         ]));
