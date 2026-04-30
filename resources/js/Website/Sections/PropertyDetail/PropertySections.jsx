@@ -38,7 +38,13 @@ export default function PropertySections({
      {/* Property Status and Navigation Tabs */}
       <PropertyStatusTabs property={propertyData} buildingData={buildingData} aiDescription={aiDescription} auth={auth} />
       {/* Price History Section — live from Repliers `history` field */}
-      <PriceHistory propertyData={propertyData} propertyImages={propertyImages} auth={auth} onLoginClick={onLoginClick} />
+      <PriceHistory
+        propertyData={propertyData}
+        propertyImages={propertyImages}
+        auth={auth}
+        building={buildingData}
+        onLoginClick={onLoginClick}
+      />
       
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />
