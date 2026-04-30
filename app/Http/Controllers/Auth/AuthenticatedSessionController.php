@@ -33,12 +33,42 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        // Check if the authenticated user is an admin
+        // If the user signed in via the modal on a public page, the modal
+        // forwards the page they were on as `redirect_to`. Honor it (after
+        // validating it's a same-site relative URL) so they land back on the
+        // page they were viewing instead of the dashboard.
+        $redirectTo = $this->safeRelativeRedirect($request->input('redirect_to'));
+
+        // Admins always go to the admin dashboard, regardless of the page
+        // they came from — the modal isn't normally shown to admins.
         if (Auth::user()->isAdmin()) {
             return redirect()->intended(route('admin.dashboard', absolute: false));
         }
 
+        if ($redirectTo !== null) {
+            return redirect($redirectTo);
+        }
+
         return redirect()->intended(route('user.dashboard', absolute: false));
+    }
+
+    /**
+     * Validate a caller-supplied redirect target. Only same-site relative
+     * paths are allowed, and we never bounce back to the auth pages
+     * themselves (would re-trigger the modal in a loop).
+     */
+    private function safeRelativeRedirect(?string $url): ?string
+    {
+        if (!is_string($url) || $url === '' || strlen($url) > 2000) {
+            return null;
+        }
+        if ($url[0] !== '/' || str_starts_with($url, '//') || str_starts_with($url, '/\\')) {
+            return null;
+        }
+        if (preg_match('#^/(login|register|auth/|forgot-password|reset-password)#i', $url)) {
+            return null;
+        }
+        return $url;
     }
 
     /**

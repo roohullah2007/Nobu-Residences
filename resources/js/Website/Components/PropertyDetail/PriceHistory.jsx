@@ -280,8 +280,8 @@ const PriceHistory = ({
             );
           })}
 
-          {/* Footer button — temporarily hidden */}
-          {false && !showAll && history.length > previewCount && (() => {
+          {/* Footer button */}
+          {!showAll && history.length > previewCount && (() => {
             // If this PriceHistory is rendered on a building detail page
             // (propertyData looks like a building — has slug/name/address but
             // no listingKey), link to the dedicated building price-history

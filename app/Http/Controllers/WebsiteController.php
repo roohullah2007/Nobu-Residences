@@ -1187,6 +1187,10 @@ class WebsiteController extends Controller
                         'listingKey' => $prop->mls_id,
                         'ListPrice' => (float) $prop->price,
                         'listPrice' => (float) $prop->price,
+                        // Same value under the lowercase key the frontend's
+                        // PropertyCardV5 reads first — the DB path was
+                        // dropping it and showing "Price on request".
+                        'price' => (float) $prop->price,
                         'UnparsedAddress' => $prop->address ?? '',
                         'address' => $prop->address ?? '',
                         'BedroomsTotal' => $prop->bedrooms ?? 0,

@@ -67,6 +67,32 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
+        // If the user registered via the modal on a public page, send them
+        // back to that page rather than the dashboard.
+        $redirectTo = $this->safeRelativeRedirect($request->input('redirect_to'));
+        if ($redirectTo !== null) {
+            return redirect($redirectTo);
+        }
+
         return redirect(route('user.dashboard', absolute: false));
+    }
+
+    /**
+     * Validate a caller-supplied redirect target. Only same-site relative
+     * paths are allowed, and we never bounce back to the auth pages
+     * themselves (would re-trigger the modal in a loop).
+     */
+    private function safeRelativeRedirect(?string $url): ?string
+    {
+        if (!is_string($url) || $url === '' || strlen($url) > 2000) {
+            return null;
+        }
+        if ($url[0] !== '/' || str_starts_with($url, '//') || str_starts_with($url, '/\\')) {
+            return null;
+        }
+        if (preg_match('#^/(login|register|auth/|forgot-password|reset-password)#i', $url)) {
+            return null;
+        }
+        return $url;
     }
 }

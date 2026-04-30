@@ -203,7 +203,14 @@ const MoreBuildings = ({
             parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
             ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
             listOfficeName: property.listOfficeName || property.ListOfficeName || '',
-            price: property.price || 0,
+            // The /api/nearby-listings endpoint returns DB-backed listings as
+            // ListPrice/listPrice (no lowercase `price`), and Repliers-backed
+            // listings as price/listPrice/ListPrice. Fall back across all
+            // variants so the card can render an actual price instead of
+            // "Price on request".
+            price: property.price || property.listPrice || property.ListPrice || 0,
+            ListPrice: property.ListPrice || property.listPrice || property.price || 0,
+            listPrice: property.listPrice || property.ListPrice || property.price || 0,
             isRental: property.transactionType === 'Rent',
             transactionType: property.transactionType || 'Sale',
             imageUrl: imageUrl,
@@ -326,7 +333,14 @@ const MoreBuildings = ({
             parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
             ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
             listOfficeName: property.listOfficeName || property.ListOfficeName || '',
-            price: property.price || 0,
+            // The /api/nearby-listings endpoint returns DB-backed listings as
+            // ListPrice/listPrice (no lowercase `price`), and Repliers-backed
+            // listings as price/listPrice/ListPrice. Fall back across all
+            // variants so the card can render an actual price instead of
+            // "Price on request".
+            price: property.price || property.listPrice || property.ListPrice || 0,
+            ListPrice: property.ListPrice || property.listPrice || property.price || 0,
+            listPrice: property.listPrice || property.ListPrice || property.price || 0,
             isRental: property.transactionType === 'Rent',
             transactionType: property.transactionType || 'Sale',
             imageUrl: imageUrl,

@@ -17,8 +17,15 @@ class GoogleAuthController extends Controller
     /**
      * Redirect to Google OAuth
      */
-    public function redirectToGoogle()
+    public function redirectToGoogle(Request $request)
     {
+        // Stash the page the user was on (modal forwards this as ?redirect_to=)
+        // so the callback can return them to it after a successful sign-in.
+        $redirectTo = $this->safeRelativeRedirect($request->query('redirect_to'));
+        if ($redirectTo !== null) {
+            $request->session()->put('post_login_redirect', $redirectTo);
+        }
+
         try {
             return Socialite::driver('google')->redirect();
         } catch (Exception $e) {
@@ -30,7 +37,7 @@ class GoogleAuthController extends Controller
     /**
      * Handle Google OAuth callback
      */
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -81,12 +88,38 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
 
+            // If we stashed a page-level redirect when the user clicked the
+            // modal's "Sign in with Google", honor it now.
+            $redirectTo = $request->session()->pull('post_login_redirect');
+            if (is_string($redirectTo) && $this->safeRelativeRedirect($redirectTo) !== null) {
+                return redirect($redirectTo);
+            }
+
             return redirect()->intended('/dashboard');
 
         } catch (Exception $e) {
             Log::error('Google OAuth Callback Error: ' . $e->getMessage());
             return redirect('/login')->withErrors(['google' => 'Unable to authenticate with Google: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Validate a caller-supplied redirect target. Only same-site relative
+     * paths are allowed, and we never bounce back to the auth pages
+     * themselves.
+     */
+    private function safeRelativeRedirect(?string $url): ?string
+    {
+        if (!is_string($url) || $url === '' || strlen($url) > 2000) {
+            return null;
+        }
+        if ($url[0] !== '/' || str_starts_with($url, '//') || str_starts_with($url, '/\\')) {
+            return null;
+        }
+        if (preg_match('#^/(login|register|auth/|forgot-password|reset-password)#i', $url)) {
+            return null;
+        }
+        return $url;
     }
 
     /**

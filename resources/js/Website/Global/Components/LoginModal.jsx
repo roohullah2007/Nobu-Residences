@@ -154,11 +154,21 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
     setIsLoading(true);
     setErrors({}); // Clear any previous errors
 
+    // Capture the current page so the controller can send the user back here
+    // after a successful sign-in / sign-up via the modal. We strip the origin
+    // and only forward path+query+hash — the server validates that this is a
+    // safe relative URL before redirecting.
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : '';
+
     if (activeTab === 'login') {
       // Handle login
       router.post('/login', {
         email: formData.email,
         password: formData.password,
+        redirect_to: redirectTo,
       }, {
         onSuccess: (page) => {
           onClose();
@@ -189,6 +199,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
         phone: formData.phone.trim(),
         password: formData.password,
         password_confirmation: formData.confirmPassword,
+        redirect_to: redirectTo,
       }, {
         onSuccess: (page) => {
           onClose();

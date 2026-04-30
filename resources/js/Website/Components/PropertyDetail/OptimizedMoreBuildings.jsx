@@ -243,7 +243,12 @@ const OptimizedMoreBuildings = ({
       parkingTotal: property.parkingTotal || property.ParkingTotal || 0,
       ListOfficeName: property.ListOfficeName || property.listOfficeName || '',
       listOfficeName: property.listOfficeName || property.ListOfficeName || '',
-      price: property.price || 0,
+      // Fall back across all price field variants (price / listPrice /
+      // ListPrice) — the DB-backed nearby-listings response uses the
+      // PascalCase keys, while the Repliers fallback uses lowercase.
+      price: property.price || property.listPrice || property.ListPrice || 0,
+      ListPrice: property.ListPrice || property.listPrice || property.price || 0,
+      listPrice: property.listPrice || property.ListPrice || property.price || 0,
       isRental: property.transactionType === 'Rent',
       transactionType: property.transactionType || 'Sale',
       imageUrl: property.MediaURL || null,
