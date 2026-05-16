@@ -468,23 +468,25 @@ class BuildingController extends Controller
     {
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
-            'building_id' => 'required|exists:buildings,id',
+            'building_id' => 'nullable|exists:buildings,id', // Optional — Create page has no building yet
             'image_type' => 'nullable|in:main,gallery' // Optional, defaults to main
         ]);
 
         try {
+            $buildingId = $request->building_id;
+            $building = $buildingId ? Building::findOrFail($buildingId) : null;
+
             \Log::info('Upload request received', [
-                'building_id' => $request->building_id,
+                'building_id' => $buildingId,
                 'image_type' => $request->input('image_type', 'main'),
                 'has_file' => $request->hasFile('image')
             ]);
 
-            $building = Building::findOrFail($request->building_id);
-
             // Store the image
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $imageName = 'building_' . $building->id . '_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                $prefix = $building ? 'building_' . $building->id : 'building_new';
+                $imageName = $prefix . '_' . time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
 
                 // Create directory if it doesn't exist
                 $uploadPath = public_path('images/buildings');
@@ -500,25 +502,26 @@ class BuildingController extends Controller
 
                 $imageType = $request->input('image_type', 'main');
 
-                if ($imageType === 'main') {
-                    // Update main image
-                    $building->main_image = $imageUrl;
-                } else {
-                    // Add to gallery images
-                    $currentImages = $building->images;
-                    if (is_string($currentImages)) {
-                        $images = json_decode($currentImages, true) ?? [];
-                    } elseif (is_array($currentImages)) {
-                        $images = $currentImages;
+                // Only attach to an existing building. For Create, the URL is returned to
+                // the client which submits it with the rest of the form.
+                if ($building) {
+                    if ($imageType === 'main') {
+                        $building->main_image = $imageUrl;
                     } else {
-                        $images = [];
+                        $currentImages = $building->images;
+                        if (is_string($currentImages)) {
+                            $images = json_decode($currentImages, true) ?? [];
+                        } elseif (is_array($currentImages)) {
+                            $images = $currentImages;
+                        } else {
+                            $images = [];
+                        }
+
+                        $images[] = $imageUrl;
+                        $building->images = $images;
                     }
-
-                    $images[] = $imageUrl;
-                    $building->images = $images; // Laravel will handle the JSON encoding
+                    $building->save();
                 }
-
-                $building->save();
 
                 \Log::info('Image uploaded successfully', [
                     'url' => $imageUrl,

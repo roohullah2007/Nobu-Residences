@@ -57,6 +57,9 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const [selectedAmenities, setSelectedAmenities] = useState([]);
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState([]);
     const [imagePreview, setImagePreview] = useState('');
+    const [galleryImages, setGalleryImages] = useState([]);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
@@ -181,6 +184,110 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         } finally {
             setGeneratingAiDescription(false);
         }
+    };
+
+    const handleImageUpload = async (e, imageType = 'main') => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        const filesToUpload = imageType === 'main' ? [files[0]] : files;
+
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        for (const file of filesToUpload) {
+            if (!validTypes.includes(file.type)) {
+                alert(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`File too large: ${file.name}. Images must be less than 5MB.`);
+                return;
+            }
+        }
+
+        if (imageType === 'main') {
+            setUploadingImage(true);
+        } else {
+            setUploadingGalleryImage(true);
+        }
+
+        const uploadPromises = filesToUpload.map(async (file) => {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('image_type', imageType);
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+                const response = await fetch('/api/buildings/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken || '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.url) {
+                    return result.url;
+                } else {
+                    console.error('Upload failed:', result.message);
+                    return null;
+                }
+            } catch (error) {
+                console.error(`Error uploading ${file.name}:`, error);
+                return null;
+            }
+        });
+
+        try {
+            const uploadedUrls = await Promise.all(uploadPromises);
+            const successfulUploads = uploadedUrls.filter(url => url !== null);
+
+            if (successfulUploads.length > 0) {
+                if (imageType === 'main') {
+                    setData('main_image', successfulUploads[0]);
+                    setImagePreview(successfulUploads[0]);
+                } else {
+                    const updatedImages = [...galleryImages, ...successfulUploads];
+                    setGalleryImages(updatedImages);
+                    setData('images', updatedImages);
+                }
+
+                if (successfulUploads.length < filesToUpload.length) {
+                    alert(`${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully.`);
+                }
+            } else {
+                alert('Failed to upload images. Please try again.');
+            }
+        } catch (error) {
+            console.error('Image upload error:', error);
+            alert('Failed to upload images. Please try again.');
+        } finally {
+            if (imageType === 'main') {
+                setUploadingImage(false);
+            } else {
+                setUploadingGalleryImage(false);
+            }
+            e.target.value = null;
+        }
+    };
+
+    const handleRemoveMainImage = () => {
+        setData('main_image', '');
+        setImagePreview('');
+    };
+
+    const handleRemoveGalleryImage = (imageUrl) => {
+        const updatedImages = galleryImages.filter(img => img !== imageUrl);
+        setGalleryImages(updatedImages);
+        setData('images', updatedImages);
     };
 
     const handleSubmit = (e) => {
@@ -769,23 +876,118 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Media & Links</h2>
-                            <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="main_image" value="Main Image URL" />
-                                    <TextInput
-                                        id="main_image"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.main_image}
-                                        onChange={(e) => {
-                                            setData('main_image', e.target.value);
-                                            setImagePreview(e.target.value);
-                                        }}
-                                        placeholder="https://example.com/image.jpg"
-                                    />
-                                    <InputError message={errors.main_image} className="mt-2" />
-                                </div>
 
+                            {/* Main Image Section */}
+                            <div className="mb-8">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-4">Main Building Image</h3>
+                                <div className="grid grid-cols-1 gap-x-6 gap-y-4">
+                                    <div>
+                                        <div className="mt-1 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
+                                                    <input
+                                                        type="file"
+                                                        className="sr-only"
+                                                        accept="image/*"
+                                                        onChange={(e) => handleImageUpload(e, 'main')}
+                                                        disabled={uploadingImage}
+                                                    />
+                                                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                    </svg>
+                                                    {uploadingImage ? 'Uploading...' : 'Select Main Image'}
+                                                </label>
+                                                {imagePreview && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRemoveMainImage}
+                                                        className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
+                                                    >
+                                                        Remove Main Image
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {!imagePreview && (
+                                                <p className="text-sm text-gray-500">Select the main image for the building (JPG, PNG, GIF, max 5MB)</p>
+                                            )}
+                                        </div>
+                                        <InputError message={errors.main_image} className="mt-2" />
+
+                                        {imagePreview && (
+                                            <div className="mt-3">
+                                                <img
+                                                    src={imagePreview}
+                                                    alt="Main building image"
+                                                    className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                                                    onError={(e) => {
+                                                        e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image';
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Gallery Images Section */}
+                            <div className="mb-8 border-t pt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-4">Gallery Images</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <label className="relative cursor-pointer bg-green-600 rounded-md font-medium text-white hover:bg-green-700 px-4 py-2 inline-flex items-center">
+                                            <input
+                                                type="file"
+                                                className="sr-only"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e) => handleImageUpload(e, 'gallery')}
+                                                disabled={uploadingGalleryImage}
+                                            />
+                                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            {uploadingGalleryImage ? 'Uploading...' : 'Add Gallery Images (Multiple)'}
+                                        </label>
+                                        <span className="text-sm text-gray-500">
+                                            {galleryImages.length} image{galleryImages.length !== 1 ? 's' : ''} in gallery
+                                        </span>
+                                    </div>
+
+                                    {galleryImages.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                                            {galleryImages.map((image, index) => (
+                                                <div key={index} className="relative group">
+                                                    <img
+                                                        src={image}
+                                                        alt={`Gallery image ${index + 1}`}
+                                                        className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                                                        onError={(e) => {
+                                                            e.target.src = 'https://via.placeholder.com/200x150?text=Invalid+Image';
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveGalleryImage(image)}
+                                                        className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        title="Remove image"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {galleryImages.length === 0 && (
+                                        <p className="text-sm text-gray-500 italic">No gallery images uploaded yet</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Website Links */}
+                            <div className="border-t pt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="website_url" value="Website URL" />
                                     <TextInput
@@ -799,7 +1001,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                     <InputError message={errors.website_url} className="mt-2" />
                                 </div>
 
-
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="virtual_tour_url" value="Virtual Tour URL" />
                                     <TextInput
@@ -812,18 +1013,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                     />
                                     <InputError message={errors.virtual_tour_url} className="mt-2" />
                                 </div>
-
-                                {imagePreview && (
-                                    <div className="sm:col-span-6">
-                                        <p className="text-sm text-gray-600 mb-2">Image Preview:</p>
-                                        <img
-                                            src={imagePreview}
-                                            alt="Building preview"
-                                            className="max-w-xs rounded-lg shadow-md"
-                                            onError={() => setImagePreview('')}
-                                        />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
