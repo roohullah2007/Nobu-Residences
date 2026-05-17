@@ -629,17 +629,6 @@ class WebsiteManagementController extends Controller
             return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
         }
 
-        // Reflect current alias state in the report so it doesn't render as
-        // "Skipped" — the alias is almost always already on Ploi at this point.
-        $aliases = $ploi->listAliases();
-        $aliasOnPloi = in_array($website->domain, $aliases, true);
-        if ($aliasOnPloi && $website->ploi_alias_status !== 'added') {
-            $website->update([
-                'ploi_alias_status' => 'added',
-                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
-            ]);
-        }
-
         $website->update(['ploi_ssl_status' => 'queued']);
 
         [$ok, $message] = $ploi->requestSsl($website->domain);
@@ -659,10 +648,24 @@ class WebsiteManagementController extends Controller
             $sslReport = ['ok' => false, 'message' => $message];
         }
 
+        // Re-query Ploi for the alias state AFTER the SSL request. Ploi
+        // auto-creates aliases for every SAN subject in a successful cert
+        // issuance, so the alias is almost always present post-SSL even if
+        // it wasn't before. Building the flash from the pre-request snapshot
+        // produced the confusing "alias NOT on Ploi" message right next to a
+        // successful SSL row. Trust the post-request truth.
+        $aliasOnPloiAfter = in_array($website->domain, $ploi->listAliases(), true);
+        if ($aliasOnPloiAfter && $website->ploi_alias_status !== 'added') {
+            $website->update([
+                'ploi_alias_status' => 'added',
+                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
+            ]);
+        }
+
         session()->flash('website_created_report', [
             'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => $aliasOnPloi
-                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is already on Ploi."]
+            'ploi' => $aliasOnPloiAfter
+                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is on Ploi."]
                 : ['ok' => false, 'message' => "Alias \"{$website->domain}\" is NOT on Ploi yet — click \"Retry domain alias\" first."],
             'ssl'  => $sslReport,
         ]);
