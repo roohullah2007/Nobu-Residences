@@ -328,6 +328,41 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         amenity.name.toLowerCase().includes(amenitySearch.toLowerCase())
     );
 
+    // Parse "8-30 Widmer St, Toronto" → { count, expand() }
+    // Returns null if no range pattern is found.
+    const detectAddressRange = (value) => {
+        if (!value) return null;
+        const match = value.match(/^(\d+)\s*[-–—]\s*(\d+)\s+(.+)$/);
+        if (!match) return null;
+        let start = parseInt(match[1], 10);
+        let end = parseInt(match[2], 10);
+        const rest = match[3].trim();
+        if (isNaN(start) || isNaN(end) || end <= start) return null;
+        // Every consecutive number from start to end
+        const numbers = [];
+        for (let n = start; n <= end; n += 1) {
+            numbers.push(n);
+            if (numbers.length > 50) break; // safety cap
+        }
+        return {
+            count: numbers.length,
+            addresses: numbers.map((n) => `${n} ${rest}`),
+        };
+    };
+
+    const handleExpandRange = () => {
+        const range = detectAddressRange(data.address);
+        if (!range) return;
+        const [first, ...rest] = range.addresses;
+        setData((prev) => ({
+            ...prev,
+            address: first,
+            additional_addresses: rest,
+        }));
+    };
+
+    const addressRange = detectAddressRange(data.address);
+
     return (
         <AdminLayout title="Create Building">
             <Head title="Create Building" />
@@ -422,10 +457,25 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         className="mt-1 block w-full"
                                         value={data.address}
                                         onChange={(e) => setData('address', e.target.value)}
-                                        placeholder="e.g., 10 Capreol Crt"
+                                        placeholder="e.g., 10 Capreol Crt — or a range like '8-30 Widmer St, Toronto'"
                                         required
                                     />
                                     <InputError message={errors.address} className="mt-2" />
+                                    {addressRange && (
+                                        <div className="mt-2 flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md px-3 py-2">
+                                            <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            <span>Detected range — expand to {addressRange.count} addresses?</span>
+                                            <button
+                                                type="button"
+                                                onClick={handleExpandRange}
+                                                className="ml-auto inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700"
+                                            >
+                                                Expand
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="sm:col-span-2">
