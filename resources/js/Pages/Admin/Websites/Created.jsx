@@ -154,16 +154,6 @@ export default function WebsiteCreated({ website, report, ploi }) {
                             >
                                 Retry Ploi alias + SSL
                             </button>
-                            {ploi.server_id && ploi.site_id && (
-                                <a
-                                    href={`https://ploi.io/panel/servers/${ploi.server_id}/sites/${ploi.site_id}`}
-                                    target="_blank"
-                                    rel="noopener"
-                                    className="inline-flex items-center px-4 py-2 rounded-md bg-white border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
-                                >
-                                    Open site in Ploi ↗
-                                </a>
-                            )}
                         </div>
                     )}
                 </div>

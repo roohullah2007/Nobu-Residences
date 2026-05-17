@@ -121,7 +121,16 @@ class PloiService
     {
         return Http::withToken($this->token)
             ->acceptJson()
-            ->timeout(20);
+            ->timeout(20)
+            // Force IPv4. Cloud hosts like Hetzner expose both stacks and curl
+            // prefers IPv6, which makes outbound requests come from an IPv6
+            // address that isn't on the Ploi token's IP whitelist. Pinning to
+            // IPv4 makes the call originate from the documented server IP.
+            ->withOptions([
+                'curl' => [
+                    CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                ],
+            ]);
     }
 
     protected function normalizeDomain(string $domain): string
