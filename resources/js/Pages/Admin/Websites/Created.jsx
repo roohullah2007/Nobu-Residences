@@ -1,5 +1,34 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useEffect, useState } from 'react';
+
+const PersistedRow = ({ title, status, timestamp, timestampLabel, pendingMessage }) => {
+    const map = {
+        added:        { label: 'Added',     cls: 'bg-green-100 text-green-800',     icon: '✓' },
+        issued:       { label: 'Issued',    cls: 'bg-green-100 text-green-800',     icon: '✓' },
+        queued:       { label: 'Queued',    cls: 'bg-indigo-100 text-indigo-800',   icon: '⌛' },
+        pending:      { label: 'Pending',   cls: 'bg-yellow-100 text-yellow-800',   icon: '◐' },
+        failed:       { label: 'Failed',    cls: 'bg-red-100 text-red-800',         icon: '✕' },
+        not_required: { label: 'Not needed',cls: 'bg-gray-100 text-gray-700',       icon: '—' },
+    };
+    const v = map[status] || { label: status || 'Unknown', cls: 'bg-gray-100 text-gray-700', icon: '?' };
+    return (
+        <div className="border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium text-gray-900">{title}</div>
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${v.cls}`}>
+                    <span>{v.icon}</span> {v.label}
+                </span>
+            </div>
+            {timestamp && (
+                <div className="text-xs text-gray-500 mt-1">{timestampLabel}: {timestamp}</div>
+            )}
+            {(status === 'queued' || status === 'pending') && (
+                <div className="text-xs text-gray-500 mt-1">{pendingMessage}</div>
+            )}
+        </div>
+    );
+};
 
 const Status = ({ status }) => {
     if (status === true) {
@@ -42,7 +71,18 @@ const Row = ({ icon, title, status, message, hint = null }) => (
     </div>
 );
 
-export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [] }) {
+export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [], persisted = {} }) {
+    // Auto-refresh while SSL is still pending so the user sees the queued
+    // job's progress without manually reloading.
+    const [autoPoll, setAutoPoll] = useState(true);
+    const sslPending = persisted?.ssl_status === 'queued' || persisted?.ssl_status === 'pending';
+    useEffect(() => {
+        if (!autoPoll || !sslPending) return;
+        const t = setInterval(() => {
+            router.reload({ only: ['liveAliases', 'liveCertificates', 'liveStatus', 'persisted'] });
+        }, 15000);
+        return () => clearInterval(t);
+    }, [autoPoll, sslPending]);
     const allOk = report.db?.ok && report.ploi?.ok !== false && report.ssl?.ok !== false;
 
     const ipWhitelistMatch = (msg) =>
@@ -112,6 +152,58 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                         </div>
                     </dl>
                 </div>
+
+                {/* Persistent provisioning state (from the DB — survives reloads) */}
+                {website.domain && (
+                    <div className="bg-white shadow-sm sm:rounded-lg p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">Provisioning state</h3>
+                                <p className="text-sm text-gray-500">Saved per step on this website — independent of last action.</p>
+                            </div>
+                            {sslPending && (
+                                <div className="flex items-center gap-2 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-full">
+                                    <svg className="h-3.5 w-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <circle cx="12" cy="12" r="10" strokeWidth="3" opacity="0.25" />
+                                        <path d="M22 12a10 10 0 00-10-10" strokeWidth="3" strokeLinecap="round" />
+                                    </svg>
+                                    Auto-refresh every 15s
+                                </div>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PersistedRow
+                                title="Domain alias on Ploi"
+                                status={persisted.alias_status}
+                                timestamp={persisted.alias_added_at}
+                                timestampLabel="Added at"
+                                pendingMessage="Waiting for alias add to run…"
+                            />
+                            <PersistedRow
+                                title="SSL certificate"
+                                status={persisted.ssl_status}
+                                timestamp={persisted.ssl_issued_at}
+                                timestampLabel="Issued at"
+                                pendingMessage="Queued — will run in ~30s, then retries on failure (30s, 1m, 2m, 5m, 10m)."
+                            />
+                        </div>
+                        {persisted.last_error && (
+                            <div className="mt-3 text-xs font-mono p-3 bg-red-50 border border-red-200 rounded text-red-800 break-all">
+                                <strong>Last error:</strong> {persisted.last_error}
+                            </div>
+                        )}
+                        <div className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() => router.reload({ only: ['liveAliases', 'liveCertificates', 'liveStatus', 'persisted'] })}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                            >
+                                <svg className="h-3.5 w-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                Refresh now
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Status report */}
                 <div className="bg-white shadow-sm sm:rounded-lg p-6">

@@ -61,9 +61,9 @@ class PloiService
             ]);
 
             if ($response->successful()) {
-                if ($this->requestSsl) {
-                    $this->requestSsl($domain, $targetSite);
-                }
+                // SSL is dispatched separately as a delayed queue job by the
+                // controller so the alias has time to propagate before we
+                // request a certificate. Don't fire it here.
                 return [true, "Alias \"{$domain}\" submitted to Ploi (HTTP {$response->status()}).", $response->json()];
             }
 

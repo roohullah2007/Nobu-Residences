@@ -319,40 +319,85 @@ class WebsiteManagementController extends Controller
             'sort_order' => 0,
         ]);
 
-        // Build a structured creation report (DB + Ploi alias + SSL) so the
-        // result page can show the user exactly what happened.
+        $this->runProvisioning($website, $ploi);
+
+        return redirect()->route('admin.websites.created', $website);
+    }
+
+    /**
+     * Run the alias add (synchronous) and queue the SSL request (async with
+     * 30s delay + retries). Persists per-step status on the Website row so
+     * the status page reflects reality on every reload.
+     */
+    protected function runProvisioning(Website $website, PloiService $ploi): void
+    {
         $report = [
             'db'    => ['ok' => true, 'message' => 'Website saved in the database.'],
             'ploi'  => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
             'ssl'   => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
         ];
 
-        if (!empty($website->domain)) {
-            if (!config('services.ploi.auto_provision') || !$ploi->isConfigured()) {
-                $report['ploi'] = [
-                    'ok' => false,
-                    'message' => 'Ploi auto-provisioning is disabled or PLOI_API_TOKEN / PLOI_SERVER_ID / PLOI_SITE_ID is missing in the .env. The alias was not added.',
-                ];
-                $report['ssl'] = ['ok' => null, 'message' => 'Skipped — Ploi not configured.'];
-            } else {
-                [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
-                $report['ploi'] = ['ok' => $aliasOk, 'message' => $aliasMsg];
+        if (empty($website->domain)) {
+            $website->update([
+                'ploi_alias_status' => 'not_required',
+                'ploi_ssl_status' => 'not_required',
+                'ploi_last_error' => null,
+            ]);
+            session()->flash('website_created_report', $report);
+            return;
+        }
 
-                if ($aliasOk && config('services.ploi.request_ssl', true)) {
-                    [$sslOk, $sslMsg] = $ploi->requestSsl($website->domain);
-                    $report['ssl'] = ['ok' => $sslOk, 'message' => $sslMsg];
-                } elseif (!$aliasOk) {
-                    $report['ssl'] = [
-                        'ok' => false,
-                        'message' => 'Skipped — SSL needs the alias to be added first.',
-                    ];
-                }
+        if (!config('services.ploi.auto_provision') || !$ploi->isConfigured()) {
+            $msg = 'Ploi auto-provisioning is disabled or PLOI_API_TOKEN / PLOI_SERVER_ID / PLOI_SITE_ID is missing in the .env.';
+            $website->update([
+                'ploi_alias_status' => 'failed',
+                'ploi_ssl_status' => 'failed',
+                'ploi_last_error' => $msg,
+            ]);
+            $report['ploi'] = ['ok' => false, 'message' => $msg];
+            $report['ssl'] = ['ok' => false, 'message' => 'Skipped — Ploi not configured.'];
+            session()->flash('website_created_report', $report);
+            return;
+        }
+
+        // Alias is added synchronously so we can report it on the redirect.
+        [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
+        $report['ploi'] = ['ok' => $aliasOk, 'message' => $aliasMsg];
+
+        if ($aliasOk) {
+            $website->update([
+                'ploi_alias_status' => 'added',
+                'ploi_alias_added_at' => now(),
+                'ploi_last_error' => null,
+            ]);
+
+            // SSL is queued — runs 30s later so the alias has time to settle,
+            // and Laravel's queue auto-retries on failure with backoff.
+            if (config('services.ploi.request_ssl', true)) {
+                $website->update(['ploi_ssl_status' => 'queued']);
+                \App\Jobs\RequestPloiSslJob::dispatch($website->id)
+                    ->delay(now()->addSeconds(30));
+                $report['ssl'] = [
+                    'ok' => null,
+                    'message' => "SSL queued — Let's Encrypt request will run in ~30s with automatic retries (30s/1m/2m/5m/10m backoff). Refresh this page in 1–2 minutes to see status.",
+                ];
+            } else {
+                $website->update(['ploi_ssl_status' => 'not_required']);
+                $report['ssl'] = ['ok' => null, 'message' => 'SSL not requested (PLOI_REQUEST_SSL=false).'];
             }
+        } else {
+            $website->update([
+                'ploi_alias_status' => 'failed',
+                'ploi_ssl_status' => 'pending',
+                'ploi_last_error' => $aliasMsg,
+            ]);
+            $report['ssl'] = [
+                'ok' => false,
+                'message' => 'Skipped — SSL needs the alias to be added first.',
+            ];
         }
 
         session()->flash('website_created_report', $report);
-
-        return redirect()->route('admin.websites.created', $website);
     }
 
     /**
@@ -402,6 +447,16 @@ class WebsiteManagementController extends Controller
                 : ['ok' => null, 'message' => 'No custom domain set — nothing to issue.'],
         ];
 
+        // Persistent provisioning state from the DB — survives reloads and
+        // reflects what the queued SSL job has done in the background.
+        $persisted = [
+            'alias_status' => $website->ploi_alias_status,
+            'alias_added_at' => $website->ploi_alias_added_at ? $website->ploi_alias_added_at->toDateTimeString() : null,
+            'ssl_status' => $website->ploi_ssl_status,
+            'ssl_issued_at' => $website->ploi_ssl_issued_at ? $website->ploi_ssl_issued_at->toDateTimeString() : null,
+            'last_error' => $website->ploi_last_error,
+        ];
+
         return Inertia::render('Admin/Websites/Created', [
             'title' => 'Website Created',
             'website' => [
@@ -417,6 +472,7 @@ class WebsiteManagementController extends Controller
             'liveStatus' => $liveStatus,
             'liveAliases' => $aliases,
             'liveCertificates' => $certificates,
+            'persisted' => $persisted,
             'ploi' => [
                 'configured' => $ploiConfigured,
                 'auto_provision' => (bool) config('services.ploi.auto_provision'),
@@ -434,23 +490,9 @@ class WebsiteManagementController extends Controller
         if (empty($website->domain)) {
             return back()->withErrors(['domain' => 'This website has no custom domain.']);
         }
-        if (!$ploi->isConfigured()) {
-            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
-        }
 
-        [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
-        $report = [
-            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => ['ok' => $aliasOk, 'message' => $aliasMsg],
-            'ssl'  => ['ok' => null, 'message' => 'Not requested in this retry.'],
-        ];
+        $this->runProvisioning($website, $ploi);
 
-        if ($aliasOk && config('services.ploi.request_ssl', true)) {
-            [$sslOk, $sslMsg] = $ploi->requestSsl($website->domain);
-            $report['ssl'] = ['ok' => $sslOk, 'message' => $sslMsg];
-        }
-
-        session()->flash('website_created_report', $report);
         return redirect()->route('admin.websites.created', $website);
     }
 
