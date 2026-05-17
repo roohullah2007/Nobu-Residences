@@ -2838,22 +2838,34 @@ class WebsiteController extends Controller
             $entries = [];
             $seen = [];
 
+            // Group by streetName so a building with 23 numbers only makes
+            // one Repliers query, not 23.
+            $groups = [];
             foreach ($streetAddresses as $addr) {
                 if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) continue;
-                $streetNumber = $m[1];
-                $streetName = $m[2];
+                $key = strtolower($m[2]);
+                if (!isset($groups[$key])) {
+                    $groups[$key] = ['name' => $m[2], 'numbers' => []];
+                }
+                $groups[$key]['numbers'][$m[1]] = true;
+            }
 
+            foreach ($groups as $g) {
                 $res = $api->searchListings([
                     'class' => 'condoProperty',
-                    'streetNumber' => $streetNumber,
-                    'streetName' => $streetName,
+                    'streetName' => $g['name'],
                     'status' => 'U',
                     'pageNum' => 1,
-                    'resultsPerPage' => 100,
+                    'resultsPerPage' => 200,
                     'sortBy' => 'updatedOnDesc',
                 ]);
 
                 foreach (($res['listings'] ?? []) as $l) {
+                    // Skip if streetNumber isn't part of this building
+                    $listingStreetNumber = (string) ($l['address']['streetNumber'] ?? '');
+                    if ($listingStreetNumber === '' || !isset($g['numbers'][$listingStreetNumber])) {
+                        continue;
+                    }
                     $key = ($l['mlsNumber'] ?? '') . '|' . ($l['listDate'] ?? '');
                     if (isset($seen[$key])) continue;
                     $seen[$key] = true;
@@ -2946,22 +2958,36 @@ class WebsiteController extends Controller
             $results = [];
             $seen = [];
 
+            // Group addresses by streetName so we make ONE Repliers query per
+            // unique street instead of one per address. A building with 23
+            // numbers (e.g. "8-30 Widmer St") was firing 23+ sequential
+            // requests and blowing the PHP 30s timeout.
+            $groups = [];
             foreach ($streetAddresses as $addr) {
                 if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) {
                     continue;
                 }
-                $streetNumber = $m[1];
-                $streetName = $m[2];
+                $key = strtolower($m[2]);
+                if (!isset($groups[$key])) {
+                    $groups[$key] = ['name' => $m[2], 'numbers' => []];
+                }
+                $groups[$key]['numbers'][$m[1]] = true;
+            }
 
+            $cityFilter = $building->city ?? null;
+
+            foreach ($groups as $g) {
                 $apiParams = [
                     'class' => 'condoProperty',
                     'status' => 'A',
                     'type' => $type,
-                    'streetNumber' => $streetNumber,
-                    'streetName' => $streetName,
+                    'streetName' => $g['name'],
                     'pageNum' => 1,
-                    'resultsPerPage' => 50,
+                    'resultsPerPage' => 200,
                 ];
+                if (!empty($cityFilter)) {
+                    $apiParams['city'] = $cityFilter;
+                }
 
                 $response = $repliersApi->searchListings($apiParams);
                 $listings = $response['listings'] ?? [];
@@ -2969,6 +2995,12 @@ class WebsiteController extends Controller
                 foreach ($listings as $listing) {
                     $mlsNumber = $listing['mlsNumber'] ?? null;
                     if (!$mlsNumber || isset($seen[$mlsNumber])) {
+                        continue;
+                    }
+                    // Only keep listings whose streetNumber matches one of
+                    // the building's addresses
+                    $listingStreetNumber = (string) ($listing['address']['streetNumber'] ?? '');
+                    if ($listingStreetNumber === '' || !isset($g['numbers'][$listingStreetNumber])) {
                         continue;
                     }
                     $seen[$mlsNumber] = true;

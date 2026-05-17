@@ -409,24 +409,48 @@ class Building extends Model
                     return ['sale' => 0, 'rent' => 0];
                 }
 
+                // Group by streetName so we make ONE Repliers query per street
+                // instead of one per address (a building with 23 numbers like
+                // "8-30 Widmer St" was firing 46 sequential API calls and
+                // blowing the PHP 30s timeout).
+                $groups = [];
+                foreach ($addresses as $addr) {
+                    $key = strtolower($addr['name']);
+                    if (!isset($groups[$key])) {
+                        $groups[$key] = ['name' => $addr['name'], 'numbers' => []];
+                    }
+                    $groups[$key]['numbers'][$addr['number']] = true;
+                }
+
                 try {
                     $api = app(\App\Services\RepliersApiService::class);
-                    foreach ($addresses as $addr) {
+                    foreach ($groups as $g) {
                         foreach (['sale', 'lease'] as $t) {
                             $params = [
                                 'class' => 'condoProperty',
                                 'status' => 'A',
                                 'type' => $t,
-                                'streetNumber' => $addr['number'],
-                                'streetName' => $addr['name'],
+                                'streetName' => $g['name'],
                                 'pageNum' => 1,
-                                'resultsPerPage' => 1,
+                                'resultsPerPage' => 200,
                             ];
                             if (!empty($this->city)) {
                                 $params['city'] = $this->city;
                             }
-                            $count = (int) ($api->searchListings($params)['count'] ?? 0);
-                            if ($t === 'sale') $sale += $count; else $rent += $count;
+                            $resp = $api->searchListings($params);
+                            $listings = $resp['listings'] ?? [];
+                            $matched = 0;
+                            foreach ($listings as $L) {
+                                $num = (string) (
+                                    $L['address']['streetNumber']
+                                    ?? $L['StreetNumber']
+                                    ?? ''
+                                );
+                                if ($num !== '' && isset($g['numbers'][$num])) {
+                                    $matched++;
+                                }
+                            }
+                            if ($t === 'sale') $sale += $matched; else $rent += $matched;
                         }
                     }
                 } catch (\Throwable $e) {
