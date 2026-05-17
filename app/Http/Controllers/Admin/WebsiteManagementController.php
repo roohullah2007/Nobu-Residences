@@ -434,6 +434,30 @@ class WebsiteManagementController extends Controller
             }
         }
 
+        // Keep the persisted DB state in sync with what Ploi actually shows.
+        // The sticky DB row was getting out of sync when an admin deleted the
+        // alias directly in Ploi's UI: the front-end would still see
+        // alias_status='added' and lock the Retry button as disabled. Trust
+        // Ploi's live view as the source of truth whenever we can talk to it.
+        if ($ploiConfigured && $domain) {
+            $needsUpdate = [];
+            if ($hasAlias && $website->ploi_alias_status !== 'added') {
+                $needsUpdate['ploi_alias_status'] = 'added';
+                $needsUpdate['ploi_alias_added_at'] = $website->ploi_alias_added_at ?: now();
+            } elseif (!$hasAlias && $website->ploi_alias_status === 'added') {
+                $needsUpdate['ploi_alias_status'] = 'pending';
+                $needsUpdate['ploi_alias_added_at'] = null;
+            }
+            if ($hasCert && $website->ploi_ssl_status !== 'issued') {
+                $needsUpdate['ploi_ssl_status'] = 'issued';
+                $needsUpdate['ploi_ssl_issued_at'] = $website->ploi_ssl_issued_at ?: now();
+                $needsUpdate['ploi_last_error'] = null;
+            }
+            if (!empty($needsUpdate)) {
+                $website->update($needsUpdate);
+            }
+        }
+
         $liveStatus = [
             'db'   => ['ok' => true, 'message' => 'Website is in the database.'],
             'ploi' => $domain

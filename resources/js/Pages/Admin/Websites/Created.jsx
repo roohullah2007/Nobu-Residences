@@ -113,15 +113,16 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const isCloudflare525 = typeof report.ssl?.message === 'string'
         && /SSL.*525|cloudflare/i.test(report.ssl.message);
 
-    // Treat the alias as "live on Ploi" if either the DB says so or the live
-    // alias list returned by Ploi already contains the website's domain. When
-    // it's already there we disable the Retry button to stop the user (and
-    // double-clicks) from POSTing a duplicate create.
+    // Trust ONLY the live Ploi alias list for the button's enable/disable
+    // state. The persisted DB status is sticky — once we set it to 'added'
+    // it stays even if the admin later deletes the alias from Ploi's UI, so
+    // using it here would lock the Retry button as disabled when the alias
+    // is genuinely missing. If Ploi's API call failed and the live list is
+    // empty, we'd rather show the button as enabled and let the idempotent
+    // addAlias() handle the "already exists" case than block the admin.
     const aliasAlreadyAdded = Boolean(
-        website.domain && (
-            persisted?.alias_status === 'added'
-            || (liveAliases || []).some((a) => typeof a === 'string' && a.toLowerCase() === website.domain.toLowerCase())
-        )
+        website.domain
+        && (liveAliases || []).some((a) => typeof a === 'string' && a.toLowerCase() === website.domain.toLowerCase())
     );
 
     // Flatten the list of every domain covered by at least one cert on the
