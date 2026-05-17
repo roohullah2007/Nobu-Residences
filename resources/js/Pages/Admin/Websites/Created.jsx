@@ -133,6 +133,13 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     );
     const dnsMismatch = /unable to match one of these domains|should resolve to|point your domain DNS to your server/i.test(errorText);
 
+    // Parse out the "resolves to X, Y" and "should resolve to Z" IPs from the
+    // Ploi error so the hint can show the user *exactly* what to change.
+    const resolvesToMatch = errorText.match(/resolves to\s*(?:<strong>)?([^<]+?)(?:<\/strong>)?\s+and should resolve to/i);
+    const shouldResolveMatch = errorText.match(/should resolve to one of\s*(?:<strong>)?([^<]+?)(?:<\/strong>)/i);
+    const dnsResolvesTo = resolvesToMatch ? resolvesToMatch[1].trim() : null;
+    const dnsShouldResolveTo = shouldResolveMatch ? shouldResolveMatch[1].trim() : null;
+
     const [retryingAlias, setRetryingAlias] = useState(false);
     const [retryingSsl, setRetryingSsl] = useState(false);
 
@@ -316,16 +323,38 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                             dnsMismatch ? (
                                 <div className="space-y-2">
                                     <div>
-                                        <strong>How to fix:</strong> Let's Encrypt couldn't reach the origin server because <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code> currently points to Cloudflare's proxy IPs, not the server. The certificate can't be issued until DNS resolves directly to the server (or you complete a DNS-01 challenge).
+                                        <strong>How to fix:</strong> Let's Encrypt couldn't reach the origin server because <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code> resolves to the wrong IP.
                                     </div>
+                                    {(dnsResolvesTo || dnsShouldResolveTo) && (
+                                        <div className="p-3 rounded-md bg-amber-50 border border-amber-200 text-xs">
+                                            {dnsResolvesTo && (
+                                                <div>
+                                                    <span className="text-gray-600">Currently resolves to:</span>{' '}
+                                                    <code className="font-mono text-red-700 bg-white px-1 rounded border border-red-200">{dnsResolvesTo}</code>
+                                                </div>
+                                            )}
+                                            {dnsShouldResolveTo && (
+                                                <div className="mt-1">
+                                                    <span className="text-gray-600">Must resolve to:</span>{' '}
+                                                    <code className="font-mono text-green-700 bg-white px-1 rounded border border-green-200">{dnsShouldResolveTo}</code>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     <ol className="list-decimal list-inside space-y-1 ml-1">
-                                        <li>In Cloudflare → DNS, set the A record for <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code> (and any <code className="font-mono bg-gray-100 px-1 rounded">www</code> record) to <strong>DNS only</strong> (gray cloud, not the orange proxied cloud).</li>
-                                        <li>Wait 1–2 minutes for DNS to propagate.</li>
-                                        <li>Click <strong>Retry SSL certificate</strong> below.</li>
+                                        <li>Open your DNS provider (Cloudflare, etc.) and find the A record for <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code>.</li>
+                                        <li>
+                                            Change its <strong>Content / IP address</strong> to{' '}
+                                            <code className="font-mono bg-gray-100 px-1 rounded">{dnsShouldResolveTo || '157.180.26.95'}</code>.
+                                            If there are multiple A records for the same name, delete the extras — you only need one.
+                                        </li>
+                                        <li>Do the same for any <code className="font-mono bg-gray-100 px-1 rounded">www</code> record (point it at the same IP, or use a CNAME to the apex).</li>
+                                        <li>If you're using Cloudflare, set the proxy status to <strong>DNS only</strong> (gray cloud) until the cert is issued.</li>
+                                        <li>Wait 1–2 minutes for DNS to propagate, then click <strong>Retry SSL certificate</strong> above.</li>
                                         <li>Once the cert is issued, you can flip Cloudflare back to <strong>Proxied</strong> (orange cloud) and set SSL/TLS mode to <strong>Full</strong>.</li>
                                     </ol>
                                     <div className="text-xs text-gray-500">
-                                        Retries have been stopped for this error — there's no point retrying every minute while DNS still points to Cloudflare. Use the Retry button above after fixing DNS.
+                                        Tip: "DNS only" alone doesn't fix this — the A record's IP value must actually point to the server. Cloudflare's proxy flag only controls whether traffic is routed through Cloudflare; it doesn't change where the record points.
                                     </div>
                                 </div>
                             ) : null
