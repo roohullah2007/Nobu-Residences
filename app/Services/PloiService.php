@@ -124,16 +124,26 @@ class PloiService
         }
 
         // Union with every domain already covered by an existing cert on the
-        // site. Without this, certbot overwrites the cert file with one that
-        // only covers the new domains — taking the site's primary domain
-        // offline with ERR_CERT_COMMON_NAME_INVALID. This single line is the
-        // difference between "issuing a new cert" and "wiping the existing
-        // one and replacing it with a narrower scope".
+        // site so the resulting SAN cert is a superset and we don't take
+        // existing aliases offline. BUT — and this is the bit that wasn't
+        // here before — only include a covered domain if it currently
+        // resolves to the Ploi server IP. Let's Encrypt's HTTP-01 challenge
+        // is all-or-nothing: if any single domain in the batch fails DNS
+        // validation (e.g. it now points back at Cloudflare's proxy), the
+        // entire issuance fails. Excluding stale domains is safer than
+        // letting them poison every retry.
+        $serverIp = $this->getServerIp();
+        $skipped = [];
         foreach ($this->listCertificates($targetSite) as $cert) {
             foreach (($cert['domains'] ?? []) as $existing) {
-                if (!in_array($existing, $domains, true)) {
-                    $domains[] = $existing;
+                if (in_array($existing, $domains, true) || in_array($existing, $skipped, true)) {
+                    continue;
                 }
+                if ($serverIp && !$this->domainResolvesTo($existing, $serverIp)) {
+                    $skipped[] = $existing;
+                    continue;
+                }
+                $domains[] = $existing;
             }
         }
 
@@ -152,12 +162,18 @@ class PloiService
 
             Log::info('Ploi SSL request', [
                 'certificate' => $certificateString,
+                'skipped' => $skipped,
+                'server_ip' => $serverIp,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
 
             if ($response->successful()) {
-                return [true, "SSL requested for: {$certificateString}", $response->json()];
+                $msg = "SSL requested for: {$certificateString}";
+                if (!empty($skipped)) {
+                    $msg .= '. Skipped (DNS no longer points to server ' . $serverIp . '): ' . implode(', ', $skipped);
+                }
+                return [true, $msg, $response->json()];
             }
 
             // 422 with "already" is fine — cert already exists / pending
@@ -165,7 +181,11 @@ class PloiService
                 return [true, 'SSL certificate already exists for this domain.', $response->json()];
             }
 
-            return [false, "Ploi SSL returned {$response->status()}: {$response->body()}", $response->json()];
+            $errMsg = "Ploi SSL returned {$response->status()}: {$response->body()}";
+            if (!empty($skipped)) {
+                $errMsg .= ' [Skipped covered domains whose DNS no longer points to ' . $serverIp . ': ' . implode(', ', $skipped) . ']';
+            }
+            return [false, $errMsg, $response->json()];
         } catch (\Throwable $e) {
             Log::error('Ploi SSL exception', ['error' => $e->getMessage()]);
             return [false, $e->getMessage(), null];
@@ -329,6 +349,86 @@ class PloiService
             Log::error('Ploi listCertificates exception', ['error' => $e->getMessage()]);
             return [];
         }
+    }
+
+    /**
+     * Cache for getServerIp() so a single SSL request doesn't hit GET /servers
+     * multiple times when filtering many covered domains.
+     */
+    protected ?string $cachedServerIp = null;
+
+    /**
+     * Public IPv4 of the configured Ploi server. Used as the reference IP
+     * when filtering which covered domains can still validate via HTTP-01.
+     *
+     * Resolution order:
+     *   1. PLOI_SERVER_IP env var (if explicitly set)
+     *   2. GET /servers/{server_id} → ip_address from Ploi's API
+     *   3. null (caller should fall back to including all domains)
+     */
+    public function getServerIp(): ?string
+    {
+        if ($this->cachedServerIp !== null) {
+            return $this->cachedServerIp ?: null;
+        }
+
+        $configured = config('services.ploi.server_ip');
+        if (!empty($configured)) {
+            return $this->cachedServerIp = $configured;
+        }
+
+        if (!$this->isConfigured()) {
+            $this->cachedServerIp = '';
+            return null;
+        }
+
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/servers/{$this->serverId}");
+            if ($response->successful()) {
+                $data = $response->json();
+                $ip = $data['data']['ip_address']
+                    ?? $data['ip_address']
+                    ?? $data['data']['public_ip']
+                    ?? $data['public_ip']
+                    ?? null;
+                if ($ip) {
+                    return $this->cachedServerIp = $ip;
+                }
+            }
+            Log::warning('Ploi getServerIp failed', [
+                'status' => $response->status(),
+                'body' => substr((string) $response->body(), 0, 500),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Ploi getServerIp exception', ['error' => $e->getMessage()]);
+        }
+
+        $this->cachedServerIp = '';
+        return null;
+    }
+
+    /**
+     * Does $domain currently resolve to $serverIp via DNS? Used to decide
+     * whether a domain can safely be included in a Let's Encrypt batch — if
+     * its DNS no longer points to the server, including it would cause the
+     * whole all-or-nothing issuance to fail.
+     */
+    protected function domainResolvesTo(string $domain, string $serverIp): bool
+    {
+        if ($domain === '' || $serverIp === '') {
+            return false;
+        }
+        try {
+            $records = @dns_get_record($domain, DNS_A);
+            foreach ((array) $records as $r) {
+                if (!empty($r['ip']) && $r['ip'] === $serverIp) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Treat lookup failure as "can't confirm" — exclude to be safe.
+        }
+        return false;
     }
 
     protected function client()
