@@ -513,7 +513,7 @@ class WebsiteManagementController extends Controller
         if ($ok) {
             $website->update([
                 'ploi_alias_status' => 'added',
-                'ploi_alias_added_at' => now(),
+                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
                 'ploi_last_error' => null,
             ]);
         } else {
@@ -523,17 +523,35 @@ class WebsiteManagementController extends Controller
             ]);
         }
 
+        // Reflect current SSL state in the report so it doesn't render as a
+        // misleading "Skipped" — query Ploi and report what's actually issued.
+        $hasCert = false;
+        foreach ($ploi->listCertificates() as $c) {
+            foreach (($c['domains'] ?? []) as $d) {
+                if (strcasecmp($d, $website->domain) === 0) { $hasCert = true; break 2; }
+            }
+        }
+
         session()->flash('website_created_report', [
             'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
             'ploi' => ['ok' => $ok, 'message' => $msg],
-            'ssl'  => ['ok' => null, 'message' => 'Not requested in this retry. Use the "Retry SSL" button to issue the certificate.'],
+            'ssl'  => $hasCert
+                ? ['ok' => true, 'message' => "Let's Encrypt certificate already covers \"{$website->domain}\"."]
+                : ['ok' => false, 'message' => 'SSL not requested in this retry. Click "Retry SSL certificate" to issue it.'],
         ]);
 
         return redirect()->route('admin.websites.created', $website);
     }
 
     /**
-     * Retry ONLY the SSL request (dispatches the queued job, runs immediately).
+     * Retry ONLY the SSL request.
+     *
+     * Runs synchronously so the user gets immediate feedback. We used to
+     * dispatch a queued job here, but on production the queue worker isn't
+     * always running, so the status would sit at "queued" forever and the
+     * user thought the button was broken. The synchronous call is fast — Ploi
+     * either accepts the request and returns 200 (or 422 "already exists"),
+     * or rejects it with a DNS-mismatch 422 that we surface immediately.
      */
     public function retrySsl(Website $website, PloiService $ploi): RedirectResponse
     {
@@ -544,14 +562,42 @@ class WebsiteManagementController extends Controller
             return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
         }
 
-        // Dispatch immediately (no 30s delay — user explicitly clicked retry)
+        // Reflect current alias state in the report so it doesn't render as
+        // "Skipped" — the alias is almost always already on Ploi at this point.
+        $aliases = $ploi->listAliases();
+        $aliasOnPloi = in_array($website->domain, $aliases, true);
+        if ($aliasOnPloi && $website->ploi_alias_status !== 'added') {
+            $website->update([
+                'ploi_alias_status' => 'added',
+                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
+            ]);
+        }
+
         $website->update(['ploi_ssl_status' => 'queued']);
-        \App\Jobs\RequestPloiSslJob::dispatch($website->id);
+
+        [$ok, $message] = $ploi->requestSsl($website->domain);
+
+        if ($ok) {
+            $website->update([
+                'ploi_ssl_status' => 'issued',
+                'ploi_ssl_issued_at' => now(),
+                'ploi_last_error' => null,
+            ]);
+            $sslReport = ['ok' => true, 'message' => $message];
+        } else {
+            $website->update([
+                'ploi_ssl_status' => 'failed',
+                'ploi_last_error' => $message,
+            ]);
+            $sslReport = ['ok' => false, 'message' => $message];
+        }
 
         session()->flash('website_created_report', [
             'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => ['ok' => null, 'message' => 'Not changed in this retry.'],
-            'ssl'  => ['ok' => null, 'message' => 'SSL request re-queued — will run shortly, with retries on failure.'],
+            'ploi' => $aliasOnPloi
+                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is already on Ploi."]
+                : ['ok' => false, 'message' => "Alias \"{$website->domain}\" is NOT on Ploi yet — click \"Retry domain alias\" first."],
+            'ssl'  => $sslReport,
         ]);
 
         return redirect()->route('admin.websites.created', $website);

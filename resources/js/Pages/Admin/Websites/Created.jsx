@@ -133,11 +133,24 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     );
     const dnsMismatch = /unable to match one of these domains|should resolve to|point your domain DNS to your server/i.test(errorText);
 
+    const [retryingAlias, setRetryingAlias] = useState(false);
+    const [retryingSsl, setRetryingSsl] = useState(false);
+
     const retryAlias = () => {
-        router.post(route('admin.websites.retry-alias', website.id), {}, { preserveScroll: true });
+        if (retryingAlias) return;
+        setRetryingAlias(true);
+        router.post(route('admin.websites.retry-alias', website.id), {}, {
+            preserveScroll: true,
+            onFinish: () => setRetryingAlias(false),
+        });
     };
     const retrySsl = () => {
-        router.post(route('admin.websites.retry-ssl', website.id), {}, { preserveScroll: true });
+        if (retryingSsl) return;
+        setRetryingSsl(true);
+        router.post(route('admin.websites.retry-ssl', website.id), {}, {
+            preserveScroll: true,
+            onFinish: () => setRetryingSsl(false),
+        });
     };
 
     return (
@@ -335,23 +348,25 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                 <button
                                     type="button"
                                     onClick={retryAlias}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                    disabled={retryingAlias}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className={`h-4 w-4 ${retryingAlias ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                     </svg>
-                                    Retry domain alias
+                                    {retryingAlias ? 'Retrying…' : 'Retry domain alias'}
                                 </button>
                             )}
                             <button
                                 type="button"
                                 onClick={retrySsl}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                                disabled={retryingSsl}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={`h-4 w-4 ${retryingSsl ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0-1.105.895-2 2-2s2 .895 2 2v2H8v-2c0-1.105.895-2 2-2zM5 13h14v8H5v-8z" />
                                 </svg>
-                                Retry SSL certificate
+                                {retryingSsl ? 'Requesting SSL…' : 'Retry SSL certificate'}
                             </button>
                         </div>
                     )}
