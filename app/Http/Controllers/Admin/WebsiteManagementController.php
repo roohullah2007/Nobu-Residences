@@ -238,6 +238,25 @@ class WebsiteManagementController extends Controller
             Website::where('is_default', true)->update(['is_default' => false]);
         }
 
+        // New sites inherit the default website's full color palette + fonts
+        // when the admin didn't override them. This keeps every new site
+        // visually consistent with Nobu out of the box (navbar bg, button
+        // colors, footer colors, hero overlay, etc.) instead of falling back
+        // to the model's hardcoded skeleton defaults.
+        $defaultSite = Website::where('is_default', true)
+            ->where('is_default', '!=', ($validated['is_default'] ?? false))
+            ->first();
+        if (!$defaultSite) {
+            $defaultSite = Website::where('is_default', true)->first();
+        }
+        if ($defaultSite) {
+            foreach (['brand_colors', 'fonts'] as $field) {
+                if (empty($validated[$field]) && !empty($defaultSite->{$field})) {
+                    $validated[$field] = $defaultSite->{$field};
+                }
+            }
+        }
+
         // Handle logo file upload
         if ($request->hasFile('logo_file')) {
             $logoFile = $request->file('logo_file');

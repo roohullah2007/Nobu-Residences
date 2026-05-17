@@ -86,13 +86,14 @@ class Website extends Model
     }
 
     /**
-     * Get brand colors with default values
-     * Default brand colors for Nobu Residences theme
+     * Get brand colors with default values. Falls back to the default
+     * website's palette (typically Nobu) so every site looks consistent
+     * out of the box. Only if there's no default website at all do we
+     * use the hardcoded skeleton defaults.
      */
     public function getBrandColors(): array
     {
-        // Default brand colors for new websites
-        $defaults = [
+        $skeletonDefaults = [
             'primary' => '#912018',
             'secondary' => '#293056',
             'accent' => '#F5F8FF',
@@ -100,11 +101,24 @@ class Website extends Model
             'background' => '#FFFFFF',
         ];
 
-        if (!$this->brand_colors) {
-            return $defaults;
+        // If this row already has its own colors saved, those win. Layer them
+        // on top of the skeleton so any keys the admin didn't customize still
+        // resolve to something sensible.
+        if (!empty($this->brand_colors)) {
+            return array_merge($skeletonDefaults, $this->brand_colors);
         }
 
-        return array_merge($defaults, $this->brand_colors);
+        // No saved colors — inherit the default website's palette if one
+        // exists. Guard against infinite recursion: don't recurse when
+        // *this* row is the default.
+        if (!$this->is_default) {
+            $defaultSite = static::where('is_default', true)->first();
+            if ($defaultSite && !empty($defaultSite->brand_colors)) {
+                return array_merge($skeletonDefaults, $defaultSite->brand_colors);
+            }
+        }
+
+        return $skeletonDefaults;
     }
 
     /**
