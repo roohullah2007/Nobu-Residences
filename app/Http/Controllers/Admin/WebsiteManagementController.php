@@ -319,20 +319,99 @@ class WebsiteManagementController extends Controller
             'sort_order' => 0,
         ]);
 
-        // Auto-add the custom domain as a Ploi site alias (+ SSL) when configured
-        $ploiMessage = null;
-        if (!empty($website->domain) && config('services.ploi.auto_provision') && $ploi->isConfigured()) {
-            [$ok, $message] = $ploi->addAlias($website->domain);
-            $ploiMessage = $ok ? "Ploi: {$message}" : "Ploi error: {$message}";
+        // Build a structured creation report (DB + Ploi alias + SSL) so the
+        // result page can show the user exactly what happened.
+        $report = [
+            'db'    => ['ok' => true, 'message' => 'Website saved in the database.'],
+            'ploi'  => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
+            'ssl'   => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
+        ];
+
+        if (!empty($website->domain)) {
+            if (!config('services.ploi.auto_provision') || !$ploi->isConfigured()) {
+                $report['ploi'] = [
+                    'ok' => false,
+                    'message' => 'Ploi auto-provisioning is disabled or PLOI_API_TOKEN / PLOI_SERVER_ID / PLOI_SITE_ID is missing in the .env. The alias was not added.',
+                ];
+                $report['ssl'] = ['ok' => null, 'message' => 'Skipped — Ploi not configured.'];
+            } else {
+                [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
+                $report['ploi'] = ['ok' => $aliasOk, 'message' => $aliasMsg];
+
+                if ($aliasOk && config('services.ploi.request_ssl', true)) {
+                    [$sslOk, $sslMsg] = $ploi->requestSsl($website->domain);
+                    $report['ssl'] = ['ok' => $sslOk, 'message' => $sslMsg];
+                } elseif (!$aliasOk) {
+                    $report['ssl'] = [
+                        'ok' => false,
+                        'message' => 'Skipped — SSL needs the alias to be added first.',
+                    ];
+                }
+            }
         }
 
-        $flash = 'Website created successfully!';
-        if ($ploiMessage) {
-            $flash .= ' ' . $ploiMessage;
+        session()->flash('website_created_report', $report);
+
+        return redirect()->route('admin.websites.created', $website);
+    }
+
+    /**
+     * Post-creation status page.
+     */
+    public function created(Website $website): Response
+    {
+        $report = session('website_created_report') ?? [
+            'db' => ['ok' => true, 'message' => 'Website is in the database.'],
+            'ploi' => ['ok' => null, 'message' => 'No recent Ploi action.'],
+            'ssl' => ['ok' => null, 'message' => 'No recent SSL action.'],
+        ];
+
+        return Inertia::render('Admin/Websites/Created', [
+            'title' => 'Website Created',
+            'website' => [
+                'id' => $website->id,
+                'name' => $website->name,
+                'slug' => $website->slug,
+                'domain' => $website->domain,
+                'is_active' => $website->is_active,
+                'created_at' => optional($website->created_at)->toDateTimeString(),
+            ],
+            'report' => $report,
+            'ploi' => [
+                'configured' => (bool) (config('services.ploi.token') && config('services.ploi.server_id')),
+                'auto_provision' => (bool) config('services.ploi.auto_provision'),
+                'server_id' => config('services.ploi.server_id'),
+                'site_id' => config('services.ploi.site_id'),
+            ],
+        ]);
+    }
+
+    /**
+     * Retry the Ploi alias add (and optional SSL request) for an existing website.
+     */
+    public function retryPloi(Website $website, PloiService $ploi): RedirectResponse
+    {
+        if (empty($website->domain)) {
+            return back()->withErrors(['domain' => 'This website has no custom domain.']);
+        }
+        if (!$ploi->isConfigured()) {
+            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
         }
 
-        return redirect()->route('admin.websites.show', $website)
-            ->with('success', $flash);
+        [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
+        $report = [
+            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
+            'ploi' => ['ok' => $aliasOk, 'message' => $aliasMsg],
+            'ssl'  => ['ok' => null, 'message' => 'Not requested in this retry.'],
+        ];
+
+        if ($aliasOk && config('services.ploi.request_ssl', true)) {
+            [$sslOk, $sslMsg] = $ploi->requestSsl($website->domain);
+            $report['ssl'] = ['ok' => $sslOk, 'message' => $sslMsg];
+        }
+
+        session()->flash('website_created_report', $report);
+        return redirect()->route('admin.websites.created', $website);
     }
 
     /**

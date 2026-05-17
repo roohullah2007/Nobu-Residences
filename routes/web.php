@@ -451,6 +451,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/create', [WebsiteManagementController::class, 'create'])->name('create');
         Route::post('/ai-generate-seo', [WebsiteManagementController::class, 'aiGenerateSeo'])->name('ai-generate-seo');
         Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
+        Route::get('/{website}/created', [WebsiteManagementController::class, 'created'])->name('created');
+        Route::post('/{website}/retry-ploi', [WebsiteManagementController::class, 'retryPloi'])->name('retry-ploi');
         Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
         Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');
