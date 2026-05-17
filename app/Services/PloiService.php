@@ -48,31 +48,30 @@ class PloiService
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases";
 
         try {
+            // Ploi's /aliases endpoint accepts a plural "aliases" field with a
+            // comma-separated string (NOT "domain" or "aliases[]"). Sending the
+            // wrong shape silently returns 2xx with no effect.
             $response = $this->client()->post($endpoint, [
-                'domain' => $domain,
+                'aliases' => $domain,
             ]);
 
-            if ($response->successful()) {
-                Log::info('Ploi alias added', ['domain' => $domain, 'site' => $targetSite]);
-
-                if ($this->requestSsl) {
-                    $this->requestSsl($domain, $targetSite);
-                }
-
-                return [true, 'Alias added on Ploi.', $response->json()];
-            }
-
-            // Already exists is fine
-            if ($response->status() === 422 && str_contains((string) $response->body(), 'already')) {
-                Log::info('Ploi alias already exists', ['domain' => $domain]);
-                return [true, 'Alias already exists on Ploi.', $response->json()];
-            }
-
-            Log::warning('Ploi alias failed', [
+            Log::info('Ploi alias request', [
                 'domain' => $domain,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
+
+            if ($response->successful()) {
+                if ($this->requestSsl) {
+                    $this->requestSsl($domain, $targetSite);
+                }
+                return [true, "Alias \"{$domain}\" submitted to Ploi (HTTP {$response->status()}).", $response->json()];
+            }
+
+            // Already exists is fine
+            if ($response->status() === 422 && str_contains((string) $response->body(), 'already')) {
+                return [true, "Alias \"{$domain}\" already exists on Ploi.", $response->json()];
+            }
 
             return [false, "Ploi API returned {$response->status()}: {$response->body()}", $response->json()];
         } catch (\Throwable $e) {
@@ -101,35 +100,37 @@ class PloiService
         }
 
         // Include the www variant when the user provided a bare apex domain
-        $certificates = [$domain];
+        $domains = [$domain];
         if (!str_starts_with($domain, 'www.') && substr_count($domain, '.') === 1) {
-            $certificates[] = 'www.' . $domain;
+            $domains[] = 'www.' . $domain;
         }
+        // Ploi's /certificates endpoint expects a SINGULAR "certificate" field
+        // containing a comma-separated string of domains (NOT a "certificates"
+        // array). The 422 from Ploi spells this out: "The certificate field is required."
+        $certificateString = implode(',', $domains);
 
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates";
 
         try {
             $response = $this->client()->post($endpoint, [
                 'type' => 'letsencrypt',
-                'certificates' => $certificates,
+                'certificate' => $certificateString,
+            ]);
+
+            Log::info('Ploi SSL request', [
+                'certificate' => $certificateString,
+                'status' => $response->status(),
+                'body' => $response->body(),
             ]);
 
             if ($response->successful()) {
-                Log::info('Ploi SSL requested', ['certificates' => $certificates]);
-                return [true, 'SSL requested for: ' . implode(', ', $certificates), $response->json()];
+                return [true, "SSL requested for: {$certificateString}", $response->json()];
             }
 
             // 422 with "already" is fine — cert already exists / pending
             if ($response->status() === 422 && str_contains((string) $response->body(), 'already')) {
-                Log::info('Ploi SSL already exists', ['certificates' => $certificates]);
                 return [true, 'SSL certificate already exists for this domain.', $response->json()];
             }
-
-            Log::warning('Ploi SSL failed', [
-                'certificates' => $certificates,
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
 
             return [false, "Ploi SSL returned {$response->status()}: {$response->body()}", $response->json()];
         } catch (\Throwable $e) {
