@@ -132,11 +132,21 @@ class PloiService
         // validation (e.g. it now points back at Cloudflare's proxy), the
         // entire issuance fails. Excluding stale domains is safer than
         // letting them poison every retry.
+        // Case-insensitive contains: Ploi sometimes returns "Foo.com" where
+        // we already have "foo.com" in $domains. A strict in_array would let
+        // both into the cert request and we'd be POSTing a duplicate.
+        $hasDomain = function (string $needle, array $haystack): bool {
+            foreach ($haystack as $h) {
+                if (is_string($h) && strcasecmp($h, $needle) === 0) return true;
+            }
+            return false;
+        };
+
         $serverIp = $this->getServerIp();
         $skipped = [];
         foreach ($this->listCertificates($targetSite) as $cert) {
             foreach (($cert['domains'] ?? []) as $existing) {
-                if (in_array($existing, $domains, true) || in_array($existing, $skipped, true)) {
+                if ($hasDomain($existing, $domains) || $hasDomain($existing, $skipped)) {
                     continue;
                 }
                 if ($serverIp && !$this->domainResolvesTo($existing, $serverIp)) {

@@ -252,17 +252,15 @@ class WebsiteManagementController extends Controller
         // when the admin didn't override them. This keeps every new site
         // visually consistent with Nobu out of the box (navbar bg, button
         // colors, footer colors, hero overlay, etc.) instead of falling back
-        // to the model's hardcoded skeleton defaults.
-        $defaultSite = Website::where('is_default', true)
-            ->where('is_default', '!=', ($validated['is_default'] ?? false))
-            ->first();
-        if (!$defaultSite) {
+        // to the model's hardcoded skeleton defaults. When the new site IS
+        // the default site, there's no inheritance to do — skip.
+        if (empty($validated['is_default'])) {
             $defaultSite = Website::where('is_default', true)->first();
-        }
-        if ($defaultSite) {
-            foreach (['brand_colors', 'fonts'] as $field) {
-                if (empty($validated[$field]) && !empty($defaultSite->{$field})) {
-                    $validated[$field] = $defaultSite->{$field};
+            if ($defaultSite) {
+                foreach (['brand_colors', 'fonts'] as $field) {
+                    if (empty($validated[$field]) && !empty($defaultSite->{$field})) {
+                        $validated[$field] = $defaultSite->{$field};
+                    }
                 }
             }
         }

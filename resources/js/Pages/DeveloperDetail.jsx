@@ -788,6 +788,29 @@ export default function DeveloperDetail({
                     </div>
                 )}
 
+                {/* Optional editorial copy — renders only when the developer
+                    has a description saved. Replaces a hardcoded Lorem block
+                    that used to live here. Sits at the bottom of the detail
+                    layout so it doesn't compete with the hero/About-pane. */}
+                {developer?.description && (
+                    <section className="py-10 sm:py-16 bg-white">
+                        <div className="max-w-[1280px] mx-auto px-4">
+                            <h2
+                                className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
+                                style={{ lineHeight: '1.3' }}
+                            >
+                                About {developer.name}
+                            </h2>
+                            <p
+                                className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
+                                style={{ lineHeight: '1.7' }}
+                            >
+                                {developer.description}
+                            </p>
+                        </div>
+                    </section>
+                )}
+
                 {/* FAQ Section */}
                 <div className="faq-section">
                     <FAQ />
@@ -925,28 +948,6 @@ export default function DeveloperDetail({
                     </div>
                 </div>
             </section>
-
-            {/* Optional editorial copy. Renders only if developer.description
-                is set — placeholder Lorem block lived here previously and
-                shipped to production. */}
-            {developer?.description && (
-                <section className="py-10 sm:py-16 bg-white">
-                    <div className="max-w-[1280px] mx-auto px-4">
-                        <h2
-                            className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
-                            style={{ lineHeight: '1.3' }}
-                        >
-                            About {developer.name}
-                        </h2>
-                        <p
-                            className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
-                            style={{ lineHeight: '1.7' }}
-                        >
-                            {developer.description}
-                        </p>
-                    </div>
-                </section>
-            )}
 
             {/* All Developers Grid */}
             {allDevelopers.length > 0 && (
