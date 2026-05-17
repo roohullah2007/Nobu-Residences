@@ -186,6 +186,52 @@ export default function Edit({ auth }) {
                     </div>
                 </div>
 
+                {/* Domain & Hosting (Ploi) — quick action card */}
+                <div className="bg-white shadow rounded-lg border border-gray-200 mb-6">
+                    <div className="px-4 py-5 sm:p-6">
+                        <div className="flex items-start gap-4 mb-4">
+                            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                <svg className="h-5 w-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-lg font-medium text-gray-900">Domain & Hosting</h3>
+                                <p className="text-sm text-gray-500">
+                                    Add the custom domain to Ploi as a site alias and request a Let's Encrypt SSL certificate. The DNS A record must point to your Ploi server first.
+                                </p>
+                            </div>
+                        </div>
+
+                        {website?.domain ? (
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Current domain</div>
+                                    <div className="font-mono text-gray-900 truncate">{website.domain}</div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm('Add this domain to Ploi as a site alias and request SSL?')) {
+                                            router.post(route('admin.websites.retry-ploi', website.id));
+                                        }
+                                    }}
+                                    className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                >
+                                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    Connect domain to Ploi
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900">
+                                No custom domain set on this website yet. Add one in the Basic Information section below and save, then come back to connect it to Ploi.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Basic Information */}
                     <div className="bg-white shadow rounded-lg border border-gray-200">
