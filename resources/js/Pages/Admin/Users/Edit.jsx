@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import PhoneInput from '@/Components/PhoneInput';
 
 const lightFormClass =
     '[&_input]:!bg-white [&_input]:!text-gray-900 ' +
@@ -72,13 +73,11 @@ export default function UsersEdit({ user, roles = [] }) {
 
                             <div>
                                 <InputLabel htmlFor="phone" value="Phone" />
-                                <TextInput
+                                <PhoneInput
                                     id="phone"
-                                    type="tel"
-                                    className="mt-1 block w-full"
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                     value={data.phone}
                                     onChange={(e) => setData('phone', e.target.value)}
-                                    placeholder="+1 (555) 123-4567"
                                 />
                                 <InputError message={errors.phone} className="mt-2" />
                             </div>

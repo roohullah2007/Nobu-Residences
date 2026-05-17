@@ -1,5 +1,6 @@
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import PhoneInput from '@/Components/PhoneInput';
 import React, { useState, useEffect } from 'react';
 
 export default function Edit({ auth }) {
@@ -897,12 +898,10 @@ export default function Edit({ auth }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                    <input
-                                        type="tel"
+                                    <PhoneInput
                                         value={data['contact_info.phone']}
                                         onChange={(e) => setData('contact_info.phone', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="+1 (555) 123-4567"
                                     />
                                 </div>
 
@@ -1040,12 +1039,10 @@ export default function Edit({ auth }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Agent Phone</label>
-                                    <input
-                                        type="tel"
+                                    <PhoneInput
                                         value={data.agent_phone}
                                         onChange={(e) => setData('agent_phone', e.target.value)}
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="+1 (555) 123-4567"
                                     />
                                 </div>
 

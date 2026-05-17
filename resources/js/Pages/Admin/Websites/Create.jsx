@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import PhoneInput from '@/Components/PhoneInput';
 import { useMemo, useState } from 'react';
 
 // Force white backgrounds on all form controls (override TextInput's dark: classes)
@@ -685,13 +686,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <InputLabel htmlFor="contact_phone" value="Phone" />
-                                            <TextInput
+                                            <PhoneInput
                                                 id="contact_phone"
-                                                type="tel"
                                                 value={data['contact_info.phone']}
-                                                className="mt-1 block w-full"
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                                 onChange={(e) => setData('contact_info.phone', e.target.value)}
-                                                placeholder="+1 (555) 123-4567"
                                             />
                                         </div>
 
@@ -807,13 +806,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
 
                                             <div>
                                                 <InputLabel htmlFor="agent_phone" value="Agent Phone" />
-                                                <TextInput
+                                                <PhoneInput
                                                     id="agent_phone"
-                                                    type="tel"
                                                     value={data.agent_phone}
-                                                    className="mt-1 block w-full"
+                                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                                                     onChange={(e) => setData('agent_phone', e.target.value)}
-                                                    placeholder="+1 (555) 987-6543"
                                                 />
                                                 <InputError message={errors.agent_phone} className="mt-2" />
                                             </div>
