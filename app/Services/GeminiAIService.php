@@ -16,7 +16,7 @@ class GeminiAIService
     public function __construct()
     {
         $this->apiKey = config('services.gemini.api_key', env('GEMINI_API_KEY', 'AIzaSyAQiazBsYhcKBAcvcOLKoOuixJJMF8N95Q'));
-        $this->model = 'gemini-1.5-flash';
+        $this->model = env('GEMINI_MODEL', 'gemini-flash-latest');
         $this->apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent";
     }
 
@@ -836,6 +836,79 @@ class GeminiAIService
     /**
      * Generate building description using Gemini AI
      */
+    /**
+     * Generate SEO meta tags (title, description, keywords) for a website.
+     * Returns ['title' => string, 'description' => string, 'keywords' => string].
+     */
+    public function generateSeoMeta(array $context): array
+    {
+        $name = $context['name'] ?? 'Property';
+        $building = $context['building_name'] ?? null;
+        $address = $context['address'] ?? '';
+        $city = $context['city'] ?? '';
+        $description = $context['description'] ?? '';
+
+        $prompt = "You are an SEO copywriter for a luxury real estate website. ".
+            "Generate concise, high-converting SEO metadata for this property/condo website. ".
+            "Return ONLY a strict JSON object with keys: title, description, keywords. No markdown, no commentary.\n\n".
+            "Website name: {$name}\n".
+            ($building ? "Building: {$building}\n" : '').
+            ($address ? "Address: {$address}\n" : '').
+            ($city ? "City: {$city}\n" : '').
+            ($description ? "Description: {$description}\n" : '').
+            "\nConstraints:\n".
+            "- title: 50-60 characters, includes the building or website name and key location\n".
+            "- description: 150-160 characters, engaging, mentions the location and luxury/real-estate angle\n".
+            "- keywords: 6-10 comma-separated keywords relevant to Toronto/GTA real estate, the building name, and the location\n";
+
+        $loc = $city ?: 'Toronto';
+        $fallback = [
+            'title' => trim($name . ' - Luxury Condos in ' . $loc),
+            'description' => "Discover {$name} - premium condos in {$loc}. Explore floor plans, amenities, and current listings.",
+            'keywords' => strtolower($name) . ", {$loc} condos, luxury real estate, toronto condos, condos for sale, real estate {$loc}",
+        ];
+
+        try {
+            $raw = $this->generateContent($prompt);
+            $clean = trim($raw);
+            // Strip markdown fences if present
+            $clean = preg_replace('/^```(?:json)?\s*/i', '', $clean);
+            $clean = preg_replace('/```\s*$/', '', $clean);
+            $clean = trim($clean);
+
+            $parsed = json_decode($clean, true);
+
+            // If full-string JSON decode failed, try to extract the first {...} block
+            if (!is_array($parsed) && preg_match('/\{[\s\S]*\}/', $clean, $m)) {
+                $parsed = json_decode($m[0], true);
+            }
+
+            if (is_array($parsed)) {
+                $title = $parsed['title'] ?? $parsed['meta_title'] ?? null;
+                $description = $parsed['description'] ?? $parsed['meta_description'] ?? null;
+                $keywords = $parsed['keywords'] ?? $parsed['meta_keywords'] ?? null;
+
+                if (is_array($keywords)) {
+                    $keywords = implode(', ', array_map('trim', $keywords));
+                } elseif (is_string($keywords)) {
+                    $keywords = trim($keywords);
+                }
+
+                return [
+                    'title' => $title ? (string) $title : $fallback['title'],
+                    'description' => $description ? (string) $description : $fallback['description'],
+                    'keywords' => !empty($keywords) ? (string) $keywords : $fallback['keywords'],
+                ];
+            }
+
+            Log::warning('Gemini SEO meta did not return valid JSON', ['raw' => $raw]);
+        } catch (\Exception $e) {
+            Log::error('Gemini SEO meta error: ' . $e->getMessage());
+        }
+
+        return $fallback;
+    }
+
     public function generateBuildingDescription(string $prompt, array $buildingData): string
     {
         try {

@@ -435,6 +435,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::prefix('websites')->name('websites.')->group(function () {
         Route::get('/', [WebsiteManagementController::class, 'index'])->name('index');
         Route::get('/create', [WebsiteManagementController::class, 'create'])->name('create');
+        Route::post('/ai-generate-seo', [WebsiteManagementController::class, 'aiGenerateSeo'])->name('ai-generate-seo');
         Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
         Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');

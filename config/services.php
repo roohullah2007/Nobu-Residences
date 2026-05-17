@@ -46,4 +46,13 @@ return [
         'api_key' => env('GEMINI_API_KEY', 'AIzaSyAQiazBsYhcKBAcvcOLKoOuixJJMF8N95Q'),
     ],
 
+    'ploi' => [
+        'token' => env('PLOI_API_TOKEN'),
+        'server_id' => env('PLOI_SERVER_ID'),
+        'site_id' => env('PLOI_SITE_ID'),
+        'auto_provision' => env('PLOI_AUTO_PROVISION', true),
+        'request_ssl' => env('PLOI_REQUEST_SSL', true),
+        'base_url' => env('PLOI_BASE_URL', 'https://ploi.io/api'),
+    ],
+
 ];

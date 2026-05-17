@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Building;
 use App\Models\Website;
 use App\Models\WebsitePage;
 use App\Models\Icon;
 use App\Models\AgentInfo;
+use App\Services\PloiService;
+use App\Services\GeminiAIService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 
@@ -47,18 +51,98 @@ class WebsiteManagementController extends Controller
      */
     public function create(): Response
     {
+        $buildings = Building::select(
+                'id', 'name', 'slug', 'address', 'city', 'description',
+                'main_image', 'agent_name', 'agent_title', 'agent_phone',
+                'agent_email', 'agent_brokerage', 'agent_image', 'website_url'
+            )
+            ->orderBy('name')
+            ->get();
+
+        // Default agent (used when a building has no agent info attached)
+        $defaultAgent = AgentInfo::query()
+            ->where('agent_name', 'Jatin Gill')
+            ->first();
+
+        $defaultAgentPayload = $defaultAgent
+            ? [
+                'agent_name' => $defaultAgent->agent_name,
+                'agent_title' => $defaultAgent->agent_title,
+                'agent_phone' => $defaultAgent->agent_phone,
+                'brokerage' => $defaultAgent->brokerage,
+                'profile_image' => $defaultAgent->profile_image,
+            ]
+            : [
+                'agent_name' => 'Jatin Gill',
+                'agent_title' => 'Property Manager',
+                'agent_phone' => '647-490-1532',
+                'brokerage' => 'Property.ca Inc, Brokerage',
+                'profile_image' => null,
+            ];
+
+        // Default branding from the existing Nobu Residences (default) website
+        $nobu = Website::where('is_default', true)->first();
+        $defaultBranding = [
+            'logo_url' => $nobu?->logo_url ?: $nobu?->logo ?: '/assets/logo.png',
+            'favicon_url' => $nobu?->favicon_url ?: '/favicon.ico',
+        ];
+
         return Inertia::render('Admin/Websites/Create', [
-            'title' => 'Create New Website'
+            'title' => 'Create New Website',
+            'buildings' => $buildings,
+            'defaultAgent' => $defaultAgentPayload,
+            'defaultBranding' => $defaultBranding,
+            'ploiEnabled' => config('services.ploi.auto_provision') && !empty(config('services.ploi.token')),
         ]);
+    }
+
+    /**
+     * Generate SEO metadata (title/description/keywords) for the Create form.
+     */
+    public function aiGenerateSeo(Request $request, GeminiAIService $ai)
+    {
+        $request->validate([
+            'name' => 'nullable|string|max:255',
+            'building_id' => 'nullable|exists:buildings,id',
+        ]);
+
+        $context = [
+            'name' => $request->input('name') ?: 'New Website',
+        ];
+
+        if ($buildingId = $request->input('building_id')) {
+            $building = Building::find($buildingId);
+            if ($building) {
+                $context['building_name'] = $building->name;
+                $context['address'] = $building->address;
+                $context['city'] = $building->city;
+                $context['description'] = $building->description;
+            }
+        }
+
+        $seo = $ai->generateSeoMeta($context);
+
+        return response()->json($seo);
     }
 
     /**
      * Store new website
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PloiService $ploi): RedirectResponse
     {
         // Parse nested keys from FormData (e.g., 'brand_colors.primary')
         $data = $request->all();
+
+        // Auto-generate slug from name if missing (we no longer expose the slug field in the UI)
+        if (empty($data['slug']) && !empty($data['name'])) {
+            $base = Str::slug($data['name']);
+            $slug = $base;
+            $i = 2;
+            while (Website::where('slug', $slug)->exists()) {
+                $slug = $base . '-' . $i++;
+            }
+            $data['slug'] = $slug;
+        }
 
         // Convert string booleans to actual booleans
         foreach (['is_default', 'is_active'] as $field) {
@@ -98,10 +182,26 @@ class WebsiteManagementController extends Controller
         // Merge the parsed data back into the request
         $request->merge($data);
 
+        // Convert empty string to null for the building-id nullable fields, then validate
+        foreach (['homepage_building_id', 'building_id'] as $f) {
+            if (isset($data[$f]) && $data[$f] === '') {
+                $data[$f] = null;
+                $request->merge([$f => null]);
+            }
+        }
+        if (array_key_exists('use_building_as_homepage', $data)) {
+            $request->merge([
+                'use_building_as_homepage' => filter_var($data['use_building_as_homepage'], FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:websites',
             'domain' => 'nullable|string|max:255',
+            'building_id' => 'nullable|exists:buildings,id',
+            'homepage_building_id' => 'nullable|exists:buildings,id',
+            'use_building_as_homepage' => 'boolean',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
@@ -124,6 +224,13 @@ class WebsiteManagementController extends Controller
             'business_hours' => 'nullable|array',
             'timezone' => 'nullable|string|max:255',
         ]);
+
+        // If user picked a building in step 1 and didn't override the homepage_building_id, copy it across.
+        if (!empty($validated['building_id']) && empty($validated['homepage_building_id'])) {
+            $validated['homepage_building_id'] = $validated['building_id'];
+            $validated['use_building_as_homepage'] = $validated['use_building_as_homepage'] ?? true;
+        }
+        unset($validated['building_id']);
 
         // If this is set as default, remove default from other websites
         if ($validated['is_default'] ?? false) {
@@ -212,8 +319,20 @@ class WebsiteManagementController extends Controller
             'sort_order' => 0,
         ]);
 
+        // Auto-add the custom domain as a Ploi site alias (+ SSL) when configured
+        $ploiMessage = null;
+        if (!empty($website->domain) && config('services.ploi.auto_provision') && $ploi->isConfigured()) {
+            [$ok, $message] = $ploi->addAlias($website->domain);
+            $ploiMessage = $ok ? "Ploi: {$message}" : "Ploi error: {$message}";
+        }
+
+        $flash = 'Website created successfully!';
+        if ($ploiMessage) {
+            $flash .= ' ' . $ploiMessage;
+        }
+
         return redirect()->route('admin.websites.show', $website)
-            ->with('success', 'Website created successfully!');
+            ->with('success', $flash);
     }
 
     /**
