@@ -71,7 +71,7 @@ const Row = ({ icon, title, status, message, hint = null }) => (
     </div>
 );
 
-export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [], persisted = {} }) {
+export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [], persisted = {}, dnsCheck = null }) {
     // Auto-refresh while SSL is still pending so the user sees the queued
     // job's progress without manually reloading.
     const [autoPoll, setAutoPoll] = useState(true);
@@ -139,6 +139,25 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const shouldResolveMatch = errorText.match(/should resolve to one of\s*(?:<strong>)?([^<]+?)(?:<\/strong>)/i);
     const dnsResolvesTo = resolvesToMatch ? resolvesToMatch[1].trim() : null;
     const dnsShouldResolveTo = shouldResolveMatch ? shouldResolveMatch[1].trim() : null;
+
+    // Compare the server's *current* DNS view against the expected server IP.
+    // If they now match, the old persisted error is stale — the user just
+    // needs to click Retry SSL and it should succeed.
+    const expectedIps = (dnsShouldResolveTo || '')
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    const badIps = (dnsResolvesTo || '')
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    const currentIps = Array.isArray(dnsCheck?.ips) ? dnsCheck.ips : [];
+    const stillSeesBadIps = badIps.length > 0 && currentIps.some((ip) => badIps.includes(ip));
+    const seesExpectedIp = expectedIps.length > 0 && expectedIps.some((ip) => currentIps.includes(ip));
+    // "Looks good" means: the server now resolves the domain to the expected
+    // IP and no longer sees the previously-bad IPs. If we don't know the
+    // expected IP (no prior error), only show the panel without verdict.
+    const dnsLooksGood = seesExpectedIp && !stillSeesBadIps;
 
     const [retryingAlias, setRetryingAlias] = useState(false);
     const [retryingSsl, setRetryingSsl] = useState(false);
@@ -251,6 +270,50 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                         {persisted.last_error && (
                             <div className="mt-3 text-xs font-mono p-3 bg-red-50 border border-red-200 rounded text-red-800 break-all">
                                 <strong>Last error:</strong> {persisted.last_error}
+                                {dnsMismatch && dnsLooksGood && (
+                                    <div className="mt-2 text-xs font-sans text-green-800 bg-green-50 border border-green-200 rounded p-2">
+                                        <strong>This error is stale.</strong> Your DNS now resolves to the correct IP. Click <strong>Retry SSL certificate</strong> below to re-issue.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Live DNS check — what the server currently resolves the domain to */}
+                        {dnsCheck && (
+                            <div className={`mt-3 text-xs p-3 rounded border ${
+                                dnsCheck.error
+                                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                                    : dnsMismatch
+                                        ? (dnsLooksGood ? 'bg-green-50 border-green-200 text-green-900' : 'bg-red-50 border-red-200 text-red-900')
+                                        : 'bg-gray-50 border-gray-200 text-gray-700'
+                            }`}>
+                                <div className="flex items-start gap-2">
+                                    <svg className="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-semibold">Live DNS check (from this server)</div>
+                                        {dnsCheck.error ? (
+                                            <div className="mt-1 font-mono break-all">{dnsCheck.error}</div>
+                                        ) : (
+                                            <div className="mt-1">
+                                                <code className="font-mono">{dnsCheck.domain}</code> currently resolves to:{' '}
+                                                {(dnsCheck.ips || []).map((ip, i) => (
+                                                    <code key={ip} className={`font-mono px-1 rounded bg-white border ${expectedIps.includes(ip) ? 'border-green-300 text-green-800' : badIps.includes(ip) ? 'border-red-300 text-red-800' : 'border-gray-300 text-gray-800'} ${i > 0 ? 'ml-1' : ''}`}>
+                                                        {ip}
+                                                    </code>
+                                                ))}
+                                                {dnsMismatch && expectedIps.length > 0 && (
+                                                    <div className="mt-1 text-gray-600">
+                                                        Expected: <code className="font-mono px-1 rounded bg-white border border-green-300 text-green-800">{expectedIps.join(', ')}</code>
+                                                        {dnsLooksGood ? ' — match ✓' : ' — does not match yet'}
+                                                    </div>
+                                                )}
+                                                <div className="mt-1 text-gray-500">Checked at {dnsCheck.checked_at}. Click <strong>Refresh now</strong> to re-query.</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
                         <div className="mt-4 flex items-center gap-3">

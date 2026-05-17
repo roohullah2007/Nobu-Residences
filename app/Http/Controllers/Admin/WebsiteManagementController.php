@@ -457,6 +457,12 @@ class WebsiteManagementController extends Controller
             'last_error' => $website->ploi_last_error,
         ];
 
+        // Fresh DNS lookup so the user sees what the server currently resolves
+        // the domain to. This is the same view Ploi's resolver will get (give
+        // or take cache TTL), so it tells the user whether a Retry SSL is
+        // likely to succeed without having to guess.
+        $dnsCheck = $this->lookupDomainIps($domain);
+
         return Inertia::render('Admin/Websites/Created', [
             'title' => 'Website Created',
             'website' => [
@@ -473,6 +479,7 @@ class WebsiteManagementController extends Controller
             'liveAliases' => $aliases,
             'liveCertificates' => $certificates,
             'persisted' => $persisted,
+            'dnsCheck' => $dnsCheck,
             'ploi' => [
                 'configured' => $ploiConfigured,
                 'auto_provision' => (bool) config('services.ploi.auto_provision'),
@@ -480,6 +487,41 @@ class WebsiteManagementController extends Controller
                 'site_id' => config('services.ploi.site_id'),
             ],
         ]);
+    }
+
+    /**
+     * Fresh A/AAAA lookup for a domain. Returns:
+     *   [ 'domain' => '...', 'ips' => ['157.180.26.95'], 'error' => null,
+     *     'checked_at' => '2026-05-18 ...' ]
+     * Returns null when there's no domain to check.
+     */
+    protected function lookupDomainIps(?string $domain): ?array
+    {
+        if (empty($domain)) {
+            return null;
+        }
+
+        try {
+            $records = @dns_get_record($domain, DNS_A + DNS_AAAA);
+            $ips = [];
+            foreach ((array) $records as $r) {
+                if (!empty($r['ip']))   { $ips[] = $r['ip']; }
+                if (!empty($r['ipv6'])) { $ips[] = $r['ipv6']; }
+            }
+            return [
+                'domain' => $domain,
+                'ips' => array_values(array_unique($ips)),
+                'error' => empty($ips) ? 'No A/AAAA record found for this domain.' : null,
+                'checked_at' => now()->toDateTimeString(),
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'domain' => $domain,
+                'ips' => [],
+                'error' => 'DNS lookup failed: ' . $e->getMessage(),
+                'checked_at' => now()->toDateTimeString(),
+            ];
+        }
     }
 
     /**
