@@ -125,10 +125,25 @@ class BuildingController extends Controller
     {
         $cacheKey = 'building_listing_counts:' . $building->id;
         return \Illuminate\Support\Facades\Cache::remember($cacheKey, 600, function () use ($building) {
+            $rawCandidates = [
+                $building->street_address_1 ?? null,
+                $building->street_address_2 ?? null,
+            ];
+            if (is_array($building->additional_addresses)) {
+                foreach ($building->additional_addresses as $a) {
+                    $rawCandidates[] = $a;
+                }
+            }
+
             $addresses = [];
-            foreach ([$building->street_address_1 ?? null, $building->street_address_2 ?? null] as $a) {
+            $seen = [];
+            foreach ($rawCandidates as $a) {
                 if ($parsed = $this->parseStreetAddress($a)) {
-                    $addresses[] = $parsed;
+                    $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $addresses[] = $parsed;
+                    }
                 }
             }
             if (empty($addresses) && !empty($building->address)) {
@@ -137,7 +152,11 @@ class BuildingController extends Controller
                 $parts = preg_split('/\s*[,&]\s*/', $building->address);
                 foreach (array_filter(array_map('trim', $parts)) as $part) {
                     if ($parsed = $this->parseStreetAddress($part)) {
-                        $addresses[] = $parsed;
+                        $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                        if (!isset($seen[$key])) {
+                            $seen[$key] = true;
+                            $addresses[] = $parsed;
+                        }
                     }
                 }
             }

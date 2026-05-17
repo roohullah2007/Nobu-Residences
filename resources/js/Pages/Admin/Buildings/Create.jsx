@@ -354,9 +354,12 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         const range = detectAddressRange(data.address);
         if (!range) return;
         const [first, ...rest] = range.addresses;
+        // Clear Street Address 1/2 so they don't duplicate with the expanded list
         setData((prev) => ({
             ...prev,
             address: first,
+            street_address_1: '',
+            street_address_2: '',
             additional_addresses: rest,
         }));
     };

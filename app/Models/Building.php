@@ -364,17 +364,39 @@ class Building extends Model
             'building_listing_counts:' . $this->id,
             600,
             function () {
+                // Collect every street-address variant: SA1, SA2, each entry in
+                // additional_addresses, then fall back to the primary `address`
+                // if no street fields are populated.
+                $rawCandidates = [
+                    $this->street_address_1 ?? null,
+                    $this->street_address_2 ?? null,
+                ];
+                if (is_array($this->additional_addresses)) {
+                    foreach ($this->additional_addresses as $a) {
+                        $rawCandidates[] = $a;
+                    }
+                }
+
                 $addresses = [];
-                foreach ([$this->street_address_1 ?? null, $this->street_address_2 ?? null] as $a) {
+                $seen = [];
+                foreach ($rawCandidates as $a) {
                     if ($parsed = self::parseStreetAddress($a)) {
-                        $addresses[] = $parsed;
+                        $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                        if (!isset($seen[$key])) {
+                            $seen[$key] = true;
+                            $addresses[] = $parsed;
+                        }
                     }
                 }
                 if (empty($addresses) && !empty($this->address)) {
                     $parts = preg_split('/\s*[,&]\s*/', $this->address);
                     foreach (array_filter(array_map('trim', $parts)) as $part) {
                         if ($parsed = self::parseStreetAddress($part)) {
-                            $addresses[] = $parsed;
+                            $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                            if (!isset($seen[$key])) {
+                                $seen[$key] = true;
+                                $addresses[] = $parsed;
+                            }
                         }
                     }
                 }
