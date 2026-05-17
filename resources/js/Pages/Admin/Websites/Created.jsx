@@ -75,13 +75,31 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     // Auto-refresh while SSL is still pending so the user sees the queued
     // job's progress without manually reloading.
     const [autoPoll, setAutoPoll] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
     const sslPending = persisted?.ssl_status === 'queued' || persisted?.ssl_status === 'pending';
+
+    // Full reload so every prop (incl. report/persisted) is recomputed on the
+    // server. Partial reload via `only:` worked at the API level but produced
+    // no visible feedback when Ploi state hadn't changed, so users thought the
+    // button was broken. Full reload + spinner makes the action obvious.
+    const refreshNow = () => {
+        if (refreshing) return;
+        setRefreshing(true);
+        router.reload({
+            preserveScroll: true,
+            onFinish: () => {
+                setRefreshing(false);
+                setLastRefreshedAt(new Date());
+            },
+        });
+    };
+
     useEffect(() => {
         if (!autoPoll || !sslPending) return;
-        const t = setInterval(() => {
-            router.reload({ only: ['liveAliases', 'liveCertificates', 'liveStatus', 'persisted'] });
-        }, 15000);
+        const t = setInterval(refreshNow, 15000);
         return () => clearInterval(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoPoll, sslPending]);
     const allOk = report.db?.ok && report.ploi?.ok !== false && report.ssl?.ok !== false;
 
@@ -215,15 +233,21 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                 <strong>Last error:</strong> {persisted.last_error}
                             </div>
                         )}
-                        <div className="mt-4">
+                        <div className="mt-4 flex items-center gap-3">
                             <button
                                 type="button"
-                                onClick={() => router.reload({ only: ['liveAliases', 'liveCertificates', 'liveStatus', 'persisted'] })}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                onClick={refreshNow}
+                                disabled={refreshing}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                <svg className="h-3.5 w-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                Refresh now
+                                <svg className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                {refreshing ? 'Refreshing…' : 'Refresh now'}
                             </button>
+                            {lastRefreshedAt && (
+                                <span className="text-xs text-gray-500">
+                                    Last refreshed at {lastRefreshedAt.toLocaleTimeString()}
+                                </span>
+                            )}
                         </div>
                     </div>
                 )}
