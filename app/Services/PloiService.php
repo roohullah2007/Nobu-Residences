@@ -138,6 +138,92 @@ class PloiService
         }
     }
 
+    /**
+     * Fetch the current list of aliases on the given site.
+     * Returns an array of alias strings (empty array on failure).
+     */
+    public function listAliases(?string $siteId = null): array
+    {
+        $targetSite = $siteId ?: $this->siteId;
+        if (!$this->isConfigured() || empty($targetSite)) {
+            return [];
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases";
+
+        try {
+            $response = $this->client()->get($endpoint);
+            if (!$response->successful()) {
+                Log::warning('Ploi listAliases failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return [];
+            }
+            $data = $response->json();
+            // Ploi typically returns { "data": [ { "id":..., "domain": "..."}, ... ] }
+            $rows = $data['data'] ?? $data ?? [];
+            $aliases = [];
+            foreach ($rows as $row) {
+                if (is_string($row)) {
+                    $aliases[] = $row;
+                } elseif (is_array($row)) {
+                    $aliases[] = $row['domain'] ?? $row['name'] ?? null;
+                }
+            }
+            return array_values(array_filter($aliases));
+        } catch (\Throwable $e) {
+            Log::error('Ploi listAliases exception', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Fetch the current list of SSL certificates on the given site.
+     * Returns array of [ 'id', 'type', 'domains' (array), 'status' ].
+     */
+    public function listCertificates(?string $siteId = null): array
+    {
+        $targetSite = $siteId ?: $this->siteId;
+        if (!$this->isConfigured() || empty($targetSite)) {
+            return [];
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates";
+
+        try {
+            $response = $this->client()->get($endpoint);
+            if (!$response->successful()) {
+                Log::warning('Ploi listCertificates failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return [];
+            }
+            $data = $response->json();
+            $rows = $data['data'] ?? $data ?? [];
+            $out = [];
+            foreach ($rows as $r) {
+                if (!is_array($r)) continue;
+                $domains = $r['domain'] ?? $r['domains'] ?? '';
+                if (is_string($domains)) {
+                    $domains = array_map('trim', explode(',', $domains));
+                }
+                $out[] = [
+                    'id' => $r['id'] ?? null,
+                    'type' => $r['type'] ?? null,
+                    'domains' => array_values(array_filter((array) $domains)),
+                    'status' => $r['status'] ?? null,
+                    'expires_at' => $r['expires_at'] ?? null,
+                ];
+            }
+            return $out;
+        } catch (\Throwable $e) {
+            Log::error('Ploi listCertificates exception', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
     protected function client()
     {
         return Http::withToken($this->token)

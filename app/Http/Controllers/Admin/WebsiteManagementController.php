@@ -356,14 +356,50 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Post-creation status page.
+     * Post-creation status page. Always queries Ploi for the *live* alias +
+     * cert state so reloading shows the real picture (not stale flash data).
      */
-    public function created(Website $website): Response
+    public function created(Website $website, PloiService $ploi): Response
     {
-        $report = session('website_created_report') ?? [
-            'db' => ['ok' => true, 'message' => 'Website is in the database.'],
-            'ploi' => ['ok' => null, 'message' => 'No recent Ploi action.'],
-            'ssl' => ['ok' => null, 'message' => 'No recent SSL action.'],
+        $report = session('website_created_report');
+
+        $domain = $website->domain;
+        $aliases = [];
+        $certificates = [];
+
+        $ploiConfigured = (bool) (config('services.ploi.token') && config('services.ploi.server_id') && config('services.ploi.site_id'));
+
+        if ($ploiConfigured) {
+            $aliases = $ploi->listAliases();
+            $certificates = $ploi->listCertificates();
+        }
+
+        // Derive a fresh "current state" report from what Ploi actually shows
+        $hasAlias = $domain && in_array($domain, $aliases, true);
+        $hasCert = false;
+        if ($domain) {
+            foreach ($certificates as $c) {
+                foreach (($c['domains'] ?? []) as $d) {
+                    if (strcasecmp($d, $domain) === 0) {
+                        $hasCert = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        $liveStatus = [
+            'db'   => ['ok' => true, 'message' => 'Website is in the database.'],
+            'ploi' => $domain
+                ? ($hasAlias
+                    ? ['ok' => true, 'message' => "Alias \"{$domain}\" is present on the Ploi site."]
+                    : ['ok' => false, 'message' => "Alias \"{$domain}\" is NOT on the Ploi site yet. Click Retry below."])
+                : ['ok' => null, 'message' => 'No custom domain set — nothing to add to Ploi.'],
+            'ssl'  => $domain
+                ? ($hasCert
+                    ? ['ok' => true, 'message' => "Let's Encrypt certificate is issued and covers \"{$domain}\"."]
+                    : ['ok' => false, 'message' => "No SSL certificate yet covers \"{$domain}\". Click Retry below (alias must be added first)."])
+                : ['ok' => null, 'message' => 'No custom domain set — nothing to issue.'],
         ];
 
         return Inertia::render('Admin/Websites/Created', [
@@ -376,9 +412,13 @@ class WebsiteManagementController extends Controller
                 'is_active' => $website->is_active,
                 'created_at' => optional($website->created_at)->toDateTimeString(),
             ],
-            'report' => $report,
+            // The most recent action (if any) plus the live current state.
+            'report' => $report ?: $liveStatus,
+            'liveStatus' => $liveStatus,
+            'liveAliases' => $aliases,
+            'liveCertificates' => $certificates,
             'ploi' => [
-                'configured' => (bool) (config('services.ploi.token') && config('services.ploi.server_id')),
+                'configured' => $ploiConfigured,
                 'auto_provision' => (bool) config('services.ploi.auto_provision'),
                 'server_id' => config('services.ploi.server_id'),
                 'site_id' => config('services.ploi.site_id'),

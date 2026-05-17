@@ -42,7 +42,7 @@ const Row = ({ icon, title, status, message, hint = null }) => (
     </div>
 );
 
-export default function WebsiteCreated({ website, report, ploi }) {
+export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [] }) {
     const allOk = report.db?.ok && report.ploi?.ok !== false && report.ssl?.ok !== false;
 
     const ipWhitelistMatch = (msg) =>
@@ -175,6 +175,56 @@ export default function WebsiteCreated({ website, report, ploi }) {
                         </div>
                     )}
                 </div>
+
+                {/* Live Ploi state — what's actually configured on the site right now */}
+                {ploi.configured && (
+                    <div className="bg-white shadow-sm sm:rounded-lg p-6">
+                        <h3 className="text-base font-semibold text-gray-900 mb-2">Current Ploi state</h3>
+                        <p className="text-sm text-gray-500 mb-4">Fetched live from Ploi — reflects what is on the site this moment.</p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="border border-gray-200 rounded-lg p-4">
+                                <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Domain aliases on site</div>
+                                {liveAliases.length === 0 ? (
+                                    <div className="text-sm text-gray-500 italic">No aliases configured.</div>
+                                ) : (
+                                    <ul className="text-sm space-y-1">
+                                        {liveAliases.map((a) => (
+                                            <li key={a} className={`font-mono ${website.domain && a === website.domain ? 'text-green-700 font-semibold' : 'text-gray-700'}`}>
+                                                {website.domain && a === website.domain ? '✓ ' : '• '}
+                                                {a}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+
+                            <div className="border border-gray-200 rounded-lg p-4">
+                                <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">SSL certificates on site</div>
+                                {liveCertificates.length === 0 ? (
+                                    <div className="text-sm text-gray-500 italic">No certificates issued.</div>
+                                ) : (
+                                    <ul className="text-sm space-y-2">
+                                        {liveCertificates.map((c) => {
+                                            const covers = website.domain && (c.domains || []).some((d) => d?.toLowerCase() === website.domain.toLowerCase());
+                                            return (
+                                                <li key={c.id} className={`${covers ? 'text-green-700' : 'text-gray-700'}`}>
+                                                    <div className="font-mono text-xs break-words">
+                                                        {covers ? '✓ ' : '• '}
+                                                        {(c.domains || []).join(', ')}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {c.type || 'cert'}{c.status ? ` · ${c.status}` : ''}{c.expires_at ? ` · expires ${c.expires_at}` : ''}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Cloudflare warning if domain is behind CF */}
                 {website.domain && (
