@@ -480,13 +480,16 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const handleExpandRange = () => {
         const range = detectAddressRange(data.address);
         if (!range) return;
-        const [first, ...rest] = range.addresses;
-        // Clear Street Address 1/2 so they don't duplicate with the expanded list
+        // Keep the primary Address as the user typed it (e.g. "8-30 Widmer St, Toronto")
+        // and fill the structured fields in order:
+        //   first expanded   -> Street Address 1
+        //   second expanded  -> Street Address 2
+        //   third onward     -> Additional Street Addresses
+        const [first = '', second = '', ...rest] = range.addresses;
         setData((prev) => ({
             ...prev,
-            address: first,
-            street_address_1: '',
-            street_address_2: '',
+            street_address_1: first,
+            street_address_2: second,
             additional_addresses: rest,
         }));
     };
