@@ -106,6 +106,8 @@ class BuildingController extends Controller
             'address' => 'required|string|max:255',
             'street_address_1' => 'nullable|string|max:255',
             'street_address_2' => 'nullable|string|max:255',
+            'additional_addresses' => 'nullable|array',
+            'additional_addresses.*' => 'nullable|string|max:255',
             'city' => 'required|string|max:100',
             'neighbourhood' => 'nullable|string|max:255',
             'sub_neighbourhood' => 'nullable|string|max:255',
@@ -159,6 +161,17 @@ class BuildingController extends Controller
             'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
             'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds)
         ]);
+
+        // Drop empty entries from additional_addresses before saving
+        if (isset($validated['additional_addresses']) && is_array($validated['additional_addresses'])) {
+            $validated['additional_addresses'] = array_values(array_filter(
+                array_map(fn($a) => is_string($a) ? trim($a) : $a, $validated['additional_addresses']),
+                fn($a) => !empty($a)
+            ));
+            if (empty($validated['additional_addresses'])) {
+                $validated['additional_addresses'] = null;
+            }
+        }
 
         $building = Building::create($validated);
 
@@ -277,6 +290,7 @@ class BuildingController extends Controller
                 'address' => $building->address,
                 'street_address_1' => $building->street_address_1,
                 'street_address_2' => $building->street_address_2,
+                'additional_addresses' => $building->additional_addresses ?? [],
                 'city' => $building->city,
                 'neighbourhood' => $building->neighbourhood,
                 'sub_neighbourhood' => $building->sub_neighbourhood,
@@ -336,6 +350,8 @@ class BuildingController extends Controller
             'address' => 'required|string|max:255',
             'street_address_1' => 'nullable|string|max:255',
             'street_address_2' => 'nullable|string|max:255',
+            'additional_addresses' => 'nullable|array',
+            'additional_addresses.*' => 'nullable|string|max:255',
             'city' => 'required|string|max:100',
             'neighbourhood' => 'nullable|string|max:255',
             'neighbourhood_id' => 'nullable|exists:neighbourhoods,id',
@@ -399,6 +415,16 @@ class BuildingController extends Controller
             'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds),
             'request_data_keys' => array_keys($request->all())
         ]);
+
+        // Drop empty entries from additional_addresses before saving
+        if (array_key_exists('additional_addresses', $validated)) {
+            $list = is_array($validated['additional_addresses']) ? $validated['additional_addresses'] : [];
+            $list = array_values(array_filter(
+                array_map(fn($a) => is_string($a) ? trim($a) : $a, $list),
+                fn($a) => !empty($a)
+            ));
+            $validated['additional_addresses'] = !empty($list) ? $list : null;
+        }
 
         // Update building basic info (excluding amenities)
         $building->update($validated);

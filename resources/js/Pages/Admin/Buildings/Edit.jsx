@@ -31,6 +31,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         address: building.address || '',
         street_address_1: building.street_address_1 || '',
         street_address_2: building.street_address_2 || '',
+        additional_addresses: Array.isArray(building.additional_addresses) ? building.additional_addresses : [],
         city: building.city || '',
         neighbourhood: building.neighbourhood || '',
         neighbourhood_id: building.neighbourhood_id || '',
@@ -69,7 +70,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         interior_designer: building.interior_designer || '',
         landscape_architect: building.landscape_architect || '',
         maintenance_fee_amenity_ids: building.maintenance_fee_amenity_ids || [],
-        developer_name: building.developer_name || '',
         management_name: building.management_name || '',
         corp_number: building.corp_number || '',
         date_registered: building.date_registered || ''
@@ -223,7 +223,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
                         price_range: data.price_range,
                         maintenance_fee_range: data.maintenance_fee_range,
-                        developer_name: data.developer_name,
                         management_name: data.management_name,
                         existing_description: data.description
                     }
@@ -472,7 +471,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="mt-8 space-y-8">
+                <form onSubmit={handleSubmit} className="mt-8 space-y-8 [&_input]:!bg-white [&_input]:!text-gray-900 [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_select]:!bg-white [&_select]:!text-gray-900">
                     {/* Basic Information */}
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
@@ -486,6 +485,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
+                                        placeholder="e.g., The Well"
                                         required
                                     />
                                     <InputError message={errors.name} className="mt-2" />
@@ -509,6 +509,40 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <InputError message={errors.building_type} className="mt-2" />
                                 </div>
 
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="listing_type" value="Listing Type *" />
+                                    <select
+                                        id="listing_type"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.listing_type}
+                                        onChange={(e) => setData('listing_type', e.target.value)}
+                                        required
+                                    >
+                                        <option value="For Sale">For Sale</option>
+                                        <option value="For Rent">For Rent</option>
+                                        <option value="Both">Both (Sale & Rent)</option>
+                                    </select>
+                                    <InputError message={errors.listing_type} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="status_basic" value="Status *" />
+                                    <select
+                                        id="status_basic"
+                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        value={data.status}
+                                        onChange={(e) => setData('status', e.target.value)}
+                                        required
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="pre_construction">Pre Construction</option>
+                                        <option value="under_construction">Under Construction</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="sold_out">Sold Out</option>
+                                    </select>
+                                    <InputError message={errors.status} className="mt-2" />
+                                </div>
+
                                 <div className="sm:col-span-4">
                                     <InputLabel htmlFor="address" value="Address *" />
                                     <TextInput
@@ -517,6 +551,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.address}
                                         onChange={(e) => setData('address', e.target.value)}
+                                        placeholder="e.g., 10 Capreol Crt"
                                         required
                                     />
                                     <InputError message={errors.address} className="mt-2" />
@@ -550,6 +585,51 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <p className="text-xs text-gray-500 mt-1">Optional second address for the same building</p>
                                 </div>
 
+                                <div className="sm:col-span-6">
+                                    <div className="flex items-center justify-between">
+                                        <InputLabel value="Additional Street Addresses" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setData('additional_addresses', [...(data.additional_addresses || []), ''])}
+                                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                                        >
+                                            + Add address
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        For buildings spanning multiple street numbers (e.g., "8-30 Widmer St").
+                                    </p>
+                                    <div className="mt-2 space-y-2">
+                                        {(data.additional_addresses || []).map((addr, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <TextInput
+                                                    type="text"
+                                                    className="block w-full"
+                                                    value={addr}
+                                                    onChange={(e) => {
+                                                        const next = [...data.additional_addresses];
+                                                        next[idx] = e.target.value;
+                                                        setData('additional_addresses', next);
+                                                    }}
+                                                    placeholder="e.g., 12 Widmer St"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = data.additional_addresses.filter((_, i) => i !== idx);
+                                                        setData('additional_addresses', next);
+                                                    }}
+                                                    className="px-2 py-1 text-red-600 hover:text-red-800 text-sm"
+                                                    title="Remove this address"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <InputError message={errors.additional_addresses} className="mt-2" />
+                                </div>
+
                                 <div className="sm:col-span-2">
                                     <InputLabel htmlFor="city" value="City *" />
                                     <TextInput
@@ -558,6 +638,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.city}
                                         onChange={(e) => setData('city', e.target.value)}
+                                        placeholder="e.g., Toronto"
                                         required
                                     />
                                     <InputError message={errors.city} className="mt-2" />
@@ -658,6 +739,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.postal_code}
                                         onChange={(e) => setData('postal_code', e.target.value)}
+                                        placeholder="e.g., M5V 0K6"
                                     />
                                     <InputError message={errors.postal_code} className="mt-2" />
                                 </div>
@@ -670,6 +752,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.country}
                                         onChange={(e) => setData('country', e.target.value)}
+                                        placeholder="e.g., Canada"
                                     />
                                     <InputError message={errors.country} className="mt-2" />
                                 </div>
@@ -791,19 +874,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         ))}
                                     </select>
                                     <InputError message={errors.developer_id} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="developer_name" value="Developer Name (Text)" />
-                                    <TextInput
-                                        id="developer_name"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.developer_name}
-                                        onChange={(e) => setData('developer_name', e.target.value)}
-                                        placeholder="Developer name"
-                                    />
-                                    <InputError message={errors.developer_name} className="mt-2" />
                                 </div>
 
                                 <div className="sm:col-span-2">

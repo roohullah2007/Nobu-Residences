@@ -42,6 +42,7 @@ class Building extends Model
         'address',
         'street_address_1',
         'street_address_2',
+        'additional_addresses',
         'city',
         'neighbourhood',
         'neighbourhood_id',
@@ -108,6 +109,7 @@ class Building extends Model
         'floor_plans' => 'array',
         'features' => 'array',
         'nearby_transit' => 'array',
+        'additional_addresses' => 'array',
         // Removed 'amenities' => 'array' - now using relationship table
         // Removed 'maintenance_fee_amenities' => 'array' - now using relationship table
         'is_featured' => 'boolean',
