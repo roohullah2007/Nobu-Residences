@@ -70,11 +70,16 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         'contact_info.phone': '',
         'contact_info.email': '',
         'contact_info.address': '',
-        // Agent info (separate table) — pre-filled with default property manager
-        agent_name: defaultAgent?.agent_name || 'Jatin Gill',
-        agent_title: defaultAgent?.agent_title || 'Property Manager',
-        agent_phone: defaultAgent?.agent_phone || '647-490-1532',
-        brokerage: defaultAgent?.brokerage || 'Property.ca Inc, Brokerage',
+        // Agent info — inherits from the default (Nobu) website's agentInfo
+        // row. We deliberately don't fall back to hardcoded strings here
+        // because the old fallback ("Property Manager / Property.ca Inc")
+        // didn't match the current Nobu setup ("Agent / RE/MAX") and ended
+        // up overwriting fresh state with stale data when defaultAgent was
+        // present but a single field was empty.
+        agent_name: defaultAgent?.agent_name || '',
+        agent_title: defaultAgent?.agent_title || '',
+        agent_phone: defaultAgent?.agent_phone || '',
+        brokerage: defaultAgent?.brokerage || '',
         // Social media
         'social_media.facebook': '',
         'social_media.instagram': '',
@@ -99,12 +104,12 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
     const applyBuildingDefaults = (building) => {
         if (!building) return;
 
-        // Building agent if any, otherwise keep the Jatin Gill default already in state
+        // Building agent if any, otherwise the default-website agent already in state.
         const fallbackAgent = {
-            name: defaultAgent?.agent_name || 'Jatin Gill',
-            title: defaultAgent?.agent_title || 'Property Manager',
-            phone: defaultAgent?.agent_phone || '647-490-1532',
-            brokerage: defaultAgent?.brokerage || 'Property.ca Inc, Brokerage',
+            name: defaultAgent?.agent_name || '',
+            title: defaultAgent?.agent_title || '',
+            phone: defaultAgent?.agent_phone || '',
+            brokerage: defaultAgent?.brokerage || '',
             image: defaultAgent?.profile_image || '',
         };
 

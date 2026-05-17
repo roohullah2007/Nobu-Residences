@@ -60,10 +60,14 @@ class WebsiteManagementController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Default agent (used when a building has no agent info attached)
-        $defaultAgent = AgentInfo::query()
-            ->where('agent_name', 'Jatin Gill')
-            ->first();
+        // Default branding + agent from the default website (typically Nobu).
+        // Looking up the agent by name was returning the FIRST "Jatin Gill"
+        // row by ID, which was a stale row from the older "Broker /
+        // Property.ca" setup rather than the current "Agent / RE/MAX" one
+        // saved against the default website. Source-of-truth is the
+        // is_default site's agentInfo relation.
+        $nobu = Website::where('is_default', true)->with('agentInfo')->first();
+        $defaultAgent = $nobu?->agentInfo;
 
         $defaultAgentPayload = $defaultAgent
             ? [
@@ -74,15 +78,13 @@ class WebsiteManagementController extends Controller
                 'profile_image' => $defaultAgent->profile_image,
             ]
             : [
-                'agent_name' => 'Jatin Gill',
-                'agent_title' => 'Property Manager',
-                'agent_phone' => '647-490-1532',
-                'brokerage' => 'Property.ca Inc, Brokerage',
+                'agent_name' => null,
+                'agent_title' => null,
+                'agent_phone' => null,
+                'brokerage' => null,
                 'profile_image' => null,
             ];
 
-        // Default branding from the existing Nobu Residences (default) website
-        $nobu = Website::where('is_default', true)->first();
         $defaultBranding = [
             'logo_url' => $nobu?->logo_url ?: $nobu?->logo ?: '/assets/logo.png',
             'favicon_url' => $nobu?->favicon_url ?: '/favicon.ico',
