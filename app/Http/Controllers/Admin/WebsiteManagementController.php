@@ -17,6 +17,7 @@ use Inertia\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class WebsiteManagementController extends Controller
 {
@@ -922,19 +923,45 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Delete website
+     * Delete website. Also removes the domain alias from the Ploi site so the
+     * server stops answering for it — otherwise the alias would stay in
+     * nginx's server_name list forever. Certs are intentionally left alone:
+     * Ploi reuses one cert file across multiple alias names, so deleting a
+     * cert here could take unrelated domains offline.
      */
-    public function destroy(Website $website): RedirectResponse
+    public function destroy(Website $website, PloiService $ploi): RedirectResponse
     {
         if ($website->is_default) {
             return redirect()->back()
                 ->withErrors(['error' => 'Cannot delete the default website.']);
         }
 
+        $ploiMessage = null;
+        if (!empty($website->domain) && $ploi->isConfigured()) {
+            [$ok, $msg] = $ploi->deleteAlias($website->domain);
+            $ploiMessage = $msg;
+            // We deliberately don't fail the delete on a Ploi error — the
+            // user clicked Delete, the row should go. Log the failure and
+            // surface it in the flash so it's visible.
+            if (!$ok) {
+                Log::warning('Website delete: Ploi alias cleanup failed', [
+                    'website_id' => $website->id,
+                    'domain' => $website->domain,
+                    'message' => $msg,
+                ]);
+            }
+        }
+
+        $name = $website->name;
         $website->delete();
 
+        $success = "Website \"{$name}\" deleted.";
+        if ($ploiMessage) {
+            $success .= " Ploi: {$ploiMessage}";
+        }
+
         return redirect()->route('admin.websites.index')
-            ->with('success', 'Website deleted successfully!');
+            ->with('success', $success);
     }
 
     /**

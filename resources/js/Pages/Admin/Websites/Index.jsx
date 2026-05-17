@@ -11,7 +11,10 @@ export default function Index({ auth }) {
     };
 
     const handleDelete = (website) => {
-        if (confirm(`Are you sure you want to delete "${website.name}"? This action cannot be undone.`)) {
+        const ploiNote = website.domain
+            ? `\n\nThis will also remove the domain alias "${website.domain}" from the Ploi site (the SSL certificate will be left alone to avoid breaking other domains).`
+            : '';
+        if (confirm(`Are you sure you want to delete "${website.name}"? This action cannot be undone.${ploiNote}`)) {
             router.delete(route('admin.websites.destroy', website.id), {
                 preserveScroll: true,
             });

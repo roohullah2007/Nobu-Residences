@@ -178,6 +178,19 @@ class PloiService
      */
     public function listAliases(?string $siteId = null): array
     {
+        return array_values(array_filter(array_map(
+            fn ($row) => $row['domain'] ?? null,
+            $this->listAliasesWithIds($siteId)
+        )));
+    }
+
+    /**
+     * Same as listAliases() but preserves the Ploi numeric ID so callers can
+     * issue DELETE requests (which need /aliases/{id}, not /aliases/{domain}).
+     * Returns [ ['id' => 123, 'domain' => 'foo.com'], ... ].
+     */
+    public function listAliasesWithIds(?string $siteId = null): array
+    {
         $targetSite = $siteId ?: $this->siteId;
         if (!$this->isConfigured() || empty($targetSite)) {
             return [];
@@ -188,7 +201,7 @@ class PloiService
         try {
             $response = $this->client()->get($endpoint);
             if (!$response->successful()) {
-                Log::warning('Ploi listAliases failed', [
+                Log::warning('Ploi listAliasesWithIds failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
@@ -197,18 +210,78 @@ class PloiService
             $data = $response->json();
             // Ploi typically returns { "data": [ { "id":..., "domain": "..."}, ... ] }
             $rows = $data['data'] ?? $data ?? [];
-            $aliases = [];
+            $out = [];
             foreach ($rows as $row) {
                 if (is_string($row)) {
-                    $aliases[] = $row;
+                    $out[] = ['id' => null, 'domain' => $row];
                 } elseif (is_array($row)) {
-                    $aliases[] = $row['domain'] ?? $row['name'] ?? null;
+                    $out[] = [
+                        'id' => $row['id'] ?? null,
+                        'domain' => $row['domain'] ?? $row['name'] ?? null,
+                    ];
                 }
             }
-            return array_values(array_filter($aliases));
+            return array_values(array_filter($out, fn ($r) => !empty($r['domain'])));
         } catch (\Throwable $e) {
-            Log::error('Ploi listAliases exception', ['error' => $e->getMessage()]);
+            Log::error('Ploi listAliasesWithIds exception', ['error' => $e->getMessage()]);
             return [];
+        }
+    }
+
+    /**
+     * Remove a domain alias from the configured Ploi site.
+     *
+     * Idempotent: returns ok with a friendly message if the alias isn't on
+     * the site (nothing to delete). Uses the alias's numeric Ploi ID for the
+     * DELETE — Ploi's endpoint is /aliases/{id}, not /aliases/{domain}.
+     *
+     * Returns [ok, message, response].
+     */
+    public function deleteAlias(string $domain, ?string $siteId = null): array
+    {
+        $domain = $this->normalizeDomain($domain);
+        $targetSite = $siteId ?: $this->siteId;
+
+        if (!$this->isConfigured() || empty($targetSite)) {
+            return [false, 'Ploi is not configured (PLOI_API_TOKEN, PLOI_SERVER_ID, PLOI_SITE_ID).', null];
+        }
+
+        if (empty($domain)) {
+            return [true, 'No domain to remove from Ploi.', null];
+        }
+
+        $aliasId = null;
+        foreach ($this->listAliasesWithIds($targetSite) as $row) {
+            if (!empty($row['domain']) && strcasecmp($row['domain'], $domain) === 0) {
+                $aliasId = $row['id'];
+                break;
+            }
+        }
+
+        if (!$aliasId) {
+            return [true, "Alias \"{$domain}\" is not on Ploi — nothing to remove.", null];
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases/{$aliasId}";
+
+        try {
+            $response = $this->client()->delete($endpoint);
+
+            Log::info('Ploi alias delete', [
+                'domain' => $domain,
+                'alias_id' => $aliasId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            if ($response->successful() || $response->status() === 204) {
+                return [true, "Alias \"{$domain}\" removed from Ploi.", $response->json()];
+            }
+
+            return [false, "Ploi alias delete returned {$response->status()}: {$response->body()}", $response->json()];
+        } catch (\Throwable $e) {
+            Log::error('Ploi alias delete exception', ['domain' => $domain, 'error' => $e->getMessage()]);
+            return [false, 'Ploi request failed: ' . $e->getMessage(), null];
         }
     }
 
