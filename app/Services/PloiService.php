@@ -83,6 +83,9 @@ class PloiService
 
     /**
      * Issue a Let's Encrypt certificate for a domain on the given site.
+     *
+     * Ploi's API: POST /servers/{server}/sites/{site}/certificates
+     * Body: { "type": "letsencrypt", "certificates": ["domain.com", "www.domain.com"] }
      */
     public function requestSsl(string $domain, ?string $siteId = null): array
     {
@@ -92,25 +95,43 @@ class PloiService
             return [false, 'Ploi not configured.', null];
         }
 
-        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates/letsencrypt";
+        $domain = $this->normalizeDomain($domain);
+        if ($domain === '') {
+            return [false, 'No domain provided.', null];
+        }
+
+        // Include the www variant when the user provided a bare apex domain
+        $certificates = [$domain];
+        if (!str_starts_with($domain, 'www.') && substr_count($domain, '.') === 1) {
+            $certificates[] = 'www.' . $domain;
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates";
 
         try {
             $response = $this->client()->post($endpoint, [
-                'certificates' => [$domain],
+                'type' => 'letsencrypt',
+                'certificates' => $certificates,
             ]);
 
             if ($response->successful()) {
-                Log::info('Ploi SSL requested', ['domain' => $domain]);
-                return [true, 'SSL requested.', $response->json()];
+                Log::info('Ploi SSL requested', ['certificates' => $certificates]);
+                return [true, 'SSL requested for: ' . implode(', ', $certificates), $response->json()];
+            }
+
+            // 422 with "already" is fine — cert already exists / pending
+            if ($response->status() === 422 && str_contains((string) $response->body(), 'already')) {
+                Log::info('Ploi SSL already exists', ['certificates' => $certificates]);
+                return [true, 'SSL certificate already exists for this domain.', $response->json()];
             }
 
             Log::warning('Ploi SSL failed', [
-                'domain' => $domain,
+                'certificates' => $certificates,
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
 
-            return [false, "Ploi SSL returned {$response->status()}", $response->json()];
+            return [false, "Ploi SSL returned {$response->status()}: {$response->body()}", $response->json()];
         } catch (\Throwable $e) {
             Log::error('Ploi SSL exception', ['error' => $e->getMessage()]);
             return [false, $e->getMessage(), null];
