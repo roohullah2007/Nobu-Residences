@@ -453,6 +453,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
         Route::get('/{website}/created', [WebsiteManagementController::class, 'created'])->name('created');
         Route::post('/{website}/retry-ploi', [WebsiteManagementController::class, 'retryPloi'])->name('retry-ploi');
+        Route::post('/{website}/retry-alias', [WebsiteManagementController::class, 'retryAlias'])->name('retry-alias');
+        Route::post('/{website}/retry-ssl', [WebsiteManagementController::class, 'retrySsl'])->name('retry-ssl');
         Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
         Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');

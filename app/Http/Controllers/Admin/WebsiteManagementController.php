@@ -497,6 +497,67 @@ class WebsiteManagementController extends Controller
     }
 
     /**
+     * Retry ONLY the Ploi alias add (does not dispatch the SSL job).
+     */
+    public function retryAlias(Website $website, PloiService $ploi): RedirectResponse
+    {
+        if (empty($website->domain)) {
+            return back()->withErrors(['domain' => 'This website has no custom domain.']);
+        }
+        if (!$ploi->isConfigured()) {
+            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
+        }
+
+        [$ok, $msg] = $ploi->addAlias($website->domain);
+
+        if ($ok) {
+            $website->update([
+                'ploi_alias_status' => 'added',
+                'ploi_alias_added_at' => now(),
+                'ploi_last_error' => null,
+            ]);
+        } else {
+            $website->update([
+                'ploi_alias_status' => 'failed',
+                'ploi_last_error' => $msg,
+            ]);
+        }
+
+        session()->flash('website_created_report', [
+            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
+            'ploi' => ['ok' => $ok, 'message' => $msg],
+            'ssl'  => ['ok' => null, 'message' => 'Not requested in this retry. Use the "Retry SSL" button to issue the certificate.'],
+        ]);
+
+        return redirect()->route('admin.websites.created', $website);
+    }
+
+    /**
+     * Retry ONLY the SSL request (dispatches the queued job, runs immediately).
+     */
+    public function retrySsl(Website $website, PloiService $ploi): RedirectResponse
+    {
+        if (empty($website->domain)) {
+            return back()->withErrors(['domain' => 'This website has no custom domain.']);
+        }
+        if (!$ploi->isConfigured()) {
+            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
+        }
+
+        // Dispatch immediately (no 30s delay — user explicitly clicked retry)
+        $website->update(['ploi_ssl_status' => 'queued']);
+        \App\Jobs\RequestPloiSslJob::dispatch($website->id);
+
+        session()->flash('website_created_report', [
+            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
+            'ploi' => ['ok' => null, 'message' => 'Not changed in this retry.'],
+            'ssl'  => ['ok' => null, 'message' => 'SSL request re-queued — will run shortly, with retries on failure.'],
+        ]);
+
+        return redirect()->route('admin.websites.created', $website);
+    }
+
+    /**
      * Show edit website form
      */
     public function edit(Website $website): Response

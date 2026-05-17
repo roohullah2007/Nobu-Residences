@@ -95,8 +95,11 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const isCloudflare525 = typeof report.ssl?.message === 'string'
         && /SSL.*525|cloudflare/i.test(report.ssl.message);
 
-    const retryPloi = () => {
-        router.post(route('admin.websites.retry-ploi', website.id), {}, { preserveScroll: true });
+    const retryAlias = () => {
+        router.post(route('admin.websites.retry-alias', website.id), {}, { preserveScroll: true });
+    };
+    const retrySsl = () => {
+        router.post(route('admin.websites.retry-ssl', website.id), {}, { preserveScroll: true });
     };
 
     return (
@@ -228,7 +231,7 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                     <strong>How to fix:</strong> the Ploi token rejects requests from <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code>.
                                     Go to <a className="text-indigo-600 underline" target="_blank" rel="noopener" href="https://ploi.io/profile/api-keys">Ploi → Profile → API keys</a>,
                                     edit your token, and add <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code> to the "Whitelist IP addresses" field.
-                                    Then click "Retry Ploi alias + SSL" below.
+                                    Then click "Retry domain alias" below.
                                 </>
                             ) : ploiPermissionError ? (
                                 <div className="space-y-2">
@@ -240,7 +243,7 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                         <li>Click <strong>Toggle all permissions</strong> at the top of the scopes section — easiest way to ensure aliases-create is included. (You can narrow later if needed.)</li>
                                         <li>Save and copy the token <em>once</em> (it's shown only on creation).</li>
                                         <li>On the production server, paste it into <code className="font-mono bg-gray-100 px-1 rounded">PLOI_API_TOKEN</code> in <code className="font-mono bg-gray-100 px-1 rounded">.env</code>, then run <code className="font-mono bg-gray-100 px-1 rounded">php artisan config:clear</code>.</li>
-                                        <li>Come back and click "Retry Ploi alias + SSL".</li>
+                                        <li>Come back and click "Retry domain alias".</li>
                                     </ol>
                                 </div>
                             ) : null
@@ -259,10 +262,23 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                         <div className="mt-4 flex flex-wrap gap-3">
                             <button
                                 type="button"
-                                onClick={retryPloi}
-                                className="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                onClick={retryAlias}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
                             >
-                                Retry Ploi alias + SSL
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                Retry domain alias
+                            </button>
+                            <button
+                                type="button"
+                                onClick={retrySsl}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                            >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0-1.105.895-2 2-2s2 .895 2 2v2H8v-2c0-1.105.895-2 2-2zM5 13h14v8H5v-8z" />
+                                </svg>
+                                Retry SSL certificate
                             </button>
                         </div>
                     )}
