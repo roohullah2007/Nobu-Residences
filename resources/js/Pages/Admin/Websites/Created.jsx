@@ -46,8 +46,11 @@ export default function WebsiteCreated({ website, report, ploi }) {
     const allOk = report.db?.ok && report.ploi?.ok !== false && report.ssl?.ok !== false;
 
     const ipWhitelistMatch = (msg) =>
-        typeof msg === 'string' && msg.match(/IP address.*not allowed.*\(Used:\s*([\d.]+)\)/i);
+        typeof msg === 'string' && msg.match(/IP address.*not allowed.*\(Used:\s*([0-9a-f.:]+)\)/i);
     const ploiIpHint = ipWhitelistMatch(report.ploi?.message || '')?.[1];
+
+    const ploiPermissionError = typeof report.ploi?.message === 'string'
+        && /right permissions|permission denied|does not have/i.test(report.ploi.message);
 
     const isCloudflare525 = typeof report.ssl?.message === 'string'
         && /SSL.*525|cloudflare/i.test(report.ssl.message);
@@ -127,14 +130,29 @@ export default function WebsiteCreated({ website, report, ploi }) {
                         title="Ploi domain alias"
                         status={report.ploi?.ok}
                         message={report.ploi?.message || '—'}
-                        hint={ploiIpHint ? (
-                            <>
-                                <strong>How to fix:</strong> the Ploi token rejects requests from <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code>.
-                                Go to <a className="text-indigo-600 underline" target="_blank" rel="noopener" href="https://ploi.io/profile/api-keys">Ploi → Profile → API keys</a>,
-                                edit your token, and add <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code> to the "Whitelist IP addresses" field
-                                (comma-separate if you keep your other IP too). Then come back here and click "Retry Ploi alias + SSL".
-                            </>
-                        ) : null}
+                        hint={
+                            ploiIpHint ? (
+                                <>
+                                    <strong>How to fix:</strong> the Ploi token rejects requests from <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code>.
+                                    Go to <a className="text-indigo-600 underline" target="_blank" rel="noopener" href="https://ploi.io/profile/api-keys">Ploi → Profile → API keys</a>,
+                                    edit your token, and add <code className="font-mono bg-gray-100 px-1 rounded">{ploiIpHint}</code> to the "Whitelist IP addresses" field.
+                                    Then click "Retry Ploi alias + SSL" below.
+                                </>
+                            ) : ploiPermissionError ? (
+                                <div className="space-y-2">
+                                    <div><strong>How to fix:</strong> your Ploi API token doesn't have the scopes needed to add a domain alias. Ploi keeps aliases under a permission group that isn't enabled on this token.</div>
+                                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                                        <li>Go to <a className="text-indigo-600 underline" target="_blank" rel="noopener" href="https://ploi.io/profile/api-keys">Ploi → Profile → API keys</a>.</li>
+                                        <li>Click <strong>Create new API key</strong>.</li>
+                                        <li>Set the name (e.g. "Nobu Auto Provisioning") and add your server IP to the whitelist.</li>
+                                        <li>Click <strong>Toggle all permissions</strong> at the top of the scopes section — easiest way to ensure aliases-create is included. (You can narrow later if needed.)</li>
+                                        <li>Save and copy the token <em>once</em> (it's shown only on creation).</li>
+                                        <li>On the production server, paste it into <code className="font-mono bg-gray-100 px-1 rounded">PLOI_API_TOKEN</code> in <code className="font-mono bg-gray-100 px-1 rounded">.env</code>, then run <code className="font-mono bg-gray-100 px-1 rounded">php artisan config:clear</code>.</li>
+                                        <li>Come back and click "Retry Ploi alias + SSL".</li>
+                                    </ol>
+                                </div>
+                            ) : null
+                        }
                     />
 
                     <Row
