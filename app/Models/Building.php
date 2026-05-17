@@ -344,7 +344,9 @@ class Building extends Model
     {
         if (!$address) return null;
         if (!preg_match('/^(\d+)\s+(.+)$/u', trim($address), $m)) return null;
-        $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
+        // Strip city/postal suffix like ", Toronto" or ", ON M5V 0K6"
+        $rest = preg_split('/\s*,/', $m[2])[0] ?? $m[2];
+        $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);
         $rest = preg_replace(
             '/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i',
             '',

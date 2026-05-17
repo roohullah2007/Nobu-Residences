@@ -138,26 +138,38 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
         <div className="flex flex-col lg:flex-row gap-4 md:gap-5 lg:gap-6">
           {/* Single Image Section - Flexible width */}
           <div className="flex-1 order-1 lg:order-none">
-            {/* Single Large Image with click to open modal */}
             <div className="relative w-full h-[300px] md:h-[400px] lg:h-[645px]">
-              <div
-                className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
-                onClick={() => openModal(0)}
-              >
-                <img
-                  src={buildingImages[0]}
-                  alt="Building image"
-                  className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-10"></div>
-
-                {/* View Photos overlay on hover */}
-                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="text-white text-lg font-work-sans font-semibold">
-                    Click to view photos
+              {buildingImages && buildingImages.length > 0 ? (
+                <div
+                  className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
+                  onClick={() => openModal(0)}
+                >
+                  <img
+                    src={buildingImages[0]}
+                    alt="Building image"
+                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+                  {/* View Photos overlay on hover */}
+                  <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <div className="text-white text-lg font-work-sans font-semibold">
+                      Click to view photos
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="w-full h-full rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <div className="w-20 h-20 rounded-lg bg-white shadow-sm flex items-center justify-center">
+                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium">No Image Available</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

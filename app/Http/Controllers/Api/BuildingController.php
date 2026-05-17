@@ -102,7 +102,8 @@ class BuildingController extends Controller
         if (!$address) return null;
         if (!preg_match('/^(\d+)\s+(.+)$/u', trim($address), $m)) return null;
         $number = $m[1];
-        $rest = $m[2];
+        // Strip city/postal suffix like ", Toronto" or ", ON M5V 0K6"
+        $rest = preg_split('/\s*,/', $m[2])[0] ?? $m[2];
 
         // Strip trailing direction
         $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);

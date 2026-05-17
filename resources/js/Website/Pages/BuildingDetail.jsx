@@ -251,16 +251,9 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     buildingImages.push(...effectiveBuildingData.images);
   }
   
-  // If no images from backend, use fallback images
-  if (buildingImages.length === 0) {
-    buildingImages.push(
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1493663284031-b7e3aaa4c4a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1484154218962-a197022b5858?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-    );
-  }
+  // Leave buildingImages empty if the building has no real images — the
+  // gallery will render a "No Image Available" placeholder instead of a
+  // fake stock photo with a hover overlay pretending photos exist.
 
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader={true}>

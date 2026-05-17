@@ -2585,7 +2585,9 @@ class WebsiteController extends Controller
         // streetName as "Lake Shore" (without suffix), so the lookup returned 0.
         $parseAddress = function (string $a): ?string {
             if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
-            $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
+            // Strip city/postal suffix like ", Toronto" or ", ON M5V 0K6"
+            $rest = preg_split('/\s*,/', $m[2])[0] ?? $m[2];
+            $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);
             $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
             $name = trim($rest);
             return $name === '' ? null : $m[1] . ' ' . $name;
@@ -2596,6 +2598,15 @@ class WebsiteController extends Controller
         }
         if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
             $streetAddresses[] = $p;
+        }
+        // Include every entry from additional_addresses (buildings spanning
+        // multiple street numbers like "8-30 Widmer St")
+        if (is_array($building->additional_addresses)) {
+            foreach ($building->additional_addresses as $extra) {
+                if (is_string($extra) && ($p = $parseAddress($extra))) {
+                    $streetAddresses[] = $p;
+                }
+            }
         }
 
         // Fall back to the main address field (e.g. "15 Mercer St & 35 Mercer"
@@ -2608,6 +2619,9 @@ class WebsiteController extends Controller
                 }
             }
         }
+
+        // Dedupe so we don't query the same address twice
+        $streetAddresses = array_values(array_unique($streetAddresses));
 
         // Just the street name (no number) — used as a broader fallback elsewhere.
         if (!empty($building->address) && ($p = $parseAddress($building->address))) {
@@ -2629,6 +2643,10 @@ class WebsiteController extends Controller
         // Add MLS properties to building data
         $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
         $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
+        // Drive the "for sale / for rent" count buttons off the live listings
+        // we just fetched, so they stay in sync with the listing sections.
+        $buildingData['units_for_sale'] = count($mlsPropertiesForSale);
+        $buildingData['units_for_rent'] = count($mlsPropertiesForRent);
 
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $building->name,
