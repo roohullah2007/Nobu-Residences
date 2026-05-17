@@ -869,20 +869,6 @@ export default function Edit({ auth }) {
                                                 </button>
                                             )}
                                         </div>
-                                        {/* URL fallback */}
-                                        <div>
-                                            <p className="text-xs text-gray-500 mb-1">Or enter favicon URL:</p>
-                                            <input
-                                                type="text"
-                                                value={data.favicon_url}
-                                                onChange={(e) => {
-                                                    setData('favicon_url', e.target.value);
-                                                    setFaviconPreview(e.target.value);
-                                                }}
-                                                className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                placeholder="/favicon.ico or https://example.com/favicon.png"
-                                            />
-                                        </div>
                                     </div>
                                     {errors.favicon_file && <p className="text-red-500 text-xs mt-1">{errors.favicon_file}</p>}
                                 </div>

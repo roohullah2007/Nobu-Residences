@@ -447,17 +447,6 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 </button>
                                             )}
                                             <InputError message={errors.logo_file} className="mt-2" />
-
-                                            <div className="mt-3">
-                                                <p className="text-xs text-gray-500 mb-1">Or enter logo URL:</p>
-                                                <TextInput
-                                                    type="url"
-                                                    value={data.logo_url}
-                                                    className="block w-full text-sm"
-                                                    onChange={(e) => setData('logo_url', e.target.value)}
-                                                    placeholder="https://example.com/logo.png"
-                                                />
-                                            </div>
                                         </div>
 
                                         <div>
@@ -507,17 +496,6 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 </button>
                                             )}
                                             <InputError message={errors.favicon_file} className="mt-2" />
-
-                                            <div className="mt-3">
-                                                <p className="text-xs text-gray-500 mb-1">Or enter favicon URL:</p>
-                                                <TextInput
-                                                    type="url"
-                                                    value={data.favicon_url}
-                                                    className="block w-full text-sm"
-                                                    onChange={(e) => setData('favicon_url', e.target.value)}
-                                                    placeholder="https://example.com/favicon.ico"
-                                                />
-                                            </div>
                                         </div>
                                     </div>
                                 </div>

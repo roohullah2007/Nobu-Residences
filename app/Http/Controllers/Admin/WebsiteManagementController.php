@@ -928,6 +928,10 @@ class WebsiteManagementController extends Controller
      * nginx's server_name list forever. Certs are intentionally left alone:
      * Ploi reuses one cert file across multiple alias names, so deleting a
      * cert here could take unrelated domains offline.
+     *
+     * Cleanup covers both the apex and the www variant so a website saved
+     * with domain "foo.com" also clears "www.foo.com" (and vice versa) —
+     * those variants are commonly added via Ploi's SSL request side effect.
      */
     public function destroy(Website $website, PloiService $ploi): RedirectResponse
     {
@@ -936,19 +940,19 @@ class WebsiteManagementController extends Controller
                 ->withErrors(['error' => 'Cannot delete the default website.']);
         }
 
-        $ploiMessage = null;
+        $ploiMessages = [];
         if (!empty($website->domain) && $ploi->isConfigured()) {
-            [$ok, $msg] = $ploi->deleteAlias($website->domain);
-            $ploiMessage = $msg;
-            // We deliberately don't fail the delete on a Ploi error — the
-            // user clicked Delete, the row should go. Log the failure and
-            // surface it in the flash so it's visible.
-            if (!$ok) {
-                Log::warning('Website delete: Ploi alias cleanup failed', [
-                    'website_id' => $website->id,
-                    'domain' => $website->domain,
-                    'message' => $msg,
-                ]);
+            $candidates = $this->aliasVariants($website->domain);
+            foreach ($candidates as $variant) {
+                [$ok, $msg] = $ploi->deleteAlias($variant);
+                $ploiMessages[] = $msg;
+                if (!$ok) {
+                    Log::warning('Website delete: Ploi alias cleanup failed', [
+                        'website_id' => $website->id,
+                        'variant' => $variant,
+                        'message' => $msg,
+                    ]);
+                }
             }
         }
 
@@ -956,12 +960,33 @@ class WebsiteManagementController extends Controller
         $website->delete();
 
         $success = "Website \"{$name}\" deleted.";
-        if ($ploiMessage) {
-            $success .= " Ploi: {$ploiMessage}";
+        if (!empty($ploiMessages)) {
+            $success .= ' Ploi: ' . implode(' | ', $ploiMessages);
         }
 
         return redirect()->route('admin.websites.index')
             ->with('success', $success);
+    }
+
+    /**
+     * Given a saved domain, return the list of alias variants we should try
+     * to clean up on delete. For "foo.com" returns ["foo.com", "www.foo.com"].
+     * For "www.foo.com" returns ["www.foo.com", "foo.com"]. For anything else
+     * (e.g. "blog.foo.com") returns just the original.
+     */
+    protected function aliasVariants(string $domain): array
+    {
+        $domain = strtolower(trim($domain));
+        if ($domain === '') {
+            return [];
+        }
+        if (str_starts_with($domain, 'www.')) {
+            return [$domain, substr($domain, 4)];
+        }
+        if (substr_count($domain, '.') === 1) {
+            return [$domain, 'www.' . $domain];
+        }
+        return [$domain];
     }
 
     /**
