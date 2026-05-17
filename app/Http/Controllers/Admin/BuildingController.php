@@ -173,6 +173,15 @@ class BuildingController extends Controller
             }
         }
 
+        // Drop additional_addresses if the column hasn't been migrated on this
+        // environment yet — prevents a 500 on production until `php artisan
+        // migrate` runs the 2026_05_17 migration.
+        if (array_key_exists('additional_addresses', $validated)
+            && !\Schema::hasColumn('buildings', 'additional_addresses')) {
+            unset($validated['additional_addresses']);
+            \Log::warning('buildings.additional_addresses column missing — value dropped on save. Run `php artisan migrate`.');
+        }
+
         $building = Building::create($validated);
 
         // Attach amenities if provided
@@ -424,6 +433,13 @@ class BuildingController extends Controller
                 fn($a) => !empty($a)
             ));
             $validated['additional_addresses'] = !empty($list) ? $list : null;
+        }
+
+        // Drop additional_addresses if the column hasn't been migrated yet
+        if (array_key_exists('additional_addresses', $validated)
+            && !\Schema::hasColumn('buildings', 'additional_addresses')) {
+            unset($validated['additional_addresses']);
+            \Log::warning('buildings.additional_addresses column missing — value dropped on update. Run `php artisan migrate`.');
         }
 
         // Update building basic info (excluding amenities)
