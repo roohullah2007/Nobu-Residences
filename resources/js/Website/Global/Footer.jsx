@@ -134,10 +134,14 @@ const Footer = ({
                                 {footerContent.subheading}
                             </p>
 
-                            {/* Agent Card with responsive styles */}
-                            <div className="flex flex-col md:flex-row items-center md:items-center gap-4 bg-gray-700 rounded-2xl p-4 md:p-6 w-full max-w-md">
-                                {/* Avatar with responsive styles */}
-                                <div className="w-16 h-16 md:w-20 md:h-20 flex-none relative">
+                            {/* Agent Card — width is content-driven (no
+                                max-w-md spreading it out), and on desktop
+                                the row hugs avatar → text → button with
+                                tight gaps regardless of how short the
+                                agent fields are. */}
+                            <div className="inline-flex flex-col md:flex-row items-center gap-3 md:gap-4 bg-gray-700 rounded-2xl p-3 md:p-4 w-full max-w-md md:w-auto md:max-w-none">
+                                {/* Avatar */}
+                                <div className="w-16 h-16 md:w-[72px] md:h-[72px] flex-none relative">
                                     <div className="absolute inset-0 bg-gray-300 border-[2.5px] border-white rounded-full flex items-center justify-center overflow-hidden">
                                         <img
                                             src={displayContactInfo?.agent?.image}
@@ -155,49 +159,43 @@ const Footer = ({
                                         </div>
                                     </div>
                                 </div>
-                                
-                                {/* Agent Info & Button */}
-                                <div className="flex flex-col md:flex-row items-center md:items-start gap-3 flex-grow w-full">
-                                    {/* Agent Details */}
-                                    <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                                        {/* Name with responsive styles */}
-                                        {displayContactInfo?.agent?.name && (
-                                            <h3 className="font-space-grotesk font-bold text-sm md:text-base leading-6 md:leading-[26px] tracking-[-0.03em] uppercase" style={{ color: footerText }}>
-                                                {displayContactInfo.agent.name}
-                                            </h3>
-                                        )}
-                                        {/* Title with responsive styles */}
-                                        {displayContactInfo?.agent?.title && (
-                                            <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] tracking-[-0.03em]" style={{ color: footerText }}>
-                                                {displayContactInfo.agent.title}
-                                            </p>
-                                        )}
-                                        {/* Brokerage with responsive styles */}
-                                        {displayContactInfo?.agent?.brokerage && (
-                                            <p className="font-work-sans font-normal text-xs md:text-sm leading-4 md:leading-5 tracking-[-0.03em]" style={{ color: footerText, opacity: 0.7 }}>
-                                                {displayContactInfo.agent.brokerage}
-                                            </p>
-                                        )}
-                                    </div>
-                                    
-                                    {/* Contact Button with responsive styles */}
-                                    <div className="flex flex-col items-center md:items-start p-0 w-full md:w-[130px] h-10 mt-2 md:mt-0">
-                                        <button
-                                            onClick={() => setShowContactModal(true)}
-                                            className="flex flex-col justify-center items-center p-0 gap-2 w-full md:w-[130px] h-10 rounded-full hover:bg-gray-100 transition-colors"
-                                            style={{ backgroundColor: buttonQuaternaryBg }}
-                                        >
-                                            <div className="flex flex-row justify-center items-center py-2 md:py-2.5 px-4 md:px-6 gap-2 w-full md:w-[130px] h-10 md:h-14">
-                                                <span
-                                                    className="font-work-sans font-bold text-sm md:text-base leading-6 text-center tracking-[-0.03em]"
-                                                    style={{ color: buttonQuaternaryText }}
-                                                >
-                                                    Contact us
-                                                </span>
-                                            </div>
-                                        </button>
-                                    </div>
+
+                                {/* Agent Details — tight stack, no extra
+                                    flex-grow padding that creates a void
+                                    when content is short. */}
+                                <div className="flex flex-col items-center md:items-start text-center md:text-left leading-tight min-w-0">
+                                    {displayContactInfo?.agent?.name && (
+                                        <h3 className="font-space-grotesk font-bold text-sm md:text-base tracking-[-0.03em] uppercase truncate" style={{ color: footerText }}>
+                                            {displayContactInfo.agent.name}
+                                        </h3>
+                                    )}
+                                    {displayContactInfo?.agent?.title && (
+                                        <p className="font-work-sans font-normal text-sm md:text-base tracking-[-0.03em] truncate" style={{ color: footerText }}>
+                                            {displayContactInfo.agent.title}
+                                        </p>
+                                    )}
+                                    {displayContactInfo?.agent?.brokerage && (
+                                        <p className="font-work-sans font-normal text-xs md:text-sm tracking-[-0.03em] truncate" style={{ color: footerText, opacity: 0.7 }}>
+                                            {displayContactInfo.agent.brokerage}
+                                        </p>
+                                    )}
                                 </div>
+
+                                {/* Contact Button — natural width, sits
+                                    flush against the agent details with
+                                    just the gap-4 from the parent row. */}
+                                <button
+                                    onClick={() => setShowContactModal(true)}
+                                    className="flex items-center justify-center px-5 h-10 rounded-full hover:opacity-90 transition-opacity flex-shrink-0 w-full md:w-auto mt-1 md:mt-0"
+                                    style={{ backgroundColor: buttonQuaternaryBg }}
+                                >
+                                    <span
+                                        className="font-work-sans font-bold text-sm md:text-base tracking-[-0.03em] whitespace-nowrap"
+                                        style={{ color: buttonQuaternaryText }}
+                                    >
+                                        Contact us
+                                    </span>
+                                </button>
                             </div>
                         </div>
 

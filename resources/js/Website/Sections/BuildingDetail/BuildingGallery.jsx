@@ -318,8 +318,11 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                 </div>
                 
                 {/* Agent Section */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-3">
+                  {/* Image + info row — image-then-text with a tight gap so
+                      short content (name/title/brokerage only) doesn't end
+                      up floating on opposite sides of the card. */}
+                  <div className="flex items-center gap-3">
                     <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
                       <img
                         src={website?.agent_info?.profile_image || website?.contact_info?.agent?.image || buildingData?.agent_image || ''}
@@ -327,32 +330,39 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <div className="text-left">
-                      <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410]">
-                        {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name || ''}
-                      </h3>
-                      <p className="font-work-sans font-medium text-sm text-[#535862]">
-                        {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title || ''}
-                      </p>
-                      <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || ''}
-                      </p>
+                    <div className="flex flex-col min-w-0 leading-tight">
+                      {(website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name) && (
+                        <h3 className="font-space-grotesk font-bold text-lg text-[#7E2410] truncate">
+                          {website?.agent_info?.agent_name || website?.contact_info?.agent?.name || buildingData?.agent_name}
+                        </h3>
+                      )}
+                      {(website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title) && (
+                        <p className="font-work-sans font-medium text-sm text-[#535862] truncate">
+                          {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title}
+                        </p>
+                      )}
+                      {(website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage) && (
+                        <p className="font-work-sans font-normal text-sm text-[#535862] truncate">
+                          {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage}
+                        </p>
+                      )}
                     </div>
                   </div>
+                  {/* Contact Agent Button — sits directly under the agent
+                      row, no extra wrapper / gap so the whole block feels
+                      like one card. */}
+                  <button
+                    onClick={() => setShowContactModal(true)}
+                    className="w-full h-12 rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
+                    style={{ backgroundColor: buttonSecondaryBg }}
+                  >
+                    <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonSecondaryText }}>
+                      Contact Agent
+                    </span>
+                  </button>
                 </div>
-              {/* Contact Agent Button */}
-              <div className="rounded-full h-12 flex items-center justify-center w-full" style={{ backgroundColor: buttonSecondaryBg }}>
-                <button
-                  onClick={() => setShowContactModal(true)}
-                  className="w-full h-full flex items-center justify-center"
-                >
-                  <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonSecondaryText }}>
-                    Contact Agent
-                  </span>
-                </button>
               </div>
-              </div>
-              
+
             </div>
           </div>
         </div>
