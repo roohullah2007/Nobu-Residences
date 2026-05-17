@@ -12,7 +12,7 @@ const lightFormClass =
     '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 ' +
     '[&_select]:!bg-white [&_select]:!text-gray-900';
 
-export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, ploiEnabled = false }) {
+export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false }) {
     // Step 1 = pick building, Step 2 = fill out website form
     const [step, setStep] = useState(1);
     const [buildingSearch, setBuildingSearch] = useState('');
@@ -66,10 +66,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         // Link colors
         'brand_colors.link_color': '#912018',
         'brand_colors.link_hover': '#6d1812',
-        // Contact info
-        'contact_info.phone': '',
-        'contact_info.email': '',
-        'contact_info.address': '',
+        // Contact info — inherits from the default (Nobu) website so new
+        // sites have a working phone/email/address out of the box.
+        'contact_info.phone': defaultContactInfo?.phone || '',
+        'contact_info.email': defaultContactInfo?.email || '',
+        'contact_info.address': defaultContactInfo?.address || '',
         // Agent info — inherits from the default (Nobu) website's agentInfo
         // row. We deliberately don't fall back to hardcoded strings here
         // because the old fallback ("Property Manager / Property.ca Inc")
@@ -80,11 +81,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         agent_title: defaultAgent?.agent_title || '',
         agent_phone: defaultAgent?.agent_phone || '',
         brokerage: defaultAgent?.brokerage || '',
-        // Social media
-        'social_media.facebook': '',
-        'social_media.instagram': '',
-        'social_media.twitter': '',
-        'social_media.linkedin': '',
+        // Social media — same pattern, inherits from default site.
+        'social_media.facebook': defaultSocialMedia?.facebook || '',
+        'social_media.instagram': defaultSocialMedia?.instagram || '',
+        'social_media.twitter': defaultSocialMedia?.twitter || '',
+        'social_media.linkedin': defaultSocialMedia?.linkedin || '',
     });
 
     const [logoPreview, setLogoPreview] = useState(defaultBranding?.logo_url || '');

@@ -90,11 +90,19 @@ class WebsiteManagementController extends Controller
             'favicon_url' => $nobu?->favicon_url ?: '/favicon.ico',
         ];
 
+        // Default contact_info / social_media inherited from the default
+        // site so new sites pre-fill with Nobu's phone/email/address +
+        // social handles rather than starting blank.
+        $defaultContactInfo = is_array($nobu?->contact_info) ? $nobu->contact_info : [];
+        $defaultSocialMedia = is_array($nobu?->social_media) ? $nobu->social_media : [];
+
         return Inertia::render('Admin/Websites/Create', [
             'title' => 'Create New Website',
             'buildings' => $buildings,
             'defaultAgent' => $defaultAgentPayload,
             'defaultBranding' => $defaultBranding,
+            'defaultContactInfo' => $defaultContactInfo,
+            'defaultSocialMedia' => $defaultSocialMedia,
             'ploiEnabled' => config('services.ploi.auto_provision') && !empty(config('services.ploi.token')),
         ]);
     }

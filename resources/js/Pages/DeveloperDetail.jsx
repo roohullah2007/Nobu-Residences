@@ -804,6 +804,14 @@ export default function DeveloperDetail({
         <MainLayout auth={auth} website={website}>
             <Head title="Top Condo Developers in Toronto" />
 
+            {/* Header band — matches the detail page so the floating navbar
+                always sits over a dark strip on this section of the site,
+                rather than landing directly on the hero photo. */}
+            <div
+                className="w-full h-[85px] md:h-[120px] relative flex items-center"
+                style={{ backgroundColor: '#292E56' }}
+            />
+
             {/* Hero Section - Full Screen Height */}
             <section
                 className="relative bg-cover bg-center bg-no-repeat flex items-center justify-center min-h-[70vh] sm:min-h-screen py-20 sm:py-0"
@@ -918,23 +926,27 @@ export default function DeveloperDetail({
                 </div>
             </section>
 
-            {/* Text Section */}
-            <section className="py-10 sm:py-16 bg-white">
-                <div className="max-w-[1280px] mx-auto px-4">
-                    <h2
-                        className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
-                        style={{ lineHeight: '1.3' }}
-                    >
-                        Text Section
-                    </h2>
-                    <p
-                        className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
-                        style={{ lineHeight: '1.7' }}
-                    >
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                    </p>
-                </div>
-            </section>
+            {/* Optional editorial copy. Renders only if developer.description
+                is set — placeholder Lorem block lived here previously and
+                shipped to production. */}
+            {developer?.description && (
+                <section className="py-10 sm:py-16 bg-white">
+                    <div className="max-w-[1280px] mx-auto px-4">
+                        <h2
+                            className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
+                            style={{ lineHeight: '1.3' }}
+                        >
+                            About {developer.name}
+                        </h2>
+                        <p
+                            className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
+                            style={{ lineHeight: '1.7' }}
+                        >
+                            {developer.description}
+                        </p>
+                    </div>
+                </section>
+            )}
 
             {/* All Developers Grid */}
             {allDevelopers.length > 0 && (
