@@ -124,6 +124,17 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
         )
     );
 
+    // A cert is "covering" the website's domain when at least one issued
+    // Let's Encrypt cert on the Ploi site lists this domain among its
+    // subjects. Without that, visitors will get ERR_CERT_COMMON_NAME_INVALID
+    // even when the alias is set up correctly.
+    const certCoversDomain = Boolean(
+        website.domain && (liveCertificates || []).some((c) =>
+            (c?.domains || []).some((d) => typeof d === 'string' && d.toLowerCase() === website.domain.toLowerCase())
+        )
+    );
+    const certWarningVisible = Boolean(website.domain) && aliasAlreadyAdded && !certCoversDomain;
+
     // DNS-mismatch detection on the most recent error — covers both the
     // raw Ploi 422 body and our own cleaned message in persisted.last_error.
     const errorText = String(
@@ -205,6 +216,36 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                         </div>
                     </div>
                 </div>
+
+                {/* Cert-mismatch banner — alias is live but no cert covers
+                    the domain, so visitors will get an ERR_CERT_COMMON_NAME_INVALID
+                    browser warning. This is the single most actionable state
+                    on the page, so it lives at the top. */}
+                {certWarningVisible && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-5">
+                        <div className="flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center flex-shrink-0">
+                                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.19 16a2 2 0 001.74 3z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-red-900">No SSL certificate covers <code className="font-mono">{website.domain}</code> yet</h3>
+                                <p className="text-sm text-red-800 mt-1">
+                                    The domain alias is live on Ploi, but none of the issued Let's Encrypt
+                                    certificates list this domain as a subject. Visitors hitting{' '}
+                                    <code className="font-mono bg-white px-1 rounded border border-red-200">https://{website.domain}</code>{' '}
+                                    will see <strong>ERR_CERT_COMMON_NAME_INVALID</strong> in their browser because
+                                    Nginx is serving the cert for a different domain (likely the site's primary).
+                                </p>
+                                <p className="text-sm text-red-800 mt-2">
+                                    Fix: scroll to <strong>Provisioning status</strong> → click <strong>Retry SSL certificate</strong>.
+                                    Once the cert is issued, this banner disappears and the browser warning goes away on a hard reload.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Website summary */}
                 <div className="bg-white shadow-sm sm:rounded-lg p-6">
