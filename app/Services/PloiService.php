@@ -48,11 +48,10 @@ class PloiService
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases";
 
         try {
-            // Ploi's /aliases endpoint accepts a plural "aliases" field with a
-            // comma-separated string (NOT "domain" or "aliases[]"). Sending the
-            // wrong shape silently returns 2xx with no effect.
+            // Ploi's /aliases endpoint expects a plural "aliases" field as an
+            // ARRAY of domain strings.
             $response = $this->client()->post($endpoint, [
-                'aliases' => $domain,
+                'aliases' => [$domain],
             ]);
 
             Log::info('Ploi alias request', [
