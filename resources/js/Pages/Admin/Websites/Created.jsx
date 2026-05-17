@@ -124,16 +124,23 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
         )
     );
 
+    // Flatten the list of every domain covered by at least one cert on the
+    // Ploi site. Used to compute cert coverage per alias.
+    const coveredDomains = (liveCertificates || []).flatMap((c) =>
+        (c?.domains || []).map((d) => (typeof d === 'string' ? d.toLowerCase() : ''))
+    ).filter(Boolean);
+    const isCovered = (d) => typeof d === 'string' && coveredDomains.includes(d.toLowerCase());
+
     // A cert is "covering" the website's domain when at least one issued
     // Let's Encrypt cert on the Ploi site lists this domain among its
     // subjects. Without that, visitors will get ERR_CERT_COMMON_NAME_INVALID
     // even when the alias is set up correctly.
-    const certCoversDomain = Boolean(
-        website.domain && (liveCertificates || []).some((c) =>
-            (c?.domains || []).some((d) => typeof d === 'string' && d.toLowerCase() === website.domain.toLowerCase())
-        )
-    );
+    const certCoversDomain = Boolean(website.domain) && isCovered(website.domain);
     const certWarningVisible = Boolean(website.domain) && aliasAlreadyAdded && !certCoversDomain;
+
+    // Every alias on the Ploi site that has no cert covering it — these are
+    // the domains that will throw ERR_CERT_COMMON_NAME_INVALID in a browser.
+    const uncoveredAliases = (liveAliases || []).filter((a) => !isCovered(a));
 
     // DNS-mismatch detection on the most recent error — covers both the
     // raw Ploi 422 body and our own cleaned message in persisted.last_error.
@@ -218,9 +225,9 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                 </div>
 
                 {/* Cert-mismatch banner — alias is live but no cert covers
-                    the domain, so visitors will get an ERR_CERT_COMMON_NAME_INVALID
-                    browser warning. This is the single most actionable state
-                    on the page, so it lives at the top. */}
+                    the domain(s), so visitors will get ERR_CERT_COMMON_NAME_INVALID.
+                    Lists every uncovered alias on the Ploi site so it's clear
+                    exactly which domains are broken vs working. */}
                 {certWarningVisible && (
                     <div className="rounded-lg border border-red-200 bg-red-50 p-5">
                         <div className="flex items-start gap-4">
@@ -230,13 +237,23 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                 </svg>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-red-900">No SSL certificate covers <code className="font-mono">{website.domain}</code> yet</h3>
+                                <h3 className="font-semibold text-red-900">
+                                    {uncoveredAliases.length > 1
+                                        ? `${uncoveredAliases.length} domains on this site have no SSL certificate`
+                                        : <>No SSL certificate covers <code className="font-mono">{website.domain}</code> yet</>}
+                                </h3>
                                 <p className="text-sm text-red-800 mt-1">
-                                    The domain alias is live on Ploi, but none of the issued Let's Encrypt
-                                    certificates list this domain as a subject. Visitors hitting{' '}
-                                    <code className="font-mono bg-white px-1 rounded border border-red-200">https://{website.domain}</code>{' '}
-                                    will see <strong>ERR_CERT_COMMON_NAME_INVALID</strong> in their browser because
-                                    Nginx is serving the cert for a different domain (likely the site's primary).
+                                    These aliases are live on the Ploi site, but no Let's Encrypt cert lists
+                                    them as a subject. Visitors hitting them will see{' '}
+                                    <strong>ERR_CERT_COMMON_NAME_INVALID</strong> in their browser:
+                                </p>
+                                <ul className="mt-2 text-sm font-mono text-red-900 list-disc list-inside">
+                                    {uncoveredAliases.map((a) => (<li key={a}>{a}</li>))}
+                                </ul>
+                                <p className="text-sm text-red-800 mt-3">
+                                    Other aliases on this site that <em>do</em> have a cert (e.g.
+                                    {' '}<code className="font-mono">nobu.wpbun.xyz</code>) still work
+                                    fine — only the domains listed above are affected.
                                 </p>
                                 <p className="text-sm text-red-800 mt-2">
                                     Fix: scroll to <strong>Provisioning status</strong> → click <strong>Retry SSL certificate</strong>.
@@ -513,17 +530,31 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="border border-gray-200 rounded-lg p-4">
-                                <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Domain aliases on site</div>
+                                <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Aliases &amp; SSL coverage</div>
                                 {liveAliases.length === 0 ? (
                                     <div className="text-sm text-gray-500 italic">No aliases configured.</div>
                                 ) : (
-                                    <ul className="text-sm space-y-1">
-                                        {liveAliases.map((a) => (
-                                            <li key={a} className={`font-mono ${website.domain && a === website.domain ? 'text-green-700 font-semibold' : 'text-gray-700'}`}>
-                                                {website.domain && a === website.domain ? '✓ ' : '• '}
-                                                {a}
-                                            </li>
-                                        ))}
+                                    <ul className="text-sm space-y-1.5">
+                                        {liveAliases.map((a) => {
+                                            const covered = isCovered(a);
+                                            const isPrimary = website.domain && a.toLowerCase() === website.domain.toLowerCase();
+                                            return (
+                                                <li key={a} className="flex items-center justify-between gap-3">
+                                                    <span className={`font-mono break-all ${isPrimary ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{a}</span>
+                                                    {covered ? (
+                                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 whitespace-nowrap">
+                                                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                            Cert
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 whitespace-nowrap">
+                                                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            No cert
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 )}
                             </div>
