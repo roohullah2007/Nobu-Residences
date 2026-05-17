@@ -93,8 +93,16 @@ class PloiService
     /**
      * Issue a Let's Encrypt certificate for a domain on the given site.
      *
+     * Important: Ploi reuses the site's primary domain as certbot's
+     * --cert-name, so issuing a SAN cert for [domain, www.domain] alone will
+     * OVERWRITE the file at /etc/letsencrypt/live/{site_primary}/fullchain.pem
+     * — which is also the path nginx serves for the site's primary domain
+     * and all other aliases. The fix is to always include every other
+     * already-covered domain on the site in the new cert request, so the
+     * resulting SAN cert is a superset of what was there before.
+     *
      * Ploi's API: POST /servers/{server}/sites/{site}/certificates
-     * Body: { "type": "letsencrypt", "certificates": ["domain.com", "www.domain.com"] }
+     * Body: { "type": "letsencrypt", "certificate": "domain.com,www.domain.com" }
      */
     public function requestSsl(string $domain, ?string $siteId = null): array
     {
@@ -109,11 +117,26 @@ class PloiService
             return [false, 'No domain provided.', null];
         }
 
-        // Include the www variant when the user provided a bare apex domain
+        // Start with the requested domain (+ www variant for bare apex).
         $domains = [$domain];
         if (!str_starts_with($domain, 'www.') && substr_count($domain, '.') === 1) {
             $domains[] = 'www.' . $domain;
         }
+
+        // Union with every domain already covered by an existing cert on the
+        // site. Without this, certbot overwrites the cert file with one that
+        // only covers the new domains — taking the site's primary domain
+        // offline with ERR_CERT_COMMON_NAME_INVALID. This single line is the
+        // difference between "issuing a new cert" and "wiping the existing
+        // one and replacing it with a narrower scope".
+        foreach ($this->listCertificates($targetSite) as $cert) {
+            foreach (($cert['domains'] ?? []) as $existing) {
+                if (!in_array($existing, $domains, true)) {
+                    $domains[] = $existing;
+                }
+            }
+        }
+
         // Ploi's /certificates endpoint expects a SINGULAR "certificate" field
         // containing a comma-separated string of domains (NOT a "certificates"
         // array). The 422 from Ploi spells this out: "The certificate field is required."
