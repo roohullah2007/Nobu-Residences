@@ -95,6 +95,26 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const isCloudflare525 = typeof report.ssl?.message === 'string'
         && /SSL.*525|cloudflare/i.test(report.ssl.message);
 
+    // Treat the alias as "live on Ploi" if either the DB says so or the live
+    // alias list returned by Ploi already contains the website's domain. When
+    // it's already there we disable the Retry button to stop the user (and
+    // double-clicks) from POSTing a duplicate create.
+    const aliasAlreadyAdded = Boolean(
+        website.domain && (
+            persisted?.alias_status === 'added'
+            || (liveAliases || []).some((a) => typeof a === 'string' && a.toLowerCase() === website.domain.toLowerCase())
+        )
+    );
+
+    // DNS-mismatch detection on the most recent error — covers both the
+    // raw Ploi 422 body and our own cleaned message in persisted.last_error.
+    const errorText = String(
+        (typeof report.ssl?.message === 'string' ? report.ssl.message : '')
+        + ' '
+        + (persisted?.last_error || '')
+    );
+    const dnsMismatch = /unable to match one of these domains|should resolve to|point your domain DNS to your server/i.test(errorText);
+
     const retryAlias = () => {
         router.post(route('admin.websites.retry-alias', website.id), {}, { preserveScroll: true });
     };
@@ -255,21 +275,50 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                         title="SSL certificate (Let's Encrypt)"
                         status={report.ssl?.ok}
                         message={report.ssl?.message || '—'}
-                        hint={null}
+                        hint={
+                            dnsMismatch ? (
+                                <div className="space-y-2">
+                                    <div>
+                                        <strong>How to fix:</strong> Let's Encrypt couldn't reach the origin server because <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code> currently points to Cloudflare's proxy IPs, not the server. The certificate can't be issued until DNS resolves directly to the server (or you complete a DNS-01 challenge).
+                                    </div>
+                                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                                        <li>In Cloudflare → DNS, set the A record for <code className="font-mono bg-gray-100 px-1 rounded">{website.domain}</code> (and any <code className="font-mono bg-gray-100 px-1 rounded">www</code> record) to <strong>DNS only</strong> (gray cloud, not the orange proxied cloud).</li>
+                                        <li>Wait 1–2 minutes for DNS to propagate.</li>
+                                        <li>Click <strong>Retry SSL certificate</strong> below.</li>
+                                        <li>Once the cert is issued, you can flip Cloudflare back to <strong>Proxied</strong> (orange cloud) and set SSL/TLS mode to <strong>Full</strong>.</li>
+                                    </ol>
+                                    <div className="text-xs text-gray-500">
+                                        Retries have been stopped for this error — there's no point retrying every minute while DNS still points to Cloudflare. Use the Retry button above after fixing DNS.
+                                    </div>
+                                </div>
+                            ) : null
+                        }
                     />
 
                     {website.domain && (
                         <div className="mt-4 flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                onClick={retryAlias}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
-                            >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                </svg>
-                                Retry domain alias
-                            </button>
+                            {aliasAlreadyAdded ? (
+                                <span
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-green-100 text-green-800 text-sm font-medium border border-green-200 cursor-not-allowed"
+                                    title="The domain alias is already on Ploi — no need to add it again."
+                                >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Domain alias already added
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={retryAlias}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                                >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                    Retry domain alias
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={retrySsl}

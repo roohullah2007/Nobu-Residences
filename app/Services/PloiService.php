@@ -30,6 +30,10 @@ class PloiService
     /**
      * Add a domain alias to the configured Ploi site.
      *
+     * Idempotent: looks up the current aliases first and skips the POST if the
+     * domain is already present (a duplicate POST can succeed and create a
+     * second alias row, or fail noisily depending on Ploi's mood).
+     *
      * Returns [ok, message, response].
      */
     public function addAlias(string $domain, ?string $siteId = null): array
@@ -43,6 +47,13 @@ class PloiService
 
         if (empty($domain)) {
             return [false, 'No domain provided.', null];
+        }
+
+        $existing = $this->listAliases($targetSite);
+        foreach ($existing as $a) {
+            if (strcasecmp($a, $domain) === 0) {
+                return [true, "Alias \"{$domain}\" is already on Ploi — nothing to do.", null];
+            }
         }
 
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases";

@@ -76,12 +76,46 @@ class RequestPloiSslJob implements ShouldQueue
             return;
         }
 
+        // DNS-mismatch failures (Let's Encrypt can't reach the origin because
+        // the A record points somewhere else — usually Cloudflare proxy IPs)
+        // are not going to resolve on their own. Retrying every minute just
+        // burns the Let's Encrypt rate-limit budget, so stop here and let the
+        // user fix DNS before clicking Retry SSL again.
+        if ($this->isDnsMismatch($message)) {
+            $website->update([
+                'ploi_ssl_status' => 'failed',
+                'ploi_last_error' => $message,
+            ]);
+            $this->delete();
+            return;
+        }
+
         // Throw so Laravel queue retries with backoff
         $website->update([
             'ploi_ssl_status' => 'queued',
             'ploi_last_error' => $message,
         ]);
         throw new \RuntimeException($message);
+    }
+
+    /**
+     * Detect the Ploi/Let's Encrypt "domain does not resolve to this server"
+     * error so we can stop retrying. The message comes back HTML-escaped from
+     * Ploi, so match on phrases that are stable across renderings.
+     */
+    protected function isDnsMismatch(string $message): bool
+    {
+        $needles = [
+            'unable to match one of these domains',
+            'point your domain DNS to your server',
+            'should resolve to',
+        ];
+        foreach ($needles as $n) {
+            if (stripos($message, $n) !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
