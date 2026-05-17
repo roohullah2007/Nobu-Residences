@@ -2461,15 +2461,25 @@ class WebsiteController extends Controller
      */
     public function buildingDetail($cityOrSlug, $street = null, $buildingSlug = null)
     {
-        // Handle both URL formats:
-        // 1. /building/{buildingSlug}
-        // 2. /{city}/{street}/{buildingSlug}
-        
+        // Normalize args across the three routes that hit this method:
+        //   /building/{buildingSlug}                 (1 segment)
+        //   /{city}/{buildingSlug}                   (2 segments)
+        //   /{city}/{street}/{buildingSlug}          (3 segments)
+        // Laravel passes route params positionally, so without normalization
+        // the 2-segment case puts the slug in $street and leaves $buildingSlug
+        // null — which then triggers the wrong fallback ("toronto" matched by
+        // name LIKE %toronto% returns NOBU).
         if ($buildingSlug === null) {
-            // First format: /building/{buildingSlug}
-            $buildingSlug = $cityOrSlug;
+            if ($street !== null) {
+                // 2 segments: $cityOrSlug = city, $street = the building slug
+                $buildingSlug = $street;
+                $street = null;
+            } else {
+                // 1 segment: $cityOrSlug is the slug
+                $buildingSlug = $cityOrSlug;
+            }
         }
-        // else: Second format with city/street/buildingSlug
+        // else: 3 segments — all positions already correct
         
         $building = null;
         
