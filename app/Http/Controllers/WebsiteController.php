@@ -237,34 +237,7 @@ class WebsiteController extends Controller
                 // Get building display data
                 $buildingData = $building->getDisplayData();
 
-                // Build the list of street addresses to query (e.g.
-                // ["15 Mercer", "35 Mercer"]). Pull from street_address_1/2
-                // first, then fall back to splitting the main address on
-                // both "," and "&". Multi-word street names like
-                // "Lake Shore Blvd W" must keep "Lake Shore" intact so the
-                // downstream Repliers lookup matches.
-                $parseAddress = function (string $a): ?string {
-                    if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
-                    $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $m[2]);
-                    $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
-                    $name = trim($rest);
-                    return $name === '' ? null : $m[1] . ' ' . $name;
-                };
-                $streetAddresses = [];
-                if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
-                    $streetAddresses[] = $p;
-                }
-                if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
-                    $streetAddresses[] = $p;
-                }
-                if (empty($streetAddresses) && !empty($building->address)) {
-                    foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
-                        if ($p = $parseAddress($part)) {
-                            $streetAddresses[] = $p;
-                        }
-                    }
-                }
-                $streetAddresses = array_values(array_unique($streetAddresses));
+                $streetAddresses = $this->collectStreetAddresses($building);
 
                 // Fetch live listings from Repliers (the local mls_properties
                 // table is empty) for both sale + lease, attaching the
@@ -2579,54 +2552,12 @@ class WebsiteController extends Controller
         $streetAddresses = [];
         $streetName = null;
 
-        // Parse address parts. The previous /^(\d+\s+[A-Za-z]+)/i regex only
-        // captured the FIRST word of the street name, so multi-word streets
-        // like "Lake Shore Blvd W" became just "Lake" — and Repliers stores
-        // streetName as "Lake Shore" (without suffix), so the lookup returned 0.
-        $parseAddress = function (string $a): ?string {
-            if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
-            // Strip city/postal suffix like ", Toronto" or ", ON M5V 0K6"
-            $rest = preg_split('/\s*,/', $m[2])[0] ?? $m[2];
-            $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);
-            $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
-            $name = trim($rest);
-            return $name === '' ? null : $m[1] . ' ' . $name;
-        };
-
-        if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
-            $streetAddresses[] = $p;
-        }
-        if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
-            $streetAddresses[] = $p;
-        }
-        // Include every entry from additional_addresses (buildings spanning
-        // multiple street numbers like "8-30 Widmer St")
-        if (is_array($building->additional_addresses)) {
-            foreach ($building->additional_addresses as $extra) {
-                if (is_string($extra) && ($p = $parseAddress($extra))) {
-                    $streetAddresses[] = $p;
-                }
-            }
-        }
-
-        // Fall back to the main address field (e.g. "15 Mercer St & 35 Mercer"
-        // or "155 Dalhousie Street").
-        if (empty($streetAddresses) && !empty($building->address)) {
-            $parts = array_map('trim', preg_split('/\s*[,&]\s*/', $building->address));
-            foreach ($parts as $part) {
-                if ($p = $parseAddress($part)) {
-                    $streetAddresses[] = $p;
-                }
-            }
-        }
-
-        // Dedupe so we don't query the same address twice
-        $streetAddresses = array_values(array_unique($streetAddresses));
-
-        // Just the street name (no number) — used as a broader fallback elsewhere.
-        if (!empty($building->address) && ($p = $parseAddress($building->address))) {
-            // $p is "<num> <name>" — strip the leading number
-            $streetName = preg_replace('/^\d+\s+/', '', $p);
+        $streetAddresses = $this->collectStreetAddresses($building);
+        // Derive a bare street name (no number) for any caller that wants
+        // the broader "everything on this street" view.
+        $streetName = null;
+        if (!empty($streetAddresses[0])) {
+            $streetName = preg_replace('/^\d+\s+/', '', $streetAddresses[0]);
         }
 
         // Fetch live listings for this building from the Repliers API. The
@@ -2924,6 +2855,54 @@ class WebsiteController extends Controller
      * $streetAddresses is an array like ["15 Mercer", "35 Mercer"].
      * $type is "sale" or "lease".
      */
+    /**
+     * Collect every "<number> <street-name>" tuple we should query Repliers
+     * for, given a Building. Walks street_address_1/2, additional_addresses,
+     * and finally splits the main address field on "," and "&". Strips the
+     * city/postal suffix (", Toronto" / ", ON M5V 0K6") before processing
+     * street types — without this strip the home() lookups for buildings
+     * stored as "8 Widmer St, Toronto" would emit the garbage street name
+     * "Widmer St, Toronto" and Repliers would return zero listings.
+     *
+     * Returns a deduped array, e.g. ["8 Widmer", "30 Widmer"].
+     */
+    private function collectStreetAddresses($building): array
+    {
+        $parseAddress = function (string $a): ?string {
+            if (!preg_match('/^(\d+)\s+(.+)$/u', trim($a), $m)) return null;
+            // Strip ", Toronto" / ", ON M5V 0K6" — the suffix breaks the
+            // street-type regex below because it anchors at end of string.
+            $rest = preg_split('/\s*,/', $m[2])[0] ?? $m[2];
+            $rest = preg_replace('/\s+(?:W|E|N|S|West|East|North|South|NE|NW|SE|SW)\.?$/i', '', $rest);
+            $rest = preg_replace('/\s+(?:St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Rd|Road|Ln|Lane|Way|Crescent|Cres|Court|Ct|Place|Pl|Park|Parkway|Pkwy|Square|Sq|Terrace|Ter|Circle|Cir|Trail|Tr|Gate|Hill|Heights|Hts|Mews|Walk|Common|Commons)\.?$/i', '', $rest);
+            $name = trim($rest);
+            return $name === '' ? null : $m[1] . ' ' . $name;
+        };
+
+        $out = [];
+        if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
+            $out[] = $p;
+        }
+        if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
+            $out[] = $p;
+        }
+        if (is_array($building->additional_addresses)) {
+            foreach ($building->additional_addresses as $extra) {
+                if (is_string($extra) && ($p = $parseAddress($extra))) {
+                    $out[] = $p;
+                }
+            }
+        }
+        if (empty($out) && !empty($building->address)) {
+            foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
+                if ($p = $parseAddress($part)) {
+                    $out[] = $p;
+                }
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     private function fetchBuildingListingsFromRepliers(array $streetAddresses, string $type, $building = null): array
     {
         if (empty($streetAddresses)) {
