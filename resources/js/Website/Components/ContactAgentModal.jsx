@@ -100,6 +100,7 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                 preserveScroll: true,
                 onSuccess: () => {
                     setSubmitStatus('success');
+                    setIsSubmitting(false);
                     setTimeout(() => {
                         onClose();
                         setSubmitStatus(null);
@@ -111,6 +112,9 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                 },
                 onError: (errors) => {
                     setErrors(errors);
+                    setIsSubmitting(false);
+                },
+                onFinish: () => {
                     setIsSubmitting(false);
                 }
             });

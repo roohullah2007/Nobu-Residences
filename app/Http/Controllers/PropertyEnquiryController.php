@@ -62,6 +62,65 @@ class PropertyEnquiryController extends Controller
     }
 
     /**
+     * Handle "Contact Agent about <Building>" modal submissions.
+     * Posted from resources/js/Website/Components/ContactAgentModal.jsx.
+     * Maps the modal's `question` field to the model's `message` column and
+     * tolerates an optional message (the modal labels it "Message (Optional)").
+     */
+    public function agentEnquiry(Request $request)
+    {
+        $request->merge([
+            'message' => $request->input('message', $request->input('question')),
+        ]);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'message' => 'nullable|string|max:2000',
+            'property_listing_key' => 'nullable|string',
+            'property_address' => 'nullable|string',
+            'building_name' => 'nullable|string',
+            'agent_id' => 'nullable',
+            'agent_name' => 'nullable|string',
+        ]);
+
+        if (empty($validated['property_address']) && !empty($validated['building_name'])) {
+            $validated['property_address'] = $validated['building_name'];
+        }
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+            'message' => $validated['message'] ?? '',
+            'property_listing_key' => $validated['property_listing_key'] ?? null,
+            'property_address' => $validated['property_address'] ?? null,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ];
+
+        if (Auth::check()) {
+            $payload['user_id'] = Auth::id();
+        }
+
+        $enquiry = PropertyEnquiry::create($payload);
+
+        try {
+            \Log::info('Agent enquiry received', [
+                'enquiry_id' => $enquiry->id,
+                'building' => $validated['building_name'] ?? null,
+                'agent_id' => $validated['agent_id'] ?? null,
+                'from' => $enquiry->email,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to log agent enquiry', ['error' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Your message has been sent. The agent will be in touch shortly.');
+    }
+
+    /**
      * Display list of enquiries (admin only)
      */
     public function index(Request $request)

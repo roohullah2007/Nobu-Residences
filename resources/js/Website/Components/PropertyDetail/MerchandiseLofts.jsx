@@ -70,23 +70,26 @@ export default function MerchandiseLofts({ propertyData }) {
         let totalForSale = 0;
         let totalForRent = 0;
 
-        if (fetchedBuildingData && (fetchedBuildingData.street_address_1 || fetchedBuildingData.street_address_2)) {
+        if (fetchedBuildingData && (fetchedBuildingData.street_address_1 || fetchedBuildingData.street_address_2 || (Array.isArray(fetchedBuildingData.additional_addresses) && fetchedBuildingData.additional_addresses.length))) {
           const addresses = [];
+          const seen = new Set();
+          const ADDR_RE = /^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?(?:\s*,.*)?$/i;
+          const pushParsed = (raw) => {
+            if (!raw) return;
+            const m = String(raw).match(ADDR_RE);
+            if (!m) return;
+            const num = m[1];
+            const name = m[2].trim();
+            const key = `${num}|${name.toLowerCase()}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            addresses.push({ streetNumber: num, streetName: name });
+          };
 
-          // Parse street_address_1
-          if (fetchedBuildingData.street_address_1) {
-            const match1 = fetchedBuildingData.street_address_1.match(/^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?$/i);
-            if (match1) {
-              addresses.push({ streetNumber: match1[1], streetName: match1[2].trim() });
-            }
-          }
-
-          // Parse street_address_2
-          if (fetchedBuildingData.street_address_2) {
-            const match2 = fetchedBuildingData.street_address_2.match(/^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?$/i);
-            if (match2) {
-              addresses.push({ streetNumber: match2[1], streetName: match2[2].trim() });
-            }
+          pushParsed(fetchedBuildingData.street_address_1);
+          pushParsed(fetchedBuildingData.street_address_2);
+          if (Array.isArray(fetchedBuildingData.additional_addresses)) {
+            fetchedBuildingData.additional_addresses.forEach(pushParsed);
           }
 
           // If no addresses parsed, fallback to original extraction
@@ -194,10 +197,13 @@ export default function MerchandiseLofts({ propertyData }) {
 
   // Comma-joined street addresses ("15 Mercer St,35 Mercer") so the search
   // URL is human-readable and the controller can resolve the listings without
-  // a Building DB lookup.
+  // a Building DB lookup. Must include additional_addresses so buildings with
+  // a range like "8-30 Widmer St" fan all 23 street numbers into the query;
+  // otherwise the Sale/Rent CTAs only ever match the first two addresses.
   const buildingStreetAddresses = [
     buildingData?.street_address_1,
     buildingData?.street_address_2,
+    ...(Array.isArray(buildingData?.additional_addresses) ? buildingData.additional_addresses : []),
   ].filter(Boolean).join(',');
 
   return (

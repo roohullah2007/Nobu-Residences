@@ -123,6 +123,9 @@ Route::get('/school/{schoolSlug}', [WebsiteController::class, 'schoolDetailBySlu
 // Property Enquiry route
 Route::post('/property-enquiry', [PropertyEnquiryController::class, 'store'])->name('property.enquiry');
 
+// Agent / Building Enquiry route (used by the "Contact Agent about <Building>" modal)
+Route::post('/agent-enquiry', [PropertyEnquiryController::class, 'agentEnquiry'])->name('agent.enquiry');
+
 // Contact Form route
 Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'store'])->name('contact.store');
 

@@ -454,11 +454,19 @@ class PropertySearchController extends Controller
         if (empty($rawAddresses) && !empty($params['building_id'])) {
             $building = Building::find($params['building_id']);
             if ($building) {
-                $rawAddresses = array_filter([
+                $candidates = [
                     $building->street_address_1 ?? null,
                     $building->street_address_2 ?? null,
-                    $building->address ?? null,
-                ]);
+                ];
+                if (is_array($building->additional_addresses)) {
+                    foreach ($building->additional_addresses as $a) {
+                        $candidates[] = $a;
+                    }
+                }
+                if (empty(array_filter($candidates))) {
+                    $candidates[] = $building->address ?? null;
+                }
+                $rawAddresses = array_filter($candidates);
             }
         }
 
