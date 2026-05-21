@@ -180,9 +180,9 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
 
     // In onDarkBg mode the wrapping MainLayout band already provides the
     // sticky positioning, fixed height and background colour — the
-    // Navbar just needs to sit inside it as in-flow content, constrained
-    // to a 1280px max-width container centred with 32px horizontal
-    // padding so the nav doesn't run edge-to-edge on wide monitors.
+    // Navbar just sits inside it as in-flow content, constrained to a
+    // 1280px max-width container centred with no horizontal padding so
+    // the logo + nav links sit flush against the container edge.
     // Outside that mode keep the original absolute layered header used
     // on the homepage.
     const headerClass = onDarkBg
@@ -194,7 +194,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
 
     return (
         <header className={headerClass}>
-            <div className={innerWrapperClass} style={onDarkBg ? { paddingLeft: '32px', paddingRight: '32px' } : undefined}>
+            <div className={innerWrapperClass}>
                 {/* Mobile Navbar */}
                 <div className={mobileContainerClass}>
                     {/* Logo */}
