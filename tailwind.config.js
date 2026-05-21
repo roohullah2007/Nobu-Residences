@@ -13,16 +13,16 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                // Headings + body share a Helvetica-style neue/Inter stack so
-                // the building detail page reads as one clean sans-serif
-                // family. Existing class names (font-space-grotesk,
-                // font-red-hat, etc.) are kept as aliases pointing at the
-                // same stack to avoid touching dozens of JSX files.
-                sans: ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', ...defaultTheme.fontFamily.sans],
-                'work-sans': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-                'space-grotesk': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-                'red-hat': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
-                'inter': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                // Single Helvetica stack across the whole app. Arial is
+                // the canonical fallback for systems missing Helvetica
+                // (Windows/Linux). The legacy class names below are kept
+                // as aliases pointing at the same stack so the existing
+                // JSX doesn't need touching.
+                sans: ['Helvetica', 'Arial', ...defaultTheme.fontFamily.sans],
+                'work-sans': ['Helvetica', 'Arial', 'sans-serif'],
+                'space-grotesk': ['Helvetica', 'Arial', 'sans-serif'],
+                'red-hat': ['Helvetica', 'Arial', 'sans-serif'],
+                'inter': ['Helvetica', 'Arial', 'sans-serif'],
             },
         },
     },

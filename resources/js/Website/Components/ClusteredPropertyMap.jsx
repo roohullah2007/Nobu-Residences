@@ -172,7 +172,7 @@ const ClusteredPropertyMap = ({
           <g filter="url(#s)">
             <circle cx="${box/2}" cy="${box/2}" r="${size/2}" fill="${bgColor}" stroke="white" stroke-width="2"/>
           </g>
-          <text x="${box/2}" y="${box/2 + fontSize/3}" text-anchor="middle" fill="white" font-size="${fontSize}" font-weight="700" font-family="'Work Sans','Helvetica Neue',Arial,sans-serif">${count}</text>
+          <text x="${box/2}" y="${box/2 + fontSize/3}" text-anchor="middle" fill="white" font-size="${fontSize}" font-weight="700" font-family="'Helvetica',Arial,sans-serif">${count}</text>
         </svg>
       `)}`,
       scaledSize: new window.google.maps.Size(box, box),
@@ -268,7 +268,7 @@ const ClusteredPropertyMap = ({
           ? `<div style="width:100%;height:160px;background:#f3f4f6 url('${coord.image}') center/cover no-repeat;"></div>`
           : `<div style="width:100%;height:160px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">No image</div>`;
         const content = `
-          <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Work Sans',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
+          <a href="${href}" style="display:block;width:260px;text-decoration:none;color:inherit;font-family:'Helvetica',Arial,sans-serif;background:#fff;border-radius:14px;overflow:hidden;">
             ${imageHtml}
             <div style="padding:14px 14px 16px 14px;">
               <div style="font-weight:800;font-size:22px;color:#0f172a;line-height:1.1;margin-bottom:8px;">${formatPrice(coord.price)}</div>

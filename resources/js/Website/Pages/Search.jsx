@@ -1684,7 +1684,7 @@ export default function EnhancedPropertySearch({
               // Enhanced Mixed View - IDX-AMPRE style split layout with two cards per row
               // On mobile: Show only listings (no map). On desktop: Show listings + map side by side
               <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-300px)] md:min-h-[700px] bg-white rounded-lg shadow-sm border overflow-hidden"
-                   style={{ fontFamily: "'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif" }}>
+                   style={{ fontFamily: "'Helvetica', 'Arial', sans-serif" }}>
                 {/* Left side - Property Cards with enhanced scrolling - IDX-AMPRE style */}
                 <div className="flex-1 flex flex-col md:border-r border-gray-200">
                   {/* Properties section header - IDX-AMPRE style */}
