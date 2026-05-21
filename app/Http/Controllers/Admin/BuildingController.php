@@ -12,6 +12,50 @@ use Illuminate\Support\Str;
 class BuildingController extends Controller
 {
     /**
+     * If `address` is a hyphen-range like "8-38 Widmer St, Toronto", expand it
+     * into street_address_1 + street_address_2 + additional_addresses so the
+     * search/listings pipeline doesn't depend on whoever edited the building
+     * remembering to click the front-end "Expand" button.
+     *
+     * Strips the trailing ", City" / ", ON …" before storing each entry so
+     * each row looks like "8 Widmer St" — PropertySearchController splits the
+     * joined street_addresses on "," and was treating the city as a phantom
+     * address.
+     *
+     * Mutates $validated in place. No-op when `address` isn't a hyphen-range
+     * (e.g. NOBU's "15 Mercer St, 35 Mercer" — comma list, no hyphen between
+     * the two numbers — keeps its admin-curated structured fields).
+     */
+    private function expandAddressRangeIntoStructuredFields(array &$validated): void
+    {
+        $address = $validated['address'] ?? null;
+        if (!is_string($address) || !preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', trim($address), $m)) {
+            return;
+        }
+        $start = (int) $m[1];
+        $end = (int) $m[2];
+        // Guard against typos / pathological ranges. 50 covers every Toronto
+        // condo block we care about; anything bigger is almost certainly a
+        // mistake we'd rather surface than silently fan out.
+        if ($end <= $start || ($end - $start) > 50) {
+            return;
+        }
+        // "Widmer St, Toronto" / "Widmer St, ON M5V 0K6" → "Widmer St"
+        $streetPart = trim(preg_split('/\s*,/', $m[3])[0] ?? $m[3]);
+        if ($streetPart === '') {
+            return;
+        }
+        $expanded = [];
+        for ($n = $start; $n <= $end; $n++) {
+            $expanded[] = $n . ' ' . $streetPart;
+        }
+        $validated['street_address_1'] = $expanded[0] ?? null;
+        $validated['street_address_2'] = $expanded[1] ?? null;
+        $rest = array_values(array_slice($expanded, 2));
+        $validated['additional_addresses'] = !empty($rest) ? $rest : null;
+    }
+
+    /**
      * Resolve building from slug (either UUID or name-slug-uuid format)
      */
     private function resolveBuildingFromSlug($buildingSlug)
@@ -161,6 +205,12 @@ class BuildingController extends Controller
             'maintenance_fee_amenity_ids' => $maintenanceFeeAmenityIds,
             'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds)
         ]);
+
+        // Auto-expand "8-38 Widmer St, Toronto" → fills street_address_1/2 +
+        // additional_addresses. Overrides whatever the client sent for those
+        // fields when the primary address is a range, so the source of truth
+        // stays consistent.
+        $this->expandAddressRangeIntoStructuredFields($validated);
 
         // Drop empty entries from additional_addresses before saving
         if (isset($validated['additional_addresses']) && is_array($validated['additional_addresses'])) {
@@ -424,6 +474,12 @@ class BuildingController extends Controller
             'maintenance_fee_amenity_count' => count($maintenanceFeeAmenityIds),
             'request_data_keys' => array_keys($request->all())
         ]);
+
+        // Auto-expand "8-38 Widmer St, Toronto" → fills street_address_1/2 +
+        // additional_addresses. Overrides whatever the client sent for those
+        // fields when the primary address is a range, so the source of truth
+        // stays consistent.
+        $this->expandAddressRangeIntoStructuredFields($validated);
 
         // Drop empty entries from additional_addresses before saving
         if (array_key_exists('additional_addresses', $validated)) {
