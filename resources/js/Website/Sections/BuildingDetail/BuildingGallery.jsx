@@ -179,7 +179,12 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
               <div className="flex flex-col gap-6 md:gap-6 lg:gap-8 mb-[30px] md:mb-0">
                 {/* Building Name Section */}
                 <div className="flex flex-col gap-4 items-center">
-                  <h2 className="font-space-grotesk font-bold text-2xl md:text-3xl leading-tight text-[#293056] text-center">
+                  {/* text-xl on desktop (was text-3xl) keeps "NOBU
+                      Residences" on one line in the 306px sidebar so
+                      the title wraps to two lines max — "NOBU
+                      Residences" / "Toronto" — instead of breaking on
+                      every word after the Inter font swap. */}
+                  <h2 className="font-space-grotesk font-bold text-xl md:text-2xl leading-tight text-[#293056] text-center" style={{ textWrap: 'balance' }}>
                     {buildingData?.name || 'Building Name'}
                   </h2>
                   <div className="w-full h-px border-t border-[#D5D7DA]"></div>
