@@ -1,6 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@100;200;300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;600;700;800;900&display=swap');
+/* Helvetica-style sans-serif stack only — Inter as primary webfont, then
+   the system Helvetica/Arial family. Space Grotesk / Work Sans / Red Hat
+   Display imports were dropped so the .font-* utility classes below (and
+   tailwind's font-* aliases) actually resolve to a clean sans-serif
+   across the entire app instead of being silently overridden by Google
+   Fonts. */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import './idx-ampre-styles.css';
 @import './map-info-window.css';
@@ -93,19 +96,14 @@ html, body {
     letter-spacing: -0.04em;
 }
 
-/* Work Sans font utility */
-.font-work-sans {
-    font-family: 'Work Sans', sans-serif;
-}
-
-/* Space Grotesk font utility */
-.font-space-grotesk {
-    font-family: 'Space Grotesk', sans-serif;
-}
-
-/* Red Hat Display font utility */
+/* All three legacy font utilities now resolve to the same Helvetica-style
+   sans-serif stack. Keeping the class names intact means dozens of JSX
+   files don't need touching; the visual result is unified clean sans. */
+.font-work-sans,
+.font-space-grotesk,
+.font-red-hat,
 .font-red-hat-display {
-    font-family: 'Red Hat Display', sans-serif;
+    font-family: 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
 }
 
 /* Hide default select dropdown arrows. The `background-image: none` is
@@ -152,7 +150,7 @@ textarea:focus {
 /* Google Places Autocomplete Dropdown Styles */
 .pac-container {
     z-index: 9999 !important;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
     border-radius: 8px;
     margin-top: 2px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);

@@ -632,7 +632,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
 
     return (
         <>
-            <div className="bg-gray-100 rounded-2xl px-4 py-3 overflow-visible" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+            <div className="bg-gray-100 rounded-2xl px-4 py-3 overflow-visible" style={{ fontFamily: "'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif" }}>
                 <div className="flex items-center gap-4 w-full flex-wrap lg:flex-nowrap min-w-fit">
 
                     {/* Left Group: Search, For Sale, Bed Type, Price */}

@@ -90,7 +90,7 @@ const NearbySchools = ({ propertyData = null }) => {
               position: relative !important;
               isolation: isolate !important;
               contain: layout style !important;
-              font-family: "Red Hat Display", system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+              font-family: 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
               color: #000000 !important;
               margin: 0 !important;
               padding: 0 !important;

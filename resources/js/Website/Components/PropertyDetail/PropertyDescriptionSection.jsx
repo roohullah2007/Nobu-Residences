@@ -228,7 +228,7 @@ export default function PropertyDescriptionSection({ propertyData, aiDescription
               </span>
             )}
           </div>
-          <div className="space-y-4 md:space-y-6 text-sm md:text-base leading-relaxed md:leading-normal" style={{ fontFamily: 'Work Sans', fontWeight: 400 }}>
+          <div className="space-y-4 md:space-y-6 text-sm md:text-base leading-relaxed md:leading-normal" style={{ fontFamily: "'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif", fontWeight: 400 }}>
             {/* Show AI content directly without loading indicators */}
             {description.main && (
               <p className="text-gray-700">
