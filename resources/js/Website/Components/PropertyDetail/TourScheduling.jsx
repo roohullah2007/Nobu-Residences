@@ -474,8 +474,8 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                       : 'bg-gray-50 border-transparent hover:bg-gray-100'
                   }`}
                 >
-                  <p className="text-center text-sm font-medium">{timeSlot.label}</p>
-                  <p className="text-center text-xs mt-1 text-gray-500">{timeSlot.range}</p>
+                  <p className="text-center font-medium" style={{ fontSize: '12px' }}>{timeSlot.label}</p>
+                  <p className="text-center mt-1 text-gray-500" style={{ fontSize: '10px' }}>{timeSlot.range}</p>
                 </div>
               ))}
             </div>
