@@ -179,15 +179,17 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
         : 'rounded-lg p-2 hover:opacity-80 transition-colors bg-white text-gray-900';
 
     // In onDarkBg mode the wrapping MainLayout band already provides the
-    // sticky positioning, fixed height and rounded outer radius — the
-    // Navbar just needs to sit inside it as in-flow content with the
-    // spec's 32px horizontal padding. Outside that mode keep the original
-    // absolute layered header used on the homepage.
+    // sticky positioning, fixed height and background colour — the
+    // Navbar just needs to sit inside it as in-flow content, constrained
+    // to a 1280px max-width container centred with 32px horizontal
+    // padding so the nav doesn't run edge-to-edge on wide monitors.
+    // Outside that mode keep the original absolute layered header used
+    // on the homepage.
     const headerClass = onDarkBg
         ? 'w-full h-full flex items-center justify-center z-20'
         : 'absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20';
     const innerWrapperClass = onDarkBg
-        ? 'w-full h-full flex items-center'
+        ? 'mx-auto w-full max-w-[1280px] h-full flex items-center'
         : 'mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center py-0 md:py-8';
 
     return (
