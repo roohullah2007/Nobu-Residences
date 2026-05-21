@@ -1904,18 +1904,29 @@ class WebsiteController extends Controller
             $cityForUrl = $buildingData['city'] ?? 'Toronto';
             $citySlug = $slugify($cityForUrl) ?: 'toronto';
 
+            // Keep only comma/&-separated parts that start with a digit
+            // (real street addresses), drop the rest (city, province,
+            // postal). Handles "8-38 Widmer St, Toronto" → "8-38 Widmer St"
+            // AND multi-tower "15 Mercer St, 35 Mercer" → both retained.
+            $addressOnly = function ($s) {
+                if (!is_string($s)) return '';
+                $parts = array_map('trim', preg_split('/\s*[,&]\s*/', $s));
+                $kept = array_values(array_filter($parts, fn($p) => $p !== '' && preg_match('/^\d/', $p)));
+                return implode(' ', $kept);
+            };
+
             $slugParts = [$slugify($buildingData['name'])];
-            if (!empty($buildingData['street_address_1'])) {
-                $slugParts[] = $slugify($buildingData['street_address_1']);
-            }
-            if (!empty($buildingData['street_address_2'])) {
-                $slugParts[] = $slugify($buildingData['street_address_2']);
-            }
-            if (count($slugParts) === 1 && !empty($buildingData['address'])) {
-                foreach (preg_split('/\s*[,&]\s*/', $buildingData['address']) as $part) {
-                    if (trim($part) !== '') {
-                        $slugParts[] = $slugify($part);
-                    }
+            if (!empty($buildingData['address'])) {
+                $addr = $addressOnly($buildingData['address']) ?: $buildingData['address'];
+                $slugParts[] = $slugify($addr);
+            } else {
+                // Older building rows without an address fall back to the
+                // structured fields.
+                if (!empty($buildingData['street_address_1'])) {
+                    $slugParts[] = $slugify($addressOnly($buildingData['street_address_1']) ?: $buildingData['street_address_1']);
+                }
+                if (!empty($buildingData['street_address_2'])) {
+                    $slugParts[] = $slugify($addressOnly($buildingData['street_address_2']) ?: $buildingData['street_address_2']);
                 }
             }
             $buildingSlug = implode('-', array_filter($slugParts));
@@ -2497,15 +2508,23 @@ class WebsiteController extends Controller
                 $candidates = Building::with(['developer', 'amenities', 'maintenanceFeeAmenities'])
                     ->whereRaw('LOWER(name) LIKE ?', [strtolower($namePrefix) . '%'])
                     ->get();
+                $addressOnly = function ($s) {
+                    if (!is_string($s)) return '';
+                    $parts = array_map('trim', preg_split('/\s*[,&]\s*/', $s));
+                    $kept = array_values(array_filter($parts, fn($p) => $p !== '' && preg_match('/^\d/', $p)));
+                    return implode(' ', $kept);
+                };
                 foreach ($candidates as $cand) {
-                    // Build the same rich slug from the candidate and compare
+                    // Build the same rich slug shape as createSEOBuildingUrl:
+                    // name + address (keeping only the numeric-leading
+                    // segments, dropping city/postal). Older rows without
+                    // an `address` fall back to street_address_1/2.
                     $candParts = [\Str::slug($cand->name)];
-                    if (!empty($cand->street_address_1)) $candParts[] = \Str::slug($cand->street_address_1);
-                    if (!empty($cand->street_address_2)) $candParts[] = \Str::slug($cand->street_address_2);
-                    if (count($candParts) === 1 && !empty($cand->address)) {
-                        foreach (array_filter(array_map('trim', explode(',', $cand->address))) as $part) {
-                            $candParts[] = \Str::slug($part);
-                        }
+                    if (!empty($cand->address)) {
+                        $candParts[] = \Str::slug($addressOnly($cand->address) ?: $cand->address);
+                    } else {
+                        if (!empty($cand->street_address_1)) $candParts[] = \Str::slug($addressOnly($cand->street_address_1) ?: $cand->street_address_1);
+                        if (!empty($cand->street_address_2)) $candParts[] = \Str::slug($addressOnly($cand->street_address_2) ?: $cand->street_address_2);
                     }
                     $candSlug = implode('-', array_filter($candParts));
                     if ($candSlug === $buildingSlug) {

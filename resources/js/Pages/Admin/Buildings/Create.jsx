@@ -498,32 +498,11 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                     <InputError message={errors.city} className="mt-2" />
                                 </div>
 
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="street_address_1" value="Street Address 1" />
-                                    <TextInput
-                                        id="street_address_1"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.street_address_1}
-                                        onChange={(e) => setData('street_address_1', e.target.value)}
-                                        placeholder="Unit / suite line 1"
-                                    />
-                                    <InputError message={errors.street_address_1} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="street_address_2" value="Street Address 2" />
-                                    <TextInput
-                                        id="street_address_2"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.street_address_2}
-                                        onChange={(e) => setData('street_address_2', e.target.value)}
-                                        placeholder="Optional line 2"
-                                    />
-                                    <InputError message={errors.street_address_2} className="mt-2" />
-                                </div>
-
+                                {/* Street Address 1 / 2 inputs removed -- the server
+                                    auto-expands a hyphen-range Address into the
+                                    structured fields on save, and any extra towers
+                                    go into the Additional Street Addresses repeater
+                                    below. */}
                                 <div className="sm:col-span-6">
                                     <div className="flex items-center justify-between">
                                         <InputLabel value="Additional Street Addresses" />

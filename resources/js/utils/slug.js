@@ -68,6 +68,15 @@ export const extractBuildingId = (slug) => {
  * Create SEO-friendly building URL
  * @param {object} building - Building object with name, slug, address, city data
  * @returns {string} SEO-friendly building URL
+ *
+ * URL shape: /{city}/{name-slug}-{address-slug} — e.g.
+ * "/toronto/theatre-district-residence-8-38-widmer-st".
+ *
+ * The address-slug is derived from the building's primary `address`
+ * field with the trailing ", City" / ", ON …" suffix stripped, so the
+ * city doesn't get duplicated inside the slug when it already prefixes
+ * the path. Older buildings without an `address` fall back to the
+ * structured street_address_1/2 fields.
  */
 export const createSEOBuildingUrl = (building) => {
   if (!building) return '/building/unknown';
@@ -82,23 +91,30 @@ export const createSEOBuildingUrl = (building) => {
     id,
   } = building;
 
-  // Build the rich combined slug: nameSlug-addr1Slug-addr2Slug
-  // e.g. "nobu-residences-15-mercer-st-35-mercer-st"
+  // Keep every comma/ampersand-separated part that starts with a digit
+  // (i.e. a real street address) and drop the rest (city, province,
+  // postal code). Handles "8-38 Widmer St, Toronto" → "8-38 Widmer St"
+  // AND multi-address buildings like NOBU "15 Mercer St, 35 Mercer"
+  // → "15 Mercer St 35 Mercer" without losing the second tower.
+  const addressOnly = (s) => {
+    if (typeof s !== 'string') return '';
+    return s
+      .split(/\s*[,&]\s*/)
+      .map((p) => p.trim())
+      .filter((p) => /^\d/.test(p))
+      .join(' ');
+  };
+
   const parts = [];
   if (name) parts.push(createSlug(name));
 
-  if (street_address_1) parts.push(createSlug(street_address_1));
-  if (street_address_2) parts.push(createSlug(street_address_2));
-
-  // Fallback: if we don't have separate street_address_* fields but the
-  // main address contains multiple streets joined by "," or "&"
-  // (e.g. "15 Mercer St & 35 Mercer"), split and slug each one.
-  if (!street_address_1 && !street_address_2 && address) {
-    address
-      .split(/\s*[,&]\s*/)
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .forEach((p) => parts.push(createSlug(p)));
+  if (address) {
+    const addressSlug = createSlug(addressOnly(address) || address);
+    if (addressSlug) parts.push(addressSlug);
+  } else {
+    // Fallback when only the structured fields are populated.
+    if (street_address_1) parts.push(createSlug(addressOnly(street_address_1) || street_address_1));
+    if (street_address_2) parts.push(createSlug(addressOnly(street_address_2) || street_address_2));
   }
 
   if (city && parts.length > 0) {
