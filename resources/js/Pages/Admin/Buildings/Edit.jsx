@@ -26,12 +26,24 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     console.log('Available amenities:', amenities);
     console.log('Amenities count:', amenities.length);
 
+    // Old data model had street_address_1 + street_address_2 as separate
+    // fields. The admin form now only shows a single "Additional Street
+    // Addresses" repeater, so merge those two values in at the top of
+    // the list when loading the form. On save the server re-derives
+    // street_address_1/2 from this combined list (or from an address
+    // hyphen-range, whichever the admin typed).
+    const initialAddresses = [
+        building.street_address_1,
+        building.street_address_2,
+        ...(Array.isArray(building.additional_addresses) ? building.additional_addresses : []),
+    ].filter((a) => typeof a === 'string' && a.trim() !== '');
+
     const { data, setData, put, processing, errors } = useForm({
         name: building.name || '',
         address: building.address || '',
-        street_address_1: building.street_address_1 || '',
-        street_address_2: building.street_address_2 || '',
-        additional_addresses: Array.isArray(building.additional_addresses) ? building.additional_addresses : [],
+        street_address_1: '',
+        street_address_2: '',
+        additional_addresses: initialAddresses,
         city: building.city || '',
         neighbourhood: building.neighbourhood || '',
         neighbourhood_id: building.neighbourhood_id || '',
@@ -480,17 +492,15 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const handleExpandRange = () => {
         const range = detectAddressRange(data.address);
         if (!range) return;
-        // Keep the primary Address as the user typed it (e.g. "8-30 Widmer St, Toronto")
-        // and fill the structured fields in order:
-        //   first expanded   -> Street Address 1
-        //   second expanded  -> Street Address 2
-        //   third onward     -> Additional Street Addresses
-        const [first = '', second = '', ...rest] = range.addresses;
+        // Single Additional Street Addresses repeater now -- dump every
+        // expanded number into it. The server still receives the full
+        // list under additional_addresses and re-derives the structured
+        // street_address_1/2 columns on save.
         setData((prev) => ({
             ...prev,
-            street_address_1: first,
-            street_address_2: second,
-            additional_addresses: rest,
+            street_address_1: '',
+            street_address_2: '',
+            additional_addresses: range.addresses,
         }));
     };
 

@@ -353,17 +353,14 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const handleExpandRange = () => {
         const range = detectAddressRange(data.address);
         if (!range) return;
-        // Keep the primary Address as the user typed it (e.g. "8-30 Widmer St, Toronto")
-        // and fill the structured fields in order:
-        //   first expanded   -> Street Address 1
-        //   second expanded  -> Street Address 2
-        //   third onward     -> Additional Street Addresses
-        const [first = '', second = '', ...rest] = range.addresses;
+        // Single Additional Street Addresses repeater now -- dump every
+        // expanded number into it. Server re-derives street_address_1/2
+        // on save.
         setData((prev) => ({
             ...prev,
-            street_address_1: first,
-            street_address_2: second,
-            additional_addresses: rest,
+            street_address_1: '',
+            street_address_2: '',
+            additional_addresses: range.addresses,
         }));
     };
 

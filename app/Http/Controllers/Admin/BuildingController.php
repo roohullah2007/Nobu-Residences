@@ -12,6 +12,47 @@ use Illuminate\Support\Str;
 class BuildingController extends Controller
 {
     /**
+     * Re-distribute a flat additional_addresses list back into the
+     * structured street_address_1 / street_address_2 / additional columns.
+     *
+     * The admin form now shows a single "Additional Street Addresses"
+     * repeater and submits the full list under that one key. Search and
+     * listings still rely on street_address_1/2 being populated, so:
+     *   - first item  -> street_address_1
+     *   - second item -> street_address_2
+     *   - rest        -> additional_addresses
+     *
+     * Runs after expandAddressRangeIntoStructuredFields and only when the
+     * latter didn't already populate the structured columns (i.e. the
+     * primary Address isn't a hyphen-range like NOBU's "15 Mercer St,
+     * 35 Mercer").
+     *
+     * Mutates $validated in place.
+     */
+    private function distributeAdditionalAddresses(array &$validated): void
+    {
+        // The range-expand pass already filled these — leave it alone.
+        if (!empty($validated['street_address_1']) || !empty($validated['street_address_2'])) {
+            return;
+        }
+        $list = $validated['additional_addresses'] ?? null;
+        if (!is_array($list) || empty($list)) {
+            return;
+        }
+        $clean = array_values(array_filter(
+            array_map(fn($a) => is_string($a) ? trim($a) : $a, $list),
+            fn($a) => !empty($a)
+        ));
+        if (empty($clean)) {
+            return;
+        }
+        $validated['street_address_1'] = $clean[0] ?? null;
+        $validated['street_address_2'] = $clean[1] ?? null;
+        $rest = array_values(array_slice($clean, 2));
+        $validated['additional_addresses'] = !empty($rest) ? $rest : null;
+    }
+
+    /**
      * If `address` is a hyphen-range like "8-38 Widmer St, Toronto", expand it
      * into street_address_1 + street_address_2 + additional_addresses so the
      * search/listings pipeline doesn't depend on whoever edited the building
@@ -211,6 +252,10 @@ class BuildingController extends Controller
         // fields when the primary address is a range, so the source of truth
         // stays consistent.
         $this->expandAddressRangeIntoStructuredFields($validated);
+        // For non-range addresses, take the submitted flat list of
+        // additional_addresses and re-distribute the first two entries
+        // into street_address_1/2 so search/listings still work.
+        $this->distributeAdditionalAddresses($validated);
 
         // Drop empty entries from additional_addresses before saving
         if (isset($validated['additional_addresses']) && is_array($validated['additional_addresses'])) {
@@ -480,6 +525,10 @@ class BuildingController extends Controller
         // fields when the primary address is a range, so the source of truth
         // stays consistent.
         $this->expandAddressRangeIntoStructuredFields($validated);
+        // For non-range addresses, take the submitted flat list of
+        // additional_addresses and re-distribute the first two entries
+        // into street_address_1/2 so search/listings still work.
+        $this->distributeAdditionalAddresses($validated);
 
         // Drop empty entries from additional_addresses before saving
         if (array_key_exists('additional_addresses', $validated)) {
