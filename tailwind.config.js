@@ -13,11 +13,16 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Work Sans', ...defaultTheme.fontFamily.sans],
-                'work-sans': ['Work Sans', 'sans-serif'],
-                'space-grotesk': ['Space Grotesk', 'sans-serif'],
-                'red-hat': ['Red Hat Display', 'sans-serif'],
-                'inter': ['Inter', 'sans-serif'],
+                // Headings + body share a Helvetica-style neue/Inter stack so
+                // the building detail page reads as one clean sans-serif
+                // family. Existing class names (font-space-grotesk,
+                // font-red-hat, etc.) are kept as aliases pointing at the
+                // same stack to avoid touching dozens of JSX files.
+                sans: ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', ...defaultTheme.fontFamily.sans],
+                'work-sans': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                'space-grotesk': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                'red-hat': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                'inter': ['Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
             },
         },
     },

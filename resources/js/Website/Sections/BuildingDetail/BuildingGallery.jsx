@@ -278,26 +278,11 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   )}
                 </div>
                 
-                {/* For Sale and For Rent Buttons */}
+                {/* Inventory buttons — Rent on top, Sale on bottom per
+                    spec, labelled "{N} Units for {Rent|Sale}". Radius
+                    matches the rest of the card stack (rounded-xl) so
+                    curves stay consistent. */}
                 <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => {
-                      const section = document.getElementById('properties-for-sale');
-                      if (section) {
-                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className="w-full h-12 rounded-lg border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
-                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
-                  >
-                    <span className="font-work-sans font-medium text-base">
-                      {isLoadingCounts
-                        ? 'Loading...'
-                        : `${propertyCounts.for_sale || 0} for sale`
-                      }
-                    </span>
-                  </button>
-
                   <button
                     onClick={() => {
                       const section = document.getElementById('properties-for-rent');
@@ -305,13 +290,31 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="w-full h-12 rounded-lg border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
+                    className="w-full h-12 rounded-xl border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
                     style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
                   >
                     <span className="font-work-sans font-medium text-base">
                       {isLoadingCounts
                         ? 'Loading...'
-                        : `${propertyCounts.for_rent || 0} for rent`
+                        : `${propertyCounts.for_rent || 0} Units for Rent`
+                      }
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const section = document.getElementById('properties-for-sale');
+                      if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                    className="w-full h-12 rounded-xl border flex items-center justify-center hover:opacity-80 transition-all group cursor-pointer"
+                    style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
+                  >
+                    <span className="font-work-sans font-medium text-base">
+                      {isLoadingCounts
+                        ? 'Loading...'
+                        : `${propertyCounts.for_sale || 0} Units for Sale`
                       }
                     </span>
                   </button>
@@ -353,7 +356,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                       like one card. */}
                   <button
                     onClick={() => setShowContactModal(true)}
-                    className="w-full h-12 rounded-full flex items-center justify-center hover:opacity-90 transition-opacity"
+                    className="w-full h-12 rounded-xl flex items-center justify-center hover:opacity-90 transition-opacity"
                     style={{ backgroundColor: buttonSecondaryBg }}
                   >
                     <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonSecondaryText }}>

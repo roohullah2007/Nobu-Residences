@@ -4,7 +4,7 @@ import { LoginModal } from '@/Website/Global/Components';
 import Dropdown from '@/Components/Dropdown';
 import { Heart } from '@/Website/Components/Icons';
 
-export default function Navbar({ auth = {}, website = {}, simplified = false }) {
+export default function Navbar({ auth = {}, website = {}, simplified = false, onDarkBg = false }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [loginModalOpen, setLoginModalOpen] = useState(false);
 
@@ -165,11 +165,24 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
         };
     }, [mobileMenuOpen]);
 
+    // When the Navbar is rendered inside a coloured band (MainLayout's
+    // blueHeader wrapper), drop the inner white "pill" so the header reads
+    // as one continuous bar, and flip link text to white. Otherwise keep
+    // the existing white pill + dark text used on the homepage.
+    const mobileContainerClass = onDarkBg
+        ? 'flex md:hidden justify-between items-center px-4 py-3 w-full'
+        : 'flex md:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full';
+    const linkTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
+    const logoFallbackTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
+    const mobileBurgerClass = onDarkBg
+        ? 'rounded-lg p-2 hover:opacity-80 transition-colors bg-transparent text-white'
+        : 'rounded-lg p-2 hover:opacity-80 transition-colors bg-white text-gray-900';
+
     return (
-        <header className="absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20">
-            <div className="mx-auto px-3 py-0 md:py-8 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center">
+        <header className={`absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20${onDarkBg ? ' md:h-[120px]' : ''}`}>
+            <div className={`mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center ${onDarkBg ? 'py-0' : 'py-0 md:py-8'}`}>
                 {/* Mobile Navbar */}
-                <div className="flex md:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full">
+                <div className={mobileContainerClass}>
                     {/* Logo */}
                     <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
@@ -188,7 +201,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                     {/* Mobile menu button */}
                     <div className="md:hidden">
                         <button
-                            className="rounded-lg p-2 hover:opacity-80 transition-colors bg-white text-gray-900"
+                            className={mobileBurgerClass}
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             aria-label="Toggle mobile menu"
                         >
@@ -208,7 +221,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                 </div>
                 
                 {/* Desktop Navbar */}
-                <div className="hidden md:flex w-full h-16 bg-white rounded-xl items-center justify-between px-6">
+                <div className={`hidden md:flex items-center justify-between px-6 w-full ${onDarkBg ? 'py-3' : 'h-16 bg-white rounded-xl'}`}>
                     {/* Logo and Brand */}
                     <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
@@ -223,7 +236,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                                 className="object-contain"
                             />
                         ) : (
-                            <div className="font-space-grotesk font-bold text-[32px] leading-[36px] tracking-[-0.011em] text-gray-900">
+                            <div className={`font-space-grotesk font-bold text-[32px] leading-[36px] tracking-[-0.011em] ${logoFallbackTextClass}`}>
                                 {website?.name || 'X HOUSES'}
                             </div>
                         )}
@@ -235,7 +248,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                             <Link
                                 key={link.id}
                                 href={getNavUrl(link)}
-                                className="hover:opacity-70 transition-colors font-work-sans text-base font-medium text-gray-900"
+                                className={`hover:opacity-70 transition-colors font-work-sans text-base font-medium ${linkTextClass}`}
                             >
                                 {link.text}
                             </Link>
@@ -243,7 +256,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                         {simplified ? (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium text-gray-900"
+                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium ${linkTextClass}`}
                             >
                                 Log In
                             </button>
@@ -265,10 +278,10 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                                                 {auth.user.name?.charAt(0).toUpperCase() || 'U'}
                                             </div>
                                         )}
-                                        <span className="text-base font-medium text-gray-900">
+                                        <span className={`text-base font-medium ${linkTextClass}`}>
                                             {auth.user.name || 'User'}
                                         </span>
-                                        <svg className="w-4 h-4 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className={`w-4 h-4 ${linkTextClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </button>
@@ -311,7 +324,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false }) 
                         ) : (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className="px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium text-gray-900"
+                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium ${linkTextClass}`}
                             >
                                 Log In
                             </button>

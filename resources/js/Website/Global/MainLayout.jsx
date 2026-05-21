@@ -19,7 +19,7 @@ export default function MainLayout({ children, siteName, siteUrl, year, website,
                         className="w-screen h-[85px] md:h-[120px] relative flex items-center"
                         style={{ backgroundColor: brandColors.primary }}
                     >
-                        <Navbar auth={auth} website={website} />
+                        <Navbar auth={auth} website={website} onDarkBg={true} />
                     </div>
                 ) : (
                     <Navbar auth={auth} website={website} />

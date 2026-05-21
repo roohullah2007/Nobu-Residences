@@ -1,21 +1,9 @@
 import React, { useState } from 'react';
-import { usePage } from '@inertiajs/react';
 import NearbySchools from '../../Components/PropertyDetail/NearbySchools';
 import Amenities from '../../Components/PropertyDetail/Amenities';
 import MortgageCalculator from '../../Components/PropertyDetail/MortgageCalculator';
 
 const BuildingStatusTabs = ({ building }) => {
-  const { globalWebsite, website } = usePage().props;
-  const effectiveWebsite = website || globalWebsite;
-
-  const brandColors = effectiveWebsite?.brand_colors || {
-    button_primary_bg: '#293056',
-    button_primary_text: '#FFFFFF'
-  };
-
-  const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
-  const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
-
   const [activeTab, setActiveTab] = useState('overview');
 
   const buildingData = {
@@ -277,33 +265,31 @@ const BuildingStatusTabs = ({ building }) => {
     <div className="w-full max-w-[1280px] mx-auto py-0" data-building-status-tabs>
       {/* Building Status Navigation */}
       <div className="flex flex-col items-start gap-3 md:gap-6 w-full relative z-10">
-        {/* Status Labels Section - Scrollable on mobile */}
-        <div className="flex flex-row items-center gap-2 md:gap-[22px] w-full overflow-x-auto scrollbar-hide pb-2 md:pb-0 md:flex-wrap">
-          {/* Building Status Badge */}
-          <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
-            <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
-              {building?.status || 'Available'} Building
-            </span>
-          </div>
-
-          {/* Construction Date Badge */}
-          {building?.year_built && (
-            <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
-              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
-                Built in {building.year_built}
-              </span>
+        {/* Property Stats Row — single inline information bar, maroon
+            text matching the Sign Up / Log In button. Built from whatever
+            fields the building actually has; segments are joined with a
+            thin "|" so missing fields don't leave a stray separator. */}
+        {(() => {
+          const segments = [];
+          segments.push(building?.status ? String(building.status).charAt(0).toUpperCase() + String(building.status).slice(1) : 'Available');
+          if (building?.year_built) segments.push(`Year Built: ${building.year_built}`);
+          if (building?.total_units) segments.push(`Total Units: ${building.total_units}`);
+          return (
+            <div className="w-full pb-1">
+              <p
+                className="font-work-sans font-semibold text-sm md:text-base flex flex-wrap items-center gap-x-3 gap-y-1"
+                style={{ color: '#912018' }}
+              >
+                {segments.map((seg, i) => (
+                  <React.Fragment key={i}>
+                    {i > 0 && <span aria-hidden="true" className="opacity-60">|</span>}
+                    <span>{seg}</span>
+                  </React.Fragment>
+                ))}
+              </p>
             </div>
-          )}
-
-          {/* Units Available Badge */}
-          {building?.total_units && (
-            <div className="flex items-center px-3 gap-2 h-8 md:h-10 rounded-lg md:rounded-xl flex-shrink-0" style={{ backgroundColor: buttonPrimaryBg }}>
-              <span className="font-work-sans font-bold text-xs md:text-sm leading-5 md:leading-6 tracking-tight whitespace-nowrap" style={{ color: buttonPrimaryText }}>
-                {building.total_units} Total Units
-              </span>
-            </div>
-          )}
-        </div>
+          );
+        })()}
         
         {/* Navigation Tabs Section */}
         <div className="flex flex-col items-start gap-[18px] w-full">

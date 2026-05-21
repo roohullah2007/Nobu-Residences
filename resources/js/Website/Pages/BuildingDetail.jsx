@@ -321,7 +321,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                       </p>
                       <button
                         onClick={() => openLoginModal('login')}
-                        className="w-full py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all"
+                        className="w-full py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-all"
                         style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                       >
                         Sign Up / Log In
