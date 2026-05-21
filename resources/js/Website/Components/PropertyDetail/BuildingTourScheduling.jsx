@@ -373,9 +373,11 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
           className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] ${
             isFixed && window.innerWidth >= 768
               // z-10 keeps it below the sticky navy header (z-30); top
-              // clears the 82px header height with breathing room so the
-              // sidebar slides under it, not over it.
-              ? 'fixed top-[100px] z-10'
+              // clears the 82px header height. Matching bottom-[100px]
+              // gives the card the same breathing room at the foot, and
+              // max-height + overflow-y let it scroll internally if the
+              // content (calendar + agent block) exceeds the viewport.
+              ? 'fixed top-[100px] bottom-[100px] z-10 overflow-y-auto'
               : ''
           }`}
           style={{
