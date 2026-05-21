@@ -336,8 +336,12 @@ class BuildingController extends Controller
     
     /**
      * Find building by street address
-     * Searches in address, street_address_1, and street_address_2 fields
-     * to support buildings with multiple addresses (e.g., NOBU Residences with 15 Mercer and 35 Mercer)
+     * Searches address, street_address_1, street_address_2, and the JSON
+     * additional_addresses array so units at any number in a building's
+     * range (e.g. 30 Widmer for Theatre District where only 8/9 Widmer
+     * sit in the primary fields) still resolve back to their building.
+     * Without the additional_addresses check the building card on the
+     * unit detail page silently returned null for those units.
      */
     public function findByAddress(Request $request): JsonResponse
     {
@@ -352,21 +356,26 @@ class BuildingController extends Controller
             ]);
         }
 
-        // Search for building with matching street address
-        // Check all address fields: address, street_address_1, and street_address_2
         $searchPattern = $streetNumber . ' ' . $streetName;
+        // For the JSON search we need the raw quoted token that would
+        // appear inside the additional_addresses array element string,
+        // e.g. "30 Widmer" matches both "30 Widmer St" and "30 Widmer St,
+        // Toronto" elements. LIKE on the cast JSON column works on every
+        // supported DB (MySQL, Postgres, SQLite) so no driver branching.
+        $jsonLike = '%"' . $streetNumber . ' ' . $streetName . '%';
+
+        $hasAdditionalAddresses = \Schema::hasColumn('buildings', 'additional_addresses');
 
         $building = Building::with(['developer', 'amenities'])
-            ->where(function($query) use ($searchPattern, $streetNumber, $streetName) {
-                // Search in main address field
+            ->where(function($query) use ($searchPattern, $streetNumber, $streetName, $jsonLike, $hasAdditionalAddresses) {
                 $query->where('address', 'LIKE', $searchPattern . '%')
-                      ->orWhere('address', 'LIKE', $streetNumber . ' ' . $streetName . '%')
-                      // Also search in street_address_1 field (supports multi-address buildings)
                       ->orWhere('street_address_1', 'LIKE', $searchPattern . '%')
-                      ->orWhere('street_address_1', 'LIKE', $streetNumber . ' ' . $streetName . '%')
-                      // Also search in street_address_2 field (supports multi-address buildings)
-                      ->orWhere('street_address_2', 'LIKE', $searchPattern . '%')
-                      ->orWhere('street_address_2', 'LIKE', $streetNumber . ' ' . $streetName . '%');
+                      ->orWhere('street_address_2', 'LIKE', $searchPattern . '%');
+                if ($hasAdditionalAddresses) {
+                    // additional_addresses is a JSON array of strings; the
+                    // cast lets LIKE match the serialized list directly.
+                    $query->orWhere('additional_addresses', 'LIKE', $jsonLike);
+                }
             })
             ->where('status', 'active')
             ->first();

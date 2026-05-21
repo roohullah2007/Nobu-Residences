@@ -371,8 +371,11 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
         <div 
           ref={contentRef}
           className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] ${
-            isFixed && window.innerWidth >= 768 
-              ? 'fixed top-5 z-50' 
+            isFixed && window.innerWidth >= 768
+              // z-10 keeps it below the sticky navy header (z-30); top
+              // clears the 82px header height with breathing room so the
+              // sidebar slides under it, not over it.
+              ? 'fixed top-[100px] z-10'
               : ''
           }`}
           style={{
