@@ -265,27 +265,24 @@ const BuildingStatusTabs = ({ building }) => {
     <div className="w-full max-w-[1280px] mx-auto py-0" data-building-status-tabs>
       {/* Building Status Navigation */}
       <div className="flex flex-col items-start gap-3 md:gap-6 w-full relative z-10">
-        {/* Property Stats Row — single inline information bar, whole row
-            in maroon #912018 to match the Sign Up / Log In button.
-            Built from whatever fields the building actually has;
-            segments collapse cleanly when missing. */}
+        {/* Property Stats Row — single inline information bar with
+            per-segment colour: status green, "|" dividers maroon, other
+            facts black. Built from whatever fields the building actually
+            has; segments collapse cleanly when missing. */}
         {(() => {
-          const segments = [];
-          segments.push(building?.status
+          const statusLabel = building?.status
             ? String(building.status).charAt(0).toUpperCase() + String(building.status).slice(1)
-            : 'Available');
-          if (building?.year_built) segments.push(`Year Built: ${building.year_built}`);
-          if (building?.total_units) segments.push(`Total Units: ${building.total_units}`);
+            : 'Available';
+          const segments = [{ text: statusLabel, color: '#1F8A3C' }];
+          if (building?.year_built) segments.push({ text: `Year Built: ${building.year_built}`, color: '#111827' });
+          if (building?.total_units) segments.push({ text: `Total Units: ${building.total_units}`, color: '#111827' });
           return (
             <div className="w-full pb-1">
-              <p
-                className="font-work-sans font-semibold text-sm md:text-base flex flex-wrap items-center gap-x-3 gap-y-1"
-                style={{ color: '#912018' }}
-              >
+              <p className="font-work-sans font-semibold text-sm md:text-base flex flex-wrap items-center gap-x-3 gap-y-1">
                 {segments.map((seg, i) => (
                   <React.Fragment key={i}>
-                    {i > 0 && <span aria-hidden="true" className="opacity-60">|</span>}
-                    <span>{seg}</span>
+                    {i > 0 && <span aria-hidden="true" style={{ color: '#912018' }}>|</span>}
+                    <span style={{ color: seg.color }}>{seg.text}</span>
                   </React.Fragment>
                 ))}
               </p>
