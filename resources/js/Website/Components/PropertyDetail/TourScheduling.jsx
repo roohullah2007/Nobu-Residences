@@ -390,11 +390,11 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
           className={`flex flex-col gap-2 w-full max-w-[309px] min-w-[309px] ${
             isFixed && window.innerWidth >= 768
               // z-10 keeps it below the sticky navy header (z-30); top
-              // clears the 82px header height. Matching bottom-[100px]
-              // gives the card the same breathing room at the foot, and
-              // max-height + overflow-y let it scroll internally if the
-              // content (calendar + agent block) exceeds the viewport.
-              ? 'fixed top-[100px] bottom-[100px] z-10 overflow-y-auto'
+              // clears the 82px header height. No bottom/overflow
+              // constraint -- the card sizes to its own content so the
+              // full card (including bottom border) stays visible
+              // without an inner scrollbar.
+              ? 'fixed top-[100px] z-10'
               : ''
           }`}
           style={{
