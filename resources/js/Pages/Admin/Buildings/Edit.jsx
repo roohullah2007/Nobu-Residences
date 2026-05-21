@@ -469,24 +469,46 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         amenity.name.toLowerCase().includes(amenitySearch.toLowerCase())
     );
 
-    // Parse "8-30 Widmer St, Toronto" → expanded address list
+    // Parse the primary Address field into a list of street addresses
+    // ready to drop into the Additional Street Addresses repeater.
+    // Two shapes are supported:
+    //   1. Hyphen-range: "8-38 Widmer St, Toronto" -> 31 entries.
+    //   2. Comma / & list of distinct addresses:
+    //      "98 Lillian St, 89 Dunfield Ave & 101 Eglinton Ave E, Toronto"
+    //      -> 3 entries (city suffix dropped).
+    // Returns null when only a single address is detected — no need to
+    // offer "Expand" for a plain "10 Capreol Crt".
     const detectAddressRange = (value) => {
         if (!value) return null;
-        const match = value.match(/^(\d+)\s*[-–—]\s*(\d+)\s+(.+)$/);
-        if (!match) return null;
-        const start = parseInt(match[1], 10);
-        const end = parseInt(match[2], 10);
-        const rest = match[3].trim();
-        if (isNaN(start) || isNaN(end) || end <= start) return null;
-        const numbers = [];
-        for (let n = start; n <= end; n += 1) {
-            numbers.push(n);
-            if (numbers.length > 50) break;
+        // Shape 1: hyphen-range
+        const rangeMatch = value.match(/^(\d+)\s*[-–—]\s*(\d+)\s+(.+)$/);
+        if (rangeMatch) {
+            const start = parseInt(rangeMatch[1], 10);
+            const end = parseInt(rangeMatch[2], 10);
+            // Trailing ", Toronto" / ", ON ..." dropped so each generated
+            // entry stays clean ("9 Widmer St" not "9 Widmer St, Toronto").
+            const rest = rangeMatch[3].split(/\s*,/)[0].trim();
+            if (!isNaN(start) && !isNaN(end) && end > start && rest) {
+                const numbers = [];
+                for (let n = start; n <= end; n += 1) {
+                    numbers.push(n);
+                    if (numbers.length > 50) break;
+                }
+                return {
+                    count: numbers.length,
+                    addresses: numbers.map((n) => `${n} ${rest}`),
+                };
+            }
         }
-        return {
-            count: numbers.length,
-            addresses: numbers.map((n) => `${n} ${rest}`),
-        };
+        // Shape 2: comma / & list of distinct addresses
+        const parts = value
+            .split(/\s*[,&]\s*/)
+            .map((p) => p.trim())
+            .filter((p) => /^\d/.test(p));
+        if (parts.length >= 2) {
+            return { count: parts.length, addresses: parts };
+        }
+        return null;
     };
 
     const handleExpandRange = () => {
