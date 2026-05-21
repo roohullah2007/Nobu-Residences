@@ -477,7 +477,7 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
               Request Building Tour
             </button>
 
-            <div className="text-center text-gray-500">
+            <div className="text-center text-gray-500 my-3">
               <p>OR</p>
             </div>
 
