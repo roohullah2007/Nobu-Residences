@@ -494,7 +494,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
               Request A Tour
             </button>
 
-            <div className="text-center text-gray-500 my-3">
+            <div className="text-center text-gray-500">
               <p>OR</p>
             </div>
 
