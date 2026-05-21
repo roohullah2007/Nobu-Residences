@@ -170,7 +170,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     // as one continuous bar, and flip link text to white. Otherwise keep
     // the existing white pill + dark text used on the homepage.
     const mobileContainerClass = onDarkBg
-        ? 'flex md:hidden justify-between items-center px-4 py-3 w-full'
+        ? 'flex md:hidden justify-between items-center w-full'
         : 'flex md:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full';
     const linkTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
     const logoFallbackTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
@@ -178,9 +178,21 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
         ? 'rounded-lg p-2 hover:opacity-80 transition-colors bg-transparent text-white'
         : 'rounded-lg p-2 hover:opacity-80 transition-colors bg-white text-gray-900';
 
+    // In onDarkBg mode the wrapping MainLayout band already provides the
+    // sticky positioning, fixed height and rounded outer radius — the
+    // Navbar just needs to sit inside it as in-flow content with the
+    // spec's 32px horizontal padding. Outside that mode keep the original
+    // absolute layered header used on the homepage.
+    const headerClass = onDarkBg
+        ? 'w-full h-full flex items-center justify-center z-20'
+        : 'absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20';
+    const innerWrapperClass = onDarkBg
+        ? 'w-full h-full flex items-center'
+        : 'mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center py-0 md:py-8';
+
     return (
-        <header className={`absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20${onDarkBg ? ' md:h-[120px]' : ''}`}>
-            <div className={`mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center ${onDarkBg ? 'py-0' : 'py-0 md:py-8'}`}>
+        <header className={headerClass}>
+            <div className={innerWrapperClass} style={onDarkBg ? { paddingLeft: '32px', paddingRight: '32px' } : undefined}>
                 {/* Mobile Navbar */}
                 <div className={mobileContainerClass}>
                     {/* Logo */}
@@ -189,7 +201,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                             <img
                                 src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
-                                className="object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]"
+                                className={onDarkBg ? 'object-contain object-left w-[160px] h-[55px]' : 'object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]'}
                             />
                         ) : (
                             <div className="font-space-grotesk font-bold text-sm text-gray-900">
@@ -221,19 +233,18 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                 </div>
                 
                 {/* Desktop Navbar */}
-                <div className={`hidden md:flex items-center justify-between px-6 w-full ${onDarkBg ? 'py-3' : 'h-16 bg-white rounded-xl'}`}>
+                <div className={`hidden md:flex items-center justify-between w-full ${onDarkBg ? 'h-full' : 'px-6 h-16 bg-white rounded-xl'}`}>
                     {/* Logo and Brand */}
                     <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
                             <img
                                 src={website.logo_url}
                                 alt={website?.name || 'Site Logo'}
-                                style={{
-                                    width: '200px',
-                                    height: '50px',
-                                    maxWidth: '200px'
-                                }}
-                                className="object-contain"
+                                style={onDarkBg
+                                    ? { width: '220px', height: '60px', maxWidth: '220px' }
+                                    : { width: '200px', height: '50px', maxWidth: '200px' }
+                                }
+                                className={onDarkBg ? 'object-contain object-left' : 'object-contain'}
                             />
                         ) : (
                             <div className={`font-space-grotesk font-bold text-[32px] leading-[36px] tracking-[-0.011em] ${logoFallbackTextClass}`}>

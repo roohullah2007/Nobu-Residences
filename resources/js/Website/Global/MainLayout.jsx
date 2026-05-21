@@ -15,9 +15,21 @@ export default function MainLayout({ children, siteName, siteUrl, year, website,
             {/* Consistent header across all pages - same as homepage */}
             {!hideHeader && (
                 blueHeader ? (
+                    // Spec: sticky, 82px tall, deep navy #041B52, 18px
+                    // outer radius, 14px top margin, width = 100% - 28px
+                    // (14px gutter each side), horizontally centered.
+                    // Sticks at top:14px so the side gutters stay visible
+                    // while scrolling.
                     <div
-                        className="w-screen h-[85px] md:h-[120px] relative flex items-center"
-                        style={{ backgroundColor: brandColors.primary }}
+                        className="sticky z-30 mx-auto flex items-center"
+                        style={{
+                            top: '14px',
+                            marginTop: '14px',
+                            width: 'calc(100% - 28px)',
+                            height: '82px',
+                            backgroundColor: '#041B52',
+                            borderRadius: '18px',
+                        }}
                     >
                         <Navbar auth={auth} website={website} onDarkBg={true} />
                     </div>
