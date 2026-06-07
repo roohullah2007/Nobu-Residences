@@ -3,7 +3,10 @@ import { router, usePage } from '@inertiajs/react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) => {
-  const { googleOAuthEnabled } = usePage().props;
+  const { googleOAuthEnabled, globalWebsite, siteName } = usePage().props;
+  // Resolve the site name from the prop, then global page props, so the
+  // heading reads "Welcome to Nobu Residences" instead of "Our Site".
+  const siteDisplayName = website?.name || globalWebsite?.name || siteName || 'Nobu Residences';
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Sync the tab whenever the modal is (re)opened, so callers like the
@@ -290,7 +293,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
           {/* Modal Header */}
           <div className="text-center mb-6">
             <h2 className="text-2xl font-space-grotesk font-bold mb-2" style={{ color: brandColors.primary }}>
-              {showForgotPassword ? 'Reset Password' : `Welcome to ${website?.name || 'Our Site'}`}
+              {showForgotPassword ? 'Reset Password' : `Welcome to ${siteDisplayName}`}
             </h2>
             <p className="text-gray-600 text-sm">
               {showForgotPassword
