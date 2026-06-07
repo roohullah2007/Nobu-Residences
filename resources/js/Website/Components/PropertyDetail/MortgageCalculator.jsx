@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const MortgageCalculator = ({ property }) => {
+const MortgageCalculator = ({ property, hideHeading = false }) => {
   // Get property price from property data or default
   const defaultPrice = property?.ListPrice || property?.OriginalPrice || 1139000;
   
@@ -49,7 +49,7 @@ const MortgageCalculator = ({ property }) => {
   return (
     <div className="space-y-3 md:space-y-6">
       <div>
-        <h2 className="text-base font-semibold mb-2 md:mb-4" style={{ color: '#293056' }}>Mortgage Calculator</h2>
+        {!hideHeading && <h2 className="text-base font-semibold mb-2 md:mb-4" style={{ color: '#293056' }}>Mortgage Calculator</h2>}
         <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 leading-tight">Calculate your estimated monthly payments for this property based on different loan terms and down payment amounts.</p>
       </div>
       

@@ -1179,6 +1179,7 @@ class WebsiteController extends Controller
                         'city' => $prop->city ?? '',
                         'StateOrProvince' => $prop->province ?? 'ON',
                         'province' => $prop->province ?? 'ON',
+                        'country' => $this->normalizeCountry($address['country'] ?? ''),
                         'Latitude' => $prop->latitude ? (string) $prop->latitude : '',
                         'Longitude' => $prop->longitude ? (string) $prop->longitude : '',
                         'UnitNumber' => $address['unitNumber'] ?? '',
@@ -1337,12 +1338,17 @@ class WebsiteController extends Controller
 
             $bedrooms = $currentProperty['details']['numBedrooms'] ?? 0;
             $currentPrice = $currentProperty['listPrice'] ?? 0;
+            $city = $currentProperty['address']['city'] ?? null;
 
-            // Search for sold/closed properties
+            // Search for sold/closed properties in the same city
             $params = [
                 'status' => 'U', // Sold/closed status in Repliers
                 'resultsPerPage' => $limit * 3,
+                'sortBy' => 'updatedOnDesc',
             ];
+            if ($city) {
+                $params['city'] = $city;
+            }
 
             // Filter by similar bedroom count (+-1)
             if ($bedrooms > 0) {
@@ -1358,6 +1364,21 @@ class WebsiteController extends Controller
 
             $result = $repliersApi->searchListings($params);
             $listings = $result['listings'] ?? [];
+
+            // If the strict bed/price filter found nothing, broaden the search
+            // (same city + sold status only) so the section still populates.
+            if (empty($listings)) {
+                $fallbackParams = [
+                    'status' => 'U',
+                    'resultsPerPage' => $limit * 3,
+                    'sortBy' => 'updatedOnDesc',
+                ];
+                if ($city) {
+                    $fallbackParams['city'] = $city;
+                }
+                $result = $repliersApi->searchListings($fallbackParams);
+                $listings = $result['listings'] ?? [];
+            }
 
             // Filter out the current property and format the results
             $allFormattedProperties = [];
@@ -1383,6 +1404,98 @@ class WebsiteController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to fetch comparable sales: ' . $e->getMessage());
             return response()->json(['properties' => []]);
+        }
+    }
+
+    /**
+     * Market statistics for the property detail page — powers the "Market Data"
+     * chart (median sold price + sales count by year) and the "Market Sentiment"
+     * gauge (active vs recently-sold supply). All data live from Repliers.
+     */
+    public function getMarketStats(Request $request)
+    {
+        $city = trim((string) $request->input('city', ''));
+        $area = trim((string) $request->input('area', ''));
+        $neighborhood = trim((string) $request->input('neighborhood', ''));
+        $type = strtolower($request->input('type', 'sale')) === 'lease' ? 'lease' : 'sale';
+
+        $empty = ['area' => $neighborhood ?: ($area ?: $city), 'trends' => ['priceByYear' => [], 'salesByYear' => []], 'sentiment' => null];
+
+        try {
+            $api = app(RepliersApiService::class);
+
+            // ---- Trends: median sold price + sales count grouped by year ----
+            // Scoped to the city so there's enough sold volume for a stable curve.
+            $priceByYear = [];
+            $salesByYear = [];
+            $trendScope = $city ?: $area;
+            if ($trendScope) {
+                $statsResp = $api->searchListings([
+                    'city' => $trendScope,
+                    'status' => 'U',
+                    'type' => $type,
+                    'statistics' => 'grp-yr,med-soldPrice,cnt-closed',
+                    'resultsPerPage' => 1,
+                ]);
+                $yr = $statsResp['statistics']['soldPrice']['yr'] ?? [];
+                ksort($yr);
+                foreach ($yr as $year => $data) {
+                    if ((int) ($data['med'] ?? 0) > 0) {
+                        $priceByYear[] = ['year' => (int) $year, 'value' => (int) $data['med']];
+                        $salesByYear[] = ['year' => (int) $year, 'count' => (int) ($data['count'] ?? 0)];
+                    }
+                }
+            }
+
+            // ---- Sentiment: active vs sold (last 90 days) in the tightest area ----
+            $scope = [];
+            $scopeLabel = $neighborhood ?: ($area ?: $city);
+            if ($neighborhood) { $scope['neighborhood'] = $neighborhood; }
+            elseif ($area)     { $scope['area'] = $area; }
+            elseif ($city)     { $scope['city'] = $city; }
+
+            $sentiment = null;
+            if (!empty($scope)) {
+                $activeResp = $api->searchListings($scope + ['status' => 'A', 'type' => $type, 'resultsPerPage' => 1]);
+                $active = (int) ($activeResp['count'] ?? 0);
+
+                $sold90 = 0;
+                try {
+                    $soldResp = $api->searchListings($scope + [
+                        'status' => 'U',
+                        'type' => $type,
+                        'minSoldDate' => date('Y-m-d', strtotime('-90 days')),
+                        'resultsPerPage' => 1,
+                    ]);
+                    $sold90 = (int) ($soldResp['count'] ?? 0);
+                } catch (\Throwable $e) {
+                    $sold90 = 0;
+                }
+
+                $total = $active + $sold90;
+                $soldRatio = $total > 0 ? $sold90 / $total : 0;
+                if ($soldRatio >= 0.66)      { $label = "Seller's Market"; }
+                elseif ($soldRatio >= 0.4)   { $label = "Balanced"; }
+                else                         { $label = "Buyer's Market"; }
+
+                $sentiment = [
+                    'active' => $active,
+                    'sold90' => $sold90,
+                    'label' => $label,
+                    // Pointer position 0-100 along Buyer's→Seller's gradient.
+                    'position' => (int) max(8, min(92, round($soldRatio * 100))),
+                    'scope' => $scopeLabel,
+                ];
+            }
+
+            return response()->json([
+                'area' => $scopeLabel,
+                'trends' => ['priceByYear' => $priceByYear, 'salesByYear' => $salesByYear],
+                'sentiment' => $sentiment,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to fetch market stats: ' . $e->getMessage());
+            return response()->json($empty);
         }
     }
 
@@ -1956,7 +2069,7 @@ class WebsiteController extends Controller
      * Format listing data for display (property detail page)
      * Handles BOTH old AMPRE flat format and new Repliers nested format
      */
-    private function formatRepliersPropertyData($listing): array
+    private function formatRepliersPropertyData($listing, bool $includePriceHistory = true): array
     {
         // Detect format: Repliers has nested 'address' object, AMPRE has flat 'City' field
         $isRepliersFormat = isset($listing['address']) && is_array($listing['address']);
@@ -2075,6 +2188,9 @@ class WebsiteController extends Controller
             'city' => $city,
             'province' => $province,
             'postalCode' => $postalCode,
+            'country' => $isRepliersFormat
+                ? $this->normalizeCountry($address['country'] ?? '')
+                : ($listing['Country'] ?? 'Canada'),
             'price' => $listPrice,
             'listPrice' => $listPrice,
             'ListPrice' => $listPrice,
@@ -2146,6 +2262,23 @@ class WebsiteController extends Controller
             'AboveGradeFinishedArea' => $sqft,
             'BuildingAreaTotal' => $sqft,
             'GrossFloorArea' => $sqft,
+            // Location fields straight from the Repliers `address` object so
+            // the header breadcrumb can show neighbourhood → area → city even
+            // when this MLS listing isn't matched to a building in our DB.
+            'neighborhood' => $isRepliersFormat ? ($address['neighborhood'] ?? '') : '',
+            'area' => $isRepliersFormat ? ($address['area'] ?? '') : '',
+            'majorIntersection' => $isRepliersFormat ? ($address['majorIntersection'] ?? '') : ($listing['CrossStreet'] ?? ''),
+            // Raw Repliers sub-objects for the property-detail card design.
+            // The React layer reads whatever keys exist and omits empty rows,
+            // so this works regardless of which board populated which field.
+            'repliers' => $isRepliersFormat ? [
+                'details' => $details,
+                'condominium' => $condominium,
+                'lot' => $listing['lot'] ?? [],
+                'nearby' => $listing['nearby'] ?? [],
+                'taxes' => $taxes,
+                'address' => $address,
+            ] : null,
             // Price history straight from the Repliers listing object.
             // Each entry typically has: mlsNumber, listPrice, listDate,
             // lastStatus, soldPrice, soldDate, daysOnMarket, type.
@@ -2153,10 +2286,15 @@ class WebsiteController extends Controller
             // history requires elevated API access), fall back to a single
             // synthetic entry built from the current listing fields so the
             // Price History section always has at least one row to render.
-            'priceHistory' => $isRepliersFormat
+            // NOTE: buildPriceHistory() makes 2-4 extra Repliers API calls.
+            // That's fine for the single detail-page listing, but when this
+            // formatter is reused for LISTS (nearby / comparable cards) it must
+            // be skipped — otherwise N listings × ~3 calls blows past PHP's
+            // max_execution_time and 500s the endpoint. See $includePriceHistory.
+            'priceHistory' => ($isRepliersFormat && $includePriceHistory)
                 ? $this->buildPriceHistory($listing, $listingKey, $listPrice, $listDate, $soldPrice, $listing['soldDate'] ?? null, $mlsStatus, $daysOnMarket)
                 : [],
-            'PriceHistory' => $isRepliersFormat
+            'PriceHistory' => ($isRepliersFormat && $includePriceHistory)
                 ? $this->buildPriceHistory($listing, $listingKey, $listPrice, $listDate, $soldPrice, $listing['soldDate'] ?? null, $mlsStatus, $daysOnMarket)
                 : [],
         ];
@@ -2301,7 +2439,10 @@ class WebsiteController extends Controller
      */
     private function formatRepliersListingData(array $listing, RepliersApiService $repliersApi): array
     {
-        $formatted = $this->formatRepliersPropertyData($listing);
+        // Skip per-listing price-history lookups — these are list/card items,
+        // not the full detail page, so the extra Repliers calls would stack up
+        // (N listings × ~3 calls) and time the request out.
+        $formatted = $this->formatRepliersPropertyData($listing, false);
 
         // Add image URLs from Repliers CDN
         $imageUrls = $repliersApi->getListingImageUrls($listing);
@@ -2312,6 +2453,24 @@ class WebsiteController extends Controller
         $formatted['images'] = array_map(fn($url) => ['MediaURL' => $url], $imageUrls);
 
         return $formatted;
+    }
+
+    /**
+     * Normalize Repliers country abbreviations (e.g. "Cda") to a readable name.
+     */
+    private function normalizeCountry($country): string
+    {
+        $c = trim((string) $country);
+        if ($c === '') {
+            return 'Canada';
+        }
+        if (preg_match('/^(cda|can|canada|ca)$/i', $c)) {
+            return 'Canada';
+        }
+        if (preg_match('/^(usa|us|united states)$/i', $c)) {
+            return 'USA';
+        }
+        return $c;
     }
 
     /**

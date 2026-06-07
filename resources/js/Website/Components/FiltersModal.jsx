@@ -69,7 +69,6 @@ const FiltersModal = ({
   const [bathrooms, setBathrooms] = useState(currentFilters.bathrooms || 'Any');
   const [homeTypes, setHomeTypes] = useState([]);
   const [daysOnMarket, setDaysOnMarket] = useState('Any');
-  const [buildingAge, setBuildingAge] = useState('Any');
   const [locker, setLocker] = useState('Any');
   const [balcony, setBalcony] = useState('Any');
   const [amenities, setAmenities] = useState([]);
@@ -108,11 +107,18 @@ const FiltersModal = ({
         price_min: filterState.priceMinSlider || 0,
         price_max: filterState.priceMaxSlider || 10000000,
         property_type: filterState.propertyTypes || [],
-        bedrooms: filterState.bedrooms === 'Any' ? 0 :
-                  filterState.bedrooms === 'Studio' ? 0 :
-                  parseInt(String(filterState.bedrooms).replace('+', '')) || 0,
+        bedrooms: (filterState.bedrooms === 'Any' || filterState.bedrooms === 'Studio') ? 0 :
+                  (parseInt(filterState.bedrooms) || 0),
+        den: /\+1$/.test(String(filterState.bedrooms || '')),
         bathrooms: filterState.bathrooms === 'Any' ? 0 :
-                   parseInt(String(filterState.bathrooms).replace('+', '')) || 0,
+                   (parseInt(filterState.bathrooms) || 0),
+        // Advanced filters — so the live count reflects them too.
+        home_types: filterState.homeTypes || [],
+        days_on_market: (filterState.daysOnMarket && filterState.daysOnMarket !== 'Any') ? filterState.daysOnMarket : '',
+        locker: (filterState.locker && filterState.locker !== 'Any') ? filterState.locker : '',
+        balcony: (filterState.balcony && filterState.balcony !== 'Any') ? filterState.balcony : '',
+        amenities: filterState.amenities || [],
+        keywords: filterState.keywords || '',
         query: currentFilters.query || '', // Keep the current search query
         page: 1,
         page_size: 16
@@ -170,10 +176,16 @@ const FiltersModal = ({
         priceMaxSlider,
         propertyTypes,
         bedrooms,
-        bathrooms
+        bathrooms,
+        homeTypes,
+        daysOnMarket,
+        locker,
+        balcony,
+        amenities,
+        keywords
       });
     }
-  }, [isOpen, status, priceMinSlider, priceMaxSlider, propertyTypes, bedrooms, bathrooms, triggerCountFetch]);
+  }, [isOpen, status, priceMinSlider, priceMaxSlider, propertyTypes, bedrooms, bathrooms, homeTypes, daysOnMarket, locker, balcony, amenities, keywords, triggerCountFetch]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -316,7 +328,6 @@ const FiltersModal = ({
     setBathrooms('Any');
     setHomeTypes([]);
     setDaysOnMarket('Any');
-    setBuildingAge('Any');
     setLocker('Any');
     setBalcony('Any');
     setAmenities([]);
@@ -330,11 +341,13 @@ const FiltersModal = ({
       price_min: priceMinSlider || 0,
       price_max: priceMaxSlider || 10000000,
       property_type: propertyTypes,
-      bedrooms: bedrooms === 'Any' ? 0 : bedrooms === 'Studio' ? 0 : parseInt(bedrooms.replace('+', '')),
-      bathrooms: bathrooms === 'Any' ? 0 : parseInt(bathrooms.replace('+', '')),
+      // parseInt('1+1') === 1 and parseInt('3+') === 3 (it stops at '+'), so the
+      // base bed count is correct without the old replace('+','') that produced 11/21.
+      bedrooms: (bedrooms === 'Any' || bedrooms === 'Studio') ? 0 : (parseInt(bedrooms) || 0),
+      den: /\+1$/.test(bedrooms), // "1+1" / "2+1" → wants a den (numBedroomsPlus)
+      bathrooms: bathrooms === 'Any' ? 0 : (parseInt(bathrooms) || 0),
       home_types: homeTypes,
       days_on_market: daysOnMarket,
-      building_age: buildingAge,
       locker,
       balcony,
       amenities,
@@ -691,31 +704,6 @@ const FiltersModal = ({
                 <option>14 days</option>
                 <option>30 days</option>
                 <option>90 days</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#293056]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Building Age */}
-          <div className="mb-6">
-            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3">Building Age</label>
-            <div className="relative">
-              <select
-                value={buildingAge}
-                onChange={(e) => setBuildingAge(e.target.value)}
-                className="w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10"
-                style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
-              >
-                <option>Any</option>
-                <option>New Construction</option>
-                <option>1-5 years</option>
-                <option>5-10 years</option>
-                <option>10-20 years</option>
-                <option>20+ years</option>
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#293056]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

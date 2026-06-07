@@ -125,6 +125,7 @@ const MoreBuildings = ({
             transactionType: property.transactionType || filterTransactionType || 'For Sale',
             imageUrl: imageUrl,
             images: property.images || [],
+            country: property.country || property.Country || '',
             source: property.source || 'mls'
           };
         });
@@ -162,7 +163,9 @@ const MoreBuildings = ({
   const fetchNearbyListings = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/nearby-listings?listingKey=${listingKey}&limit=6`);
+      const response = await fetch(`/api/nearby-listings?listingKey=${listingKey}&limit=6`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      });
       const data = await response.json();
       
       console.log('Nearby listings API response:', data);
@@ -215,6 +218,7 @@ const MoreBuildings = ({
             transactionType: property.transactionType || 'Sale',
             imageUrl: imageUrl,
             images: property.images || [],
+            country: property.country || property.Country || '',
             source: 'mls'
           };
         });
@@ -292,7 +296,9 @@ const MoreBuildings = ({
       
       console.log('Fetching similar listings with params:', params.toString());
       
-      const response = await fetch(`/api/similar-listings?${params.toString()}`);
+      const response = await fetch(`/api/similar-listings?${params.toString()}`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      });
       const data = await response.json();
       
       console.log('Similar listings API response:', data);
@@ -345,6 +351,7 @@ const MoreBuildings = ({
             transactionType: property.transactionType || 'Sale',
             imageUrl: imageUrl,
             images: property.images || [],
+            country: property.country || property.Country || '',
             source: 'mls'
           };
         });
@@ -459,6 +466,7 @@ const MoreBuildings = ({
             transactionType: property.transactionType || filterTransactionType || 'For Sale',
             imageUrl: imageUrl,
             images: property.images || [],
+            country: property.country || property.Country || '',
             source: property.source || 'mls'
           };
         });

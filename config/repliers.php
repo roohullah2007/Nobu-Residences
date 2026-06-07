@@ -35,9 +35,12 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'timeout' => 30,
+    // Keep well under PHP's max_execution_time (30s) so a slow upstream call
+    // surfaces as a catchable Guzzle timeout (graceful empty result) instead
+    // of an uncatchable fatal that 500s the whole endpoint.
+    'timeout' => 12,
 
-    'max_retries' => 3,
+    'max_retries' => 2,
 
     'retry_delay' => 1, // seconds
 

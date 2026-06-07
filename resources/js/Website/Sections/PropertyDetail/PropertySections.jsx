@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { FAQ, PropertyCarousel } from '@/Website/Global/Components';
 import {
-  PropertyStatusTabs,
+  PropertyDetailsSections,
   PriceHistory,
   TourSection,
   MoreBuildings,
   ComparableSales,
   MerchandiseLofts,
+  MarketData,
 } from '@/Website/Components/PropertyDetail';
-import PropertyDescriptionSection from '@/Website/Components/PropertyDetail/PropertyDescriptionSection';
 
 export default function PropertySections({
   propertyData,
@@ -35,8 +35,9 @@ export default function PropertySections({
   return (
     <div className="min-h-screen flex flex-col gap-4 font-work-sans overflow-x-hidden">
 
-     {/* Property Status and Navigation Tabs */}
-      <PropertyStatusTabs property={propertyData} buildingData={buildingData} aiDescription={aiDescription} auth={auth} />
+     {/* Property detail cards: Overview, Property Details, Rooms, Bathroom
+         Details, Amenities, Building & Condo Info, Extras, Community */}
+      <PropertyDetailsSections property={propertyData} buildingData={buildingData} />
       {/* Price History Section — live from Repliers `history` field */}
       <PriceHistory
         propertyData={propertyData}
@@ -45,7 +46,10 @@ export default function PropertySections({
         building={buildingData}
         onLoginClick={onLoginClick}
       />
-      
+
+      {/* Market Data — median sold price & sales trends (live from Repliers) */}
+      <MarketData propertyData={propertyData} buildingData={buildingData} />
+
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />
 
@@ -135,9 +139,6 @@ export default function PropertySections({
       </section> */} 
       
       {/* Comparable Sales Section */}
-      
-      {/* Property Description Section */}
-      <PropertyDescriptionSection propertyData={propertyData} aiDescription={aiDescription} auth={auth} />
 
       {/* FAQ Section */}
       <div className="faq-section">

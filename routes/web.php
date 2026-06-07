@@ -198,6 +198,7 @@ Route::prefix('api/schools')->group(function () {
 Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings']);
 Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListings']);
 Route::get('/api/comparable-sales', [WebsiteController::class, 'getComparableSales']);
+Route::get('/api/market-stats', [WebsiteController::class, 'getMarketStats']);
 
 Route::get('/dashboard', function () {
     // Get website settings for consistent header/footer

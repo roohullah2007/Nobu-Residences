@@ -258,18 +258,29 @@ export default function PropertyHeader({
       // For properties, use buildingData if available
       if (buildingData && (buildingData.city || buildingData.neighbourhood || buildingData.sub_neighbourhood)) {
         locationSource = buildingData;
-      } else if (data?.city || data?.City) {
-        // No building data, just show city from property
-        const city = data?.city || data?.City;
-        if (city) {
-          return [{
-            label: city,
-            type: 'city'
-          }];
-        }
-        return null;
       } else {
-        return null;
+        // No matched building — build the breadcrumb straight from the
+        // listing's own location fields (Repliers: neighborhood → area →
+        // city) so we show "King West, Downtown, Toronto" instead of just
+        // the city. De-dupe case-insensitively because Repliers often
+        // repeats area === city.
+        const neighborhood = data?.neighborhood || data?.Neighborhood || '';
+        const area = data?.area || data?.Area || '';
+        const city = data?.city || data?.City || '';
+        const seen = new Set();
+        const parts = [];
+        [
+          { label: neighborhood, type: 'sub_neighbourhood' },
+          { label: area, type: 'neighbourhood' },
+          { label: city, type: 'city' },
+        ].forEach((part) => {
+          const label = (part.label || '').toString().trim();
+          const key = label.toLowerCase();
+          if (!label || seen.has(key)) return;
+          seen.add(key);
+          parts.push({ label, type: part.type });
+        });
+        return parts.length > 0 ? parts : null;
       }
     }
 

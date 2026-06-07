@@ -481,6 +481,19 @@ class PropertyDetailController extends Controller
             'elevator' => $details['elevator'] ?? '',
             'basement' => $details['basement1'] ?? '',
             'garage' => $details['garage'] ?? '',
+
+            // Location + raw Repliers sub-objects for the detail-page card
+            // design and the header breadcrumb (see WebsiteController).
+            'neighborhood' => $isRepliers ? ($address['neighborhood'] ?? '') : '',
+            'area' => $isRepliers ? ($address['area'] ?? '') : '',
+            'repliers' => $isRepliers ? [
+                'details' => $details,
+                'condominium' => $condominium,
+                'lot' => $lot,
+                'nearby' => $listing['nearby'] ?? [],
+                'taxes' => $taxes,
+                'address' => $address,
+            ] : null,
         ];
     }
 
@@ -497,21 +510,36 @@ class PropertyDetailController extends Controller
         }
 
         try {
-            // Get the main property from database
-            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+            // Resolve the current property's city. Prefer the local cache, but
+            // fall back to the Repliers API — most detail pages are rendered
+            // straight from Repliers and have NO local mls_properties row, which
+            // is why this used to return "No listings available".
+            $city = null;
+            $listingType = 'sale';
 
-            if (!$mlsProperty) {
+            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+            if ($mlsProperty && !empty($mlsProperty->city)) {
+                $city = $mlsProperty->city;
+            } else {
+                $current = $this->repliersApi->getListingByMlsNumber($listingKey);
+                if ($current) {
+                    $city = $current['address']['city'] ?? null;
+                    if (strtolower($current['type'] ?? 'sale') === 'lease') {
+                        $listingType = 'lease';
+                    }
+                }
+            }
+
+            if (empty($city)) {
                 return response()->json(['properties' => []]);
             }
 
-            $city = $mlsProperty->city ?? 'Toronto';
-
-            // Search for nearby listings in the same city
+            // Search for nearby listings in the same city. No hard-coded
+            // class filter so non-condo / lease listings get neighbours too.
             $result = $this->repliersApi->searchListings([
                 'city' => $city,
                 'status' => 'A',
-                'class' => 'condoProperty',
-                'type' => 'sale',
+                'type' => $listingType,
                 'resultsPerPage' => $limit + 5,
                 'sortBy' => 'updatedOnDesc',
             ]);

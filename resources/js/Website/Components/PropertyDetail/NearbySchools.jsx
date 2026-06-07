@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 
-const NearbySchools = ({ propertyData = null }) => {
+const NearbySchools = ({ propertyData = null, hideHeading = false }) => {
   const [showAll, setShowAll] = useState(false);
   const [schools, setSchools] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -169,7 +169,7 @@ const NearbySchools = ({ propertyData = null }) => {
   if (isLoading) {
     return (
       <div>
-        <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>
+        {!hideHeading && <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>}
         <p className="text-gray-600 text-sm mb-4">Explore the educational institutions in the surrounding area and their proximity to this property.</p>
         <div className="flex flex-col space-y-4">
           {[1, 2, 3].map((index) => (
@@ -192,7 +192,7 @@ const NearbySchools = ({ propertyData = null }) => {
   if (error) {
     return (
       <div>
-        <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>
+        {!hideHeading && <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>}
         <p className="text-gray-600 text-sm mb-4">Explore the educational institutions in the surrounding area and their proximity to this property.</p>
         <div className="flex items-center justify-center py-8 text-gray-500">
           Unable to load nearby schools. Please try again later.
@@ -203,9 +203,9 @@ const NearbySchools = ({ propertyData = null }) => {
 
   return (
     <div>
-      <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>
+      {!hideHeading && <h2 className="text-base font-semibold mb-4" style={{ color: '#293056' }}>Nearby Schools</h2>}
       <p className="text-gray-600 text-sm mb-4">Explore the educational institutions in the surrounding area and their proximity to this property.</p>
-      
+
       {schoolsData.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-gray-500 border border-gray-200 rounded-lg">
           <p>No schools found within walking distance (2km) of this property.</p>

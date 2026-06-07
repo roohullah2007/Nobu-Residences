@@ -10,6 +10,7 @@ import {
 } from '@/Website/Sections/PropertyDetail';
 import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
+import MarketSentiment from '@/Website/Components/PropertyDetail/MarketSentiment';
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData, aiDescription: initialAiDescription }) {
@@ -267,7 +268,11 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       // Set images - keep as simple URL array for PropertyGallery component
       Images: propertyImages || [],
       ImageObjects: propertyImages ? propertyImages.map(img => typeof img === 'string' ? { MediaURL: img } : img) : [],
-      Rooms: property.rooms || property.Rooms || []
+      Rooms: property.rooms || property.Rooms || [],
+      // Location + raw Repliers sub-objects for breadcrumb + detail cards
+      neighborhood: property.neighborhood || property.Neighborhood || '',
+      area: property.area || property.Area || '',
+      repliers: property.repliers || null
     };
   };
 
@@ -375,6 +380,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
                     </div>
                   </div>
                 )}
+
+                {/* Market Sentiment — Buyer's/Seller's market gauge (live) */}
+                <MarketSentiment propertyData={displayData} buildingData={buildingData} />
 
                 {/* Tour Scheduling */}
                 <TourScheduling website={website} propertyData={displayData} />

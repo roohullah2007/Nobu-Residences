@@ -390,6 +390,9 @@ const PropertyCardV5 = ({
   // Always format price with rental check, ignore pre-formatted price to ensure /mo is added
   const formattedPrice = formatPrice(property.price || property.ListPrice, isRentalProperty);
   const displayAddress = formatCardAddress(property);
+
+  // City shown on the right of the price row (from the API).
+  const cityDisplay = String(property.city || property.City || '').trim();
   const features = buildCardFeatures(property);
   const brokerageName = getBrokerageName(property);
   // Use building URL for buildings, property URL for properties
@@ -632,11 +635,12 @@ const PropertyCardV5 = ({
           {/* Building Name or Price — for sold/leased listings we keep the
               price crisp (matches condos.ca's treatment); the gate lives
               over the image area instead. */}
-          <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
-            {property.source === 'building' ? (
-              property.name || 'Building'
-            ) : (
-              formattedPrice
+          <div className={`flex items-center justify-between gap-2 w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold ${config.title} leading-7 tracking-tight text-[#293056]`}>
+            <span>
+              {property.source === 'building' ? (property.name || 'Building') : formattedPrice}
+            </span>
+            {property.source !== 'building' && cityDisplay && (
+              <span className="font-work-sans font-normal text-sm text-gray-500 whitespace-nowrap">{cityDisplay}</span>
             )}
           </div>
 

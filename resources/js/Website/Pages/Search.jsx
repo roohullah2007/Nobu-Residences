@@ -708,11 +708,11 @@ export default function EnhancedPropertySearch({
       property_type: filters.property_type || [],
       // Bedrooms & Bathrooms
       bedrooms: filters.bedrooms || 0,
+      den: filters.den || false,
       bathrooms: filters.bathrooms || 0,
       // Additional filters
       home_types: filters.home_types || [],
       days_on_market: filters.days_on_market !== 'Any' ? filters.days_on_market : '',
-      building_age: filters.building_age !== 'Any' ? filters.building_age : '',
       locker: filters.locker !== 'Any' ? filters.locker : '',
       balcony: filters.balcony !== 'Any' ? filters.balcony : '',
       amenities: filters.amenities || [],
@@ -858,6 +858,7 @@ export default function EnhancedPropertySearch({
       DaysOnMarket: property.DaysOnMarket,
       city: property.City,
       province: property.StateOrProvince,
+      country: property.Country || property.country || '',
       source: 'mls',
       imageUrl: imageUrl, // Will be updated via lazy loading
       images: cachedImage?.all_images || property.Images || [],

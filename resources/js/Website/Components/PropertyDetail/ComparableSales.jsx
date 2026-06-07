@@ -26,8 +26,16 @@ const ComparableSales = ({
 
   const fetchComparableSales = async () => {
     setIsLoading(true);
+    // Guard against a slow/hanging upstream Repliers call leaving the
+    // spinner up forever — abort after 20s and fall through to the catch.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     try {
-      const response = await fetch(`/api/comparable-sales?listingKey=${listingKey}&limit=12`);
+      const response = await fetch(`/api/comparable-sales?listingKey=${listingKey}&limit=12`, {
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       console.log('Comparable sales API response:', data);
@@ -86,6 +94,7 @@ const ComparableSales = ({
             // Additional fields
             City: property.City || property.city || '',
             city: property.city || property.City || '',
+            country: property.country || property.Country || '',
             isSold: true,
           };
         });
@@ -97,6 +106,7 @@ const ComparableSales = ({
 
       setIsLoading(false);
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('Error fetching comparable sales:', error);
       setComparableSales([]);
       setIsLoading(false);

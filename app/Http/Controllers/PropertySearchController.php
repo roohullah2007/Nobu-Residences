@@ -571,6 +571,11 @@ class PropertySearchController extends Controller
                 $apiParams['maxBedrooms'] = $beds;
             }
         }
+        // "+den" variants (1+1, 2+1): Repliers exposes the den as numBedroomsPlus,
+        // filterable via minBedroomsPlus.
+        if (!empty($params['den']) && $params['den'] !== 'false') {
+            $apiParams['minBedroomsPlus'] = 1;
+        }
         if (($params['bathrooms'] ?? 0) > 0) {
             $apiParams['minBaths'] = $params['bathrooms'];
         }
@@ -587,6 +592,29 @@ class PropertySearchController extends Controller
         if (!empty($params['keywords'])) {
             $existingSearch = $apiParams['search'] ?? '';
             $apiParams['search'] = trim($existingSearch . ' ' . $params['keywords']);
+        }
+
+        // Home types: "Loft" maps to a native Repliers style; the rest
+        // (High-Rise, Mid-Rise, Low-Rise, Luxury, Penthouse) have no native
+        // Repliers filter, so fold them into the free-text search.
+        if (!empty($params['home_types']) && is_array($params['home_types'])) {
+            $searchTerms = [];
+            foreach ($params['home_types'] as $ht) {
+                if (strcasecmp($ht, 'Loft') === 0 && empty($apiParams['style'])) {
+                    $apiParams['style'] = 'Loft';
+                } else {
+                    $searchTerms[] = $ht;
+                }
+            }
+            if (!empty($searchTerms)) {
+                $apiParams['search'] = trim(($apiParams['search'] ?? '') . ' ' . implode(' ', $searchTerms));
+            }
+        }
+
+        // Amenities — Repliers filters on condominium amenity names (repeated
+        // `amenities` query params).
+        if (!empty($params['amenities']) && is_array($params['amenities'])) {
+            $apiParams['amenities'] = array_values($params['amenities']);
         }
 
         $sortMap = [
@@ -760,6 +788,7 @@ class PropertySearchController extends Controller
                 'TransactionType' => $this->mapRepliersTransactionDisplay($listing, $transactionType),
                 'City' => $address['city'] ?? '',
                 'StateOrProvince' => $address['state'] ?? 'ON',
+                'Country' => $address['country'] ?? '',
                 'PostalCode' => $address['zip'] ?? '',
                 'Latitude' => $map['latitude'] ?? '',
                 'Longitude' => $map['longitude'] ?? '',
@@ -2935,6 +2964,7 @@ class PropertySearchController extends Controller
                 'TransactionType' => $property['TransactionType'] ?? '',
                 'City' => $property['City'] ?? '',
                 'StateOrProvince' => $property['StateOrProvince'] ?? '',
+                'Country' => $property['Country'] ?? '',
                 'PostalCode' => $property['PostalCode'] ?? '',
                 'Latitude' => $property['Latitude'] ?? '',
                 'Longitude' => $property['Longitude'] ?? '',

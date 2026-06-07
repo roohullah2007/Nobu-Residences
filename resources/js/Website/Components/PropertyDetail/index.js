@@ -31,3 +31,6 @@ export { default as TourScheduling } from './TourScheduling';
 export { default as BuildingTourScheduling } from './BuildingTourScheduling';
 export { default as MerchandiseLofts } from './MerchandiseLofts';
 export { default as BuildingAmenities } from './BuildingAmenities';
+export { default as PropertyDetailsSections } from './PropertyDetailsSections';
+export { default as MarketData } from './MarketData';
+export { default as MarketSentiment } from './MarketSentiment';
