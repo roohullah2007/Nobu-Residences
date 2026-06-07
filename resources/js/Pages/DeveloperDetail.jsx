@@ -824,16 +824,8 @@ export default function DeveloperDetail({
 
     // Developers listing page (when no specific developer is selected)
     return (
-        <MainLayout auth={auth} website={website}>
+        <MainLayout auth={auth} website={website} blueHeader={true}>
             <Head title="Top Condo Developers in Toronto" />
-
-            {/* Header band — matches the detail page so the floating navbar
-                always sits over a dark strip on this section of the site,
-                rather than landing directly on the hero photo. */}
-            <div
-                className="w-full h-[85px] md:h-[120px] relative flex items-center"
-                style={{ backgroundColor: '#292E56' }}
-            />
 
             {/* Hero Section - Full Screen Height */}
             <section
@@ -856,7 +848,7 @@ export default function DeveloperDetail({
                             color: '#101323'
                         }}
                     >
-                        Top 14 Condo Developers in Toronto
+                        Top {allDevelopers.length} Condo Developers in Toronto
                     </h1>
 
                     {/* Search Box with Live Results */}
