@@ -205,15 +205,27 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
     ['Flooring', pick(details.flooring, details.floorType)],
   ];
 
+  // Bathroom full/half split from the Repliers per-washroom breakdown
+  // (each entry: { level, count, pieces }). 2-piece = half (powder room),
+  // 3+ pieces = full. numBathrooms is the TOTAL, so Full + Half = Total —
+  // the old code showed numBathrooms (the total) as "Full", which was wrong.
+  let bathBreakdown = details.bathrooms;
+  if (bathBreakdown && !Array.isArray(bathBreakdown)) bathBreakdown = Object.values(bathBreakdown);
+  let fullBaths = 0;
+  let halfBaths = 0;
+  (Array.isArray(bathBreakdown) ? bathBreakdown : []).forEach((b) => {
+    const cnt = parseInt(b?.count, 10) || 1;
+    const pcs = parseInt(b?.pieces, 10) || 0;
+    if (pcs >= 3) fullBaths += cnt;
+    else if (pcs > 0) halfBaths += cnt; // 1- or 2-piece = half / powder room
+  });
+  const totalBaths = num(property.bathroomsTotal, property.BathroomsTotalInteger, details.numBathrooms);
+
   const bedsBaths = [
     ['Bedrooms', num(property.bedroomsTotal, property.BedroomsTotal, details.numBedrooms)],
-    ['Bathrooms', num(property.bathroomsTotal, property.BathroomsTotalInteger, details.numBathrooms)],
-    ['Full bathrooms', num(details.numBathrooms, property.bathroomsFull)],
-  ];
-
-  const heatingCooling = [
-    ['Heating', pick(details.heating, property.heating)],
-    ['Cooling', pick(details.airConditioning, property.cooling)],
+    ['Bathrooms', totalBaths],
+    ['Full bathrooms', fullBaths || ''],
+    ['Half bathrooms', halfBaths || ''],
   ];
 
   const parking = [
@@ -221,11 +233,16 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
     ['Parking Type', pick(details.garage, property.garage)],
   ];
 
+  // Heating, Cooling and Basement live under Construction (no separate
+  // "Heating & cooling" group). Basement joins all parts → "Crawl Space, Full,
+  // Finished" rather than only the first value.
   const construction = [
     ['Year Built', pick(property.yearBuilt, details.yearBuilt)],
     ['Style', pick(details.style, property.propertySubType, property.PropertySubType)],
     ['Stories', num(condo.stories, details.numStories)],
-    ['Basement', pick(details.basement1, [details.basement1, details.basement2])],
+    ['Heating', pick(details.heating, property.heating)],
+    ['Cooling', pick(details.airConditioning, property.cooling)],
+    ['Basement', pick(details.basement, [details.basement1, details.basement2, details.basement3])],
     ['Roof', pick(details.roofMaterial, details.roof)],
     ['Foundation', pick(details.foundationType, details.foundationDetails, details.foundation)],
     ['Exterior', pick([details.exteriorConstruction1, details.exteriorConstruction2], details.construction)],
@@ -238,9 +255,11 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
   ];
 
   const maintFee = pick(property.associationFee, property.AssociationFee, condo?.fees?.maintenance, details.maintenanceFee);
+  const annualTaxVal = Number(String(taxes.annualAmount || property.taxAnnualAmount || '').replace(/[^0-9.]/g, '')) || 0;
   const fees = [
     ['Strata / Maintenance Fee', maintFee ? `${money(maintFee)}/mo` : ''],
-    ['Annual Taxes', taxes.annualAmount ? money(taxes.annualAmount) : (property.taxAnnualAmount ? money(property.taxAnnualAmount) : '')],
+    ['Annual Taxes', annualTaxVal ? money(annualTaxVal) : ''],
+    ['Property Taxes (Monthly)', annualTaxVal ? `${money(annualTaxVal / 12)}/mo` : ''],
   ];
 
   const listingDetails = [
@@ -252,7 +271,6 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
   const detailGroups = [
     { title: 'Interior', rows: interior },
     { title: 'Bedrooms & bathrooms', rows: bedsBaths },
-    { title: 'Heating & cooling', rows: heatingCooling },
     { title: 'Parking', rows: parking },
     { title: 'Construction', rows: construction },
     { title: 'Lot & land', rows: lotLand },

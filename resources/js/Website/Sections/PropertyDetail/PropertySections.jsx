@@ -47,8 +47,8 @@ export default function PropertySections({
         onLoginClick={onLoginClick}
       />
 
-      {/* Market Data — median sold price & sales trends (live from Repliers) */}
-      <MarketData propertyData={propertyData} buildingData={buildingData} />
+      {/* Market Data — median sold price & sales trends (live from Repliers, gated to signed-in users) */}
+      <MarketData propertyData={propertyData} buildingData={buildingData} auth={auth} onLoginClick={onLoginClick} />
 
       {/* The Merchandise Lofts Section */}
       <MerchandiseLofts propertyData={propertyData} />

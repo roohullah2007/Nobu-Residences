@@ -15,11 +15,12 @@ const fmtMoney = (n) => {
   return `$${n}`;
 };
 
-export default function MarketData({ propertyData = {}, buildingData = null }) {
+export default function MarketData({ propertyData = {}, buildingData = null, auth = null, onLoginClick }) {
   const [data, setData] = useState(null);
   const [tab, setTab] = useState('price');
   const [loading, setLoading] = useState(true);
 
+  const isGuest = !auth?.user;
   const city = propertyData.city || propertyData.City || '';
   const area = propertyData.area || buildingData?.neighbourhood || '';
   const neighborhood =
@@ -27,6 +28,8 @@ export default function MarketData({ propertyData = {}, buildingData = null }) {
   const isRent = /rent|lease/i.test(propertyData.transactionType || propertyData.TransactionType || '');
 
   useEffect(() => {
+    // Market data is gated — don't even fetch it for signed-out visitors.
+    if (isGuest) { setLoading(false); return; }
     if (!city && !area) { setLoading(false); return; }
     const params = new URLSearchParams();
     if (city) params.set('city', city);
@@ -42,9 +45,38 @@ export default function MarketData({ propertyData = {}, buildingData = null }) {
       .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [city, area, neighborhood]);
+  }, [city, area, neighborhood, isGuest]);
 
   if (loading) return null;
+
+  // Login gate — show a sign-in prompt instead of the chart for guests.
+  if (isGuest) {
+    const gatedScope = neighborhood || area || city;
+    return (
+      <div id="market-info" className="scroll-mt-32 rounded-2xl bg-white p-5 sm:p-6 border border-gray-200">
+        <h3 style={{ fontSize: '20px', fontWeight: 700, color: NAVY }}>Market Data</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Sold price &amp; sales trends{gatedScope ? ` in ${gatedScope}` : ''}
+        </p>
+        <div className="mt-5 flex flex-col items-center justify-center text-center rounded-xl border border-dashed border-gray-200 bg-gray-50/60 py-10 px-4">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={NAVY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <p className="mt-3 text-sm font-semibold" style={{ color: NAVY }}>Sign in to view market trends</p>
+          <p className="mt-1 text-xs text-gray-500">See median sold price and sales history for this area.</p>
+          <button
+            type="button"
+            onClick={() => onLoginClick && onLoginClick()}
+            className="mt-4 px-5 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: NAVY }}
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const priceByYear = data?.trends?.priceByYear || [];
   const salesByYear = data?.trends?.salesByYear || [];
