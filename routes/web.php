@@ -199,6 +199,7 @@ Route::get('/api/nearby-listings', [WebsiteController::class, 'getNearbyListings
 Route::get('/api/similar-listings', [WebsiteController::class, 'getSimilarListings']);
 Route::get('/api/comparable-sales', [WebsiteController::class, 'getComparableSales']);
 Route::get('/api/market-stats', [WebsiteController::class, 'getMarketStats']);
+Route::post('/api/newsletter/subscribe', [\App\Http\Controllers\NewsletterController::class, 'subscribe']);
 
 Route::get('/dashboard', function () {
     // Get website settings for consistent header/footer

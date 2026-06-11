@@ -57,6 +57,10 @@ const ClusteredPropertyMap = ({
   const [mapError, setMapError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
+  // Refs let updateMarkers/effects read drawing state without re-creating them.
+  const isDrawingModeRef = useRef(false);
+  const wasDrawingRef = useRef(false);
+  const justCommittedPolygonRef = useRef(false);
   const [hasDrawnPolygon, setHasDrawnPolygon] = useState(false);
   const [markerStats, setMarkerStats] = useState({ displayed: 0, total: 0 });
   const lastBoundsRef = useRef(null);
@@ -197,6 +201,13 @@ const ClusteredPropertyMap = ({
   // Update markers on the map with clustering
   const updateMarkers = useCallback(async (bounds, zoom) => {
     if (!mapInstanceRef.current || !window.google) return;
+
+    // While the user is drawing a polygon, keep the map clear of markers so
+    // they're easy to draw over (a pan/idle during drawing won't repaint them).
+    if (isDrawingModeRef.current) {
+      clearMarkers();
+      return;
+    }
 
     // Round bounds to prevent micro-changes triggering fetches
     const roundedBounds = {
@@ -462,6 +473,9 @@ const ClusteredPropertyMap = ({
     const sw = bounds.getSouthWest();
 
     if (onPolygonDraw) {
+      // The searchFilters refetch will repaint the in-area markers, so the
+      // drawing-mode effect should NOT also restore the full viewport.
+      justCommittedPolygonRef.current = true;
       onPolygonDraw({
         north: ne.lat(),
         south: sw.lat(),
@@ -795,6 +809,36 @@ const ClusteredPropertyMap = ({
       }
     }
   }, [searchFilters, mapLoaded, updateMarkers]);
+
+  // Hide markers while drawing a polygon (clean canvas), restore them after.
+  // A committed polygon repaints via the searchFilters refetch; a cancelled
+  // draw restores the current viewport's markers here.
+  useEffect(() => {
+    isDrawingModeRef.current = isDrawingMode;
+    if (!mapLoaded || !mapInstanceRef.current) return;
+
+    if (isDrawingMode) {
+      wasDrawingRef.current = true;
+      clearMarkers();
+    } else if (wasDrawingRef.current) {
+      wasDrawingRef.current = false;
+      if (justCommittedPolygonRef.current) {
+        justCommittedPolygonRef.current = false;
+        return; // polygon committed → searchFilters refetch handles repaint
+      }
+      const map = mapInstanceRef.current;
+      const bounds = map.getBounds();
+      if (bounds) {
+        lastBoundsRef.current = null;
+        updateMarkers({
+          north: bounds.getNorthEast().lat(),
+          south: bounds.getSouthWest().lat(),
+          east: bounds.getNorthEast().lng(),
+          west: bounds.getSouthWest().lng(),
+        }, map.getZoom());
+      }
+    }
+  }, [isDrawingMode, mapLoaded, clearMarkers, updateMarkers]);
 
   if (mapError) {
     return (

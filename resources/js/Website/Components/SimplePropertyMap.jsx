@@ -298,16 +298,33 @@ const SimplePropertyMap = React.forwardRef(({
       
       console.log(`📍 Creating marker ${index} at [${lat}, ${lng}] with label: "${displayLabel}"`);
       
-      // Create custom marker icon with blue background and label
-      const icon = {
+      // Building markers show a building-pin icon (no name pill); listing
+      // markers keep the price-label pill.
+      const isBuilding = activeTab === 'buildings' || property.source === 'building';
+      const uid = property.ListingKey || property.id || index;
+      const buildingPinUrl = (w, h) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        <svg width="${w}" height="${h}" viewBox="0 0 36 46" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="bs${uid}" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.35"/></filter></defs>
+          <path d="M18 2C9.7 2 3 8.7 3 17c0 10.5 15 27 15 27s15-16.5 15-27C33 8.7 26.3 2 18 2z" fill="#293056" stroke="#ffffff" stroke-width="2" filter="url(#bs${uid})"/>
+          <g fill="#ffffff"><rect x="10.5" y="10" width="7.5" height="15.5" rx="1"/><rect x="18" y="13" width="7.5" height="12.5" rx="1"/></g>
+          <g fill="#293056"><rect x="12" y="12" width="1.5" height="1.5"/><rect x="15" y="12" width="1.5" height="1.5"/><rect x="12" y="15" width="1.5" height="1.5"/><rect x="15" y="15" width="1.5" height="1.5"/><rect x="12" y="18" width="1.5" height="1.5"/><rect x="15" y="18" width="1.5" height="1.5"/><rect x="19.5" y="15.5" width="1.4" height="1.4"/><rect x="22.2" y="15.5" width="1.4" height="1.4"/><rect x="19.5" y="18.5" width="1.4" height="1.4"/><rect x="22.2" y="18.5" width="1.4" height="1.4"/></g>
+        </svg>
+      `)}`;
+
+      // Create custom marker icon: building pin or price-label pill.
+      const icon = isBuilding ? {
+        url: buildingPinUrl(32, 41),
+        scaledSize: new window.google.maps.Size(32, 41),
+        anchor: new window.google.maps.Point(16, 41)
+      } : {
         url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
           <svg width="80" height="45" xmlns="http://www.w3.org/2000/svg">
             <defs>
-              <filter id="shadow${property.ListingKey || property.id || index}" x="-50%" y="-50%" width="200%" height="200%">
+              <filter id="shadow${uid}" x="-50%" y="-50%" width="200%" height="200%">
                 <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
               </filter>
             </defs>
-            <rect x="5" y="5" width="70" height="26" rx="4" fill="#007cba" stroke="white" stroke-width="2" filter="url(#shadow${property.ListingKey || property.id || index})"/>
+            <rect x="5" y="5" width="70" height="26" rx="4" fill="#007cba" stroke="white" stroke-width="2" filter="url(#shadow${uid})"/>
             <text x="40" y="21" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial, sans-serif">${displayLabel}</text>
             <polygon points="40,32 48,32 44,40 36,32" fill="#007cba" stroke="white" stroke-width="2"/>
           </svg>
@@ -327,15 +344,19 @@ const SimplePropertyMap = React.forwardRef(({
 
       // Add hover effect and sync with property list
       marker.addListener('mouseover', () => {
-        const hoverIcon = {
+        const hoverIcon = isBuilding ? {
+          url: buildingPinUrl(37, 47),
+          scaledSize: new window.google.maps.Size(37, 47),
+          anchor: new window.google.maps.Point(18.5, 47)
+        } : {
           url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
             <svg width="85" height="48" xmlns="http://www.w3.org/2000/svg">
               <defs>
-                <filter id="shadowHover${property.ListingKey || property.id || index}" x="-50%" y="-50%" width="200%" height="200%">
+                <filter id="shadowHover${uid}" x="-50%" y="-50%" width="200%" height="200%">
                   <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.4"/>
                 </filter>
               </defs>
-              <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${property.ListingKey || property.id || index})"/>
+              <rect x="5" y="5" width="75" height="28" rx="4" fill="#0056b3" stroke="white" stroke-width="2" filter="url(#shadowHover${uid})"/>
               <text x="42.5" y="22" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="Arial, sans-serif">${displayLabel}</text>
               <polygon points="42.5,34 50.5,34 46.5,42 38.5,34" fill="#0056b3" stroke="white" stroke-width="2"/>
             </svg>
@@ -364,9 +385,30 @@ const SimplePropertyMap = React.forwardRef(({
       marker.addListener('click', () => {
         console.log('Marker clicked for property:', property.ListingKey || property.id, property);
         
-        // If it's a building, navigate to building detail page
+        // For a building, show a card in the info window (don't navigate
+        // straight to the building page — clicking the card itself does that).
         if (property.source === 'building' || activeTab === 'buildings') {
-          window.location.href = createBuildingUrl(property.name || property.address, property.id);
+          if (window.currentInfoWindowCleanup) {
+            window.currentInfoWindowCleanup();
+            window.currentInfoWindowCleanup = null;
+          }
+          const bUrl = createBuildingUrl(property.name || property.address, property.id);
+          const bImg = property.main_image || (Array.isArray(property.images) && property.images[0]) || '';
+          const bSale = property.units_for_sale ?? property.unitsForSale ?? 0;
+          const bRent = property.units_for_rent ?? property.unitsForRent ?? 0;
+          const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+          const html = `
+            <a href="${esc(bUrl)}" style="display:block;width:240px;text-decoration:none;color:inherit;font-family:Arial,sans-serif;">
+              ${bImg ? `<div style="width:100%;height:130px;background:#eef1f4;overflow:hidden;border-radius:8px 8px 0 0;"><img src="${esc(bImg)}" style="width:100%;height:130px;object-fit:cover;display:block;"/></div>` : ''}
+              <div style="padding:10px 12px;">
+                <div style="font-weight:700;font-size:14px;line-height:1.25;color:#293056;">${esc(property.name || property.address || 'Building')}</div>
+                ${property.address ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${esc(property.address)}</div>` : ''}
+                <div style="font-size:12px;font-weight:600;color:#2A8FA1;margin-top:6px;">${bSale} for sale &middot; ${bRent} for rent</div>
+              </div>
+            </a>`;
+          infoWindowRef.current.setContent(html);
+          infoWindowRef.current.open(mapInstanceRef.current, marker);
+          if (onPropertyClick) onPropertyClick(property);
           return;
         }
         

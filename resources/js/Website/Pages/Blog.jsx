@@ -20,6 +20,43 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
     // The posts are already filtered by the backend, so we just use them directly
     const filteredPosts = blogData;
 
+    // Newsletter subscribe ("Stay Updated") form
+    const [subEmail, setSubEmail] = useState('');
+    const [subStatus, setSubStatus] = useState('idle'); // idle | loading | success | error
+    const [subMessage, setSubMessage] = useState('');
+
+    const handleSubscribe = async (e) => {
+        e.preventDefault();
+        const email = subEmail.trim();
+        if (!email || subStatus === 'loading') return;
+        setSubStatus('loading');
+        setSubMessage('');
+        try {
+            const res = await fetch('/api/newsletter/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({ email, source: 'blog' }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSubStatus('success');
+                setSubMessage(data.message || 'Thanks for subscribing!');
+                setSubEmail('');
+            } else {
+                setSubStatus('error');
+                setSubMessage(data?.errors?.email?.[0] || data?.message || 'Please enter a valid email.');
+            }
+        } catch (err) {
+            setSubStatus('error');
+            setSubMessage('Something went wrong. Please try again.');
+        }
+    };
+
     // Format date for display
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -240,19 +277,28 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                     <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
                         Subscribe to our newsletter and never miss the latest real estate insights and market updates
                     </p>
-                    <form className="max-w-md mx-auto flex gap-4">
+                    <form className="max-w-md mx-auto flex gap-4" onSubmit={handleSubscribe}>
                         <input
                             type="email"
+                            required
+                            value={subEmail}
+                            onChange={(e) => setSubEmail(e.target.value)}
                             placeholder="Enter your email"
                             className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
                         />
                         <button
                             type="submit"
-                            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            disabled={subStatus === 'loading'}
+                            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            Subscribe
+                            {subStatus === 'loading' ? 'Subscribing...' : 'Subscribe'}
                         </button>
                     </form>
+                    {subMessage && (
+                        <p className={`mt-3 text-sm ${subStatus === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                            {subMessage}
+                        </p>
+                    )}
                 </div>
             </section>
 

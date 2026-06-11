@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import Navbar from '@/Website/Global/Navbar';
@@ -730,10 +730,31 @@ export default function EnhancedPropertySearch({
   // Handle polygon drawn on map - only refreshes the map markers for that
   // area (via ClusteredPropertyMap's own /api/map-coordinates fetch). We do
   // NOT call performSearch, so the rest of the page doesn't reload.
-  const handlePolygonDraw = (bounds) => {
+  const handlePolygonDraw = useCallback((bounds) => {
     setDrawnPolygon(bounds);
     setSearchFilters((prev) => ({ ...prev, viewport_bounds: bounds || undefined }));
-  };
+  }, []);
+
+  // Stable props for ClusteredPropertyMap. Previously these were inline object
+  // literals + arrow functions recreated on every render, which churned the
+  // map's fetchMapCoordinates/updateMarkers and re-fired its refetch effect —
+  // so any incidental re-render (e.g. a marker hover/click) wiped and rebuilt
+  // every marker (the "map refreshes on marker click" bug). Memoizing them so
+  // their identity only changes when searchFilters actually changes fixes it.
+  const mapSearchFilters = useMemo(() => ({
+    ...searchFilters,
+    status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status,
+  }), [searchFilters]);
+
+  const handleMapPropertyClick = useCallback((coord) => {
+    // Marker click only opens the card popup; navigation happens when the
+    // user clicks the card itself.
+    console.log('Property clicked:', coord?.mls_id);
+  }, []);
+
+  const handleMapMarkerCountChange = useCallback((displayed, total) => {
+    console.log(`Map showing ${displayed} of ${total} properties`);
+  }, []);
 
   const handleSaveSearch = async () => {
     // Check if user is authenticated
@@ -1505,7 +1526,7 @@ export default function EnhancedPropertySearch({
                     <span className={`font-red-hat-display font-bold text-base md:text-[20px] leading-[24px] md:leading-[30px] flex items-center gap-1 md:gap-2 tracking-[-0.03em] whitespace-nowrap ${
                       activeTab === 'listings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
-                      Listings {total > 0 && activeTab === 'listings' && (
+                      Listings {total > 0 && !isLoading && activeTab === 'listings' && (
                         <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold rounded-full min-w-[24px] md:min-w-[28px]" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                           {total.toLocaleString()}
                         </span>
@@ -1523,7 +1544,7 @@ export default function EnhancedPropertySearch({
                     <span className={`font-red-hat-display font-bold text-base md:text-[20px] leading-[24px] md:leading-[30px] flex items-center gap-1 md:gap-2 tracking-[-0.03em] whitespace-nowrap ${
                       activeTab === 'buildings' ? 'text-[#252B37]' : 'text-gray-400'
                     }`}>
-                      Buildings {total > 0 && activeTab === 'buildings' && (
+                      Buildings {total > 0 && !isLoading && activeTab === 'buildings' && (
                         <span className="inline-flex items-center justify-center px-1.5 md:px-2 py-0.5 text-xs md:text-sm font-bold rounded-full min-w-[24px] md:min-w-[28px]" style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}>
                           {total.toLocaleString()}
                         </span>
@@ -1645,26 +1666,17 @@ export default function EnhancedPropertySearch({
               <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                   <div className="inline-block w-12 h-12 border-3 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <div className="text-[#293056] text-lg font-medium">Loading properties...</div>
+                  <div className="text-[#293056] text-lg font-medium">{activeTab === 'buildings' ? 'Loading buildings...' : 'Loading properties...'}</div>
                 </div>
               </div>
             ) : viewType === 'map' ? (
               // Full Map View with clustering for 500-1000+ markers
               activeTab === 'listings' ? (
                 <ClusteredPropertyMap
-                  searchFilters={{
-                    ...searchFilters,
-                    status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status
-                  }}
+                  searchFilters={mapSearchFilters}
                   className="w-full h-[600px]"
-                  onPropertyClick={(coord) => {
-                    console.log('Property clicked:', coord.mls_id);
-                    // Marker click only opens the card popup; navigation
-                    // happens when the user clicks the card itself.
-                  }}
-                  onMarkerCountChange={(displayed, total) => {
-                    console.log(`Map showing ${displayed} of ${total} properties`);
-                  }}
+                  onPropertyClick={handleMapPropertyClick}
+                  onMarkerCountChange={handleMapMarkerCountChange}
                   onPolygonDraw={handlePolygonDraw}
                 />
               ) : (
@@ -1807,18 +1819,10 @@ export default function EnhancedPropertySearch({
                   {activeTab === 'listings' ? (
                     // Use ClusteredPropertyMap for listings - shows ALL matching properties as clusters
                     <ClusteredPropertyMap
-                      searchFilters={{
-                        ...searchFilters,
-                        status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status
-                      }}
+                      searchFilters={mapSearchFilters}
                       className="w-full h-full"
-                      onPropertyClick={(coord) => {
-                        console.log('Property clicked:', coord.mls_id);
-                        // Marker click only opens the card popup.
-                      }}
-                      onMarkerCountChange={(displayed, total) => {
-                        console.log(`Mixed view map showing ${displayed} of ${total} properties`);
-                      }}
+                      onPropertyClick={handleMapPropertyClick}
+                      onMarkerCountChange={handleMapMarkerCountChange}
                       onPolygonDraw={handlePolygonDraw}
                       initialZoom={12}
                     />

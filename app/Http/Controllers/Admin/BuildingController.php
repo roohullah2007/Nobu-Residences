@@ -629,6 +629,20 @@ class BuildingController extends Controller
             $page = $searchParams['page'] ?? 1;
             $pageSize = $searchParams['page_size'] ?? 16;
             
+            // Cache the formatted result. The slow part is getLiveListingCounts()
+            // per building (a Repliers round-trip each); buildings + their counts
+            // change slowly, so a short TTL keeps the Buildings tab fast.
+            $cacheKey = 'buildings_search_' . md5(json_encode([
+                $searchParams['query'] ?? '',
+                $searchParams['status'] ?? '',
+                $searchParams['floors'] ?? '',
+                $searchParams['price_min'] ?? '',
+                $searchParams['price_max'] ?? '',
+                (int) $page,
+                (int) $pageSize,
+            ]));
+
+            $data = \Cache::remember($cacheKey, now()->addMinutes(10), function () use ($searchParams, $page, $pageSize) {
             // Build query
             $query = Building::with(['developer', 'amenities']);
             
@@ -717,18 +731,21 @@ class BuildingController extends Controller
                 ];
             });
             
-            return response()->json([
-                'success' => true,
-                'data' => [
+                return [
                     'buildings' => $formattedBuildings,
                     'total' => $totalCount,
                     'displayed' => count($formattedBuildings),
                     'page' => (int)$page,
                     'page_size' => (int)$pageSize,
                     'has_more' => count($formattedBuildings) >= $pageSize
-                ]
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Buildings search error: ' . $e->getMessage());
             
