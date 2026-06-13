@@ -831,7 +831,7 @@ export default function DeveloperDetail({
             <section
                 className="relative bg-cover bg-center bg-no-repeat flex items-center justify-center min-h-[70vh] sm:min-h-screen py-20 sm:py-0"
                 style={{
-                    backgroundImage: 'url(/images/devolper-hero.jpg)'
+                    backgroundImage: 'url(/images/developers-hero.webp)'
                 }}
             >
                 {/* Blurred Band */}
