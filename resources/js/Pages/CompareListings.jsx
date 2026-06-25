@@ -408,7 +408,7 @@ export default function CompareListings({
     );
 
     return (
-        <MainLayout auth={auth} website={website}>
+        <MainLayout auth={auth} website={website} blueHeader={true}>
             <Head title="Compare Listings" />
 
             {/* Header bar */}
