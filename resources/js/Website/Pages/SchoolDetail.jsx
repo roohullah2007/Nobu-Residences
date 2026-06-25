@@ -169,8 +169,12 @@ export default function SchoolDetail({
         {/* Background Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent"></div>
 
-        {/* Header */}
-        <Navbar auth={auth} website={website} />
+        {/* Header — transparent over the dark hero with the white logo
+            (onDarkBg), matching the home hero instead of the white-pill
+            navbar where the white logo was invisible. */}
+        <div className="absolute top-0 left-0 right-0 z-20 h-[82px] flex items-center">
+          <Navbar auth={auth} website={website} onDarkBg={true} />
+        </div>
 
         {/* Hero Section */}
         <main className="relative px-4 md:px-0 z-10 flex max-w-[1280px] mx-auto flex-col items-center justify-center md:h-[calc(895px-140px)] pt-36 md:pt-60 py-8 md:py-0">
