@@ -34,28 +34,30 @@ class HomepagePropertiesController extends Controller
 
             $type = $request->get('type', 'both'); // 'sale', 'rent', or 'both'
 
-            // Get default building addresses from MLS settings
-            $website = \App\Models\Website::find(1);
+            // Resolve the CURRENT tenant (website) the same way WebsiteController
+            // does — by ?website={slug} first, then domain match — so each site's
+            // carousels show ITS OWN building, not a hardcoded default.
+            $website = $this->resolveCurrentWebsite($request);
             $homePage = $website ? $website->pages()->where('page_type', 'home')->first() : null;
             $mlsSettings = $homePage ? ($homePage->content['mls_settings'] ?? []) : [];
 
-            // Resolve the default building so we can use ALL of its street
-            // addresses (e.g. NOBU Residences = 15 Mercer + 35 Mercer) and
-            // attach the building name/neighbourhood to each listing.
-            $defaultBuilding = $this->resolveDefaultBuilding($mlsSettings);
-            $defaultAddresses = $this->buildingStreetAddresses($defaultBuilding, $mlsSettings);
+            // Resolve the building this tenant's home page is built around
+            // (prefer the website's homepage_building_id — same as home()) so we
+            // can use ALL of its street addresses and attach the building
+            // name/neighbourhood to each listing.
+            $defaultBuilding = $this->resolveDefaultBuilding($mlsSettings, $website);
 
             $forSaleProperties = [];
             $forRentProperties = [];
 
             // Fetch For Sale properties live from Repliers API
             if ($type === 'sale' || $type === 'both') {
-                $forSaleProperties = $this->fetchHomepagePropertiesFromRepliers('sale', $defaultAddresses, $defaultBuilding);
+                $forSaleProperties = $this->fetchHomepagePropertiesFromRepliers('sale', $defaultBuilding, $mlsSettings);
             }
 
             // Fetch For Rent properties live from Repliers API
             if ($type === 'rent' || $type === 'both') {
-                $forRentProperties = $this->fetchHomepagePropertiesFromRepliers('lease', $defaultAddresses, $defaultBuilding);
+                $forRentProperties = $this->fetchHomepagePropertiesFromRepliers('lease', $defaultBuilding, $mlsSettings);
             }
 
             return response()->json([
@@ -81,12 +83,65 @@ class HomepagePropertiesController extends Controller
     }
 
     /**
-     * Find the building configured for the home page (by id, name, or address).
-     * Falls back to looking up "NOBU" by name.
+     * Resolve the CURRENT tenant (website) for this request, mirroring
+     * WebsiteController::getCurrentWebsite():
+     *   1. ?website={slug} query parameter (preview/testing).
+     *   2. Domain match against Website.domain (www. stripped; localhost/dev skipped).
+     *   3. Last resort: the default active website, then the first website / id 1.
+     * Kept self-contained so this API endpoint stays multi-tenant aware.
      */
-    private function resolveDefaultBuilding(array $mlsSettings)
+    private function resolveCurrentWebsite(Request $request)
     {
         try {
+            // Priority 1: explicit ?website={slug}
+            $slug = $request->query('website');
+            if ($slug) {
+                $w = \App\Models\Website::where('slug', $slug)
+                    ->where('is_active', true)
+                    ->first();
+                if ($w) return $w;
+            }
+
+            // Priority 2: domain match (skip localhost/dev hosts)
+            $host = preg_replace('/^www\./i', '', $request->getHost());
+            $isLocalDev = in_array($host, ['localhost', '127.0.0.1', 'local'])
+                || str_ends_with($host, '.test')
+                || str_ends_with($host, '.local');
+
+            if (!$isLocalDev) {
+                $w = \App\Models\Website::where('domain', $host)
+                    ->where('is_active', true)
+                    ->first()
+                    ?? \App\Models\Website::where('domain', 'www.' . $host)
+                        ->where('is_active', true)
+                        ->first();
+                if ($w) return $w;
+            }
+
+            // Priority 3 (LAST resort): default active website, then first / id 1.
+            return \App\Models\Website::where('is_default', true)->where('is_active', true)->first()
+                ?? \App\Models\Website::where('is_active', true)->first()
+                ?? \App\Models\Website::find(1);
+        } catch (\Throwable $e) {
+            return \App\Models\Website::find(1);
+        }
+    }
+
+    /**
+     * Find the building configured for the current tenant's home page.
+     * Resolves the SAME way WebsiteController::home() does — prefer the
+     * website's homepage_building_id, then the legacy mls_settings keys, and
+     * only fall back to "NOBU" by name as a final default.
+     */
+    private function resolveDefaultBuilding(array $mlsSettings, $website = null)
+    {
+        try {
+            // Priority 1: the tenant's configured homepage building (same as home()).
+            if ($website && $website->homepage_building_id) {
+                $b = \App\Models\Building::find($website->homepage_building_id);
+                if ($b) return $b;
+            }
+            // Priority 2: legacy mls_settings keys.
             if (!empty($mlsSettings['default_building_id'])) {
                 $b = \App\Models\Building::find($mlsSettings['default_building_id']);
                 if ($b) return $b;
@@ -95,7 +150,7 @@ class HomepagePropertiesController extends Controller
                 $b = \App\Models\Building::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($mlsSettings['default_building_name']) . '%'])->first();
                 if ($b) return $b;
             }
-            // Fall back to NOBU Residences (the default the home page is built around)
+            // Final fallback: NOBU Residences (the default the home page is built around).
             return \App\Models\Building::whereRaw('LOWER(name) LIKE ?', ['%nobu%'])->first();
         } catch (\Throwable $e) {
             return null;
@@ -103,82 +158,81 @@ class HomepagePropertiesController extends Controller
     }
 
     /**
-     * Return all street-address strings for a building (e.g. ["15 Mercer", "35 Mercer"]).
-     * Splits the main address on "," and "&" if separate fields aren't set.
-     */
-    private function buildingStreetAddresses($building, array $mlsSettings = []): array
-    {
-        $addresses = [];
-        if ($building) {
-            foreach ([$building->street_address_1 ?? null, $building->street_address_2 ?? null] as $a) {
-                if ($a && preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($a), $m)) {
-                    $addresses[] = $m[1];
-                }
-            }
-            if (empty($addresses) && !empty($building->address)) {
-                foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
-                    if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $m)) {
-                        $addresses[] = $m[1];
-                    }
-                }
-            }
-        }
-        if (empty($addresses)) {
-            // Fall back to the legacy mls_settings keys, then to NOBU defaults
-            $configured = $mlsSettings['default_building_addresses'] ?? null;
-            if (is_array($configured) && !empty($configured)) {
-                $addresses = $configured;
-            } else {
-                $single = $mlsSettings['default_building_address'] ?? null;
-                if ($single) {
-                    foreach (preg_split('/\s*[,&]\s*/', $single) as $part) {
-                        if (preg_match('/^(\d+\s+[A-Za-z]+)/i', trim($part), $m)) {
-                            $addresses[] = $m[1];
-                        }
-                    }
-                }
-            }
-        }
-        if (empty($addresses)) {
-            $addresses = ['15 Mercer', '35 Mercer'];
-        }
-        return array_values(array_unique($addresses));
-    }
-
-    /**
      * Fetch active listings for the homepage carousel from the Repliers API.
-     * Mirrors WebsiteController::fetchBuildingListingsFromRepliers — calls
-     * Repliers with streetNumber + streetName filters for each address so the
-     * carousel reflects live MLS data instead of the (often empty) local DB.
+     *
+     * Reuses the building-detail page's address logic so the carousel returns
+     * the SAME listings (and count) as the building-detail page:
+     *   - Building::parsedStreetAddresses() expands SA1/SA2/additional_addresses
+     *     (handles ranges like "8-38 Widmer St", stored as individual numbers).
+     *   - Group by street name -> ONE Repliers query per street (not per number),
+     *     then keep only listings whose streetNumber is one of the building's.
+     * Mirrors WebsiteController::fetchBuildingListingsFromRepliers /
+     * Building::getLiveListingCounts.
      *
      * @param string $type 'sale' or 'lease'
-     * @param array  $streetAddresses e.g. ['15 Mercer', '35 Mercer']
-     * @param object|null $building Optional building model to attach name/neighbourhood
+     * @param object|null $building Building model providing addresses + name/neighbourhood
+     * @param array  $mlsSettings Legacy fallback addresses if the building has none
      */
-    private function fetchHomepagePropertiesFromRepliers(string $type, array $streetAddresses, $building = null): array
+    private function fetchHomepagePropertiesFromRepliers(string $type, $building = null, array $mlsSettings = []): array
     {
         try {
             $merged = [];
             $seen = [];
             $transactionType = $type === 'lease' ? 'For Rent' : 'For Sale';
 
-            foreach ($streetAddresses as $addr) {
-                if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) {
-                    continue;
+            // Group the building's parsed addresses by street name so we make
+            // ONE Repliers query per street, then number-match the results.
+            $groups = [];
+            if ($building) {
+                foreach ($building->parsedStreetAddresses() as $addr) {
+                    $key = strtolower($addr['name']);
+                    if (!isset($groups[$key])) {
+                        $groups[$key] = ['name' => $addr['name'], 'numbers' => []];
+                    }
+                    $groups[$key]['numbers'][(string) $addr['number']] = true;
                 }
-                $streetNumber = $m[1];
-                $streetName = preg_replace('/\s+(St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Blvd|Boulevard|Ct|Court|Pl|Place|Ln|Lane|Way)$/i', '', $m[2]);
+            }
 
+            // Legacy fallback: if the building has no usable addresses, use the
+            // mls_settings keys (then NOBU's defaults).
+            if (empty($groups)) {
+                $fallback = [];
+                $configured = $mlsSettings['default_building_addresses'] ?? null;
+                if (is_array($configured) && !empty($configured)) {
+                    $fallback = $configured;
+                } elseif (!empty($mlsSettings['default_building_address'])) {
+                    $fallback = preg_split('/\s*[,&]\s*/', $mlsSettings['default_building_address']);
+                } else {
+                    $fallback = ['15 Mercer', '35 Mercer'];
+                }
+                foreach ($fallback as $addr) {
+                    if (!preg_match('/^(\d+)\s+(.+)$/', trim($addr), $m)) {
+                        continue;
+                    }
+                    $name = preg_replace('/\s+(St|Street|Ave|Avenue|Rd|Road|Dr|Drive|Blvd|Boulevard|Ct|Court|Pl|Place|Ln|Lane|Way)$/i', '', $m[2]);
+                    $key = strtolower($name);
+                    if (!isset($groups[$key])) {
+                        $groups[$key] = ['name' => $name, 'numbers' => []];
+                    }
+                    $groups[$key]['numbers'][(string) $m[1]] = true;
+                }
+            }
+
+            $cityFilter = $building->city ?? null;
+
+            foreach ($groups as $g) {
                 $apiParams = [
                     'class' => 'condoProperty',
                     'status' => 'A',
                     'type' => $type,
-                    'streetNumber' => $streetNumber,
-                    'streetName' => $streetName,
+                    'streetName' => $g['name'],
                     'pageNum' => 1,
-                    'resultsPerPage' => 12,
+                    'resultsPerPage' => 200,
                     'sortBy' => 'createdOnDesc',
                 ];
+                if (!empty($cityFilter)) {
+                    $apiParams['city'] = $cityFilter;
+                }
 
                 $apiResult = $this->repliersApi->searchListings($apiParams);
                 $listings = $apiResult['listings'] ?? [];
@@ -186,6 +240,9 @@ class HomepagePropertiesController extends Controller
                 foreach ($listings as $listing) {
                     $key = $listing['mlsNumber'] ?? null;
                     if (!$key || isset($seen[$key])) continue;
+                    // Keep only listings whose streetNumber matches the building.
+                    $num = (string) ($listing['address']['streetNumber'] ?? '');
+                    if ($num === '' || !isset($g['numbers'][$num])) continue;
                     $seen[$key] = true;
                     $merged[] = $listing;
                 }
@@ -193,7 +250,8 @@ class HomepagePropertiesController extends Controller
 
             Log::info("Homepage Repliers fetch", [
                 'type' => $type,
-                'addresses' => $streetAddresses,
+                'building' => $building->name ?? null,
+                'streets' => array_keys($groups),
                 'count' => count($merged),
             ]);
 

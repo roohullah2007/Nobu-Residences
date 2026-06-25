@@ -357,6 +357,55 @@ class Building extends Model
     }
 
     /**
+     * Collect every parsed street address for this building as
+     * [['number' => '8', 'name' => 'Widmer'], ...]. Reads SA1, SA2 and every
+     * entry in additional_addresses (so ranges like "8-38 Widmer St" that are
+     * stored as individual numbers are fully expanded), then falls back to the
+     * primary `address` field if no street fields are populated.
+     *
+     * Shared by getLiveListingCounts() and the homepage carousel API so both
+     * resolve the SAME listings for a building.
+     */
+    public function parsedStreetAddresses(): array
+    {
+        $rawCandidates = [
+            $this->street_address_1 ?? null,
+            $this->street_address_2 ?? null,
+        ];
+        if (is_array($this->additional_addresses)) {
+            foreach ($this->additional_addresses as $a) {
+                $rawCandidates[] = $a;
+            }
+        }
+
+        $addresses = [];
+        $seen = [];
+        foreach ($rawCandidates as $a) {
+            if ($parsed = self::parseStreetAddress($a)) {
+                $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $addresses[] = $parsed;
+                }
+            }
+        }
+        if (empty($addresses) && !empty($this->address)) {
+            $parts = preg_split('/\s*[,&]\s*/', $this->address);
+            foreach (array_filter(array_map('trim', $parts)) as $part) {
+                if ($parsed = self::parseStreetAddress($part)) {
+                    $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $addresses[] = $parsed;
+                    }
+                }
+            }
+        }
+
+        return $addresses;
+    }
+
+    /**
      * Live for-sale / for-rent counts from the Repliers API for the building's
      * street address(es). Cached per building for 10 minutes.
      */
@@ -366,42 +415,7 @@ class Building extends Model
             'building_listing_counts:' . $this->id,
             600,
             function () {
-                // Collect every street-address variant: SA1, SA2, each entry in
-                // additional_addresses, then fall back to the primary `address`
-                // if no street fields are populated.
-                $rawCandidates = [
-                    $this->street_address_1 ?? null,
-                    $this->street_address_2 ?? null,
-                ];
-                if (is_array($this->additional_addresses)) {
-                    foreach ($this->additional_addresses as $a) {
-                        $rawCandidates[] = $a;
-                    }
-                }
-
-                $addresses = [];
-                $seen = [];
-                foreach ($rawCandidates as $a) {
-                    if ($parsed = self::parseStreetAddress($a)) {
-                        $key = strtolower($parsed['number'] . '|' . $parsed['name']);
-                        if (!isset($seen[$key])) {
-                            $seen[$key] = true;
-                            $addresses[] = $parsed;
-                        }
-                    }
-                }
-                if (empty($addresses) && !empty($this->address)) {
-                    $parts = preg_split('/\s*[,&]\s*/', $this->address);
-                    foreach (array_filter(array_map('trim', $parts)) as $part) {
-                        if ($parsed = self::parseStreetAddress($part)) {
-                            $key = strtolower($parsed['number'] . '|' . $parsed['name']);
-                            if (!isset($seen[$key])) {
-                                $seen[$key] = true;
-                                $addresses[] = $parsed;
-                            }
-                        }
-                    }
-                }
+                $addresses = $this->parsedStreetAddresses();
 
                 $sale = 0;
                 $rent = 0;
