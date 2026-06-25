@@ -8,6 +8,14 @@ export default function BuildingInfo({ pageContent, building = {} }) {
 
     const buildingName = building.name || 'Nobu Residences';
 
+    // Decorative badge subtitle: prefer the building's locality, generally true
+    // for any building (not Nobu-specific). Falls back to "Luxury Residences".
+    const badgeSubtitle = [building.sub_neighbourhood, building.neighbourhood, building.city]
+        .map((v) => (v == null ? '' : String(v).trim()))
+        .filter(Boolean)
+        .join(' · ')
+        .toUpperCase() || 'LUXURY RESIDENCES';
+
     // Fact cards driven by the building record (hide blank / placeholder values).
     const clean = (v) => {
         if (v === null || v === undefined) return '';
@@ -78,9 +86,9 @@ export default function BuildingInfo({ pageContent, building = {} }) {
                                 onError={(e) => { e.currentTarget.src = '/assets/nobu-building.jpg'; }}
                             />
                         </div>
-                        <div className="absolute -bottom-5 -left-5 hidden rounded-2xl border border-gold-300 bg-white/90 px-6 py-4 backdrop-blur-sm shadow-lg md:block">
-                            <p className="font-playfair text-2xl font-semibold text-gold-600">Nobu</p>
-                            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Hotel · Restaurant · Residences</p>
+                        <div className="absolute -bottom-5 -left-5 hidden max-w-[240px] rounded-2xl border border-gold-300 bg-white/90 px-6 py-4 backdrop-blur-sm shadow-lg md:block">
+                            <p className="font-playfair text-xl font-semibold leading-tight text-gold-600">{buildingName}</p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.2em] text-neutral-500 leading-tight">{badgeSubtitle}</p>
                         </div>
                     </div>
                 </div>

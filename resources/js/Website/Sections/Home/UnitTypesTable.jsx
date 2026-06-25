@@ -1,5 +1,16 @@
 import { useState } from 'react';
+import { Link } from '@inertiajs/react';
 import { groupByBedrooms, formatMoney } from '@/Website/Sections/Home/iceData';
+
+// Map a Unit Types row label to the integer `bedrooms` filter the Search page
+// / PropertySearchController understands. Studio -> 0, "1 Bedroom"/"1 Bed + Den"
+// -> 1, "N Bedrooms" -> N.
+function bedroomsForLabel(label) {
+    if (!label) return 0;
+    if (/studio/i.test(label)) return 0;
+    const m = String(label).match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+}
 
 export default function UnitTypesTable({ forSale = [], forRent = [], building = {} }) {
     const [mode, setMode] = useState('sale');
@@ -11,6 +22,31 @@ export default function UnitTypesTable({ forSale = [], forRent = [], building = 
     const buildingName = building.name || 'Nobu Residences';
     const fmt = (n) => (n ? formatMoney(n) : '—');
     const sizeText = (s) => (s ? `${String(s).replace('-', ' – ')} sq ft` : 'N/A');
+
+    // Discrete full street addresses for THIS building. The Search page +
+    // PropertySearchController parse `street_addresses` (comma-separated) into
+    // OR'd streetNumber/streetName arrays, which reliably covers multi-tower /
+    // address-range buildings (e.g. Nobu = "15 Mercer St" + "35 Mercer"). We
+    // prefer the discrete SA1/SA2 fields over the combined `address` string
+    // (which can be a range like "8-38 Widmer St" that won't parse per-unit).
+    const streetAddresses = [building.street_address_1, building.street_address_2]
+        .map((v) => (v == null ? '' : String(v).trim()))
+        .filter(Boolean)
+        .join(',') || (building.address ? String(building.address).trim() : '');
+
+    // Build the Search URL for a bedroom row scoped to this building + the
+    // current Sale/Rent toggle. `status` carries the transaction (For Sale /
+    // For Rent), `bedrooms` the bucket, and `street_addresses` (+ `building_id`
+    // as backup) the building scope.
+    const searchUrlFor = (beds) => {
+        const params = new URLSearchParams();
+        params.set('status', mode === 'sale' ? 'For Sale' : 'For Rent');
+        params.set('bedrooms', String(beds));
+        if (streetAddresses) params.set('street_addresses', streetAddresses);
+        if (building.id) params.set('building_id', String(building.id));
+        if (buildingName) params.set('query', buildingName);
+        return `/search?${params.toString()}`;
+    };
 
     return (
         <section id="units" className="bg-neutral-50 py-20 md:py-28">
@@ -68,9 +104,14 @@ export default function UnitTypesTable({ forSale = [], forRent = [], building = 
                                 >
                                     <span className="text-[14px] font-medium text-neutral-800">{r.label}</span>
                                     <span className="text-[14px] text-neutral-600 text-center">
-                                        <span className="inline-flex items-center justify-center w-8 h-8 bg-gold-50 text-gold-700 rounded-full font-semibold text-sm">
+                                        <Link
+                                            href={searchUrlFor(bedroomsForLabel(r.label))}
+                                            aria-label={`View ${r.count} ${r.label} ${mode === 'sale' ? 'for sale' : 'for rent'} at ${buildingName}`}
+                                            title={`View ${r.label} ${mode === 'sale' ? 'for sale' : 'for rent'} at ${buildingName}`}
+                                            className="inline-flex items-center justify-center w-8 h-8 bg-gold-50 text-gold-700 rounded-full font-semibold text-sm cursor-pointer transition-all hover:bg-gold-100 hover:ring-2 hover:ring-gold-300 hover:scale-110"
+                                        >
                                             {r.count}
-                                        </span>
+                                        </Link>
                                     </span>
                                     <span className="text-[14px] text-neutral-600 text-center font-medium">{fmt(r.avg)}</span>
                                     <span className="text-[13px] text-neutral-500 text-center">
