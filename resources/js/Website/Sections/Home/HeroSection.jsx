@@ -1,154 +1,160 @@
-import { Link } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import Navbar from '@/Website/Global/Navbar';
+import { formatMoneyShort } from '@/Website/Sections/Home/iceData';
 
-export default function HeroSection({ auth, siteName = 'Nobu Residences', website, pageContent }) {
-    const [propertyCounts, setPropertyCounts] = useState({ for_sale: 0, for_rent: 0 });
-    const [isLoadingCounts, setIsLoadingCounts] = useState(true);
-    
+export default function HeroSection({
+    auth,
+    siteName = 'Nobu Residences',
+    website,
+    pageContent,
+    building = {},
+    startingFromPrice = 0,
+    forSaleCount = 0,
+    forRentCount = 0,
+    countsReady = false,
+}) {
     const heroContent = pageContent?.hero || {};
     const mlsSettings = pageContent?.mls_settings || {};
-    const welcomeText = heroContent.welcome_text || `WELCOME TO ${siteName.toUpperCase()}`;
-    const mainHeading = heroContent.main_heading || 'Your Next Home Is\nJust a Click Away';
-    const subheading = heroContent.subheading || 'Whether buying or renting, Nobu makes finding your home easy and reliable.';
-    const backgroundImage = heroContent.background_image || '/assets/hero-section.jpg';
-    
-    // Get building addresses from MLS settings - supports multiple buildings
-    // Can be a single address like "15 Mercer Street" or comma-separated like "15 Mercer Street, 35 Mercer Street"
-    const defaultBuildingAddresses = mlsSettings.default_building_address || '15 Mercer Street';
-    const buildingAddresses = defaultBuildingAddresses.split(',').map(addr => addr.trim());
 
-    // Parse the first building address for URL slug
-    const firstAddress = buildingAddresses[0];
-    const addressParts = firstAddress.split(' ');
-    const streetNumber = addressParts[0] || '15';
-    const streetName = addressParts.slice(1).join(' ').replace(/\s+Street$/i, '') || 'Mercer';
-    const buildingSlug = `${streetNumber}-${streetName.replace(/\s+/g, '-')}`;
+    const buildingName = building.name || siteName || 'Nobu Residences';
+    const welcomeText = heroContent.welcome_text || `WELCOME TO ${buildingName.toUpperCase()}`;
+    // Short hero tagline in the ICE-reference style, built from the building's
+    // key facts — NOT the long API description. Admin can override it via the
+    // home page hero subheading.
+    const suiteBit = building.total_units
+        ? `Over ${Number(building.total_units).toLocaleString()} luxury residences`
+        : 'Luxury residences';
+    const locBit = [building.neighbourhood, building.city].filter(Boolean).join(', ') || 'Downtown Toronto';
+    const devBit = building.developer_name ? `, developed by ${building.developer_name}` : '';
+    const risingBit = building.floors
+        ? `Rising ${building.floors} storeys above ${building.sub_neighbourhood || building.neighbourhood || 'Toronto'}. `
+        : '';
+    const builtTagline = `${risingBit}${suiteBit} in ${locBit}${devBit}.`;
+    const subheading = heroContent.subheading || builtTagline;
+    const backgroundImage = building.main_image || heroContent.background_image || '/assets/nobu-building.jpg';
 
-    // Fetch property counts on component mount - supports multiple buildings
-    useEffect(() => {
-        const fetchPropertyCounts = async () => {
-            try {
-                // Fetch counts for all configured buildings
-                let totalForSale = 0;
-                let totalForRent = 0;
+    // Building addresses: prefer the building record, fall back to MLS settings.
+    const defaultBuildingAddresses = building.address || mlsSettings.default_building_address || '15 Mercer Street';
+    const buildingAddresses = defaultBuildingAddresses.split(',').map((addr) => addr.trim()).filter(Boolean);
 
-                for (const address of buildingAddresses) {
-                    const parts = address.split(' ');
-                    const num = parts[0];
-                    const name = parts.slice(1).join(' ').replace(/\s+Street$/i, '');
+    // First building address, used for the eyebrow display line.
+    const firstAddress = buildingAddresses[0] || '15 Mercer Street';
 
-                    const response = await fetch(`/api/buildings/count-mls-listings?street_number=${num}&street_name=${name}`);
-                    const data = await response.json();
-                    if (data.success) {
-                        totalForSale += data.data.for_sale || 0;
-                        totalForRent += data.data.for_rent || 0;
-                    }
-                }
+    // Eyebrow line: "15 Mercer St · King West · Downtown · Toronto"
+    const locality = [building.sub_neighbourhood, building.neighbourhood, building.city]
+        .filter(Boolean).join(' · ') || 'King West · Downtown · Toronto';
+    const addressDisplayLine = `${firstAddress} · ${locality}`;
 
-                setPropertyCounts({
-                    for_sale: totalForSale,
-                    for_rent: totalForRent,
-                    total: totalForSale + totalForRent
-                });
-            } catch (error) {
-                console.error('Error fetching property counts:', error);
-            } finally {
-                setIsLoadingCounts(false);
-            }
-        };
-
-        fetchPropertyCounts();
-    }, [defaultBuildingAddresses]);
-    
-    // Always use dynamic buttons with building-specific URLs
-    // IMPORTANT: Ignore database URLs and always use building-specific routes
-    const buttons = [
-        { 
-            text: isLoadingCounts 
-                ? 'Loading...' 
-                : `${propertyCounts.for_rent || 0} ${propertyCounts.for_rent === 1 ? 'Condo' : 'Condos'} for rent`, 
-            url: `/${buildingSlug}/for-rent`, // Always use dynamic URL
-            style: 'primary' // First button is always primary
-        },
-        { 
-            text: isLoadingCounts 
-                ? 'Loading...' 
-                : `${propertyCounts.for_sale || 0} ${propertyCounts.for_sale === 1 ? 'Condo' : 'Condos'} for sale`, 
-            url: `/${buildingSlug}/for-sale`, // Always use dynamic URL
-            style: 'secondary' // Second button is always secondary
+    // Smooth-scroll the hero CTAs to the on-page carousel sections
+    // (rendered with id="for-sale" / id="for-rent" by ListingCarousel),
+    // accounting for the fixed ~82px header. SSR-safe: only touches
+    // window/document inside the handler.
+    const scrollToSection = (e, sectionId) => {
+        e.preventDefault();
+        if (typeof window === 'undefined') return;
+        const el = document.getElementById(sectionId);
+        if (el) {
+            const top = el.getBoundingClientRect().top + window.scrollY - 90;
+            window.scrollTo({ top, behavior: 'smooth' });
+        } else {
+            // Fallback: let the browser jump to the anchor if it appears later.
+            window.location.hash = sectionId;
         }
-    ];
-    
-    const brandColors = website?.brand_colors || {
-        primary: '#912018',
-        secondary: '#1d957d',
-        accent: '#F5F8FF',
-        text: '#000000',
-        background: '#FFFFFF',
-        // Extended button colors with fallbacks
-        button_primary_bg: '#912018',
-        button_primary_text: '#FFFFFF',
-        button_secondary_bg: '#FFFFFF',
-        button_secondary_text: '#000000'
     };
 
-    // Get specific button colors (fallback to defaults)
-    const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
-    const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
-    const buttonSecondaryBg = brandColors.button_secondary_bg || '#FFFFFF';
-    const buttonSecondaryText = brandColors.button_secondary_text || '#000000';
-    return (
-        <div className="relative bg-cover bg-center bg-no-repeat font-work-sans h-[696px]" style={{
-            backgroundImage: `url('${backgroundImage}')`
-        }}>
-            {/* Background Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent"></div>
-            
-            {/* Header */}
-            <Navbar auth={auth} website={website} />
+    const stats = [
+        { value: building.floors ? String(building.floors) : '49', label: 'Storeys', sub: 'Tower Residence' },
+        { value: building.total_units ? `${building.total_units}` : '657', label: 'Residences', sub: 'Studios to 3BR' },
+        { value: startingFromPrice > 0 ? formatMoneyShort(startingFromPrice) : '—', label: 'Starting From', sub: 'Current Listings' },
+        { value: '100/100', label: 'Transit Score', sub: 'Transit Connected' },
+    ];
 
-            {/* Hero Section */}
-            <main className="relative z-10 flex items-end h-[555px]  md:h-[calc(696px-64px)]">
-                <div className="mx-auto px-4 md:px-0 w-full max-w-screen-xl">
-                    <div className="max-w-3xl gap-y-6 flex flex-col">
-                        {/* Welcome Text */}
-                        <div>
-                            <p className="text-white font-work-sans font-normal text-sm leading-6 -tracking-wider">
-                                / {welcomeText}
-                            </p>
-                        </div>
-                        
-                        {/* Main Heading */}
-                        <h1 className="text-white text-[45px] font-space-grotesk font-bold md:text-[65px] leading-[55px] md:leading-[72px] -tracking-wider">
-                            <span>Your Next Home Is<br /></span>
-                            <span>Just a Click Away</span>
-                        </h1>
-                        
-                        {/* Subheading */}
-                        <p className="text-white max-w-2xl font-work-sans font-normal text-lg leading-[27px] -tracking-wider">
-                            {subheading}
-                        </p>
-                        
-                        {/* CTA Buttons */}
-                        <div className="flex gap-4">
-                            {buttons.map((button, index) => (
-                                <Link
-                                    key={index}
-                                    href={button.url}
-                                    className="inline-flex items-center justify-center transition-colors shadow-lg font-work-sans font-bold text-sm md:text-lg leading-7 -tracking-wider text-center w-[314.5px] h-16 rounded-full px-8 py-2.5 hover:opacity-90"
-                                    style={{
-                                        backgroundColor: button.style === 'primary' ? buttonPrimaryBg : buttonSecondaryBg,
-                                        color: button.style === 'primary' ? buttonPrimaryText : buttonSecondaryText
-                                    }}
-                                >
-                                    {button.text}
-                                </Link>
-                            ))}
-                        </div>
+    return (
+        <section className="relative min-h-screen flex flex-col font-work-sans">
+            {/* Building image background + dark luxury overlay */}
+            <div className="absolute inset-0">
+                <img
+                    src={backgroundImage}
+                    alt={`${buildingName} building`}
+                    className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/80"></div>
+            </div>
+
+            {/* Centered hero content */}
+            <div className="relative z-10 flex-1 flex items-center justify-center px-5 sm:px-6 pt-28 sm:pt-32 pb-6">
+                <div className="text-center max-w-4xl">
+                    <h1 className="font-playfair text-white text-[38px] sm:text-6xl md:text-7xl lg:text-8xl font-normal leading-[1.05] mb-4 sm:mb-6">
+                        {buildingName}
+                    </h1>
+
+                    <p className="text-white/80 text-[10px] sm:text-[12px] tracking-[0.3em] sm:tracking-[0.5em] uppercase mb-5 sm:mb-8 [text-shadow:0_1px_8px_rgba(0,0,0,0.6)]">
+                        {addressDisplayLine}
+                    </p>
+
+                    <p className="text-white/70 text-[15px] sm:text-lg md:text-xl font-light leading-relaxed max-w-2xl mx-auto mb-8 sm:mb-12">
+                        {subheading}
+                    </p>
+
+                    {/* CTA buttons with live counts */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-5 sm:mb-6">
+                        <a
+                            href="#for-sale"
+                            onClick={(e) => scrollToSection(e, 'for-sale')}
+                            className="group relative inline-flex items-center gap-3 w-full sm:w-auto sm:min-w-[240px] justify-center px-6 sm:px-8 py-3.5 sm:py-4 bg-white text-neutral-900 text-[12px] sm:text-[13px] tracking-[0.15em] uppercase font-medium rounded-lg overflow-hidden hover:shadow-lg hover:shadow-white/20 transition-all duration-300"
+                        >
+                            <span className="relative z-10 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+                                    <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                </svg>
+                                For Sale — {countsReady ? forSaleCount : '…'}
+                            </span>
+                        </a>
+                        <a
+                            href="#for-rent"
+                            onClick={(e) => scrollToSection(e, 'for-rent')}
+                            className="group relative inline-flex items-center gap-3 w-full sm:w-auto sm:min-w-[240px] justify-center px-6 sm:px-8 py-3.5 sm:py-4 border border-white/40 text-white text-[12px] sm:text-[13px] tracking-[0.15em] uppercase font-medium rounded-lg overflow-hidden backdrop-blur-sm hover:border-gold-400/60 hover:shadow-lg hover:shadow-gold-400/10 transition-all duration-300"
+                        >
+                            <span className="relative z-10 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                    <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+                                    <path d="m21 2-9.6 9.6" />
+                                    <circle cx="7.5" cy="15.5" r="5.5" />
+                                </svg>
+                                For Rent — {countsReady ? forRentCount : '…'}
+                            </span>
+                        </a>
+                    </div>
+
+                    {/* Live MLS pill */}
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+                        <span className="text-white/90 text-[9px] sm:text-[10px] tracking-[0.1em] uppercase [text-shadow:0_1px_6px_rgba(0,0,0,0.6)]">
+                            Live MLS® · Updated Every 15 Min
+                        </span>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+
+            {/* Bottom stats bar */}
+            <div className="relative z-10 border-t border-white/10 bg-black/40 backdrop-blur-md">
+                <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-white/10">
+                    {stats.map((s) => (
+                        <div key={s.label} className="py-6 md:py-8 text-center">
+                            <span className="block font-playfair text-2xl md:text-3xl text-white font-light">{s.value}</span>
+                            <span className="block text-[11px] tracking-[0.2em] uppercase text-white/80 mt-1">{s.label}</span>
+                            <span className="block text-[10px] text-white/40 mt-0.5">{s.sub}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Scroll indicator */}
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 hidden md:flex flex-col items-center gap-2 animate-bounce">
+                <span className="text-white/30 text-[10px] tracking-[0.3em] uppercase">Scroll</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30" aria-hidden="true">
+                    <path d="m6 9 6 6 6-6" />
+                </svg>
+            </div>
+        </section>
     );
 }

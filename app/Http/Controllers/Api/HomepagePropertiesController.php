@@ -499,7 +499,24 @@ class HomepagePropertiesController extends Controller
                 ?? (($listing['address']['streetNumber'] ?? '') . ' ' . ($listing['address']['streetName'] ?? '') . ' ' . ($listing['address']['streetSuffix'] ?? ''))
                 ?? '';
 
+            // Maintenance fee (numeric or string; may be null)
+            $maintenance = $listing['details']['maintenanceFee'] ?? ($listing['details']['maintenance'] ?? null);
+
+            // Days on market — guard so a bad/missing date never throws.
+            $daysOnMarket = null;
+            if (!empty($listing['listDate'])) {
+                try {
+                    $daysOnMarket = (int) \Carbon\Carbon::parse($listing['listDate'])->diffInDays(now());
+                } catch (\Throwable $e) {
+                    $daysOnMarket = isset($listing['daysOnMarket']) ? (int) $listing['daysOnMarket'] : null;
+                }
+            } elseif (isset($listing['daysOnMarket'])) {
+                $daysOnMarket = (int) $listing['daysOnMarket'];
+            }
+
             $formatted[] = [
+                'maintenance' => $maintenance,
+                'days_on_market' => $daysOnMarket,
                 'id' => $listing['mlsNumber'] ?? uniqid(),
                 'listingKey' => $listing['mlsNumber'] ?? '',
                 'imageUrl' => $imageUrl,

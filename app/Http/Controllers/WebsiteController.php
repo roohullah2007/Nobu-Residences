@@ -210,65 +210,12 @@ class WebsiteController extends Controller
     {
         $website = $this->getCurrentWebsite();
 
-        // Check if the website is configured to use a building as homepage
-        if ($website && $website->use_building_as_homepage && $website->homepage_building_id) {
-            // Load the building with all necessary relationships
-            $building = Building::with([
-                'properties' => function($query) {
-                    $query->select('id', 'building_id', 'title', 'price', 'bedrooms',
-                        'bathrooms', 'area', 'area_unit', 'status', 'property_type', 'images');
-                },
-                'amenities',
-                'maintenanceFeeAmenities'
-            ])->find($website->homepage_building_id);
-
-            // If building exists, render the building detail page as homepage
-            if ($building) {
-                $settings = $this->getWebsiteSettings();
-
-                // Calculate aggregated data
-                $properties = $building->properties;
-                $availableUnits = $properties->where('status', 'available')->count();
-                $priceRange = $properties->count() > 0 ? [
-                    'min' => $properties->min('price'),
-                    'max' => $properties->max('price')
-                ] : null;
-
-                // Get building display data
-                $buildingData = $building->getDisplayData();
-
-                $streetAddresses = $this->collectStreetAddresses($building);
-
-                // Fetch live listings from Repliers (the local mls_properties
-                // table is empty) for both sale + lease, attaching the
-                // building's name + neighbourhood to each formatted listing.
-                $mlsPropertiesForSale = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'sale', $building);
-                $mlsPropertiesForRent = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'lease', $building);
-
-                // Expose live counts so the building card shows real numbers
-                // instead of "0 for sale / 0 for rent".
-                $buildingData['units_for_sale'] = count($mlsPropertiesForSale);
-                $buildingData['units_for_rent'] = count($mlsPropertiesForRent);
-                $buildingData['mls_properties_for_sale'] = $mlsPropertiesForSale;
-                $buildingData['mls_properties_for_rent'] = $mlsPropertiesForRent;
-                $buildingData['priceHistory'] = $this->fetchBuildingPriceHistory($streetAddresses);
-
-                return Inertia::render('BuildingDetail', [
-                    'buildingData' => $buildingData,
-                    'buildingId' => $building->id,
-                    'properties' => $properties,
-                    'availableUnits' => $availableUnits,
-                    'priceRange' => $priceRange,
-                    'isHomepage' => true,
-                    'auth' => [
-                        'user' => request()->user(),
-                    ],
-                    ...$settings
-                ]);
-            }
-        }
-
-        // Otherwise, render the regular homepage
+        // The homepage now renders the redesigned Nobu landing page
+        // (Welcome -> resources/js/Website/Home.jsx) for every site. The
+        // previous "use_building_as_homepage" short-circuit rendered the
+        // BuildingDetail layout at "/" and has been removed so the new design
+        // shows. The standalone building-detail page is served by its own
+        // routes (building-detail*) and is unaffected by this change.
         $settings = $this->getWebsiteSettings();
         $pageContent = $this->getPageContent('home');
 
@@ -292,6 +239,22 @@ class WebsiteController extends Controller
             ->ordered()
             ->get(['id', 'name', 'slug', 'description', 'featured_image']);
 
+        // Resolve the homepage building (admin-editable via Admin -> Buildings)
+        // and attach its static profile data so the home sections render real
+        // building info instead of hardcoded template copy. Listings are still
+        // fetched client-side; this only carries the static building profile.
+        $homepageBuilding = null;
+        if ($website && $website->homepage_building_id) {
+            $b = \App\Models\Building::with(['amenities', 'maintenanceFeeAmenities'])->find($website->homepage_building_id);
+            if ($b) { $homepageBuilding = $b->getDisplayData(); }
+        }
+        // Fallback: resolve NOBU by name if not configured.
+        if (!$homepageBuilding) {
+            $b = \App\Models\Building::with(['amenities', 'maintenanceFeeAmenities'])
+                ->whereRaw('LOWER(name) LIKE ?', ['%nobu%'])->first();
+            if ($b) { $homepageBuilding = $b->getDisplayData(); }
+        }
+
         return Inertia::render('Welcome', array_merge($settings, [
             'auth' => [
                 'user' => request()->user(),
@@ -299,7 +262,8 @@ class WebsiteController extends Controller
             'pageContent' => $pageContent,
             'availableIcons' => $icons,
             'blogs' => $blogs,
-            'blogCategories' => $blogCategories
+            'blogCategories' => $blogCategories,
+            'buildingData' => $homepageBuilding,
         ]));
     }
 
