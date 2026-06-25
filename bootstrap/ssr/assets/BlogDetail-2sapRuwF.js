@@ -1,0 +1,218 @@
+import { jsxs, jsx } from "react/jsx-runtime";
+import { useState } from "react";
+import { Head, Link } from "@inertiajs/react";
+import MainLayout from "./MainLayout-CuFObsz2.js";
+import "./PluginStyleImageLoader-Rq93vDmq.js";
+import FAQ from "./FAQ-DwtK7V0z.js";
+import RealEstateLinksSection from "./RealEstateLinksSection-rgnwZUht.js";
+import "./Footer-BjazYOa4.js";
+import "./ContactAgentModal-Bc8CTpfm.js";
+import "./Navbar-Cpn1c-fk.js";
+import "./LoginModal-C-0W-anf.js";
+import "./GoogleLoginButton-wrwag0eM.js";
+import "./PropertyDetailIcons-3huqvWqW.js";
+import "@headlessui/react";
+const BlogCard = ({ post, formatDate, calculateReadTime }) => {
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  return /* @__PURE__ */ jsx("article", { className: "flex flex-col w-[300px] min-h-0 bg-white border-gray-300 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl group relative", children: /* @__PURE__ */ jsxs(Link, { href: `/blog/${post.slug || post.id}`, className: "flex flex-col h-full text-inherit no-underline", children: [
+    /* @__PURE__ */ jsx("div", { className: "relative w-full h-[200px] overflow-hidden bg-gray-100 rounded-t-xl", children: /* @__PURE__ */ jsxs("div", { className: "relative overflow-hidden w-full h-full transition-transform duration-300 group-hover:scale-105", children: [
+      imageLoading && !imageError && /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-20 flex items-center justify-center bg-gray-100", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center gap-2", children: [
+        /* @__PURE__ */ jsx("div", { className: "w-full h-full absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-pulse" }),
+        /* @__PURE__ */ jsx("div", { className: "relative z-10 w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" }),
+        /* @__PURE__ */ jsx("span", { className: "relative z-10 text-xs text-gray-600 font-medium", children: "Loading image..." })
+      ] }) }),
+      imageError && /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-20 flex items-center justify-center bg-gray-50", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-center gap-2 text-gray-500", children: [
+        /* @__PURE__ */ jsx("svg", { className: "w-8 h-8", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" }) }),
+        /* @__PURE__ */ jsx("span", { className: "text-xs font-medium", children: "Image unavailable" })
+      ] }) }),
+      /* @__PURE__ */ jsx(
+        "img",
+        {
+          src: post.image || "/images/blog-placeholder.jpg",
+          alt: post.title,
+          className: `w-full h-full object-cover transition-all duration-500 ease-out ${imageLoading ? "opacity-50 scale-105 blur-sm" : "opacity-100 scale-100 blur-0"}`,
+          onLoad: () => {
+            setImageLoading(false);
+            setImageError(false);
+          },
+          onError: (e) => {
+            if (!imageError) {
+              setImageError(true);
+              setImageLoading(false);
+              e.target.src = "/images/blog-placeholder.jpg";
+            }
+          }
+        }
+      ),
+      /* @__PURE__ */ jsx("div", { className: "absolute inset-2 flex flex-col justify-between", children: /* @__PURE__ */ jsx("div", { className: "flex justify-between items-center gap-2.5 h-8", children: post.category && /* @__PURE__ */ jsx("span", { className: "flex items-center justify-center px-3 py-1.5 text-sm h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm bg-white text-[#293056] border border-gray-200", children: post.category }) }) })
+    ] }) }),
+    /* @__PURE__ */ jsxs("div", { className: "flex flex-col flex-grow items-start p-4 gap-2.5 box-border", children: [
+      /* @__PURE__ */ jsx("div", { className: "flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-bold text-lg leading-7 tracking-tight text-[#293056] line-clamp-2", children: post.title }),
+      /* @__PURE__ */ jsxs("div", { className: "flex flex-col items-start gap-2 w-full", children: [
+        /* @__PURE__ */ jsx("div", { className: "flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056] line-clamp-3", children: post.excerpt }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600", children: [
+          post.author || "Admin",
+          " | ",
+          formatDate(post.published_at || post.created_at)
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "flex items-center justify-start w-full min-h-8", children: /* @__PURE__ */ jsx("div", { className: "font-work-sans font-normal text-base leading-6 tracking-tight text-[#293056]", children: post.reading_time || calculateReadTime(post.content) }) })
+      ] })
+    ] })
+  ] }) });
+};
+function BlogDetail({ auth, siteName = "NobuResidence", siteUrl, year, website, blog, relatedPosts, recentPosts }) {
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  };
+  const calculateReadTime = (content) => {
+    if (!content) return "5 min read";
+    const words = content.split(" ").length;
+    const minutes = Math.ceil(words / 200);
+    return `${minutes} min read`;
+  };
+  const shareOnFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${window.location.href}`, "_blank");
+  };
+  const shareOnTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?url=${window.location.href}&text=${blog.title}`, "_blank");
+  };
+  const shareOnLinkedIn = () => {
+    window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${window.location.href}&title=${blog.title}`, "_blank");
+  };
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    alert("Link copied to clipboard!");
+  };
+  return /* @__PURE__ */ jsxs(MainLayout, { auth, website, children: [
+    /* @__PURE__ */ jsx(Head, { title: blog.title }),
+    /* @__PURE__ */ jsxs(
+      "section",
+      {
+        className: "relative bg-cover bg-center bg-no-repeat flex items-center pt-20 md:pt-32 h-[280px] md:h-[441px]",
+        style: {
+          backgroundImage: `url(${blog.validated_image || blog.image || "/assets/building.jpg"})`
+        },
+        children: [
+          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" }),
+          /* @__PURE__ */ jsx("div", { className: "relative z-10 w-full max-w-[1280px] mx-auto px-4 md:px-0", children: /* @__PURE__ */ jsxs("div", { className: "max-w-3xl text-left text-white", children: [
+            /* @__PURE__ */ jsxs("h3", { className: "font-work-sans font-normal text-sm leading-6 -tracking-wider mb-4", children: [
+              "/ ",
+              /* @__PURE__ */ jsx(Link, { href: "/blogs", className: "hover:underline", children: "Blog" }),
+              " / ",
+              blog.blog_category?.name || blog.category || "Article"
+            ] }),
+            /* @__PURE__ */ jsx("h1", { className: "font-space-grotesk text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4", children: blog.title }),
+            /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-4 text-white/90 font-work-sans text-sm", children: [
+              /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" }) }),
+                blog.author || "Admin"
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" }) }),
+                formatDate(blog.published_at || blog.created_at)
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsx("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" }) }),
+                blog.reading_time || calculateReadTime(blog.content)
+              ] }),
+              /* @__PURE__ */ jsxs("span", { className: "flex items-center gap-2", children: [
+                /* @__PURE__ */ jsxs("svg", { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: [
+                  /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M15 12a3 3 0 11-6 0 3 3 0 016 0z" }),
+                  /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" })
+                ] }),
+                blog.views || 0,
+                " views"
+              ] })
+            ] })
+          ] }) })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsx("article", { className: "py-12 bg-white", children: /* @__PURE__ */ jsxs("div", { className: "max-w-[1280px] mx-auto px-4", children: [
+      blog.excerpt && /* @__PURE__ */ jsx("div", { className: "mb-8 p-6 bg-gray-50 rounded-lg border-l-4 border-blue-600", children: /* @__PURE__ */ jsx("p", { className: "text-lg text-gray-700 italic", children: blog.excerpt }) }),
+      /* @__PURE__ */ jsx(
+        "div",
+        {
+          className: "prose prose-lg max-w-none mb-12 text-left",
+          dangerouslySetInnerHTML: { __html: blog.content }
+        }
+      ),
+      /* @__PURE__ */ jsx("div", { className: "py-8 border-t border-gray-200", children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col md:flex-row md:items-center md:justify-between gap-4", children: [
+        /* @__PURE__ */ jsx("h3", { className: "font-space-grotesk font-bold text-xl text-[#293056]", children: "Share this article" }),
+        /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap gap-3", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: shareOnFacebook,
+              className: "w-12 h-12 flex items-center justify-center rounded-full bg-[#1877F2] text-white hover:bg-[#1877F2]/90 transition-all hover:scale-110",
+              title: "Share on Facebook",
+              children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { d: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" }) })
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: shareOnTwitter,
+              className: "w-12 h-12 flex items-center justify-center rounded-full bg-black text-white hover:bg-black/80 transition-all hover:scale-110",
+              title: "Share on X (Twitter)",
+              children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { d: "M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" }) })
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: shareOnLinkedIn,
+              className: "w-12 h-12 flex items-center justify-center rounded-full bg-[#0A66C2] text-white hover:bg-[#0A66C2]/90 transition-all hover:scale-110",
+              title: "Share on LinkedIn",
+              children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { d: "M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" }) })
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              onClick: copyLink,
+              className: "w-12 h-12 flex items-center justify-center rounded-full bg-[#293056] text-white hover:bg-[#293056]/90 transition-all hover:scale-110",
+              title: "Copy Link",
+              children: /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" }) })
+            }
+          )
+        ] })
+      ] }) })
+    ] }) }),
+    recentPosts && recentPosts.length > 0 && /* @__PURE__ */ jsx("section", { className: "py-16 bg-white", children: /* @__PURE__ */ jsxs("div", { className: "max-w-[1280px] mx-auto px-4", children: [
+      /* @__PURE__ */ jsx("h2", { className: "text-2xl font-bold text-gray-900 mb-8", children: "Recent Articles" }),
+      /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6", children: recentPosts.map((post) => /* @__PURE__ */ jsx(
+        BlogCard,
+        {
+          post,
+          formatDate,
+          calculateReadTime
+        },
+        post.id
+      )) })
+    ] }) }),
+    /* @__PURE__ */ jsx("section", { className: "py-8", children: /* @__PURE__ */ jsx("div", { className: "container mx-auto px-4 text-center", children: /* @__PURE__ */ jsxs(
+      Link,
+      {
+        href: "/blog",
+        className: "inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors",
+        children: [
+          /* @__PURE__ */ jsx("svg", { className: "w-5 h-5", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M10 19l-7-7m0 0l7-7m-7 7h18" }) }),
+          "Back to Blog"
+        ]
+      }
+    ) }) }),
+    /* @__PURE__ */ jsx("div", { className: "faq-section", children: /* @__PURE__ */ jsx(FAQ, {}) }),
+    /* @__PURE__ */ jsx(RealEstateLinksSection, {})
+  ] });
+}
+export {
+  BlogDetail as default
+};

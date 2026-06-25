@@ -206,7 +206,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                                 className={onDarkBg ? 'object-contain object-left w-[160px] h-[55px]' : 'object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]'}
                             />
                         ) : (
-                            <div className="font-space-grotesk font-bold text-sm text-gray-900">
+                            <div className={`font-space-grotesk font-bold text-base tracking-tight leading-tight ${logoFallbackTextClass}`}>
                                 {website?.name || 'X HOUSES'}
                             </div>
                         )}
