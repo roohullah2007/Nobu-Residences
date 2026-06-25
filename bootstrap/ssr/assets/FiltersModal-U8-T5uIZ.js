@@ -1,0 +1,697 @@
+import { jsx, jsxs, Fragment } from "react/jsx-runtime";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { usePage } from "@inertiajs/react";
+const injectSliderStyles = () => {
+  const styleId = "filters-modal-slider-styles";
+  if (document.getElementById(styleId)) return;
+  const style = document.createElement("style");
+  style.id = styleId;
+  style.textContent = `
+    .filters-modal-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: transparent;
+      cursor: pointer;
+      border: none;
+    }
+    .filters-modal-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: transparent;
+      cursor: pointer;
+      border: none;
+    }
+    .filters-modal-slider::-ms-thumb {
+      width: 18px;
+      height: 18px;
+      background: transparent;
+      cursor: pointer;
+      border: none;
+    }
+  `;
+  document.head.appendChild(style);
+};
+const FiltersModal = ({
+  isOpen,
+  onClose,
+  onApply,
+  currentFilters = {},
+  totalCount = 0
+}) => {
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = globalWebsite || website || {};
+  const brandColors = currentWebsite?.brand_colors || {
+    button_quaternary_bg: "#FFFFFF",
+    button_quaternary_text: "#293056",
+    button_primary_bg: "#293056",
+    button_primary_text: "#FFFFFF"
+  };
+  const buttonQuaternaryBg = brandColors.button_quaternary_bg || "#FFFFFF";
+  const buttonQuaternaryText = brandColors.button_quaternary_text || "#293056";
+  const buttonPrimaryBg = brandColors.button_primary_bg || "#293056";
+  const buttonPrimaryText = brandColors.button_primary_text || "#FFFFFF";
+  const [status, setStatus] = useState(currentFilters.status || "For Sale");
+  const [priceMin, setPriceMin] = useState(currentFilters.price_min || "");
+  const [priceMax, setPriceMax] = useState(currentFilters.price_max || "");
+  const [priceMinSlider, setPriceMinSlider] = useState(currentFilters.price_min ? parseInt(String(currentFilters.price_min).replace(/,/g, "")) : 0);
+  const [priceMaxSlider, setPriceMaxSlider] = useState(currentFilters.price_max ? parseInt(String(currentFilters.price_max).replace(/,/g, "")) : 1e7);
+  const [propertyTypes, setPropertyTypes] = useState(currentFilters.property_type || []);
+  const [bedrooms, setBedrooms] = useState(currentFilters.bedrooms || "Any");
+  const [bathrooms, setBathrooms] = useState(currentFilters.bathrooms || "Any");
+  const [homeTypes, setHomeTypes] = useState([]);
+  const [daysOnMarket, setDaysOnMarket] = useState("Any");
+  const [locker, setLocker] = useState("Any");
+  const [balcony, setBalcony] = useState("Any");
+  const [amenities, setAmenities] = useState([]);
+  const [keywords, setKeywords] = useState("");
+  const [previewCount, setPreviewCount] = useState(totalCount);
+  const [isLoadingCount, setIsLoadingCount] = useState(false);
+  const countTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  useEffect(() => {
+    injectSliderStyles();
+  }, []);
+  const fetchPreviewCount = useCallback(async (filterState) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    setIsLoadingCount(true);
+    try {
+      const isSoldOrLeased = filterState.status === "Sold" || filterState.status === "Leased";
+      const searchParams = {
+        status: isSoldOrLeased ? "For Sale" : filterState.status,
+        property_status: isSoldOrLeased ? filterState.status : "",
+        price_min: filterState.priceMinSlider || 0,
+        price_max: filterState.priceMaxSlider || 1e7,
+        property_type: filterState.propertyTypes || [],
+        bedrooms: filterState.bedrooms === "Any" || filterState.bedrooms === "Studio" ? 0 : parseInt(filterState.bedrooms) || 0,
+        den: /\+1$/.test(String(filterState.bedrooms || "")),
+        bathrooms: filterState.bathrooms === "Any" ? 0 : parseInt(filterState.bathrooms) || 0,
+        // Advanced filters — so the live count reflects them too.
+        home_types: filterState.homeTypes || [],
+        days_on_market: filterState.daysOnMarket && filterState.daysOnMarket !== "Any" ? filterState.daysOnMarket : "",
+        locker: filterState.locker && filterState.locker !== "Any" ? filterState.locker : "",
+        balcony: filterState.balcony && filterState.balcony !== "Any" ? filterState.balcony : "",
+        amenities: filterState.amenities || [],
+        keywords: filterState.keywords || "",
+        query: currentFilters.query || "",
+        // Keep the current search query
+        page: 1,
+        page_size: 16
+      };
+      const response = await fetch("/api/property-search-count", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || ""
+        },
+        body: JSON.stringify({ search_params: searchParams }),
+        signal: abortControllerRef.current.signal
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch count");
+      }
+      const data = await response.json();
+      if (data.success) {
+        setPreviewCount(data.count);
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.error("Error fetching preview count:", error);
+      }
+    } finally {
+      setIsLoadingCount(false);
+    }
+  }, [currentFilters.query]);
+  const triggerCountFetch = useCallback((filterState) => {
+    if (countTimeoutRef.current) {
+      clearTimeout(countTimeoutRef.current);
+    }
+    countTimeoutRef.current = setTimeout(() => {
+      fetchPreviewCount(filterState);
+    }, 300);
+  }, [fetchPreviewCount]);
+  useEffect(() => {
+    if (isOpen) {
+      triggerCountFetch({
+        status,
+        priceMinSlider,
+        priceMaxSlider,
+        propertyTypes,
+        bedrooms,
+        bathrooms,
+        homeTypes,
+        daysOnMarket,
+        locker,
+        balcony,
+        amenities,
+        keywords
+      });
+    }
+  }, [isOpen, status, priceMinSlider, priceMaxSlider, propertyTypes, bedrooms, bathrooms, homeTypes, daysOnMarket, locker, balcony, amenities, keywords, triggerCountFetch]);
+  useEffect(() => {
+    return () => {
+      if (countTimeoutRef.current) {
+        clearTimeout(countTimeoutRef.current);
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+  useEffect(() => {
+    if (isOpen) {
+      setPreviewCount(totalCount);
+    }
+  }, [isOpen, totalCount]);
+  useEffect(() => {
+    if (currentFilters && isOpen) {
+      if (currentFilters.property_status === "Sold" || currentFilters.property_status === "Leased") {
+        setStatus(currentFilters.property_status);
+      } else {
+        setStatus(currentFilters.status || "For Sale");
+      }
+      const minPrice = currentFilters.price_min ? parseInt(String(currentFilters.price_min).replace(/,/g, "")) : 0;
+      const maxPrice = currentFilters.price_max ? parseInt(String(currentFilters.price_max).replace(/,/g, "")) : 1e7;
+      setPriceMin(minPrice > 0 ? minPrice.toLocaleString() : "");
+      setPriceMax(maxPrice < 1e7 ? maxPrice.toLocaleString() : "");
+      setPriceMinSlider(minPrice);
+      setPriceMaxSlider(maxPrice);
+      const propTypes = Array.isArray(currentFilters.property_type) ? currentFilters.property_type : currentFilters.property_type ? [currentFilters.property_type] : [];
+      setPropertyTypes(propTypes);
+      const bedroomVal = currentFilters.bedrooms;
+      if (!bedroomVal || bedroomVal === 0) {
+        setBedrooms("Any");
+      } else if (bedroomVal >= 3) {
+        setBedrooms("3+");
+      } else {
+        setBedrooms(String(bedroomVal));
+      }
+      const bathroomVal = currentFilters.bathrooms;
+      if (!bathroomVal || bathroomVal === 0) {
+        setBathrooms("Any");
+      } else if (bathroomVal >= 5) {
+        setBathrooms("5+");
+      } else {
+        setBathrooms(String(bathroomVal));
+      }
+    }
+  }, [currentFilters, isOpen]);
+  const handlePriceMinChange = (value) => {
+    const formatted = formatPrice(value);
+    setPriceMin(formatted);
+    const numValue = parseInt(value.replace(/[^0-9]/g, "")) || 0;
+    if (numValue < priceMaxSlider) {
+      setPriceMinSlider(numValue);
+    }
+  };
+  const handlePriceMaxChange = (value) => {
+    const formatted = formatPrice(value);
+    setPriceMax(formatted);
+    const numValue = parseInt(value.replace(/[^0-9]/g, "")) || 1e7;
+    if (numValue > priceMinSlider) {
+      setPriceMaxSlider(numValue);
+    }
+  };
+  const handleSliderMinChange = (value) => {
+    const newMin = Math.min(value, priceMaxSlider);
+    setPriceMinSlider(newMin);
+    setPriceMin(newMin > 0 ? newMin.toLocaleString() : "");
+  };
+  const handleSliderMaxChange = (value) => {
+    const newMax = Math.max(value, priceMinSlider);
+    setPriceMaxSlider(newMax);
+    setPriceMax(newMax < 1e7 ? newMax.toLocaleString() : "");
+  };
+  const propertyTypeOptions = ["Townhouse", "Condo Apartment", "Co-Op Apt", "Detached", "Semi-Detached"];
+  const bedroomOptions = ["Any", "Studio", "1", "1+1", "2", "2+1", "3+"];
+  const bathroomOptions = ["Any", "1", "2", "3", "4", "5+"];
+  const homeTypeOptions = ["High-Rise", "Mid-Rise", "Low-Rise", "Loft", "Luxury", "Penthouse"];
+  const amenityOptions = ["Gym", "Pool", "Concierge", "Guest Suites", "Visitor Parking", "BBQ Permitted", "Party Room", "Rooftop Deck", "Beanfield Fibre", "FibreStream"];
+  const togglePropertyType = (type) => {
+    setPropertyTypes(
+      (prev) => prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+  const toggleHomeType = (type) => {
+    setHomeTypes(
+      (prev) => prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+  const toggleAmenity = (amenity) => {
+    setAmenities(
+      (prev) => prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
+    );
+  };
+  const handleReset = () => {
+    setStatus("For Sale");
+    setPriceMin("");
+    setPriceMax("");
+    setPriceMinSlider(0);
+    setPriceMaxSlider(1e7);
+    setPropertyTypes([]);
+    setBedrooms("Any");
+    setBathrooms("Any");
+    setHomeTypes([]);
+    setDaysOnMarket("Any");
+    setLocker("Any");
+    setBalcony("Any");
+    setAmenities([]);
+    setKeywords("");
+  };
+  const handleApply = () => {
+    const filters = {
+      status,
+      price_min: priceMinSlider || 0,
+      price_max: priceMaxSlider || 1e7,
+      property_type: propertyTypes,
+      // parseInt('1+1') === 1 and parseInt('3+') === 3 (it stops at '+'), so the
+      // base bed count is correct without the old replace('+','') that produced 11/21.
+      bedrooms: bedrooms === "Any" || bedrooms === "Studio" ? 0 : parseInt(bedrooms) || 0,
+      den: /\+1$/.test(bedrooms),
+      // "1+1" / "2+1" → wants a den (numBedroomsPlus)
+      bathrooms: bathrooms === "Any" ? 0 : parseInt(bathrooms) || 0,
+      home_types: homeTypes,
+      days_on_market: daysOnMarket,
+      locker,
+      balcony,
+      amenities,
+      keywords
+    };
+    console.log("🔍 FiltersModal applying filters:", filters);
+    onApply(filters);
+    onClose();
+  };
+  const formatPrice = (value) => {
+    const num = value.replace(/[^0-9]/g, "");
+    return num ? parseInt(num).toLocaleString() : "";
+  };
+  if (!isOpen) return null;
+  return /* @__PURE__ */ jsx("div", { className: "fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-[200]", children: /* @__PURE__ */ jsxs("div", { className: "bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[90vh] flex flex-col font-['Work_Sans']", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-6 py-4 border-b border-gray-100", children: [
+      /* @__PURE__ */ jsx("div", {}),
+      /* @__PURE__ */ jsx("h2", { className: "font-medium text-[#293056] text-base leading-6 tracking-[-0.03em]", children: "Filters" }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: onClose,
+          className: "text-gray-400 hover:text-gray-600 transition-colors",
+          children: /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-5 w-5", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M6 18L18 6M6 6l12 12" }) })
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "overflow-y-auto flex-1 px-6 py-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100", children: [
+      /* @__PURE__ */ jsx("div", { className: "flex gap-2 p-1 bg-gray-50 rounded-lg mb-6", children: ["For Sale", "For Rent", "Sold", "Leased"].map((s) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: () => setStatus(s),
+          className: `flex-1 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all ${status === s ? "" : "bg-transparent hover:bg-gray-200"}`,
+          style: status === s ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+          children: s === "For Rent" ? "For rent" : s
+        },
+        s
+      )) }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Price" }),
+        /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-4 mb-4", children: [
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "text",
+              placeholder: "No min",
+              value: priceMin,
+              onChange: (e) => handlePriceMinChange(e.target.value),
+              className: "flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none",
+              style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }
+            }
+          ),
+          /* @__PURE__ */ jsx("span", { className: "font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056]", children: "to" }),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "text",
+              placeholder: "No max",
+              value: priceMax,
+              onChange: (e) => handlePriceMaxChange(e.target.value),
+              className: "flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none",
+              style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "relative flex w-full items-center h-5", children: [
+          /* @__PURE__ */ jsx("div", { className: "absolute w-full h-[1.61px] bg-gray-300 rounded-full" }),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: "absolute h-[1.61px] rounded-full pointer-events-none",
+              style: {
+                left: `${priceMinSlider / 1e7 * 100}%`,
+                right: `${100 - priceMaxSlider / 1e7 * 100}%`,
+                backgroundColor: buttonPrimaryBg
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "range",
+              min: "0",
+              max: "10000000",
+              step: "50000",
+              value: priceMinSlider,
+              onChange: (e) => handleSliderMinChange(parseInt(e.target.value)),
+              className: "filters-modal-slider absolute w-full h-5 appearance-none bg-transparent cursor-pointer",
+              style: {
+                zIndex: priceMinSlider > priceMaxSlider - 5e5 ? 5 : 3,
+                pointerEvents: "auto"
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "input",
+            {
+              type: "range",
+              min: "0",
+              max: "10000000",
+              step: "50000",
+              value: priceMaxSlider,
+              onChange: (e) => handleSliderMaxChange(parseInt(e.target.value)),
+              className: "filters-modal-slider absolute w-full h-5 appearance-none bg-transparent cursor-pointer",
+              style: {
+                zIndex: 4,
+                pointerEvents: "auto"
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: "absolute flex-shrink-0 cursor-grab active:cursor-grabbing",
+              style: {
+                left: `calc(${priceMinSlider / 1e7 * 100}% - 9px)`,
+                touchAction: "none",
+                zIndex: 50
+              },
+              onMouseDown: (e) => {
+                e.preventDefault();
+                const slider = e.currentTarget.parentElement;
+                const rect = slider.getBoundingClientRect();
+                const handleDrag = (event) => {
+                  const clientX = event.type.includes("touch") ? event.touches[0].clientX : event.clientX;
+                  const percentage = Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+                  const value = Math.round(percentage / 100 * 1e7 / 5e4) * 5e4;
+                  handleSliderMinChange(value);
+                };
+                const handleRelease = () => {
+                  document.removeEventListener("mousemove", handleDrag);
+                  document.removeEventListener("mouseup", handleRelease);
+                  document.removeEventListener("touchmove", handleDrag);
+                  document.removeEventListener("touchend", handleRelease);
+                };
+                document.addEventListener("mousemove", handleDrag);
+                document.addEventListener("mouseup", handleRelease);
+              },
+              onTouchStart: (e) => {
+                const slider = e.currentTarget.parentElement;
+                const rect = slider.getBoundingClientRect();
+                const handleDrag = (event) => {
+                  const clientX = event.touches[0].clientX;
+                  const percentage = Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+                  const value = Math.round(percentage / 100 * 1e7 / 5e4) * 5e4;
+                  handleSliderMinChange(value);
+                };
+                const handleRelease = () => {
+                  document.removeEventListener("touchmove", handleDrag);
+                  document.removeEventListener("touchend", handleRelease);
+                };
+                document.addEventListener("touchmove", handleDrag);
+                document.addEventListener("touchend", handleRelease);
+              },
+              children: /* @__PURE__ */ jsxs(
+                "svg",
+                {
+                  width: "18",
+                  height: "18",
+                  viewBox: "0 0 21 20",
+                  fill: "none",
+                  xmlns: "http://www.w3.org/2000/svg",
+                  children: [
+                    /* @__PURE__ */ jsx("rect", { x: "0.644043", width: "20.3559", height: "19.0476", rx: "9.52381", fill: "white" }),
+                    /* @__PURE__ */ jsx("rect", { x: "1.14404", y: "0.5", width: "19.3559", height: "18.0476", rx: "9.02381", stroke: "#293056" }),
+                    /* @__PURE__ */ jsx("path", { d: "M14.489 4.85712C14.489 5.21076 14.348 5.54988 14.098 5.79992C13.848 6.04996 13.509 6.19046 13.155 6.19046C12.802 6.19046 12.463 6.04996 12.213 5.79992C11.963 5.54988 11.822 5.21076 11.822 4.85712C11.822 4.50348 11.963 4.16437 12.213 3.91432C12.463 3.66428 12.802 3.52379 13.155 3.52379C13.509 3.52379 13.848 3.66428 14.098 3.91432C14.348 4.16437 14.489 4.50348 14.489 4.85712ZM14.489 9.52379C14.489 9.87743 14.348 10.2165 14.098 10.4666C13.848 10.7166 13.509 10.8571 13.155 10.8571C12.802 10.8571 12.463 10.7166 12.213 10.4666C11.963 10.2165 11.822 9.87743 11.822 9.52379C11.822 9.17015 11.963 8.83104 12.213 8.58099C12.463 8.33095 12.802 8.19046 13.155 8.19046C13.509 8.19046 13.848 8.33095 14.098 8.58099C14.348 8.83104 14.489 9.17015 14.489 9.52379ZM8.489 15.5238C8.842 15.5238 9.181 15.3833 9.432 15.1333C9.682 14.8832 9.822 14.5441 9.822 14.1905C9.822 13.8368 9.682 13.4977 9.432 13.2477C9.181 12.9976 8.842 12.8571 8.489 12.8571C8.135 12.8571 7.796 12.9976 7.546 13.2477C7.296 13.4977 7.155 13.8368 7.155 14.1905C7.155 14.5441 7.296 14.8832 7.546 15.1333C7.796 15.3833 8.135 15.5238 8.489 15.5238ZM13.155 15.5238C13.509 15.5238 13.848 15.3833 14.098 15.1333C14.348 14.8832 14.489 14.5441 14.489 14.1905C14.489 13.8368 14.348 13.4977 14.098 13.2477C13.848 12.9976 13.509 12.8571 13.155 12.8571C12.802 12.8571 12.463 12.9976 12.213 13.2477C11.963 13.4977 11.822 13.8368 11.822 14.1905C11.822 14.5441 11.963 14.8832 12.213 15.1333C12.463 15.3833 12.802 15.5238 13.155 15.5238ZM8.489 10.8571C8.842 10.8571 9.181 10.7166 9.432 10.4666C9.682 10.2165 9.822 9.87743 9.822 9.52379C9.822 9.17015 9.682 8.83104 9.432 8.58099C9.181 8.33095 8.842 8.19046 8.489 8.19046C8.135 8.19046 7.796 8.33095 7.546 8.58099C7.296 8.83104 7.155 9.17015 7.155 9.52379C7.155 9.87743 7.296 10.2165 7.546 10.4666C7.796 10.7166 8.135 10.8571 8.489 10.8571ZM8.489 6.19046C8.842 6.19046 9.181 6.04996 9.432 5.79992C9.682 5.54988 9.822 5.21076 9.822 4.85712C9.822 4.50348 9.682 4.16437 9.432 3.91432C9.181 3.66428 8.842 3.52379 8.489 3.52379C8.135 3.52379 7.796 3.66428 7.546 3.91432C7.296 4.16437 7.155 4.50348 7.155 4.85712C7.155 5.21076 7.296 5.54988 7.546 5.79992C7.796 6.04996 8.135 6.19046 8.489 6.19046Z", fill: "#293056" })
+                  ]
+                }
+              )
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: "absolute flex-shrink-0 cursor-grab active:cursor-grabbing",
+              style: {
+                left: `calc(${priceMaxSlider / 1e7 * 100}% - 9px)`,
+                touchAction: "none",
+                zIndex: 51
+              },
+              onMouseDown: (e) => {
+                e.preventDefault();
+                const slider = e.currentTarget.parentElement;
+                const rect = slider.getBoundingClientRect();
+                const handleDrag = (event) => {
+                  const clientX = event.type.includes("touch") ? event.touches[0].clientX : event.clientX;
+                  const percentage = Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+                  const value = Math.round(percentage / 100 * 1e7 / 5e4) * 5e4;
+                  handleSliderMaxChange(value);
+                };
+                const handleRelease = () => {
+                  document.removeEventListener("mousemove", handleDrag);
+                  document.removeEventListener("mouseup", handleRelease);
+                  document.removeEventListener("touchmove", handleDrag);
+                  document.removeEventListener("touchend", handleRelease);
+                };
+                document.addEventListener("mousemove", handleDrag);
+                document.addEventListener("mouseup", handleRelease);
+              },
+              onTouchStart: (e) => {
+                const slider = e.currentTarget.parentElement;
+                const rect = slider.getBoundingClientRect();
+                const handleDrag = (event) => {
+                  const clientX = event.touches[0].clientX;
+                  const percentage = Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+                  const value = Math.round(percentage / 100 * 1e7 / 5e4) * 5e4;
+                  handleSliderMaxChange(value);
+                };
+                const handleRelease = () => {
+                  document.removeEventListener("touchmove", handleDrag);
+                  document.removeEventListener("touchend", handleRelease);
+                };
+                document.addEventListener("touchmove", handleDrag);
+                document.addEventListener("touchend", handleRelease);
+              },
+              children: /* @__PURE__ */ jsxs(
+                "svg",
+                {
+                  width: "18",
+                  height: "18",
+                  viewBox: "0 0 21 20",
+                  fill: "none",
+                  xmlns: "http://www.w3.org/2000/svg",
+                  children: [
+                    /* @__PURE__ */ jsx("rect", { width: "20.3559", height: "19.0476", rx: "9.52381", fill: "white" }),
+                    /* @__PURE__ */ jsx("rect", { x: "0.5", y: "0.5", width: "19.3559", height: "18.0476", rx: "9.02381", stroke: "#293056" }),
+                    /* @__PURE__ */ jsx("path", { d: "M13.845 4.85712C13.845 5.21076 13.704 5.54988 13.454 5.79992C13.204 6.04996 12.865 6.19046 12.511 6.19046C12.158 6.19046 11.818 6.04996 11.568 5.79992C11.318 5.54988 11.178 5.21076 11.178 4.85712C11.178 4.50348 11.318 4.16437 11.568 3.91432C11.818 3.66428 12.158 3.52379 12.511 3.52379C12.865 3.52379 13.204 3.66428 13.454 3.91432C13.704 4.16437 13.845 4.50348 13.845 4.85712ZM13.845 9.52379C13.845 9.87743 13.704 10.2165 13.454 10.4666C13.204 10.7166 12.865 10.8571 12.511 10.8571C12.158 10.8571 11.818 10.7166 11.568 10.4666C11.318 10.2165 11.178 9.87743 11.178 9.52379C11.178 9.17015 11.318 8.83104 11.568 8.58099C11.818 8.33095 12.158 8.19046 12.511 8.19046C12.865 8.19046 13.204 8.33095 13.454 8.58099C13.704 8.83104 13.845 9.17015 13.845 9.52379ZM7.845 15.5238C8.198 15.5238 8.537 15.3833 8.787 15.1333C9.037 14.8832 9.178 14.5441 9.178 14.1905C9.178 13.8368 9.037 13.4977 8.787 13.2477C8.537 12.9976 8.198 12.8571 7.845 12.8571C7.491 12.8571 7.152 12.9976 6.902 13.2477C6.652 13.4977 6.511 13.8368 6.511 14.1905C6.511 14.5441 6.652 14.8832 6.902 15.1333C7.152 15.3833 7.491 15.5238 7.845 15.5238ZM12.511 15.5238C12.865 15.5238 13.204 15.3833 13.454 15.1333C13.704 14.8832 13.845 14.5441 13.845 14.1905C13.845 13.8368 13.704 13.4977 13.454 13.2477C13.204 12.9976 12.865 12.8571 12.511 12.8571C12.158 12.8571 11.818 12.9976 11.568 13.2477C11.318 13.4977 11.178 13.8368 11.178 14.1905C11.178 14.5441 11.318 14.8832 11.568 15.1333C11.818 15.3833 12.158 15.5238 12.511 15.5238ZM7.845 10.8571C8.198 10.8571 8.537 10.7166 8.787 10.4666C9.037 10.2165 9.178 9.87743 9.178 9.52379C9.178 9.17015 9.037 8.83104 8.787 8.58099C8.537 8.33095 8.198 8.19046 7.845 8.19046C7.491 8.19046 7.152 8.33095 6.902 8.58099C6.652 8.83104 6.511 9.17015 6.511 9.52379C6.511 9.87743 6.652 10.2165 6.902 10.4666C7.152 10.7166 7.491 10.8571 7.845 10.8571ZM7.845 6.19046C8.198 6.19046 8.537 6.04996 8.787 5.79992C9.037 5.54988 9.178 5.21076 9.178 4.85712C9.178 4.50348 9.037 4.16437 8.787 3.91432C8.537 3.66428 8.198 3.52379 7.845 3.52379C7.491 3.52379 7.152 3.66428 6.902 3.91432C6.652 4.16437 6.511 4.50348 6.511 4.85712C6.511 5.21076 6.652 5.54988 6.902 5.79992C7.152 6.04996 7.491 6.19046 7.845 6.19046Z", fill: "#293056" })
+                  ]
+                }
+              )
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Property Type" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2", children: propertyTypeOptions.map((type) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => togglePropertyType(type),
+            className: `px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${propertyTypes.includes(type) ? "" : "bg-[#E9EAEB] hover:bg-[#d1d3d6]"}`,
+            style: propertyTypes.includes(type) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+            children: type
+          },
+          type
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Bedrooms" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2", children: bedroomOptions.map((bed) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setBedrooms(bed),
+            className: `min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${bedrooms === bed ? "" : "bg-[#E9EAEB] hover:bg-[#d1d3d6]"}`,
+            style: bedrooms === bed ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+            children: bed === "Any" || bed === "Studio" ? bed : `${bed}BD`
+          },
+          bed
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Bathrooms" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2", children: bathroomOptions.map((bath) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => setBathrooms(bath),
+            className: `min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${bathrooms === bath ? "" : "bg-[#E9EAEB] hover:bg-[#d1d3d6]"}`,
+            style: bathrooms === bath ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+            children: bath
+          },
+          bath
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Home Type" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2", children: homeTypeOptions.map((type) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => toggleHomeType(type),
+            className: `px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${homeTypes.includes(type) ? "" : "bg-[#E9EAEB] hover:bg-[#d1d3d6]"}`,
+            style: homeTypes.includes(type) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+            children: type
+          },
+          type
+        )) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Days on Market" }),
+        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsxs(
+            "select",
+            {
+              value: daysOnMarket,
+              onChange: (e) => setDaysOnMarket(e.target.value),
+              className: "w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10",
+              style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText },
+              children: [
+                /* @__PURE__ */ jsx("option", { children: "Any" }),
+                /* @__PURE__ */ jsx("option", { children: "1 day" }),
+                /* @__PURE__ */ jsx("option", { children: "7 days" }),
+                /* @__PURE__ */ jsx("option", { children: "14 days" }),
+                /* @__PURE__ */ jsx("option", { children: "30 days" }),
+                /* @__PURE__ */ jsx("option", { children: "90 days" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none", children: /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-[#293056]", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 9l-7 7-7-7" }) }) })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Condo Includes" }),
+        /* @__PURE__ */ jsxs("div", { className: "flex gap-4", children: [
+          /* @__PURE__ */ jsxs("div", { className: "flex-1 relative", children: [
+            /* @__PURE__ */ jsxs(
+              "select",
+              {
+                value: locker,
+                onChange: (e) => setLocker(e.target.value),
+                className: "w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10",
+                style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText },
+                children: [
+                  /* @__PURE__ */ jsx("option", { value: "Any", children: "Locker (Any)" }),
+                  /* @__PURE__ */ jsx("option", { value: "Yes", children: "Locker Included" }),
+                  /* @__PURE__ */ jsx("option", { value: "No", children: "No Locker" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none", children: /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-[#293056]", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 9l-7 7-7-7" }) }) })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "flex-1 relative", children: [
+            /* @__PURE__ */ jsxs(
+              "select",
+              {
+                value: balcony,
+                onChange: (e) => setBalcony(e.target.value),
+                className: "w-full h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] appearance-none cursor-pointer focus:outline-none pr-10",
+                style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText },
+                children: [
+                  /* @__PURE__ */ jsx("option", { value: "Any", children: "Balcony (Any)" }),
+                  /* @__PURE__ */ jsx("option", { value: "Yes", children: "Balcony Included" }),
+                  /* @__PURE__ */ jsx("option", { value: "No", children: "No Balcony" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none", children: /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-[#293056]", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M19 9l-7 7-7-7" }) }) })
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "mb-6", children: [
+        /* @__PURE__ */ jsx("label", { className: "block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3", children: "Amenities" }),
+        /* @__PURE__ */ jsx("div", { className: "flex flex-wrap gap-2", children: amenityOptions.map((amenity) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => toggleAmenity(amenity),
+            className: `px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${amenities.includes(amenity) ? "" : "bg-[#E9EAEB] hover:bg-[#d1d3d6]"}`,
+            style: amenities.includes(amenity) ? { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText } : { color: buttonPrimaryBg },
+            children: amenity
+          },
+          amenity
+        )) })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "mb-4", children: /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+        /* @__PURE__ */ jsx("div", { className: "absolute left-4 top-1/2 -translate-y-1/2", children: /* @__PURE__ */ jsx("svg", { xmlns: "http://www.w3.org/2000/svg", className: "h-4 w-4 text-[#293056] opacity-60", fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: "2", children: /* @__PURE__ */ jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" }) }) }),
+        /* @__PURE__ */ jsx(
+          "input",
+          {
+            type: "text",
+            placeholder: "Keywords",
+            value: keywords,
+            onChange: (e) => setKeywords(e.target.value),
+            className: "w-full h-11 pr-4 pl-10 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] placeholder:opacity-60 focus:outline-none",
+            style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }
+          }
+        )
+      ] }) })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between px-6 py-4 border-t border-gray-100", children: [
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          onClick: handleReset,
+          className: "h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer",
+          style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText },
+          children: "Reset filters"
+        }
+      ),
+      /* @__PURE__ */ jsxs("div", { className: "flex gap-3", children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: onClose,
+            className: "h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer",
+            style: { backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText },
+            children: "Cancel"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: handleApply,
+            className: "h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none min-w-[140px] flex items-center justify-center gap-2",
+            style: { backgroundColor: buttonPrimaryBg, color: buttonPrimaryText },
+            children: isLoadingCount ? /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsxs("svg", { className: "animate-spin h-4 w-4 text-white", xmlns: "http://www.w3.org/2000/svg", fill: "none", viewBox: "0 0 24 24", children: [
+                /* @__PURE__ */ jsx("circle", { className: "opacity-25", cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "4" }),
+                /* @__PURE__ */ jsx("path", { className: "opacity-75", fill: "currentColor", d: "M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" })
+              ] }),
+              /* @__PURE__ */ jsx("span", { children: "Loading..." })
+            ] }) : `See ${previewCount > 0 ? previewCount.toLocaleString() : ""} properties`
+          }
+        )
+      ] })
+    ] })
+  ] }) });
+};
+export {
+  FiltersModal as default
+};

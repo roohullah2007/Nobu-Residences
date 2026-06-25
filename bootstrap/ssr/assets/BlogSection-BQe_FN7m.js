@@ -1,0 +1,89 @@
+import { jsx, jsxs } from "react/jsx-runtime";
+import "react";
+import { Link } from "@inertiajs/react";
+const BlogSection = ({ blogs = [] }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  };
+  return /* @__PURE__ */ jsx("section", { className: "py-8", children: /* @__PURE__ */ jsxs("div", { className: "max-w-[1280px] mx-auto px-4 md:px-0", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex flex-row justify-between items-center mb-8 md:mb-12 h-[50px]", children: [
+      /* @__PURE__ */ jsx("h2", { className: "font-space-grotesk font-bold text-[32px] md:text-[40px] leading-[40px] md:leading-[50px] tracking-[-0.03em] text-[#293056]", children: "Blogs" }),
+      /* @__PURE__ */ jsxs(
+        Link,
+        {
+          href: "/blogs",
+          className: "flex flex-row items-center gap-4 group",
+          children: [
+            /* @__PURE__ */ jsx("span", { className: "font-work-sans font-bold text-lg leading-[27px] tracking-[-0.03em] text-[#293056] group-hover:text-[#293056]/80 transition-colors", children: "View All" }),
+            /* @__PURE__ */ jsx(
+              "svg",
+              {
+                className: "w-6 h-6",
+                fill: "none",
+                viewBox: "0 0 24 24",
+                children: /* @__PURE__ */ jsx(
+                  "path",
+                  {
+                    d: "M5 12H19M19 12L12 5M19 12L12 19",
+                    stroke: "#293056",
+                    strokeWidth: "2",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    className: "group-hover:translate-x-1 transition-transform"
+                  }
+                )
+              }
+            )
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-6", children: blogs.slice(0, 6).map((blog) => /* @__PURE__ */ jsx(BlogCard, { blog, formatDate }, blog.id)) }),
+    blogs.length === 0 && /* @__PURE__ */ jsxs("div", { className: "text-center py-12 text-gray-500", children: [
+      /* @__PURE__ */ jsx("p", { className: "text-lg", children: "No blog posts available yet." }),
+      /* @__PURE__ */ jsx("p", { className: "text-sm mt-2", children: "Check back soon for updates!" })
+    ] })
+  ] }) });
+};
+const BlogCard = ({ blog, formatDate }) => {
+  const categoryName = blog.blog_category?.name || blog.category || "General";
+  blog.blog_category?.slug || blog.category?.toLowerCase() || "general";
+  return /* @__PURE__ */ jsx(
+    Link,
+    {
+      href: `/blogs/${blog.slug || blog.id}`,
+      className: "block group",
+      children: /* @__PURE__ */ jsxs("article", { className: "bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer", children: [
+        blog.image ? /* @__PURE__ */ jsx(
+          "img",
+          {
+            src: blog.image,
+            alt: blog.title,
+            className: "h-48 w-full object-cover"
+          }
+        ) : /* @__PURE__ */ jsx("div", { className: "h-48 bg-gray-200 flex items-center justify-center", children: /* @__PURE__ */ jsx("span", { className: "text-gray-500", children: "Blog Image" }) }),
+        /* @__PURE__ */ jsxs("div", { className: "p-6", children: [
+          /* @__PURE__ */ jsx("span", { className: "inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium mb-3", children: categoryName }),
+          /* @__PURE__ */ jsx("h3", { className: "text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors", children: blog.title }),
+          /* @__PURE__ */ jsx("p", { className: "text-gray-600 text-sm mb-4 line-clamp-2", children: blog.excerpt || blog.content?.substring(0, 100) + "..." }),
+          /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-xs text-gray-500", children: [
+            /* @__PURE__ */ jsxs("span", { children: [
+              "By ",
+              blog.author || "Admin"
+            ] }),
+            /* @__PURE__ */ jsx("span", { children: formatDate(blog.published_at || blog.created_at) })
+          ] })
+        ] })
+      ] })
+    }
+  );
+};
+export {
+  BlogSection as default
+};
