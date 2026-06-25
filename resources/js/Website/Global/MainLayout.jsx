@@ -1,7 +1,11 @@
 import Footer from '@/Website/Global/Footer';
 import Navbar from '@/Website/Global/Navbar';
 
-export default function MainLayout({ children, siteName, siteUrl, year, website, pageContent, auth, hideHeader = false, blueHeader = false, noPadding = false }) {
+// blueHeader defaults to true so EVERY page gets the site-standard navy header
+// (white logo, 82px band). Pages that render their own header pass
+// hideHeader (e.g. the home page's scroll-aware HomeHeader). The old default
+// (false) rendered a white-pill navbar where the white logo was invisible.
+export default function MainLayout({ children, siteName, siteUrl, year, website, pageContent, auth, hideHeader = false, blueHeader = true, noPadding = false }) {
     const brandColors = website?.brand_colors || {
         primary: '#912018',
         secondary: '#1d957d',
