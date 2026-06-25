@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { formatMoney, formatMaint } from '@/Website/Sections/Home/iceData';
+import { LoginModal } from '@/Website/Global/Components';
 
 const CARD_GAP = 16; // matches gap-4 (1rem)
 
@@ -118,13 +119,16 @@ function RealListingCard({ listing }) {
     );
 }
 
-function LockedCard({ building, isRental }) {
+function LockedCard({ building, isRental, onRegister }) {
     const image = building?.main_image || '/assets/nobu-building.jpg';
     const buildingName = building?.name || 'Nobu Residences';
 
     return (
         <div data-card className="flex-shrink-0 w-[320px] sm:w-[360px] md:w-[380px] snap-start">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-neutral-200 cursor-pointer group">
+            <div
+                onClick={onRegister}
+                className="relative aspect-[3/4] overflow-hidden rounded-xl bg-neutral-200 cursor-pointer group"
+            >
                 <img
                     src={image}
                     alt="Off-market listing"
@@ -142,13 +146,14 @@ function LockedCard({ building, isRental }) {
                     </div>
                     <h3 className="text-white text-lg font-semibold mb-1">Off-Market Listing</h3>
                     <p className="text-white/50 text-[13px] mb-4">Register to view exclusive details</p>
-                    <a
-                        href="/login"
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onRegister?.(); }}
                         className="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-white text-[11px] tracking-[0.15em] uppercase font-bold rounded-lg transition-colors shadow-lg shadow-gold-500/20"
                     >
                         <SparklesIcon />
                         Register to View
-                    </a>
+                    </button>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
                     <p className="text-white/40 text-[13px] mb-1.5">
@@ -174,9 +179,11 @@ export default function ListingCarousel({
     viewMoreHref = '/search',
     auth,
     building,
+    website,
 }) {
     const scrollerRef = useRef(null);
     const pausedRef = useRef(false);
+    const [registerOpen, setRegisterOpen] = useState(false);
 
     const isLoggedIn = !!auth?.user;
     const isRentalSection = (title || '').includes('Rent');
@@ -284,7 +291,7 @@ export default function ListingCarousel({
                     item.type === 'real' ? (
                         <RealListingCard key={item.key} listing={item.listing} />
                     ) : (
-                        <LockedCard key={item.key} building={building} isRental={isRentalSection} />
+                        <LockedCard key={item.key} building={building} isRental={isRentalSection} onRegister={() => setRegisterOpen(true)} />
                     )
                 ))}
             </div>
@@ -298,6 +305,15 @@ export default function ListingCarousel({
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                 </Link>
             </div>
+
+            {/* Auth gate for off-market cards — opens the shared register/login
+                modal (Register tab first), same modal used by the navbar. */}
+            <LoginModal
+                isOpen={registerOpen}
+                onClose={() => setRegisterOpen(false)}
+                website={website}
+                initialTab="register"
+            />
         </section>
     );
 }

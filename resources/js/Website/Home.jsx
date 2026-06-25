@@ -103,6 +103,7 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
                     viewMoreHref="/search"
                     auth={auth}
                     building={buildingData}
+                    website={website}
                 />
 
                 <ListingCarousel
@@ -113,6 +114,7 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
                     viewMoreHref="/search"
                     auth={auth}
                     building={buildingData}
+                    website={website}
                 />
 
                 <BuildingInfo pageContent={pageContent} building={building} />
