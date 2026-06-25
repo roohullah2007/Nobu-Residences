@@ -540,20 +540,50 @@ class PropertySearchController extends Controller
         // specific building want every unit type there.
         $hasAddressScope = !empty($apiParams['streetNumber']);
         if (!$hasAddressScope && !empty($params['property_type']) && count($params['property_type']) > 0) {
-            $styleMap = [
-                'Condo Apartment' => 'Apartment',
-                'Condo Townhouse' => 'Stacked Townhouse',
-                'Detached' => 'Detached',
-                'Semi-Detached' => 'Semi-Detached',
-                'Loft' => 'Loft',
-                'Bachelor/Studio' => 'Bachelor/Studio',
+            // Map the FiltersModal property-type labels to Repliers `propertyType`
+            // values. Repliers exposes the Detached/Semi/Condo distinction via
+            // `propertyType` (NOT `style`, which on freehold homes describes the
+            // storey layout — "2-Storey", "Bungalow" — so the old style=Detached
+            // mapping matched nothing). Repliers ORs repeated params together, so
+            // every selected type is passed as an array (makeRequest serialises
+            // arrays as propertyType=Detached&propertyType=…). Freehold types also
+            // require broadening `class` beyond the default condoProperty, else
+            // they're excluded and the count never changes.
+            //
+            // Each label can expand to several Repliers propertyType values
+            // (e.g. "Townhouse" covers both condo and freehold townhouses).
+            $typeMap = [
+                'Condo Apartment' => ['types' => ['Condo Apartment'], 'classes' => ['condoProperty']],
+                'Co-Op Apt'       => ['types' => ['Co-Op Apartment', 'Co-Ownership Apartment'], 'classes' => ['condoProperty']],
+                'Townhouse'       => ['types' => ['Condo Townhouse', 'Att/Row/Townhouse'], 'classes' => ['condoProperty', 'residentialProperty']],
+                'Condo Townhouse' => ['types' => ['Condo Townhouse'], 'classes' => ['condoProperty']],
+                'Detached'        => ['types' => ['Detached'], 'classes' => ['residentialProperty']],
+                'Semi-Detached'   => ['types' => ['Semi-Detached'], 'classes' => ['residentialProperty']],
             ];
-            $styles = [];
+
+            $propertyTypes = [];
+            $classes = [];
             foreach ($params['property_type'] as $type) {
-                $styles[] = $styleMap[$type] ?? $type;
+                $entry = $typeMap[$type] ?? ['types' => [$type], 'classes' => ['condoProperty']];
+                foreach ($entry['types'] as $t) {
+                    if (!in_array($t, $propertyTypes, true)) {
+                        $propertyTypes[] = $t;
+                    }
+                }
+                foreach ($entry['classes'] as $c) {
+                    if (!in_array($c, $classes, true)) {
+                        $classes[] = $c;
+                    }
+                }
             }
-            if (count($styles) === 1) {
-                $apiParams['style'] = $styles[0];
+
+            if (!empty($propertyTypes)) {
+                $apiParams['propertyType'] = count($propertyTypes) === 1 ? $propertyTypes[0] : $propertyTypes;
+                // Widen the class to cover the selected types (a Detached-only
+                // selection must drop the default condoProperty class entirely).
+                if (!empty($classes)) {
+                    $apiParams['class'] = count($classes) === 1 ? $classes[0] : $classes;
+                }
             }
         }
 
