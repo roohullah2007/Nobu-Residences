@@ -148,6 +148,9 @@ Route::put('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchControl
 Route::delete('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'destroy'])->middleware('auth');
 Route::get('/saved-searches/{id}/run', [\App\Http\Controllers\SavedSearchController::class, 'run'])->middleware('auth');
 Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingController::class, 'searchBuildings']);
+// Live for-sale/for-rent counts for the buildings currently on screen.
+// Called AFTER the cards render so the slow Repliers fetch never blocks the list.
+Route::post('/api/buildings-counts', [\App\Http\Controllers\Admin\BuildingController::class, 'buildingCounts']);
 
 // Property Detail API routes
 Route::post('/api/property-detail', [\App\Http\Controllers\Api\PropertyDetailController::class, 'getPropertyDetail']);

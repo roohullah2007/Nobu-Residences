@@ -62,6 +62,110 @@ class RepliersApiService
     }
 
     /**
+     * Search many listing queries CONCURRENTLY.
+     *
+     * Takes an array of Repliers `/listings` param-sets and returns, keyed by
+     * the SAME indexes, the `listings` array for each. Used by the Buildings
+     * tab counts endpoint so ~32 sale/lease queries run in parallel (a few
+     * seconds) instead of serially (~30s).
+     *
+     * - Honours the same per-query cache as searchListings() (cache hits skip
+     *   the network entirely).
+     * - Uses a Guzzle async Pool with capped concurrency.
+     * - A failed individual request yields [] for that index (never throws).
+     *
+     * @param  array<int|string, array>  $paramSets
+     * @param  int  $concurrency
+     * @return array<int|string, array>  index => listings[]
+     */
+    public function searchListingsConcurrent(array $paramSets, int $concurrency = 8): array
+    {
+        $results = [];
+        $toFetch = []; // index => params (cache misses only)
+
+        // Serve cache hits up front.
+        foreach ($paramSets as $idx => $params) {
+            $cacheKey = $this->generateCacheKey('listings_search', $params);
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached)) {
+                $results[$idx] = $cached['listings'] ?? [];
+            } else {
+                $toFetch[$idx] = $params;
+            }
+        }
+
+        if (empty($toFetch)) {
+            return $results;
+        }
+
+        $client = new \GuzzleHttp\Client([
+            'base_uri' => $this->apiUrl . '/',
+            'timeout' => min($this->timeout, 15),
+            'headers' => [
+                'REPLIERS-API-KEY' => $this->apiKey,
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        // Keep a stable index list so the pool callbacks can map back.
+        $indexes = array_keys($toFetch);
+
+        $requests = function () use ($client, $toFetch) {
+            foreach ($toFetch as $params) {
+                // Repliers expects repeated params for arrays: city=A&city=B
+                $queryParts = [];
+                foreach ($params as $key => $value) {
+                    if (is_array($value)) {
+                        foreach ($value as $v) {
+                            $queryParts[] = urlencode($key) . '=' . urlencode($v);
+                        }
+                    } else {
+                        $queryParts[] = urlencode($key) . '=' . urlencode($value);
+                    }
+                }
+                $url = 'listings' . (!empty($queryParts) ? '?' . implode('&', $queryParts) : '');
+                // Pool requires a callable that returns a promise (not a bare
+                // promise), so requests fire lazily as concurrency slots free up.
+                yield fn() => $client->getAsync($url);
+            }
+        };
+
+        $pool = new \GuzzleHttp\Pool($client, $requests(), [
+            'concurrency' => $concurrency,
+            'fulfilled' => function ($response, $position) use (&$results, $indexes, $toFetch) {
+                $idx = $indexes[$position];
+                $data = json_decode((string) $response->getBody(), true) ?: [];
+                $listings = $data['listings'] ?? [];
+                $results[$idx] = $listings;
+
+                // Populate the shared per-query cache so subsequent serial
+                // searchListings() calls (and page reloads) are instant.
+                $cacheKey = $this->generateCacheKey('listings_search', $toFetch[$idx]);
+                Cache::put($cacheKey, [
+                    'listings' => $listings,
+                    'count' => $data['count'] ?? 0,
+                    'page' => $data['page'] ?? 1,
+                    'numPages' => $data['numPages'] ?? 0,
+                    'pageSize' => $data['pageSize'] ?? count($listings),
+                    'aggregates' => $data['aggregates'] ?? null,
+                    'statistics' => $data['statistics'] ?? null,
+                ], $this->cacheTtl);
+            },
+            'rejected' => function ($reason, $position) use (&$results, $indexes) {
+                $idx = $indexes[$position];
+                $results[$idx] = [];
+                Log::warning('Repliers concurrent request failed', [
+                    'error' => $reason instanceof \Throwable ? $reason->getMessage() : (string) $reason,
+                ]);
+            },
+        ]);
+
+        $pool->promise()->wait();
+
+        return $results;
+    }
+
+    /**
      * Search listings without caching (for sync operations)
      */
     public function searchListingsNoCache(array $params = []): array

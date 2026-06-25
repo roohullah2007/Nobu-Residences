@@ -689,10 +689,14 @@ class BuildingController extends Controller
             
             // Format buildings for response
             $formattedBuildings = $buildings->map(function($building) {
-                // Live counts from Repliers MLS — without these the card
-                // renders "0 Condos for Sale | 0 Condos for Rent" because
-                // the mapper below would output undefined fields.
-                $counts = $building->getLiveListingCounts();
+                // IMPORTANT: do NOT call getLiveListingCounts() here — it makes
+                // ~2 Repliers round-trips per building (sale + lease), which made
+                // a cold-cache page of 16 buildings ~30s and 500 (PHP timeout).
+                // Read the per-building count from cache only; when it's absent
+                // we return null counts (a "loading" state) and the frontend
+                // fills them in afterwards via POST /api/buildings-counts, which
+                // fetches them in parallel. The list query itself is pure DB.
+                $counts = \Cache::get('building_listing_counts:' . $building->id);
                 return [
                     'id' => $building->id,
                     'name' => $building->name,
@@ -704,8 +708,10 @@ class BuildingController extends Controller
                     'postal_code' => $building->postal_code,
                     'price_range' => $building->price_range,
                     'total_units' => $building->total_units,
-                    'units_for_sale' => $counts['sale'],
-                    'units_for_rent' => $counts['rent'],
+                    // null = "unknown/loading" — frontend resolves it via
+                    // /api/buildings-counts. Only a cache HIT yields a number here.
+                    'units_for_sale' => is_array($counts) ? $counts['sale'] : null,
+                    'units_for_rent' => is_array($counts) ? $counts['rent'] : null,
                     'floors' => $building->floors,
                     'status' => $building->status,
                     'year_built' => $building->year_built,
@@ -754,5 +760,209 @@ class BuildingController extends Controller
                 'message' => 'Failed to search buildings: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Lightweight live-counts endpoint for the Buildings tab.
+     *
+     * The list endpoint (searchBuildings) renders the cards instantly using
+     * pure DB data + whatever per-building counts are already cached. The
+     * frontend then calls THIS endpoint with the IDs currently on screen
+     * (<=16) to fill in the live for-sale/for-rent numbers.
+     *
+     * Counts come from Building::getLiveListingCounts() (Repliers-backed,
+     * cached 600s per building). We fetch all the needed Repliers queries
+     * CONCURRENTLY (Guzzle async pool, capped concurrency) so ~32 requests
+     * finish in a few seconds instead of ~30s serially. A building whose
+     * fetch fails returns 0/0 rather than failing the whole batch.
+     *
+     * Request:  { ids: ["uuid", ...] }
+     * Response: { success: true, counts: { "uuid": { sale: int, rent: int }, ... } }
+     */
+    public function buildingCounts(Request $request)
+    {
+        try {
+            $ids = $request->input('ids', []);
+            if (!is_array($ids)) {
+                $ids = [];
+            }
+            // Cap the batch — the frontend only ever shows a page (16).
+            $ids = array_slice(array_values(array_filter($ids)), 0, 24);
+
+            if (empty($ids)) {
+                return response()->json(['success' => true, 'counts' => (object) []]);
+            }
+
+            $buildings = Building::whereIn('id', $ids)->get();
+
+            $counts = [];
+            $toCompute = [];
+
+            // Serve cache hits immediately; collect misses for a parallel fetch.
+            foreach ($buildings as $building) {
+                $cached = \Cache::get('building_listing_counts:' . $building->id);
+                if (is_array($cached)) {
+                    $counts[$building->id] = ['sale' => $cached['sale'], 'rent' => $cached['rent']];
+                } else {
+                    $toCompute[] = $building;
+                }
+            }
+
+            if (!empty($toCompute)) {
+                $computed = $this->computeCountsConcurrently($toCompute);
+                foreach ($computed as $id => $c) {
+                    $counts[$id] = $c;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'counts' => $counts,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Buildings counts error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch building counts',
+            ], 500);
+        }
+    }
+
+    /**
+     * Compute live sale/rent counts for the given buildings, running every
+     * Repliers query concurrently via a single Guzzle async pool, then
+     * caching each building's result for 600s (same key/TTL as
+     * Building::getLiveListingCounts so both paths share the cache).
+     *
+     * @param  \Illuminate\Support\Collection|array  $buildings
+     * @return array<string, array{sale:int, rent:int}>
+     */
+    private function computeCountsConcurrently($buildings): array
+    {
+        $api = app(\App\Services\RepliersApiService::class);
+
+        // Build the flat list of Repliers queries we need. Each building groups
+        // its addresses by street name (mirrors getLiveListingCounts) and emits
+        // a {sale, lease} query per street group.
+        $requests = [];          // index => ['params' => [...], 'numbers' => [...]]
+        $buildingMeta = [];      // building_id => ['sale' => 0, 'rent' => 0, 'requests' => [['idx'=>i,'type'=>'sale'], ...]]
+
+        foreach ($buildings as $building) {
+            $groups = $this->buildingStreetGroups($building);
+            $buildingMeta[$building->id] = ['sale' => 0, 'rent' => 0, 'requests' => []];
+
+            foreach ($groups as $g) {
+                foreach (['sale', 'lease'] as $t) {
+                    $params = [
+                        'class' => 'condoProperty',
+                        'status' => 'A',
+                        'type' => $t,
+                        'streetName' => $g['name'],
+                        'pageNum' => 1,
+                        'resultsPerPage' => 200,
+                    ];
+                    if (!empty($building->city)) {
+                        $params['city'] = $building->city;
+                    }
+                    $idx = count($requests);
+                    $requests[$idx] = ['params' => $params, 'numbers' => $g['numbers']];
+                    $buildingMeta[$building->id]['requests'][] = ['idx' => $idx, 'type' => $t];
+                }
+            }
+        }
+
+        // Fire all requests concurrently and collect each response's listings.
+        $listingsByIdx = !empty($requests)
+            ? $api->searchListingsConcurrent(array_map(fn($r) => $r['params'], $requests))
+            : [];
+
+        // Tally matches per building.
+        $result = [];
+        foreach ($buildingMeta as $buildingId => $meta) {
+            $sale = 0;
+            $rent = 0;
+            foreach ($meta['requests'] as $req) {
+                $listings = $listingsByIdx[$req['idx']] ?? [];
+                $numbers = $requests[$req['idx']]['numbers'];
+                $matched = 0;
+                foreach ($listings as $L) {
+                    $num = (string) (
+                        $L['address']['streetNumber']
+                        ?? $L['StreetNumber']
+                        ?? ''
+                    );
+                    if ($num !== '' && isset($numbers[$num])) {
+                        $matched++;
+                    }
+                }
+                if ($req['type'] === 'sale') {
+                    $sale += $matched;
+                } else {
+                    $rent += $matched;
+                }
+            }
+            $counts = ['sale' => $sale, 'rent' => $rent];
+            // Cache with the same key/TTL getLiveListingCounts() uses so the
+            // list endpoint picks these up on the next page load.
+            \Cache::put('building_listing_counts:' . $buildingId, $counts, 600);
+            $result[$buildingId] = $counts;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Parse a building's addresses into street-name groups (one Repliers query
+     * per group). Mirrors the grouping logic in
+     * Building::getLiveListingCounts() so counts stay identical.
+     *
+     * @return array<int, array{name:string, numbers:array<string,bool>}>
+     */
+    private function buildingStreetGroups(Building $building): array
+    {
+        $rawCandidates = [
+            $building->street_address_1 ?? null,
+            $building->street_address_2 ?? null,
+        ];
+        if (is_array($building->additional_addresses)) {
+            foreach ($building->additional_addresses as $a) {
+                $rawCandidates[] = $a;
+            }
+        }
+
+        $addresses = [];
+        $seen = [];
+        foreach ($rawCandidates as $a) {
+            if ($parsed = Building::parseStreetAddress($a)) {
+                $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                if (!isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $addresses[] = $parsed;
+                }
+            }
+        }
+        if (empty($addresses) && !empty($building->address)) {
+            $parts = preg_split('/\s*[,&]\s*/', $building->address);
+            foreach (array_filter(array_map('trim', $parts)) as $part) {
+                if ($parsed = Building::parseStreetAddress($part)) {
+                    $key = strtolower($parsed['number'] . '|' . $parsed['name']);
+                    if (!isset($seen[$key])) {
+                        $seen[$key] = true;
+                        $addresses[] = $parsed;
+                    }
+                }
+            }
+        }
+
+        $groups = [];
+        foreach ($addresses as $addr) {
+            $key = strtolower($addr['name']);
+            if (!isset($groups[$key])) {
+                $groups[$key] = ['name' => $addr['name'], 'numbers' => []];
+            }
+            $groups[$key]['numbers'][$addr['number']] = true;
+        }
+
+        return array_values($groups);
     }
 }

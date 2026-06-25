@@ -300,6 +300,40 @@ export default function EnhancedPropertySearch({
   // Track active request to prevent duplicates
   const abortControllerRef = useRef(null);
 
+  // After building cards render (from /api/buildings-search, which returns
+  // null counts when uncached), fetch the live for-sale/for-rent counts in a
+  // follow-up request and merge them in. The backend fetches them in parallel,
+  // so this resolves in a few seconds without ever blocking the list render.
+  const fetchBuildingCounts = async (buildingList) => {
+    const ids = (buildingList || [])
+      .map((b) => b.id)
+      .filter(Boolean);
+    if (ids.length === 0) return;
+    try {
+      const response = await fetch('/api/buildings-counts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({ ids })
+      });
+      const result = await response.json();
+      if (!result.success || !result.counts) return;
+      const counts = result.counts;
+      setBuildings((prev) =>
+        prev.map((b) =>
+          counts[b.id]
+            ? { ...b, units_for_sale: counts[b.id].sale, units_for_rent: counts[b.id].rent }
+            : b
+        )
+      );
+    } catch (error) {
+      // Counts are non-critical — leave the placeholder if this fails.
+      console.warn('Building counts fetch failed:', error);
+    }
+  };
+
   // Perform search
   const performSearch = async (params = searchFilters, resetPage = false, tabOverride = null) => {
     // Abort any pending request
@@ -500,8 +534,12 @@ export default function EnhancedPropertySearch({
           setBuildings([]);
           // Note: Map in mixed view now uses ClusteredPropertyMap which fetches its own coordinates
         } else {
-          setBuildings(result.data.buildings || []);
+          const buildingList = result.data.buildings || [];
+          setBuildings(buildingList);
           setProperties([]);
+          // Fill in live for-sale/for-rent counts after the cards render.
+          // Fire-and-forget — the cards are already on screen with placeholders.
+          fetchBuildingCounts(buildingList);
         }
         setTotal(result.data.total || 0);
         setCurrentPage(result.data.page || 1);

@@ -706,7 +706,9 @@ const PropertyCardV5 = ({
             {property.source === 'building' ? (
               /* Condos for Sale and Rent */
               <div className={`flex items-center justify-start w-full min-h-8 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
-                {`${property.unitsForSale ?? 0} Condos for Sale | ${property.unitsForRent ?? 0} Condos for Rent`}
+                {/* Counts arrive a moment after the card via /api/buildings-counts. */}
+                {/* While null/undefined, show a subtle "—" placeholder instead of "0". */}
+                {`${property.unitsForSale ?? '—'} Condos for Sale | ${property.unitsForRent ?? '—'} Condos for Rent`}
               </div>
             ) : (
               /* Property Features - Beds, Baths, etc */
