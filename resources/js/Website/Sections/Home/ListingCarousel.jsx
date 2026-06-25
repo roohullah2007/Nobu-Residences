@@ -239,7 +239,7 @@ export default function ListingCarousel({
 
     return (
         <section id={id} className="py-14 md:py-20 bg-white">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto px-4 md:px-0">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         {eyebrow && (
@@ -273,8 +273,8 @@ export default function ListingCarousel({
 
             <div
                 ref={scrollerRef}
-                className="carousel-scroll scrollbar-hide flex gap-4 overflow-x-auto px-6 lg:px-10 pb-4 snap-x snap-mandatory"
-                style={{ scrollPaddingLeft: '1.5rem' }}
+                className="carousel-scroll scrollbar-hide flex gap-4 overflow-x-auto px-4 sm:px-6 lg:px-10 pb-4 snap-x snap-mandatory"
+                style={{ scrollPaddingLeft: '1rem' }}
                 onMouseEnter={() => { pausedRef.current = true; }}
                 onMouseLeave={() => { pausedRef.current = false; }}
                 onFocusCapture={() => { pausedRef.current = true; }}
@@ -289,7 +289,7 @@ export default function ListingCarousel({
                 ))}
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 lg:px-10 mt-6 text-right">
+            <div className="max-w-7xl mx-auto px-4 md:px-0 mt-6 text-right">
                 <Link
                     href={viewMoreHref}
                     className="inline-flex items-center gap-2 text-[14px] text-neutral-600 hover:text-neutral-900 font-medium"

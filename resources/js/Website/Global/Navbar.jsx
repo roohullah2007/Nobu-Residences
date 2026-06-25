@@ -189,7 +189,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
         ? 'w-full h-full flex items-center justify-center z-20'
         : 'absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20';
     const innerWrapperClass = onDarkBg
-        ? 'mx-auto w-full max-w-[1280px] h-full flex items-center'
+        ? 'mx-auto px-4 sm:px-6 md:px-0 w-full max-w-[1280px] h-full flex items-center'
         : 'mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center py-0 md:py-8';
 
     return (
