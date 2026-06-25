@@ -411,9 +411,6 @@ export default function CompareListings({
         <MainLayout auth={auth} website={website} blueHeader={true}>
             <Head title="Compare Listings" />
 
-            {/* Header bar */}
-            <div className="w-full h-[85px] md:h-[120px] relative flex items-center" style={{ backgroundColor: '#292E56' }} />
-
             <div className="min-h-screen bg-white">
                 <div className="max-w-[1280px] mx-auto px-4 py-6 sm:py-12">
                     {/* Header section */}
