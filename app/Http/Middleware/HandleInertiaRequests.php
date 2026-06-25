@@ -145,11 +145,15 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
-        // Check if Google OAuth is properly configured (not placeholder values)
+        // Check if Google OAuth is properly configured (not placeholder values).
+        // Google login only works on the DEFAULT site (nobu) — its OAuth
+        // redirect URI is registered for that domain — so it is hidden on all
+        // sub-sites/created sites until each gets its own OAuth config.
         $googleClientId = config('services.google.client_id');
         $googleOAuthEnabled = !empty($googleClientId) &&
                               $googleClientId !== 'your-google-client-id' &&
-                              !str_starts_with($googleClientId, 'your-');
+                              !str_starts_with($googleClientId, 'your-') &&
+                              ($website && $website->is_default);
 
         return [
             ...parent::share($request),
