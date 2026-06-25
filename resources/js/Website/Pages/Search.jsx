@@ -483,7 +483,20 @@ export default function EnhancedPropertySearch({
               console.log(`✅ ${searchParams.property_status} properties: ${statusCount}/${result.data.properties.length}`);
             }
           }
-          setProperties(result.data.properties || []);
+          // Dedupe by ListingKey before storing. The Repliers feed can return
+          // the same listing twice (e.g. multi-board duplicates), which would
+          // render two cards with the same React key and trigger the
+          // "two children with the same key" warning. Keep first occurrence.
+          const rawProperties = result.data.properties || [];
+          const seenKeys = new Set();
+          const dedupedProperties = rawProperties.filter((p) => {
+            const key = p.ListingKey;
+            if (!key) return true; // keep keyless rows (index key used at render)
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
+          setProperties(dedupedProperties);
           setBuildings([]);
           // Note: Map in mixed view now uses ClusteredPropertyMap which fetches its own coordinates
         } else {
@@ -1729,13 +1742,14 @@ export default function EnhancedPropertySearch({
                       // Show search results in the left panel
                       properties.length > 0 ? (
                         <div className="idx-ampre-mixed-grid">
-                          {properties.map((property) => {
+                          {properties.map((property, index) => {
                             const formattedProperty = formatPropertyForCard(property);
+                            const cardKey = property.ListingKey ? `${property.ListingKey}-${index}` : `idx-${index}`;
                             // Use PropertyCardV5 directly if we already have an image
                             if (formattedProperty.imageUrl) {
                               return (
                                 <PropertyCardV5
-                                key={property.ListingKey}
+                                key={cardKey}
                                 property={formattedProperty}
                                 size="grid"
                                 onClick={(property) => {
@@ -1751,7 +1765,7 @@ export default function EnhancedPropertySearch({
                             // Use LazyPropertyCard for properties without images
                             return (
                               <LazyPropertyCard
-                                key={property.ListingKey}
+                                key={cardKey}
                                 property={formattedProperty}
                                 size="mobile"
                                 observeElement={observeElement}
@@ -1849,13 +1863,14 @@ export default function EnhancedPropertySearch({
                   // Property Cards - 4 per row IDX-AMPRE style with lazy loading
                   properties && properties.length > 0 ? (
                     <div className="idx-ampre-grid">
-                      {properties.map((property) => {
+                      {properties.map((property, index) => {
                         const formattedProperty = formatPropertyForCard(property);
+                        const cardKey = property.ListingKey ? `${property.ListingKey}-${index}` : `idx-${index}`;
                         // Use PropertyCardV5 directly if we already have an image
                         if (formattedProperty.imageUrl) {
                           return (
                             <PropertyCardV5
-                              key={property.ListingKey}
+                              key={cardKey}
                               property={formattedProperty}
                               size="default"
                               onClick={(property) => {
@@ -1869,7 +1884,7 @@ export default function EnhancedPropertySearch({
                         // Use LazyPropertyCard for properties without images
                         return (
                           <LazyPropertyCard
-                            key={property.ListingKey}
+                            key={cardKey}
                             property={formattedProperty}
                             size="default"
                             observeElement={observeElement}

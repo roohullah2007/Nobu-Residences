@@ -641,10 +641,63 @@ class PropertySearchController extends Controller
             }
         }
 
-        // Amenities — Repliers filters on condominium amenity names (repeated
-        // `amenities` query params).
+        // Amenities — Repliers filters on condominium amenity names via repeated
+        // `amenities` query params, which it ANDs together (a listing must have
+        // every requested amenity). The FiltersModal uses friendly labels that
+        // don't all match Repliers' canonical vocabulary (verified against the
+        // condominium.amenities aggregate), so map each label to its exact
+        // Repliers name. Labels with no Repliers amenity equivalent (internet
+        // providers) fall back to free-text search so they still narrow results.
         if (!empty($params['amenities']) && is_array($params['amenities'])) {
-            $apiParams['amenities'] = array_values($params['amenities']);
+            $amenityMap = [
+                'Gym'             => 'Gym',
+                'Pool'            => 'Indoor Pool',
+                'Concierge'       => 'Concierge',
+                'Guest Suites'    => 'Guest Suites',
+                'Visitor Parking' => 'Visitor Parking',
+                'BBQ Permitted'   => 'BBQs Allowed',
+                'Party Room'      => 'Party Room/Meeting Room',
+                'Rooftop Deck'    => 'Rooftop Deck/Garden',
+            ];
+            $mappedAmenities = [];
+            $amenitySearchTerms = [];
+            foreach ($params['amenities'] as $amenity) {
+                if (isset($amenityMap[$amenity])) {
+                    $mappedAmenities[] = $amenityMap[$amenity];
+                } else {
+                    // No native Repliers amenity (e.g. Beanfield Fibre,
+                    // FibreStream) — fold into search so the count still moves.
+                    $amenitySearchTerms[] = $amenity;
+                }
+            }
+            if (!empty($mappedAmenities)) {
+                $apiParams['amenities'] = array_values(array_unique($mappedAmenities));
+            }
+            if (!empty($amenitySearchTerms)) {
+                $apiParams['search'] = trim(($apiParams['search'] ?? '') . ' ' . implode(' ', $amenitySearchTerms));
+            }
+        }
+
+        // Locker / Balcony — Repliers filters natively on condominium.locker and
+        // details.balcony (verified against their aggregates). "Yes" must match
+        // any non-None value, so pass the full set of present values as an array
+        // (Repliers ORs repeated params); "No" matches the literal "None".
+        if (!empty($params['locker']) && $params['locker'] !== 'Any') {
+            if (strcasecmp($params['locker'], 'No') === 0) {
+                $apiParams['locker'] = 'None';
+            } else {
+                $apiParams['locker'] = [
+                    'Owned', 'Exclusive', 'Ensuite', 'Common',
+                    'Ensuite+Exclusive', 'Ensuite+Common', 'Ensuite+Owned',
+                ];
+            }
+        }
+        if (!empty($params['balcony']) && $params['balcony'] !== 'Any') {
+            if (strcasecmp($params['balcony'], 'No') === 0) {
+                $apiParams['balcony'] = 'None';
+            } else {
+                $apiParams['balcony'] = ['Open', 'Terrace', 'Juliette', 'Enclosed'];
+            }
         }
 
         $sortMap = [
@@ -3180,6 +3233,10 @@ class PropertySearchController extends Controller
             'days_on_market' => '',
             'keywords' => '',
             'home_types' => [],
+            'amenities' => [],
+            'locker' => '',
+            'balcony' => '',
+            'den' => false,
         ];
         
         if (!is_array($params)) {
