@@ -370,7 +370,7 @@ const FiltersModal = ({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[90vh] flex flex-col font-['Work_Sans']">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
           <div></div>
           <h2 className="font-medium text-[#293056] text-base leading-6 tracking-[-0.03em]">Filters</h2>
           <button
@@ -384,7 +384,7 @@ const FiltersModal = ({
         </div>
 
         {/* Modal Content */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 sm:px-6 py-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
 
           {/* Status Tabs */}
           <div className="flex gap-2 p-1 bg-gray-50 rounded-lg mb-6">
@@ -427,7 +427,11 @@ const FiltersModal = ({
               />
             </div>
 
-            {/* Price Slider with Custom Draggable Handles */}
+            {/* Price Slider with Custom Draggable Handles.
+                Wrapped in px-2.5 so the handles (which overhang the track by
+                9px on each end) stay inside the modal instead of being cropped
+                at the edges on mobile. */}
+            <div className="px-2.5">
             <div className="relative flex w-full items-center h-5">
               {/* Slider Track Background */}
               <div className="absolute w-full h-[1.61px] bg-gray-300 rounded-full"></div>
@@ -601,6 +605,7 @@ const FiltersModal = ({
                   <path d="M13.845 4.85712C13.845 5.21076 13.704 5.54988 13.454 5.79992C13.204 6.04996 12.865 6.19046 12.511 6.19046C12.158 6.19046 11.818 6.04996 11.568 5.79992C11.318 5.54988 11.178 5.21076 11.178 4.85712C11.178 4.50348 11.318 4.16437 11.568 3.91432C11.818 3.66428 12.158 3.52379 12.511 3.52379C12.865 3.52379 13.204 3.66428 13.454 3.91432C13.704 4.16437 13.845 4.50348 13.845 4.85712ZM13.845 9.52379C13.845 9.87743 13.704 10.2165 13.454 10.4666C13.204 10.7166 12.865 10.8571 12.511 10.8571C12.158 10.8571 11.818 10.7166 11.568 10.4666C11.318 10.2165 11.178 9.87743 11.178 9.52379C11.178 9.17015 11.318 8.83104 11.568 8.58099C11.818 8.33095 12.158 8.19046 12.511 8.19046C12.865 8.19046 13.204 8.33095 13.454 8.58099C13.704 8.83104 13.845 9.17015 13.845 9.52379ZM7.845 15.5238C8.198 15.5238 8.537 15.3833 8.787 15.1333C9.037 14.8832 9.178 14.5441 9.178 14.1905C9.178 13.8368 9.037 13.4977 8.787 13.2477C8.537 12.9976 8.198 12.8571 7.845 12.8571C7.491 12.8571 7.152 12.9976 6.902 13.2477C6.652 13.4977 6.511 13.8368 6.511 14.1905C6.511 14.5441 6.652 14.8832 6.902 15.1333C7.152 15.3833 7.491 15.5238 7.845 15.5238ZM12.511 15.5238C12.865 15.5238 13.204 15.3833 13.454 15.1333C13.704 14.8832 13.845 14.5441 13.845 14.1905C13.845 13.8368 13.704 13.4977 13.454 13.2477C13.204 12.9976 12.865 12.8571 12.511 12.8571C12.158 12.8571 11.818 12.9976 11.568 13.2477C11.318 13.4977 11.178 13.8368 11.178 14.1905C11.178 14.5441 11.318 14.8832 11.568 15.1333C11.818 15.3833 12.158 15.5238 12.511 15.5238ZM7.845 10.8571C8.198 10.8571 8.537 10.7166 8.787 10.4666C9.037 10.2165 9.178 9.87743 9.178 9.52379C9.178 9.17015 9.037 8.83104 8.787 8.58099C8.537 8.33095 8.198 8.19046 7.845 8.19046C7.491 8.19046 7.152 8.33095 6.902 8.58099C6.652 8.83104 6.511 9.17015 6.511 9.52379C6.511 9.87743 6.652 10.2165 6.902 10.4666C7.152 10.7166 7.491 10.8571 7.845 10.8571ZM7.845 6.19046C8.198 6.19046 8.537 6.04996 8.787 5.79992C9.037 5.54988 9.178 5.21076 9.178 4.85712C9.178 4.50348 9.037 4.16437 8.787 3.91432C8.537 3.66428 8.198 3.52379 7.845 3.52379C7.491 3.52379 7.152 3.66428 6.902 3.91432C6.652 4.16437 6.511 4.50348 6.511 4.85712C6.511 5.21076 6.652 5.54988 6.902 5.79992C7.152 6.04996 7.491 6.19046 7.845 6.19046Z" fill="#293056"/>
                 </svg>
               </div>
+            </div>
             </div>
           </div>
 
@@ -797,25 +802,25 @@ const FiltersModal = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-t border-gray-100">
           <button
             onClick={handleReset}
-            className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer"
+            className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
             style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
           >
             Reset filters
           </button>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <button
               onClick={onClose}
-              className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer"
+              className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
               style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
             >
               Cancel
             </button>
             <button
               onClick={handleApply}
-              className="h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none min-w-[140px] flex items-center justify-center gap-2"
+              className="h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none min-w-[120px] sm:min-w-[140px] flex items-center justify-center gap-2 whitespace-nowrap"
               style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
             >
               {isLoadingCount ? (
