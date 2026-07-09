@@ -456,10 +456,15 @@ class WebsiteManagementController extends Controller
         }
 
         // Derive a fresh "current state" report from what Ploi actually shows.
-        // Case-insensitive: Ploi may return the alias cased differently from
-        // what the admin typed, and a strict in_array would report a
-        // manually-added alias as missing forever.
-        $hasAlias = $domain && in_array(strtolower($domain), array_map('strtolower', $aliases), true);
+        // Canonical comparison (trim / lowercase / strip trailing dot): Ploi
+        // may return the alias cased or padded differently from what the
+        // admin typed, and a strict comparison then reports a present alias
+        // as missing forever. $aliasListVerified distinguishes "Ploi answered
+        // and the alias is absent" from "couldn't fetch the list" — a failed
+        // fetch must never be presented as "not on Ploi".
+        $canon = fn ($d) => strtolower(rtrim(trim((string) $d), '.'));
+        $aliasListVerified = $ploiConfigured && $ploi->aliasListFetchOk;
+        $hasAlias = $domain && in_array($canon($domain), array_map($canon, $aliases), true);
         $hasCert = false;
         if ($domain) {
             foreach ($certificates as $c) {
@@ -505,7 +510,11 @@ class WebsiteManagementController extends Controller
             'ploi' => $domain
                 ? ($hasAlias
                     ? ['ok' => true, 'message' => "Alias \"{$domain}\" is present on the Ploi site."]
-                    : ['ok' => false, 'message' => "Alias \"{$domain}\" is NOT on the Ploi site yet. Click Retry below."])
+                    : ($aliasListVerified
+                        ? ['ok' => false, 'message' => "Alias \"{$domain}\" is NOT on the Ploi site yet. Click Retry below."]
+                        : ($website->ploi_alias_status === 'added'
+                            ? ['ok' => true, 'message' => "Alias \"{$domain}\" is marked as added. (Couldn't verify with Ploi right now — the live alias list was unavailable.)"]
+                            : ['ok' => null, 'message' => "Couldn't verify the alias list with Ploi right now. Refresh in a moment — this is NOT a confirmation that the alias is missing."])))
                 : ['ok' => null, 'message' => 'No custom domain set — nothing to add to Ploi.'],
             'ssl'  => $domain
                 ? ($hasCert
@@ -554,6 +563,7 @@ class WebsiteManagementController extends Controller
             'report' => $report ?: $liveStatus,
             'liveStatus' => $liveStatus,
             'liveAliases' => $aliases,
+            'liveAliasesVerified' => $aliasListVerified,
             'liveCertificates' => $certificates,
             'persisted' => $persisted,
             'dnsCheck' => $dnsCheck,
@@ -703,22 +713,34 @@ class WebsiteManagementController extends Controller
         // Re-query Ploi for the alias state AFTER the SSL request. Ploi
         // auto-creates aliases for every SAN subject in a successful cert
         // issuance, so the alias is almost always present post-SSL even if
-        // it wasn't before. Building the flash from the pre-request snapshot
-        // produced the confusing "alias NOT on Ploi" message right next to a
-        // successful SSL row. Trust the post-request truth.
-        $aliasOnPloiAfter = in_array($website->domain, $ploi->listAliases(), true);
-        if ($aliasOnPloiAfter && $website->ploi_alias_status !== 'added') {
+        // it wasn't before. aliasExists() is tri-state: true/false when Ploi
+        // answered (all pages, canonical comparison), NULL when the alias
+        // list couldn't be fetched — which must never be reported as "NOT
+        // on Ploi".
+        $aliasOnPloiAfter = $ploi->aliasExists($website->domain);
+        if ($aliasOnPloiAfter === true && $website->ploi_alias_status !== 'added') {
             $website->update([
                 'ploi_alias_status' => 'added',
                 'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
             ]);
         }
 
+        if ($aliasOnPloiAfter === true) {
+            $ploiReport = ['ok' => true, 'message' => "Alias \"{$website->domain}\" is on Ploi."];
+        } elseif ($aliasOnPloiAfter === null) {
+            // Couldn't verify. If the SSL request just succeeded, Ploi creates
+            // the alias as part of issuance; likewise trust a persisted
+            // "added". Otherwise stay neutral — never claim it's missing.
+            $ploiReport = ($ok || $website->ploi_alias_status === 'added')
+                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is marked as added. (Couldn't verify with Ploi right now — the live alias list was unavailable.)"]
+                : ['ok' => null, 'message' => "Couldn't verify the alias list with Ploi right now — this is NOT a confirmation that the alias is missing."];
+        } else {
+            $ploiReport = ['ok' => false, 'message' => "Alias \"{$website->domain}\" is NOT on Ploi yet — click \"Retry domain alias\" first."];
+        }
+
         session()->flash('website_created_report', [
             'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => $aliasOnPloiAfter
-                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is on Ploi."]
-                : ['ok' => false, 'message' => "Alias \"{$website->domain}\" is NOT on Ploi yet — click \"Retry domain alias\" first."],
+            'ploi' => $ploiReport,
             'ssl'  => $sslReport,
         ]);
 

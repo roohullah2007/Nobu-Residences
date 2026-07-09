@@ -36,6 +36,37 @@ class PloiService
     public bool $aliasListFetchOk = false;
 
     /**
+     * Canonical form of a domain for comparisons: trimmed, lowercased, no
+     * trailing dot. Ploi rows and admin input can disagree on case /
+     * whitespace, and a strict comparison then misreports a present alias
+     * as missing.
+     */
+    protected static function canonicalDomain(?string $domain): string
+    {
+        return strtolower(rtrim(trim((string) $domain), '.'));
+    }
+
+    /**
+     * Does the site's live alias list contain this domain?
+     * Returns true/false when Ploi answered, or NULL when the alias list
+     * could not be fetched — callers must never present NULL as "not on
+     * Ploi"; say "couldn't verify" instead.
+     */
+    public function aliasExists(string $domain, ?string $siteId = null): ?bool
+    {
+        $needle = self::canonicalDomain($this->normalizeDomain($domain));
+        if ($needle === '') {
+            return null;
+        }
+        foreach ($this->listAliases($siteId) as $a) {
+            if (self::canonicalDomain($a) === $needle) {
+                return true;
+            }
+        }
+        return $this->aliasListFetchOk ? false : null;
+    }
+
+    /**
      * Is this IP inside Cloudflare's published proxy ranges (v4 or v6)?
      */
     public static function isCloudflareIp(string $ip): bool
@@ -116,7 +147,7 @@ class PloiService
                 null];
         }
         foreach ($existing as $a) {
-            if (strcasecmp($a, $domain) === 0) {
+            if (self::canonicalDomain($a) === self::canonicalDomain($domain)) {
                 return [true, "Alias \"{$domain}\" already exists on Ploi — nothing to add.", null];
             }
         }
@@ -337,34 +368,64 @@ class PloiService
 
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases";
 
-        try {
-            $response = $this->client()->get($endpoint);
-            if (!$response->successful()) {
-                Log::warning('Ploi listAliasesWithIds failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                return [];
-            }
-            $data = $response->json();
-            $this->aliasListFetchOk = true;
-            // Ploi typically returns { "data": [ { "id":..., "domain": "..."}, ... ] }
-            $rows = $data['data'] ?? $data ?? [];
-            $out = [];
-            foreach ($rows as $row) {
-                if (is_string($row)) {
-                    $out[] = ['id' => null, 'domain' => $row];
-                } elseif (is_array($row)) {
-                    $out[] = [
-                        'id' => $row['id'] ?? null,
-                        'domain' => $row['domain'] ?? $row['name'] ?? null,
-                    ];
-                }
-            }
-            return array_values(array_filter($out, fn ($r) => !empty($r['domain'])));
-        } catch (\Throwable $e) {
-            Log::error('Ploi listAliasesWithIds exception', ['error' => $e->getMessage()]);
+        $rows = $this->getAllPages($endpoint, 'listAliasesWithIds');
+        if ($rows === null) {
             return [];
+        }
+
+        $this->aliasListFetchOk = true;
+        // Ploi typically returns { "data": [ { "id":..., "domain": "..."}, ... ] }
+        $out = [];
+        foreach ($rows as $row) {
+            if (is_string($row)) {
+                $out[] = ['id' => null, 'domain' => $row];
+            } elseif (is_array($row)) {
+                $out[] = [
+                    'id' => $row['id'] ?? null,
+                    'domain' => $row['domain'] ?? $row['name'] ?? null,
+                ];
+            }
+        }
+        return array_values(array_filter($out, fn ($r) => !empty($r['domain'])));
+    }
+
+    /**
+     * GET a Ploi list endpoint and follow pagination until every row is
+     * collected. Ploi paginates list responses ({data, links, meta}) — with
+     * 5+ aliases on the site a single-page read silently drops rows, which
+     * then gets misreported as "alias not on Ploi".
+     *
+     * Returns the merged data rows, or NULL when any request failed (so
+     * callers can distinguish "empty list" from "couldn't fetch").
+     */
+    protected function getAllPages(string $endpoint, string $context): ?array
+    {
+        $rows = [];
+        $page = 1;
+        try {
+            do {
+                $response = $this->client()->get($endpoint, ['page' => $page, 'per_page' => 50]);
+                if (!$response->successful()) {
+                    Log::warning("Ploi {$context} failed", [
+                        'page' => $page,
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+                    return null;
+                }
+                $data = $response->json();
+                $batch = is_array($data) ? ($data['data'] ?? $data) : [];
+                if (!is_array($batch) || empty($batch)) {
+                    break;
+                }
+                $rows = array_merge($rows, $batch);
+                $lastPage = (int) ($data['meta']['last_page'] ?? $page);
+                $page++;
+            } while ($page <= $lastPage && $page <= 20); // hard cap = 1000 rows
+            return $rows;
+        } catch (\Throwable $e) {
+            Log::error("Ploi {$context} exception", ['error' => $e->getMessage()]);
+            return null;
         }
     }
 
@@ -438,37 +499,27 @@ class PloiService
 
         $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates";
 
-        try {
-            $response = $this->client()->get($endpoint);
-            if (!$response->successful()) {
-                Log::warning('Ploi listCertificates failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                return [];
-            }
-            $data = $response->json();
-            $rows = $data['data'] ?? $data ?? [];
-            $out = [];
-            foreach ($rows as $r) {
-                if (!is_array($r)) continue;
-                $domains = $r['domain'] ?? $r['domains'] ?? '';
-                if (is_string($domains)) {
-                    $domains = array_map('trim', explode(',', $domains));
-                }
-                $out[] = [
-                    'id' => $r['id'] ?? null,
-                    'type' => $r['type'] ?? null,
-                    'domains' => array_values(array_filter((array) $domains)),
-                    'status' => $r['status'] ?? null,
-                    'expires_at' => $r['expires_at'] ?? null,
-                ];
-            }
-            return $out;
-        } catch (\Throwable $e) {
-            Log::error('Ploi listCertificates exception', ['error' => $e->getMessage()]);
+        $rows = $this->getAllPages($endpoint, 'listCertificates');
+        if ($rows === null) {
             return [];
         }
+
+        $out = [];
+        foreach ($rows as $r) {
+            if (!is_array($r)) continue;
+            $domains = $r['domain'] ?? $r['domains'] ?? '';
+            if (is_string($domains)) {
+                $domains = array_map('trim', explode(',', $domains));
+            }
+            $out[] = [
+                'id' => $r['id'] ?? null,
+                'type' => $r['type'] ?? null,
+                'domains' => array_values(array_filter((array) $domains)),
+                'status' => $r['status'] ?? null,
+                'expires_at' => $r['expires_at'] ?? null,
+            ];
+        }
+        return $out;
     }
 
     /**
