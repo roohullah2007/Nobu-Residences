@@ -13,6 +13,60 @@ class PloiService
     protected string $baseUrl;
     protected bool $requestSsl;
 
+    /**
+     * Cloudflare proxy IP ranges (v4 + v6). A domain resolving here is
+     * orange-clouded: Let's Encrypt's HTTP-01 challenge hits Cloudflare's
+     * edge instead of this server, so issuance can never succeed until the
+     * proxy is switched to "DNS only". https://www.cloudflare.com/ips/
+     */
+    protected const CLOUDFLARE_RANGES = [
+        '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '188.114.96.0/20',
+        '131.0.72.0/22', '190.93.240.0/20', '141.101.64.0/18', '108.162.192.0/18',
+        '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22',
+        '162.158.0.0/15', '198.41.128.0/17',
+        '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32',
+        '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
+    ];
+
+    /**
+     * True when the most recent listAliasesWithIds() call got a successful
+     * response from Ploi. Lets callers distinguish "site has no aliases"
+     * from "couldn't reach Ploi" — both return [].
+     */
+    public bool $aliasListFetchOk = false;
+
+    /**
+     * Is this IP inside Cloudflare's published proxy ranges (v4 or v6)?
+     */
+    public static function isCloudflareIp(string $ip): bool
+    {
+        $bin = @inet_pton($ip);
+        if ($bin === false) {
+            return false;
+        }
+        foreach (self::CLOUDFLARE_RANGES as $cidr) {
+            [$net, $bits] = explode('/', $cidr);
+            $netBin = @inet_pton($net);
+            if ($netBin === false || strlen($netBin) !== strlen($bin)) {
+                continue;
+            }
+            $bits = (int) $bits;
+            $fullBytes = intdiv($bits, 8);
+            $remainder = $bits % 8;
+            if ($fullBytes > 0 && substr($bin, 0, $fullBytes) !== substr($netBin, 0, $fullBytes)) {
+                continue;
+            }
+            if ($remainder > 0) {
+                $mask = (0xFF << (8 - $remainder)) & 0xFF;
+                if ((ord($bin[$fullBytes]) & $mask) !== (ord($netBin[$fullBytes]) & $mask)) {
+                    continue;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
     public function __construct()
     {
         $this->token = (string) config('services.ploi.token');
@@ -49,10 +103,21 @@ class PloiService
             return [false, 'No domain provided.', null];
         }
 
+        // Verify against Ploi's live alias list BEFORE posting. Ploi accepts
+        // a repeat POST with HTTP 200 and creates a duplicate alias row, so a
+        // blind re-add is never safe. If the list can't be fetched, refuse to
+        // add rather than risk a duplicate.
         $existing = $this->listAliases($targetSite);
+        if (!$this->aliasListFetchOk) {
+            return [false,
+                "Couldn't fetch the current alias list from Ploi, so the alias was NOT submitted "
+                . "(re-adding blindly creates duplicate alias rows on Ploi). "
+                . "Check the Ploi API token / connectivity and try again.",
+                null];
+        }
         foreach ($existing as $a) {
             if (strcasecmp($a, $domain) === 0) {
-                return [true, "Alias \"{$domain}\" is already on Ploi — nothing to do.", null];
+                return [true, "Alias \"{$domain}\" already exists on Ploi — nothing to add.", null];
             }
         }
 
@@ -117,10 +182,54 @@ class PloiService
             return [false, 'No domain provided.', null];
         }
 
+        $serverIp = $this->getServerIp();
+
+        // Pre-flight DNS check on the REQUESTED domain before talking to
+        // Ploi at all. Let's Encrypt issuance is all-or-nothing, so a domain
+        // that can't validate would fail the whole batch (and burn LE
+        // rate-limit budget on every retry). The most common cause is
+        // Cloudflare's orange-cloud proxy, which we detect specifically so
+        // the user gets the exact fix instead of a generic Ploi 422.
+        // Wording matters: "should resolve to one of" keeps the frontend's
+        // dnsMismatch parsing and RequestPloiSslJob's stop-retrying
+        // detection working on this message.
+        if ($serverIp) {
+            $ips = $this->lookupIps($domain);
+            $cfIps = array_values(array_filter($ips, [self::class, 'isCloudflareIp']));
+            $ipList = !empty($ips) ? implode(', ', $ips) : 'nothing (no A/AAAA record found)';
+
+            if (!empty($cfIps)) {
+                return [false,
+                    "Pre-flight DNS check failed: \"{$domain}\" resolves to {$ipList} and should resolve to one of {$serverIp}. "
+                    . "This domain is behind Cloudflare's proxy (orange cloud). Let's Encrypt can't validate it. "
+                    . "In Cloudflare DNS, set the A record for the apex and www to {$serverIp} and switch Proxy status to "
+                    . "DNS only (gray cloud), wait 1-2 min, then Retry SSL. After the cert issues you can re-enable the "
+                    . "proxy with SSL/TLS mode Full (strict). No request was sent to Ploi.",
+                    null];
+            }
+
+            if (!in_array($serverIp, $ips, true)) {
+                return [false,
+                    "Pre-flight DNS check failed: \"{$domain}\" resolves to {$ipList} and should resolve to one of {$serverIp}. "
+                    . "Update the domain's A record to {$serverIp}, wait for DNS to propagate, then Retry SSL. "
+                    . "No request was sent to Ploi.",
+                    null];
+            }
+        }
+
         // Start with the requested domain (+ www variant for bare apex).
+        // Only include www when it can actually pass HTTP-01 (or when we
+        // can't check): a missing/proxied www record would otherwise fail
+        // the entire batch, apex included.
+        $skipped = [];
         $domains = [$domain];
         if (!str_starts_with($domain, 'www.') && substr_count($domain, '.') === 1) {
-            $domains[] = 'www.' . $domain;
+            $www = 'www.' . $domain;
+            if (!$serverIp || $this->domainResolvesTo($www, $serverIp)) {
+                $domains[] = $www;
+            } else {
+                $skipped[] = $www;
+            }
         }
 
         // Union with every domain already covered by an existing cert on the
@@ -142,8 +251,6 @@ class PloiService
             return false;
         };
 
-        $serverIp = $this->getServerIp();
-        $skipped = [];
         foreach ($this->listCertificates($targetSite) as $cert) {
             foreach (($cert['domains'] ?? []) as $existing) {
                 if ($hasDomain($existing, $domains) || $hasDomain($existing, $skipped)) {
@@ -221,6 +328,8 @@ class PloiService
      */
     public function listAliasesWithIds(?string $siteId = null): array
     {
+        $this->aliasListFetchOk = false;
+
         $targetSite = $siteId ?: $this->siteId;
         if (!$this->isConfigured() || empty($targetSite)) {
             return [];
@@ -238,6 +347,7 @@ class PloiService
                 return [];
             }
             $data = $response->json();
+            $this->aliasListFetchOk = true;
             // Ploi typically returns { "data": [ { "id":..., "domain": "..."}, ... ] }
             $rows = $data['data'] ?? $data ?? [];
             $out = [];
@@ -423,6 +533,29 @@ class PloiService
      * its DNS no longer points to the server, including it would cause the
      * whole all-or-nothing issuance to fail.
      */
+    /**
+     * All A + AAAA IPs a domain currently resolves to (empty on failure).
+     * AAAA matters: Let's Encrypt prefers IPv6, so a stray AAAA record
+     * pointing at Cloudflare breaks validation even when the A is correct.
+     */
+    protected function lookupIps(string $domain): array
+    {
+        if ($domain === '') {
+            return [];
+        }
+        try {
+            $records = @dns_get_record($domain, DNS_A + DNS_AAAA);
+            $ips = [];
+            foreach ((array) $records as $r) {
+                if (!empty($r['ip']))   { $ips[] = $r['ip']; }
+                if (!empty($r['ipv6'])) { $ips[] = $r['ipv6']; }
+            }
+            return array_values(array_unique($ips));
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
     protected function domainResolvesTo(string $domain, string $serverIp): bool
     {
         if ($domain === '' || $serverIp === '') {

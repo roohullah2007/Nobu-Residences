@@ -455,8 +455,11 @@ class WebsiteManagementController extends Controller
             $certificates = $ploi->listCertificates();
         }
 
-        // Derive a fresh "current state" report from what Ploi actually shows
-        $hasAlias = $domain && in_array($domain, $aliases, true);
+        // Derive a fresh "current state" report from what Ploi actually shows.
+        // Case-insensitive: Ploi may return the alias cased differently from
+        // what the admin typed, and a strict in_array would report a
+        // manually-added alias as missing forever.
+        $hasAlias = $domain && in_array(strtolower($domain), array_map('strtolower', $aliases), true);
         $hasCert = false;
         if ($domain) {
             foreach ($certificates as $c) {
@@ -479,7 +482,11 @@ class WebsiteManagementController extends Controller
             if ($hasAlias && $website->ploi_alias_status !== 'added') {
                 $needsUpdate['ploi_alias_status'] = 'added';
                 $needsUpdate['ploi_alias_added_at'] = $website->ploi_alias_added_at ?: now();
-            } elseif (!$hasAlias && $website->ploi_alias_status === 'added') {
+            } elseif (!$hasAlias && $ploi->aliasListFetchOk && $website->ploi_alias_status === 'added') {
+                // Only downgrade added→pending when Ploi actually answered the
+                // alias-list call. A transient API failure returns an empty
+                // list too, and treating that as "alias deleted" flips a
+                // perfectly good alias back to Pending.
                 $needsUpdate['ploi_alias_status'] = 'pending';
                 $needsUpdate['ploi_alias_added_at'] = null;
             }
@@ -522,6 +529,16 @@ class WebsiteManagementController extends Controller
         // or take cache TTL), so it tells the user whether a Retry SSL is
         // likely to succeed without having to guess.
         $dnsCheck = $this->lookupDomainIps($domain);
+        if ($dnsCheck) {
+            // Flag Cloudflare's orange-cloud proxy specifically: Let's Encrypt
+            // can never validate through it, and the fix (gray-cloud the
+            // record) is different from a plain wrong-IP A record.
+            $dnsCheck['cloudflare'] = !empty(array_filter(
+                $dnsCheck['ips'] ?? [],
+                [PloiService::class, 'isCloudflareIp']
+            ));
+            $dnsCheck['server_ip'] = $ploiConfigured ? $ploi->getServerIp() : null;
+        }
 
         return Inertia::render('Admin/Websites/Created', [
             'title' => 'Website Created',

@@ -113,17 +113,30 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const isCloudflare525 = typeof report.ssl?.message === 'string'
         && /SSL.*525|cloudflare/i.test(report.ssl.message);
 
-    // Trust ONLY the live Ploi alias list for the button's enable/disable
-    // state. The persisted DB status is sticky — once we set it to 'added'
-    // it stays even if the admin later deletes the alias from Ploi's UI, so
-    // using it here would lock the Retry button as disabled when the alias
-    // is genuinely missing. If Ploi's API call failed and the live list is
-    // empty, we'd rather show the button as enabled and let the idempotent
-    // addAlias() handle the "already exists" case than block the admin.
+    // Disable the Retry button when the alias is on Ploi's live list OR the
+    // persisted state says added. The stale-persisted-state worry (admin
+    // deletes the alias in Ploi's UI) is handled server-side: created() syncs
+    // added→pending whenever Ploi's alias list is fetched successfully. And
+    // when the live list can't be fetched, addAlias() now refuses to POST
+    // blindly (a repeat POST returns HTTP 200 and creates a DUPLICATE alias
+    // row on Ploi), so an enabled button can't create duplicates either way.
     const aliasAlreadyAdded = Boolean(
         website.domain
-        && (liveAliases || []).some((a) => typeof a === 'string' && a.toLowerCase() === website.domain.toLowerCase())
+        && (
+            (liveAliases || []).some((a) => typeof a === 'string' && a.toLowerCase() === website.domain.toLowerCase())
+            || persisted?.alias_status === 'added'
+        )
     );
+
+    // Ploi can hold two identical alias rows (from historic blind re-adds).
+    // Surface them so the admin can clean up in Ploi's UI — never auto-delete.
+    const duplicateAliases = Object.entries(
+        (liveAliases || []).reduce((m, a) => {
+            const k = typeof a === 'string' ? a.toLowerCase() : '';
+            if (k) m[k] = (m[k] || 0) + 1;
+            return m;
+        }, {})
+    ).filter(([, n]) => n > 1);
 
     // Flatten the list of every domain covered by at least one cert on the
     // Ploi site. Used to compute cert coverage per alias.
@@ -316,14 +329,14 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                 status={persisted.alias_status}
                                 timestamp={persisted.alias_added_at}
                                 timestampLabel="Added at"
-                                pendingMessage="Waiting for alias add to run…"
+                                pendingMessage='Not on the Ploi site yet — the alias add runs immediately (no background queue). Click "Retry domain alias" below.'
                             />
                             <PersistedRow
                                 title="SSL certificate"
                                 status={persisted.ssl_status}
                                 timestamp={persisted.ssl_issued_at}
                                 timestampLabel="Issued at"
-                                pendingMessage="Queued — will run in ~30s, then retries on failure (30s, 1m, 2m, 5m, 10m)."
+                                pendingMessage='Queued — will run in ~30s, then retries on failure (30s, 1m, 2m, 5m, 10m). Stuck on Queued? The queue worker may not be running on the server — "Retry SSL certificate" below runs immediately without the queue.'
                             />
                         </div>
                         {persisted.last_error && (
@@ -366,6 +379,17 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                                     <div className="mt-1 text-gray-600">
                                                         Expected: <code className="font-mono px-1 rounded bg-white border border-green-300 text-green-800">{expectedIps.join(', ')}</code>
                                                         {dnsLooksGood ? ' — match ✓' : ' — does not match yet'}
+                                                    </div>
+                                                )}
+                                                {dnsCheck.cloudflare && (
+                                                    <div className="mt-2 p-2 rounded border border-orange-300 bg-orange-50 text-orange-900">
+                                                        <strong>This domain is behind Cloudflare's proxy (orange cloud).</strong>{' '}
+                                                        Let's Encrypt can't validate it. In Cloudflare DNS, set the A record for the apex and{' '}
+                                                        <code className="font-mono">www</code> to{' '}
+                                                        <code className="font-mono px-1 rounded bg-white border border-orange-300">{dnsCheck.server_ip || dnsShouldResolveTo || '157.180.26.95'}</code>{' '}
+                                                        and switch Proxy status to <strong>DNS only</strong> (gray cloud), wait 1–2 min, then click{' '}
+                                                        <strong>Retry SSL certificate</strong>. After the cert issues you can re-enable the proxy with
+                                                        SSL/TLS mode <strong>Full (strict)</strong>.
                                                     </div>
                                                 )}
                                                 <div className="mt-1 text-gray-500">Checked at {dnsCheck.checked_at}. Click <strong>Refresh now</strong> to re-query.</div>
@@ -536,11 +560,11 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                     <div className="text-sm text-gray-500 italic">No aliases configured.</div>
                                 ) : (
                                     <ul className="text-sm space-y-1.5">
-                                        {liveAliases.map((a) => {
+                                        {liveAliases.map((a, i) => {
                                             const covered = isCovered(a);
                                             const isPrimary = website.domain && a.toLowerCase() === website.domain.toLowerCase();
                                             return (
-                                                <li key={a} className="flex items-center justify-between gap-3">
+                                                <li key={`${a}-${i}`} className="flex items-center justify-between gap-3">
                                                     <span className={`font-mono break-all ${isPrimary ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>{a}</span>
                                                     {covered ? (
                                                         <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 whitespace-nowrap">
@@ -557,6 +581,14 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                             );
                                         })}
                                     </ul>
+                                )}
+                                {duplicateAliases.length > 0 && (
+                                    <div className="mt-3 text-xs p-2 rounded border border-amber-200 bg-amber-50 text-amber-900">
+                                        <strong>Duplicate alias rows on Ploi:</strong>{' '}
+                                        {duplicateAliases.map(([d, n]) => `${d} (×${n})`).join(', ')}.
+                                        {' '}Harmless for serving traffic, but you can delete the extra row in
+                                        Ploi → Site → Aliases. Nothing is deleted automatically from here.
+                                    </div>
                                 )}
                             </div>
 
