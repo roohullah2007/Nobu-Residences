@@ -11,7 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Create table to track sent alert history
+        // Create table to track sent alert history.
+        // hasTable guard: MySQL DDL isn't transactional, so a run that
+        // crashed after this create (but before being recorded) leaves the
+        // table behind — the re-run must not fail on "table exists".
+        if (!Schema::hasTable('saved_search_alert_history')) {
         Schema::create('saved_search_alert_history', function (Blueprint $table) {
             $table->id();
             $table->foreignId('saved_search_id')->constrained('saved_searches')->onDelete('cascade');
@@ -29,11 +33,14 @@ return new class extends Migration
             $table->index('sent_at');
             $table->index(['saved_search_id', 'sent_at']);
         });
+        }
 
-        // Add new columns to saved_searches table if they don't exist
+        // Add new columns to saved_searches table if they don't exist.
+        // No ->after('results_count') — that column doesn't exist on
+        // freshly-migrated databases and made every fresh run fail.
         if (!Schema::hasColumn('saved_searches', 'total_alerts_sent')) {
             Schema::table('saved_searches', function (Blueprint $table) {
-                $table->integer('total_alerts_sent')->default(0)->after('results_count');
+                $table->integer('total_alerts_sent')->default(0);
             });
         }
     }

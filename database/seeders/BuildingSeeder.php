@@ -11,9 +11,21 @@ class BuildingSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Sample/demo buildings only — never runs in production, and never
+     * re-inserts once any building exists (Building::create with fresh
+     * UUIDs would duplicate the demo set on every --seed).
      */
     public function run(): void
     {
+        if (app()->environment('production')) {
+            return;
+        }
+
+        if (Building::count() > 0) {
+            return;
+        }
+
         $developers = Developer::all();
         
         if ($developers->isEmpty()) {
