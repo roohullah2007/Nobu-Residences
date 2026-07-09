@@ -5,6 +5,7 @@ import { FAQ } from '@/Website/Global/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import { createBuildingUrl } from '@/utils/slug';
+import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
 
 export default function DeveloperDetail({
     auth,
@@ -29,6 +30,19 @@ export default function DeveloperDetail({
     const [successType, setSuccessType] = useState('tour');
     const [formData, setFormData] = useState({ name: '', email: '', phone: '', message: '' });
     const [questionFormData, setQuestionFormData] = useState({ name: '', email: '', phone: '', question: '' });
+
+    // Inline validation state — red text under each invalid field plus a
+    // summary line for non-field errors. No alert() in these flows.
+    const [formErrors, setFormErrors] = useState({});
+    const [formServerError, setFormServerError] = useState('');
+    const [questionErrors, setQuestionErrors] = useState({});
+    const [questionServerError, setQuestionServerError] = useState('');
+
+    const inputClass = (hasError) =>
+        `w-full py-2 px-3 border rounded-lg ${hasError ? 'border-red-500' : 'border-gray-300'}`;
+
+    const FieldError = ({ message }) =>
+        message ? <p className="text-red-600 text-sm mt-1">{message}</p> : null;
 
     // Generate dates array
     const generateDates = () => {
@@ -56,11 +70,13 @@ export default function DeveloperDetail({
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setFormErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
     };
 
     const handleQuestionInputChange = (e) => {
         const { name, value } = e.target;
         setQuestionFormData(prev => ({ ...prev, [name]: value }));
+        setQuestionErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
     };
 
     const getSelectedDateTime = () => {
@@ -72,6 +88,16 @@ export default function DeveloperDetail({
     const handleTourSubmit = async (e) => {
         e.preventDefault();
         if (isSubmitting) return;
+        // Client-side inline validation — red text under each invalid field.
+        const clientErrors = validateContactFields(formData);
+        if (Object.keys(clientErrors).length > 0) {
+            setFormErrors(clientErrors);
+            setFormServerError('');
+            focusFirstError(clientErrors, { name: 'devTourName', email: 'devTourEmail', phone: 'devTourPhone' });
+            return;
+        }
+        setFormErrors({});
+        setFormServerError('');
         setIsSubmitting(true);
         const selectedDate = dates[currentDateIndex + selectedDateSlot];
         const timeRanges = { morning: '9AM to 12PM', afternoon: '12PM to 4PM', evening: '4PM to 8PM' };
@@ -102,11 +128,20 @@ export default function DeveloperDetail({
                 setSuccessType('tour');
                 setShowSuccess(true);
                 setTimeout(() => setShowSuccess(false), 5000);
+            } else if (result.errors) {
+                // Laravel validation errors render inline under their field;
+                // anything unmappable shows in the red summary line.
+                const { fieldErrors, unmapped } = mapServerErrors(result.errors, {
+                    full_name: 'name', name: 'name', email: 'email', phone: 'phone', message: 'message',
+                });
+                setFormErrors(fieldErrors);
+                setFormServerError(unmapped);
+                focusFirstError(fieldErrors, { name: 'devTourName', email: 'devTourEmail', phone: 'devTourPhone' });
             } else {
-                alert(result.message || 'Failed to submit tour request.');
+                setFormServerError(result.message || 'Failed to submit tour request.');
             }
         } catch (error) {
-            alert('An error occurred. Please try again.');
+            setFormServerError('An error occurred. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -115,6 +150,16 @@ export default function DeveloperDetail({
     const handleQuestionSubmit = async (e) => {
         e.preventDefault();
         if (isSubmitting) return;
+        // Client-side inline validation — red text under each invalid field.
+        const clientErrors = validateContactFields(questionFormData, { requireQuestion: true });
+        if (Object.keys(clientErrors).length > 0) {
+            setQuestionErrors(clientErrors);
+            setQuestionServerError('');
+            focusFirstError(clientErrors, { name: 'devQuestionName', email: 'devQuestionEmail', phone: 'devQuestionPhone', question: 'devQuestion' });
+            return;
+        }
+        setQuestionErrors({});
+        setQuestionServerError('');
         setIsSubmitting(true);
         try {
             const response = await fetch('/api/property-questions', {
@@ -141,11 +186,20 @@ export default function DeveloperDetail({
                 setSuccessType('question');
                 setShowSuccess(true);
                 setTimeout(() => setShowSuccess(false), 5000);
+            } else if (result.errors) {
+                // Laravel validation errors render inline under their field;
+                // anything unmappable shows in the red summary line.
+                const { fieldErrors, unmapped } = mapServerErrors(result.errors, {
+                    name: 'name', email: 'email', phone: 'phone', question: 'question',
+                });
+                setQuestionErrors(fieldErrors);
+                setQuestionServerError(unmapped);
+                focusFirstError(fieldErrors, { name: 'devQuestionName', email: 'devQuestionEmail', phone: 'devQuestionPhone', question: 'devQuestion' });
             } else {
-                alert(result.message || 'Failed to submit question.');
+                setQuestionServerError(result.message || 'Failed to submit question.');
             }
         } catch (error) {
-            alert('An error occurred. Please try again.');
+            setQuestionServerError('An error occurred. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -715,23 +769,29 @@ export default function DeveloperDetail({
                                 <button onClick={() => setIsModalOpen(false)} className="text-gray-500 text-2xl font-bold">×</button>
                             </div>
                             <p className="text-gray-500 mb-4">You've selected: <span className="font-medium">{getSelectedDateTime()}</span></p>
-                            <form onSubmit={handleTourSubmit}>
+                            <form onSubmit={handleTourSubmit} noValidate>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Full Name</label>
-                                    <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="text" id="devTourName" name="name" value={formData.name} onChange={handleInputChange} className={inputClass(formErrors.name)} aria-invalid={!!formErrors.name} />
+                                    <FieldError message={formErrors.name} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Email Address</label>
-                                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="email" id="devTourEmail" name="email" value={formData.email} onChange={handleInputChange} className={inputClass(formErrors.email)} aria-invalid={!!formErrors.email} />
+                                    <FieldError message={formErrors.email} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                                    <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="tel" id="devTourPhone" name="phone" value={formData.phone} onChange={handleInputChange} className={inputClass(formErrors.phone)} aria-invalid={!!formErrors.phone} />
+                                    <FieldError message={formErrors.phone} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Additional Notes (Optional)</label>
                                     <textarea name="message" value={formData.message} onChange={handleInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg min-h-[80px]" />
                                 </div>
+                                {formServerError && (
+                                    <p className="text-red-600 text-sm mb-3" role="alert">{formServerError}</p>
+                                )}
                                 <button type="submit" disabled={isSubmitting} className="w-full py-3 px-4 rounded-lg font-medium bg-[#292E56] text-white hover:opacity-90 disabled:opacity-50">
                                     {isSubmitting ? 'Submitting...' : 'Confirm Tour Request'}
                                 </button>
@@ -749,23 +809,30 @@ export default function DeveloperDetail({
                                 <h3 className="text-xl font-bold" style={{ color: '#293056' }}>Ask A Question</h3>
                                 <button onClick={() => setIsQuestionModalOpen(false)} className="text-gray-500 text-2xl font-bold">×</button>
                             </div>
-                            <form onSubmit={handleQuestionSubmit}>
+                            <form onSubmit={handleQuestionSubmit} noValidate>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Full Name</label>
-                                    <input type="text" name="name" value={questionFormData.name} onChange={handleQuestionInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="text" id="devQuestionName" name="name" value={questionFormData.name} onChange={handleQuestionInputChange} className={inputClass(questionErrors.name)} aria-invalid={!!questionErrors.name} />
+                                    <FieldError message={questionErrors.name} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Email Address</label>
-                                    <input type="email" name="email" value={questionFormData.email} onChange={handleQuestionInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="email" id="devQuestionEmail" name="email" value={questionFormData.email} onChange={handleQuestionInputChange} className={inputClass(questionErrors.email)} aria-invalid={!!questionErrors.email} />
+                                    <FieldError message={questionErrors.email} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                                    <input type="tel" name="phone" value={questionFormData.phone} onChange={handleQuestionInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg" required />
+                                    <input type="tel" id="devQuestionPhone" name="phone" value={questionFormData.phone} onChange={handleQuestionInputChange} className={inputClass(questionErrors.phone)} aria-invalid={!!questionErrors.phone} />
+                                    <FieldError message={questionErrors.phone} />
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Your Question</label>
-                                    <textarea name="question" value={questionFormData.question} onChange={handleQuestionInputChange} className="w-full py-2 px-3 border border-gray-300 rounded-lg min-h-[100px]" required />
+                                    <textarea id="devQuestion" name="question" value={questionFormData.question} onChange={handleQuestionInputChange} className={`${inputClass(questionErrors.question)} min-h-[100px]`} aria-invalid={!!questionErrors.question} />
+                                    <FieldError message={questionErrors.question} />
                                 </div>
+                                {questionServerError && (
+                                    <p className="text-red-600 text-sm mb-3" role="alert">{questionServerError}</p>
+                                )}
                                 <button type="submit" disabled={isSubmitting} className="w-full py-3 px-4 rounded-lg font-medium bg-[#292E56] text-white hover:opacity-90 disabled:opacity-50">
                                     {isSubmitting ? 'Submitting...' : 'Send Question'}
                                 </button>

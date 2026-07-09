@@ -23,6 +23,9 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Inline feedback instead of browser alert()s.
+  const [submitError, setSubmitError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -34,6 +37,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
     setIsSubmitting(true);
 
     try {
@@ -46,23 +50,24 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Show success message
-      alert(`Viewing request submitted successfully for ${property?.address}! We'll contact you soon.`);
-      
-      // Reset form and close modal
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        message: '',
-        preferredDate: '',
-        preferredTime: '',
-        viewingType: 'in-person'
-      });
-      onClose();
+      // Inline success message, then reset + close (no alert()).
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          message: '',
+          preferredDate: '',
+          preferredTime: '',
+          viewingType: 'in-person'
+        });
+        onClose();
+      }, 2000);
     } catch (error) {
       console.error('Error submitting viewing request:', error);
-      alert('There was an error submitting your request. Please try again.');
+      setSubmitError('There was an error submitting your request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -258,10 +263,20 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
               />
             </div>
             
+            {/* Inline feedback — replaces the old alert()s */}
+            {submitError && (
+              <p className="text-red-600 text-sm mb-3" role="alert">{submitError}</p>
+            )}
+            {showSuccess && (
+              <p className="text-green-700 text-sm mb-3 bg-green-50 border border-green-200 rounded-md p-2" role="status">
+                Viewing request submitted successfully! We'll contact you soon.
+              </p>
+            )}
+
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || showSuccess}
               className="w-full py-3 px-4 rounded-md font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: buttonTertiaryBg, color: buttonTertiaryText }}
             >

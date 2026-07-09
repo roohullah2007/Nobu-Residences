@@ -14,6 +14,9 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Inline submit error — rendered as a red line above the modal footer
+  // instead of a browser alert().
+  const [submitError, setSubmitError] = useState('');
 
   // Get website and brand colors
   const { globalWebsite, website } = usePage().props;
@@ -53,6 +56,7 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
     setIsSubmitting(true);
 
     try {
@@ -92,11 +96,11 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
           }
         }, 2500);
       } else {
-        alert('Failed to submit tour request. Please try again.');
+        setSubmitError('Failed to submit tour request. Please try again.');
       }
     } catch (error) {
       console.error('Error submitting tour request:', error);
-      alert('An error occurred. Please try again.');
+      setSubmitError('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -289,6 +293,11 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
               </div>
             </div>
           </form>
+          )}
+
+          {/* Inline submit error — replaces the old alert() */}
+          {!showSuccess && submitError && (
+            <p className="px-6 pb-2 text-red-600 text-sm" role="alert">{submitError}</p>
           )}
 
           {/* Modal Footer - Fixed - Only show when not showing success */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
+import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
 
 const TourSchedulingComponent = ({ website, propertyData }) => {
   const { globalWebsite, auth } = usePage().props;
@@ -47,6 +48,25 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
     phone: profilePhone,
     question: ''
   });
+
+  // Inline validation state: per-field errors render as red text under the
+  // input; serverError holds anything not attributable to a field (rendered
+  // as a red summary line above the submit button). No alert() anywhere.
+  const [formErrors, setFormErrors] = useState({});
+  const [formServerError, setFormServerError] = useState('');
+  const [questionErrors, setQuestionErrors] = useState({});
+  const [questionServerError, setQuestionServerError] = useState('');
+
+  // Shared input styling with an error variant (red border on invalid).
+  const inputClass = (hasError) =>
+    `w-full py-2 px-3 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+      hasError
+        ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
+    }`;
+
+  const FieldError = ({ message }) =>
+    message ? <p className="text-red-600 text-sm mt-1">{message}</p> : null;
 
   // When auth state arrives after the initial render (e.g. after the
   // login modal closes) refresh the prefilled values.
@@ -132,22 +152,24 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
     };
   }, [isFixed]);
 
-  // Handle form input changes
+  // Handle form input changes (typing clears that field's error)
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    setFormErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
   };
 
-  // Handle question form input changes
+  // Handle question form input changes (typing clears that field's error)
   const handleQuestionInputChange = (e) => {
     const { name, value } = e.target;
     setQuestionFormData(prev => ({
       ...prev,
       [name]: value
     }));
+    setQuestionErrors(prev => (prev[name] ? { ...prev, [name]: undefined } : prev));
   };
 
   // Handle form submission
@@ -156,6 +178,17 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
 
     // Prevent double submission
     if (isSubmitting) return;
+
+    // Client-side inline validation — red text under each invalid field.
+    const clientErrors = validateContactFields(formData);
+    if (Object.keys(clientErrors).length > 0) {
+      setFormErrors(clientErrors);
+      setFormServerError('');
+      focusFirstError(clientErrors);
+      return;
+    }
+    setFormErrors({});
+    setFormServerError('');
 
     setIsSubmitting(true);
 
@@ -203,17 +236,26 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
           setShowSuccess(false);
         }, 5000);
       } else {
-        // Handle validation errors
+        // Server-side validation errors render inline under their field;
+        // anything unmappable goes in the red summary line.
         if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat().join('\n');
-          alert(`Please correct the following errors:\n${errorMessages}`);
+          const { fieldErrors, unmapped } = mapServerErrors(result.errors, {
+            full_name: 'name',
+            name: 'name',
+            email: 'email',
+            phone: 'phone',
+            message: 'message',
+          });
+          setFormErrors(fieldErrors);
+          setFormServerError(unmapped);
+          focusFirstError(fieldErrors);
         } else {
-          alert(result.message || 'Failed to submit tour request. Please try again.');
+          setFormServerError(result.message || 'Failed to submit tour request. Please try again.');
         }
       }
     } catch (error) {
       console.error('Error submitting tour request:', error);
-      alert('An error occurred while submitting your request. Please try again later.');
+      setFormServerError('An error occurred while submitting your request. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }
@@ -225,6 +267,17 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
 
     // Prevent double submission
     if (isSubmitting) return;
+
+    // Client-side inline validation — red text under each invalid field.
+    const clientErrors = validateContactFields(questionFormData, { requireQuestion: true });
+    if (Object.keys(clientErrors).length > 0) {
+      setQuestionErrors(clientErrors);
+      setQuestionServerError('');
+      focusFirstError(clientErrors, { name: 'questionName', email: 'questionEmail', phone: 'questionPhone' });
+      return;
+    }
+    setQuestionErrors({});
+    setQuestionServerError('');
 
     setIsSubmitting(true);
 
@@ -262,17 +315,25 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
           setShowSuccess(false);
         }, 5000);
       } else {
-        // Handle validation errors
+        // Server-side validation errors render inline under their field;
+        // anything unmappable goes in the red summary line.
         if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat().join('\n');
-          alert(`Please correct the following errors:\n${errorMessages}`);
+          const { fieldErrors, unmapped } = mapServerErrors(result.errors, {
+            name: 'name',
+            email: 'email',
+            phone: 'phone',
+            question: 'question',
+          });
+          setQuestionErrors(fieldErrors);
+          setQuestionServerError(unmapped);
+          focusFirstError(fieldErrors, { name: 'questionName', email: 'questionEmail', phone: 'questionPhone' });
         } else {
-          alert(result.message || 'Failed to submit question. Please try again.');
+          setQuestionServerError(result.message || 'Failed to submit question. Please try again.');
         }
       }
     } catch (error) {
       console.error('Error submitting question:', error);
-      alert('An error occurred while submitting your question. Please try again later.');
+      setQuestionServerError('An error occurred while submitting your question. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }
@@ -303,9 +364,18 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
     }
   };
 
-  // Close modal handlers
-  const closeModal = () => setIsModalOpen(false);
-  const closeQuestionModal = () => setIsQuestionModalOpen(false);
+  // Close modal handlers (also drop any stale validation errors so a
+  // reopened modal starts clean)
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormErrors({});
+    setFormServerError('');
+  };
+  const closeQuestionModal = () => {
+    setIsQuestionModalOpen(false);
+    setQuestionErrors({});
+    setQuestionServerError('');
+  };
   
   const handleModalClick = (e) => {
     if (e.target === e.currentTarget) {
@@ -590,9 +660,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(formErrors.name)}
+                    aria-invalid={!!formErrors.name}
                   />
+                  <FieldError message={formErrors.name} />
                 </div>
               )}
 
@@ -605,9 +676,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(formErrors.email)}
+                    aria-invalid={!!formErrors.email}
                   />
+                  <FieldError message={formErrors.email} />
                 </div>
               )}
 
@@ -620,9 +692,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(formErrors.phone)}
+                    aria-invalid={!!formErrors.phone}
                   />
+                  <FieldError message={formErrors.phone} />
                 </div>
               )}
 
@@ -637,6 +710,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                   placeholder="Any specific requirements or questions..."
                 />
               </div>
+
+              {formServerError && (
+                <p className="text-red-600 text-sm mb-3" role="alert">{formServerError}</p>
+              )}
 
               <button
                 onClick={handleSubmit}
@@ -689,7 +766,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
               Have questions about this property? Our agent will get back to you within 24 hours.
             </p>
 
-            <form onSubmit={handleQuestionSubmit}>
+            <form onSubmit={handleQuestionSubmit} noValidate>
               {!hideName && (
                 <div className="mb-4">
                   <label htmlFor="questionName" className="block text-gray-700 mb-1 font-medium">Full Name</label>
@@ -699,9 +776,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="name"
                     value={questionFormData.name}
                     onChange={handleQuestionInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(questionErrors.name)}
+                    aria-invalid={!!questionErrors.name}
                   />
+                  <FieldError message={questionErrors.name} />
                 </div>
               )}
 
@@ -714,9 +792,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="email"
                     value={questionFormData.email}
                     onChange={handleQuestionInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(questionErrors.email)}
+                    aria-invalid={!!questionErrors.email}
                   />
+                  <FieldError message={questionErrors.email} />
                 </div>
               )}
 
@@ -729,9 +808,10 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                     name="phone"
                     value={questionFormData.phone}
                     onChange={handleQuestionInputChange}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    required
+                    className={inputClass(questionErrors.phone)}
+                    aria-invalid={!!questionErrors.phone}
                   />
+                  <FieldError message={questionErrors.phone} />
                 </div>
               )}
 
@@ -742,11 +822,16 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
                   name="question"
                   value={questionFormData.question}
                   onChange={handleQuestionInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm resize-y min-h-[100px] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  className={`${inputClass(questionErrors.question)} resize-y min-h-[100px]`}
                   placeholder="What would you like to know about this property?"
-                  required
+                  aria-invalid={!!questionErrors.question}
                 />
+                <FieldError message={questionErrors.question} />
               </div>
+
+              {questionServerError && (
+                <p className="text-red-600 text-sm mb-3" role="alert">{questionServerError}</p>
+              )}
 
               <button
                 type="submit"
