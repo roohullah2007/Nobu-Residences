@@ -71,7 +71,7 @@ const Row = ({ icon, title, status, message, hint = null }) => (
     </div>
 );
 
-export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveCertificates = [], persisted = {}, dnsCheck = null }) {
+export default function WebsiteCreated({ website, report, ploi, liveStatus = null, liveAliases = [], liveAliasesVerified = true, liveCertificates = [], persisted = {}, dnsCheck = null }) {
     // Auto-refresh while SSL is still pending so the user sees the queued
     // job's progress without manually reloading.
     const [autoPoll, setAutoPoll] = useState(true);
@@ -557,7 +557,11 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                             <div className="border border-gray-200 rounded-lg p-4">
                                 <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-2">Aliases &amp; SSL coverage</div>
                                 {liveAliases.length === 0 ? (
-                                    <div className="text-sm text-gray-500 italic">No aliases configured.</div>
+                                    <div className="text-sm text-gray-500 italic">
+                                        {liveAliasesVerified
+                                            ? 'No aliases configured.'
+                                            : "Couldn't fetch the alias list from Ploi right now — this does not mean the aliases are missing."}
+                                    </div>
                                 ) : (
                                     <ul className="text-sm space-y-1.5">
                                         {liveAliases.map((a, i) => {

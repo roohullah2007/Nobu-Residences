@@ -28,8 +28,12 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         domain: '',
         is_default: false,
         is_active: true,
-        // Homepage settings
-        use_building_as_homepage: true,
+        // Homepage settings. use_building_as_homepage defaults OFF so new
+        // sites get the same Home page design as the default (Nobu) site,
+        // with hero/facts/counts dynamically resolved from the linked
+        // building. Admins can still opt in to the full BuildingDetail-as-
+        // homepage via the checkbox on Admin > Websites > Edit.
+        use_building_as_homepage: false,
         homepage_building_id: '',
         // File uploads
         logo_file: null,
@@ -119,7 +123,9 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
             ...prev,
             building_id: building.id,
             homepage_building_id: building.id,
-            use_building_as_homepage: true,
+            // NOTE: deliberately NOT forcing use_building_as_homepage here —
+            // the homepage keeps the shared Home design (dynamic per-building
+            // values); the flag stays whatever the form default is.
             name: building.name || prev.name,
             meta_title: building.name ? `${building.name} - Official Site` : prev.meta_title,
             meta_description: building.description || prev.meta_description,

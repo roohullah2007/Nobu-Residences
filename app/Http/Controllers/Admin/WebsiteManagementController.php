@@ -242,9 +242,14 @@ class WebsiteManagementController extends Controller
         ]);
 
         // If user picked a building in step 1 and didn't override the homepage_building_id, copy it across.
+        // use_building_as_homepage deliberately defaults to FALSE: new sites
+        // serve the same Home page design as the default (Nobu) site, with
+        // hero/facts/listings resolved dynamically from homepage_building_id.
+        // Admins can still opt in to the BuildingDetail-as-homepage layout
+        // via the checkbox on Admin > Websites > Edit.
         if (!empty($validated['building_id']) && empty($validated['homepage_building_id'])) {
             $validated['homepage_building_id'] = $validated['building_id'];
-            $validated['use_building_as_homepage'] = $validated['use_building_as_homepage'] ?? true;
+            $validated['use_building_as_homepage'] = $validated['use_building_as_homepage'] ?? false;
         }
         unset($validated['building_id']);
 
