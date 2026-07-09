@@ -133,6 +133,34 @@ class NeighbourhoodController extends Controller
     }
 
     /**
+     * Quick-create a neighbourhood from inside another form (e.g. the
+     * Building create/edit page). Returns JSON so the caller can append
+     * the new option to its dropdown without a page reload.
+     */
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'city' => 'nullable|string|max:255',
+        ]);
+
+        $neighbourhood = Neighbourhood::firstOrCreate(
+            ['name' => trim($validated['name'])],
+            [
+                'city' => $validated['city'] ?? null,
+                'is_active' => true,
+                'sort_order' => 0,
+            ]
+        );
+
+        return response()->json([
+            'id' => $neighbourhood->id,
+            'name' => $neighbourhood->name,
+            'city' => $neighbourhood->city,
+        ], $neighbourhood->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
      * Get neighbourhoods for API (used by dropdowns)
      */
     public function getNeighbourhoods(Request $request)

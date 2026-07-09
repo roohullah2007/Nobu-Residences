@@ -130,6 +130,36 @@ class SubNeighbourhoodController extends Controller
     }
 
     /**
+     * Quick-create a sub-neighbourhood from inside another form (e.g. the
+     * Building create/edit page). Returns JSON so the caller can append
+     * the new option to its dropdown without a page reload.
+     */
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'neighbourhood_id' => 'nullable|exists:neighbourhoods,id',
+        ]);
+
+        $subNeighbourhood = SubNeighbourhood::firstOrCreate(
+            [
+                'name' => trim($validated['name']),
+                'neighbourhood_id' => $validated['neighbourhood_id'] ?? null,
+            ],
+            [
+                'is_active' => true,
+                'sort_order' => 0,
+            ]
+        );
+
+        return response()->json([
+            'id' => $subNeighbourhood->id,
+            'name' => $subNeighbourhood->name,
+            'neighbourhood_id' => $subNeighbourhood->neighbourhood_id,
+        ], $subNeighbourhood->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
      * Get sub-neighbourhoods for API (used by dropdowns)
      */
     public function getSubNeighbourhoods(Request $request)

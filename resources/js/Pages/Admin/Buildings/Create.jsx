@@ -6,6 +6,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
+import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 
 export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -38,7 +39,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         parking_spots: '',
         locker_spots: '',
         maintenance_fee_range: '',
-        price_range: '',
         website_url: '',
         floor_plans: [],
         virtual_tour_url: '',
@@ -55,10 +55,17 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         maintenance_fee_amenity_ids: []
     });
 
-    // Filter sub-neighbourhoods based on selected neighbourhood
+    // Local copies of the dropdown options so inline quick-creates can append
+    // without a page reload.
+    const [developerOptions, setDeveloperOptions] = useState(developers);
+    const [neighbourhoodOptions, setNeighbourhoodOptions] = useState(neighbourhoods);
+    const [subNeighbourhoodOptions, setSubNeighbourhoodOptions] = useState(subNeighbourhoods);
+
+    // Filter sub-neighbourhoods based on selected neighbourhood.
+    // String() both sides — the select value is a string, the DB id a number.
     const filteredSubNeighbourhoods = data.neighbourhood_id
-        ? subNeighbourhoods.filter(sub => sub.neighbourhood_id === data.neighbourhood_id)
-        : subNeighbourhoods;
+        ? subNeighbourhoodOptions.filter(sub => String(sub.neighbourhood_id) === String(data.neighbourhood_id))
+        : subNeighbourhoodOptions;
 
     const [selectedAmenities, setSelectedAmenities] = useState([]);
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState([]);
@@ -166,7 +173,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                         floors: data.floors,
                         amenities: selectedAmenities.map(a => a.name),
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
-                        price_range: data.price_range,
                         maintenance_fee_range: data.maintenance_fee_range,
                         developer_name: data.developer_name,
                         management_name: data.management_name,
@@ -708,21 +714,21 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="developer_id" value="Developer" />
-                                    <select
+                                    <QuickCreateSelect
                                         id="developer_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        label="Developer"
                                         value={data.developer_id}
-                                        onChange={(e) => setData('developer_id', e.target.value)}
-                                    >
-                                        <option value="">Select a developer</option>
-                                        {developers.map(developer => (
-                                            <option key={developer.id} value={developer.id}>
-                                                {developer.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.developer_id} className="mt-2" />
+                                        onChange={(value) => setData('developer_id', value)}
+                                        options={developerOptions}
+                                        createUrl={route('admin.api.developers.store')}
+                                        createPayload={{ type: 'developer' }}
+                                        createTitle="New developer name"
+                                        placeholder="Select a developer"
+                                        error={errors.developer_id}
+                                        onCreated={(item) => setDeveloperOptions((prev) =>
+                                            prev.some((d) => d.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-2">
@@ -764,57 +770,47 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 </div>
 
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="neighbourhood_id" value="Neighbourhood" />
-                                    <select
+                                    <QuickCreateSelect
                                         id="neighbourhood_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        label="Neighbourhood"
                                         value={data.neighbourhood_id}
-                                        onChange={(e) => {
-                                            setData('neighbourhood_id', e.target.value);
+                                        onChange={(value) => {
+                                            setData('neighbourhood_id', value);
                                             // Reset sub-neighbourhood when neighbourhood changes
                                             setData('sub_neighbourhood_id', '');
                                         }}
-                                    >
-                                        <option value="">Select a neighbourhood...</option>
-                                        {neighbourhoods.map((neighbourhood) => (
-                                            <option key={neighbourhood.id} value={neighbourhood.id}>
-                                                {neighbourhood.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.neighbourhood_id} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="sub_neighbourhood_id" value="Sub-Neighbourhood" />
-                                    <select
-                                        id="sub_neighbourhood_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.sub_neighbourhood_id}
-                                        onChange={(e) => setData('sub_neighbourhood_id', e.target.value)}
-                                    >
-                                        <option value="">Select a sub-neighbourhood...</option>
-                                        {filteredSubNeighbourhoods.map((subNeighbourhood) => (
-                                            <option key={subNeighbourhood.id} value={subNeighbourhood.id}>
-                                                {subNeighbourhood.name}
-                                                {!data.neighbourhood_id && subNeighbourhood.neighbourhood && ` (${subNeighbourhood.neighbourhood.name})`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.sub_neighbourhood_id} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="price_range" value="Price Range" />
-                                    <TextInput
-                                        id="price_range"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.price_range}
-                                        onChange={(e) => setData('price_range', e.target.value)}
-                                        placeholder="e.g., $400,000 - $1,200,000"
+                                        options={neighbourhoodOptions}
+                                        createUrl={route('admin.api.neighbourhoods.store')}
+                                        createPayload={{ city: data.city }}
+                                        createTitle="New neighbourhood name"
+                                        placeholder="Select a neighbourhood..."
+                                        error={errors.neighbourhood_id}
+                                        onCreated={(item) => setNeighbourhoodOptions((prev) =>
+                                            prev.some((n) => n.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
                                     />
-                                    <InputError message={errors.price_range} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <QuickCreateSelect
+                                        id="sub_neighbourhood_id"
+                                        label="Sub-Neighbourhood"
+                                        value={data.sub_neighbourhood_id}
+                                        onChange={(value) => setData('sub_neighbourhood_id', value)}
+                                        options={filteredSubNeighbourhoods}
+                                        getOptionLabel={(sub) => {
+                                            const parentName = sub.neighbourhood_name ?? sub.neighbourhood?.name;
+                                            return !data.neighbourhood_id && parentName ? `${sub.name} (${parentName})` : sub.name;
+                                        }}
+                                        createUrl={route('admin.api.sub-neighbourhoods.store')}
+                                        createPayload={{ neighbourhood_id: data.neighbourhood_id || null }}
+                                        createTitle="New sub-neighbourhood name"
+                                        placeholder="Select a sub-neighbourhood..."
+                                        error={errors.sub_neighbourhood_id}
+                                        onCreated={(item) => setSubNeighbourhoodOptions((prev) =>
+                                            prev.some((s) => s.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-3">
@@ -828,6 +824,13 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         placeholder="e.g., $0.65 - $0.85 per sq ft"
                                     />
                                     <InputError message={errors.maintenance_fee_range} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel value="Price Range" />
+                                    <p className="mt-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                        Auto-filled from live MLS listings after saving — no manual entry needed.
+                                    </p>
                                 </div>
                             </div>
                         </div>

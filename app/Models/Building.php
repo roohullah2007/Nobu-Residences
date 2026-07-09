@@ -479,4 +479,81 @@ class Building extends Model
         );
     }
 
+    /**
+     * Auto-fill price_range from live MLS (Repliers) sale listings matching
+     * this building's street addresses. The admin form no longer exposes a
+     * manual Price Range input — this is the source of truth.
+     *
+     * Only overwrites when at least one priced listing is found, so an
+     * existing (e.g. CSV-imported) value survives an MLS dry spell.
+     * Saved with saveQuietly() to avoid re-firing model events.
+     */
+    public function refreshPriceRangeFromMls(): bool
+    {
+        $addresses = $this->parsedStreetAddresses();
+        if (empty($addresses)) {
+            return false;
+        }
+
+        // One Repliers query per street name (mirrors getLiveListingCounts).
+        $groups = [];
+        foreach ($addresses as $addr) {
+            $key = strtolower($addr['name']);
+            if (!isset($groups[$key])) {
+                $groups[$key] = ['name' => $addr['name'], 'numbers' => []];
+            }
+            $groups[$key]['numbers'][$addr['number']] = true;
+        }
+
+        $min = null;
+        $max = null;
+
+        try {
+            $api = app(\App\Services\RepliersApiService::class);
+            foreach ($groups as $g) {
+                $params = [
+                    'class' => 'condoProperty',
+                    'status' => 'A',
+                    'type' => 'sale',
+                    'streetName' => $g['name'],
+                    'pageNum' => 1,
+                    'resultsPerPage' => 200,
+                ];
+                if (!empty($this->city)) {
+                    $params['city'] = $this->city;
+                }
+                $listings = $api->searchListings($params)['listings'] ?? [];
+                foreach ($listings as $L) {
+                    $num = (string) ($L['address']['streetNumber'] ?? $L['StreetNumber'] ?? '');
+                    if ($num === '' || !isset($g['numbers'][$num])) {
+                        continue;
+                    }
+                    $price = (float) ($L['listPrice'] ?? $L['ListPrice'] ?? 0);
+                    if ($price <= 0) {
+                        continue;
+                    }
+                    $min = ($min === null) ? $price : min($min, $price);
+                    $max = ($max === null) ? $price : max($max, $price);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Building price range MLS refresh failed', [
+                'building_id' => $this->id,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+
+        if ($min === null) {
+            return false;
+        }
+
+        $format = fn (float $v): string => '$' . number_format($v);
+        $range = $min === $max ? $format($min) : $format($min) . ' - ' . $format($max);
+
+        $this->forceFill(['price_range' => $range])->saveQuietly();
+
+        return true;
+    }
+
 }

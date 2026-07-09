@@ -102,6 +102,30 @@ class DeveloperController extends Controller
     }
 
     /**
+     * Quick-create a developer from inside another form (e.g. the Building
+     * create/edit page). Returns JSON so the caller can append the new
+     * option to its dropdown without a page reload.
+     */
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'nullable|in:builder,developer,builder_developer',
+        ]);
+
+        $developer = Developer::firstOrCreate(
+            ['name' => trim($validated['name'])],
+            ['type' => $validated['type'] ?? 'developer']
+        );
+
+        return response()->json([
+            'id' => $developer->id,
+            'name' => $developer->name,
+            'type' => $developer->type,
+        ], $developer->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Developer $developer)

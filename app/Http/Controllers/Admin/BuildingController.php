@@ -303,6 +303,10 @@ class BuildingController extends Controller
             ]);
         }
 
+        // Price range is no longer typed in by the admin — auto-fill it from
+        // live MLS listings after the response is sent (no queue worker needed).
+        \App\Jobs\RefreshBuildingPriceRangeJob::dispatchAfterResponse($building->id);
+
         return redirect()->route('admin.buildings.index')
             ->with('success', 'Building created successfully.');
     }
@@ -603,6 +607,10 @@ class BuildingController extends Controller
                 'detach_result' => $result
             ]);
         }
+
+        // Re-derive the MLS-backed price range after every save — the admin
+        // form no longer exposes a manual Price Range input.
+        \App\Jobs\RefreshBuildingPriceRangeJob::dispatchAfterResponse($building->id);
 
         return redirect()->route('admin.buildings.index')
             ->with('success', 'Building updated successfully.');

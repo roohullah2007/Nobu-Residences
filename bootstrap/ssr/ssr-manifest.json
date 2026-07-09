@@ -1,5 +1,8 @@
 {
   "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
+  "resources/js/Components/Admin/QuickCreateSelect.jsx": [
+    "/build/assets/QuickCreateSelect-ITDJ5W80.js"
+  ],
   "resources/js/Components/Dropdown.jsx": [
     "/build/assets/Navbar-Cpn1c-fk.js"
   ],
@@ -61,13 +64,16 @@
     "/build/assets/Index-BIPJAUIZ.js"
   ],
   "resources/js/Pages/Admin/Buildings/Create.jsx": [
-    "/build/assets/Create-tv-xh9wa.js"
+    "/build/assets/Create-BAtu1W11.js"
   ],
   "resources/js/Pages/Admin/Buildings/Edit.jsx": [
-    "/build/assets/Edit-_yCP5kjc.js"
+    "/build/assets/Edit-BGZriWsu.js"
+  ],
+  "resources/js/Pages/Admin/Buildings/Import.jsx": [
+    "/build/assets/Import-D56gS_xL.js"
   ],
   "resources/js/Pages/Admin/Buildings/Index.jsx": [
-    "/build/assets/Index-DXgWla2O.js"
+    "/build/assets/Index-Dj26rSy9.js"
   ],
   "resources/js/Pages/Admin/Buildings/Show.jsx": [
     "/build/assets/Show-Bs_zqB1-.js"
@@ -130,7 +136,7 @@
     "/build/assets/Websites-BbzT6Cev.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-D1r-bfzN.js"
+    "/build/assets/Create-ujZIrRZq.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
     "/build/assets/Created-CgDlBzm2.js"
@@ -184,7 +190,7 @@
     "/build/assets/BlogDetail-2sapRuwF.js"
   ],
   "resources/js/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-EQf-LE1o.js"
+    "/build/assets/BuildingDetail-CccNFVSi.js"
   ],
   "resources/js/Pages/BuildingPriceHistory.jsx": [
     "/build/assets/BuildingPriceHistory-ClCRh_q0.js"
@@ -226,7 +232,7 @@
     "/build/assets/UserProfile-Dv19skLl.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-DjgAAcnZ.js"
+    "/build/assets/PropertyDetail-B2WcCLMh.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-Dz_oxhOQ.js"
@@ -397,7 +403,7 @@
     "/build/assets/MerchandiseLofts-DFD0Il40.js"
   ],
   "resources/js/Website/Components/PropertyDetail/MoreBuildings.jsx": [
-    "/build/assets/MoreBuildings-DDQaSb-Y.js"
+    "/build/assets/MoreBuildings-Di7rJU8r.js"
   ],
   "resources/js/Website/Components/PropertyDetail/MortgageCalculator.jsx": [
     "/build/assets/MortgageCalculator-Oo7_FBQb.js"
@@ -574,7 +580,7 @@
     "/build/assets/Blog-Bwk5E47E.js"
   ],
   "resources/js/Website/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-D0tORcsm.js"
+    "/build/assets/BuildingDetail-Dx_PyKTJ.js"
   ],
   "resources/js/Website/Pages/Contact.jsx": [
     "/build/assets/Contact-B595Z4OL.js"
@@ -583,7 +589,7 @@
     "/build/assets/PropertyAiDemo-DfJkWuav.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-NgCBKrxY.js"
+    "/build/assets/PropertyDetail-InTPvUKk.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-CM89eqRq.js"
@@ -607,7 +613,7 @@
     "/build/assets/BuildingGallery-Bse3x4EW.js"
   ],
   "resources/js/Website/Sections/BuildingDetail/BuildingSections.jsx": [
-    "/build/assets/BuildingSections-Dk7lFVPE.js"
+    "/build/assets/BuildingSections-DUT7D9Fx.js"
   ],
   "resources/js/Website/Sections/BuildingDetail/BuildingStatusTabs.jsx": [
     "/build/assets/BuildingStatusTabs-D5QGwG0n.js"
@@ -688,7 +694,7 @@
     "/build/assets/PropertyHeader-BmnRhyZ9.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertySections.jsx": [
-    "/build/assets/PropertySections-DaQCqbP0.js"
+    "/build/assets/PropertySections-BgroCd9X.js"
   ],
   "resources/js/Website/Sections/School/SchoolHeroSection.jsx": [
     "/build/assets/SchoolHeroSection-DSd8NzPo.js"

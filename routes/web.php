@@ -406,6 +406,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::prefix('buildings')->name('buildings.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\BuildingController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\Admin\BuildingController::class, 'create'])->name('create');
+        // CSV import wizard (must be declared before the {buildingSlug} routes)
+        Route::get('/import', [\App\Http\Controllers\Admin\BuildingImportController::class, 'show'])->name('import');
+        Route::post('/import/upload', [\App\Http\Controllers\Admin\BuildingImportController::class, 'upload'])->name('import.upload');
+        Route::post('/import/run', [\App\Http\Controllers\Admin\BuildingImportController::class, 'run'])->name('import.run');
         Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
         Route::get('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
         Route::get('/{buildingSlug}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
@@ -414,6 +418,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     });
     
     // Developer Management routes
+    Route::post('api/developers', [\App\Http\Controllers\Admin\DeveloperController::class, 'quickStore'])->name('api.developers.store');
     Route::resource('developers', \App\Http\Controllers\Admin\DeveloperController::class);
     
     // Amenity Management routes
@@ -426,10 +431,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Neighbourhood Taxonomy routes
     Route::resource('neighbourhoods', \App\Http\Controllers\Admin\NeighbourhoodController::class);
     Route::get('api/neighbourhoods', [\App\Http\Controllers\Admin\NeighbourhoodController::class, 'getNeighbourhoods'])->name('api.neighbourhoods');
+    Route::post('api/neighbourhoods', [\App\Http\Controllers\Admin\NeighbourhoodController::class, 'quickStore'])->name('api.neighbourhoods.store');
 
     // Sub-Neighbourhood Taxonomy routes
     Route::resource('sub-neighbourhoods', \App\Http\Controllers\Admin\SubNeighbourhoodController::class);
     Route::get('api/sub-neighbourhoods', [\App\Http\Controllers\Admin\SubNeighbourhoodController::class, 'getSubNeighbourhoods'])->name('api.sub-neighbourhoods');
+    Route::post('api/sub-neighbourhoods', [\App\Http\Controllers\Admin\SubNeighbourhoodController::class, 'quickStore'])->name('api.sub-neighbourhoods.store');
 
     // Schools removed - using API data instead
 

@@ -6,6 +6,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
+import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 
 // Helper function to create building slug
 const createBuildingSlug = (name, id) => {
@@ -69,7 +70,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         parking_spots: building.parking_spots || '',
         locker_spots: building.locker_spots || '',
         maintenance_fee_range: building.maintenance_fee_range || '',
-        price_range: building.price_range || '',
         website_url: building.website_url || '',
         floor_plans: building.floor_plans || [],
         virtual_tour_url: building.virtual_tour_url || '',
@@ -86,6 +86,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         corp_number: building.corp_number || '',
         date_registered: building.date_registered || ''
     });
+
+    // Local copies of the dropdown options so inline quick-creates can append
+    // without a page reload.
+    const [developerOptions, setDeveloperOptions] = useState(developers);
+    const [neighbourhoodOptions, setNeighbourhoodOptions] = useState(neighbourhoods);
+    const [subNeighbourhoodOptions, setSubNeighbourhoodOptions] = useState(subNeighbourhoods);
 
     // Initialize selected amenities immediately from props
     const initSelectedAmenities = () => {
@@ -233,7 +239,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         floors: data.floors,
                         amenities: selectedAmenities.map(a => a.name),
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
-                        price_range: data.price_range,
+                        price_range: building.price_range,
                         maintenance_fee_range: data.maintenance_fee_range,
                         management_name: data.management_name,
                         existing_description: data.description
@@ -708,72 +714,58 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="neighbourhood_id" value="Neighbourhood" />
-                                    <select
+                                    <QuickCreateSelect
                                         id="neighbourhood_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        label="Neighbourhood"
                                         value={data.neighbourhood_id || ''}
-                                        onChange={(e) => {
-                                            const selectedId = e.target.value;
-                                            const selectedNeighbourhood = neighbourhoods.find(n => n.id === parseInt(selectedId));
+                                        onChange={(value) => {
+                                            const selectedNeighbourhood = neighbourhoodOptions.find(n => String(n.id) === String(value));
                                             setData({
                                                 ...data,
-                                                neighbourhood_id: selectedId ? parseInt(selectedId) : '',
+                                                neighbourhood_id: value ? parseInt(value) : '',
                                                 neighbourhood: selectedNeighbourhood?.name || '',
                                                 // Reset sub-neighbourhood when neighbourhood changes
                                                 sub_neighbourhood_id: '',
                                                 sub_neighbourhood: ''
                                             });
                                         }}
-                                    >
-                                        <option value="">Select a neighbourhood...</option>
-                                        {neighbourhoods.map((neighbourhood) => (
-                                            <option key={neighbourhood.id} value={neighbourhood.id}>
-                                                {neighbourhood.name} {neighbourhood.city && `(${neighbourhood.city})`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.neighbourhood_id} className="mt-2" />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Main neighbourhood area.{' '}
-                                        <a href="/admin/neighbourhoods" target="_blank" className="text-indigo-600 hover:text-indigo-800">
-                                            Manage neighbourhoods
-                                        </a>
-                                    </p>
+                                        options={neighbourhoodOptions}
+                                        getOptionLabel={(n) => n.city ? `${n.name} (${n.city})` : n.name}
+                                        createUrl={route('admin.api.neighbourhoods.store')}
+                                        createPayload={{ city: data.city }}
+                                        createTitle="New neighbourhood name"
+                                        placeholder="Select a neighbourhood..."
+                                        error={errors.neighbourhood_id}
+                                        onCreated={(item) => setNeighbourhoodOptions((prev) =>
+                                            prev.some((n) => n.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="sub_neighbourhood_id" value="Sub-Neighbourhood" />
-                                    <select
+                                    <QuickCreateSelect
                                         id="sub_neighbourhood_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        label="Sub-Neighbourhood"
                                         value={data.sub_neighbourhood_id || ''}
-                                        onChange={(e) => {
-                                            const selectedId = e.target.value;
-                                            const selectedSubNeighbourhood = subNeighbourhoods.find(sn => sn.id === parseInt(selectedId));
+                                        onChange={(value) => {
+                                            const selectedSubNeighbourhood = subNeighbourhoodOptions.find(sn => String(sn.id) === String(value));
                                             setData({
                                                 ...data,
-                                                sub_neighbourhood_id: selectedId ? parseInt(selectedId) : '',
+                                                sub_neighbourhood_id: value ? parseInt(value) : '',
                                                 sub_neighbourhood: selectedSubNeighbourhood?.name || ''
                                             });
                                         }}
-                                    >
-                                        <option value="">Select a sub-neighbourhood...</option>
-                                        {subNeighbourhoods
-                                            .filter(sn => !data.neighbourhood_id || sn.neighbourhood_id === parseInt(data.neighbourhood_id))
-                                            .map((subNeighbourhood) => (
-                                                <option key={subNeighbourhood.id} value={subNeighbourhood.id}>
-                                                    {subNeighbourhood.name} {subNeighbourhood.neighbourhood_name && `(${subNeighbourhood.neighbourhood_name})`}
-                                                </option>
-                                            ))}
-                                    </select>
-                                    <InputError message={errors.sub_neighbourhood_id} className="mt-2" />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Specific sub-area within the neighbourhood.{' '}
-                                        <a href="/admin/sub-neighbourhoods" target="_blank" className="text-indigo-600 hover:text-indigo-800">
-                                            Manage sub-neighbourhoods
-                                        </a>
-                                    </p>
+                                        options={subNeighbourhoodOptions.filter(sn => !data.neighbourhood_id || String(sn.neighbourhood_id) === String(data.neighbourhood_id))}
+                                        getOptionLabel={(sn) => sn.neighbourhood_name ? `${sn.name} (${sn.neighbourhood_name})` : sn.name}
+                                        createUrl={route('admin.api.sub-neighbourhoods.store')}
+                                        createPayload={{ neighbourhood_id: data.neighbourhood_id || null }}
+                                        createTitle="New sub-neighbourhood name"
+                                        placeholder="Select a sub-neighbourhood..."
+                                        error={errors.sub_neighbourhood_id}
+                                        onCreated={(item) => setSubNeighbourhoodOptions((prev) =>
+                                            prev.some((s) => s.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-2">
@@ -922,21 +914,21 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="developer_id" value="Developer" />
-                                    <select
+                                    <QuickCreateSelect
                                         id="developer_id"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        label="Developer"
                                         value={data.developer_id}
-                                        onChange={(e) => setData('developer_id', e.target.value)}
-                                    >
-                                        <option value="">Select a developer</option>
-                                        {developers.map(developer => (
-                                            <option key={developer.id} value={developer.id}>
-                                                {developer.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.developer_id} className="mt-2" />
+                                        onChange={(value) => setData('developer_id', value)}
+                                        options={developerOptions}
+                                        createUrl={route('admin.api.developers.store')}
+                                        createPayload={{ type: 'developer' }}
+                                        createTitle="New developer name"
+                                        placeholder="Select a developer"
+                                        error={errors.developer_id}
+                                        onCreated={(item) => setDeveloperOptions((prev) =>
+                                            prev.some((d) => d.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+                                        )}
+                                    />
                                 </div>
 
                                 <div className="sm:col-span-2">
@@ -978,16 +970,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="price_range" value="Price Range" />
-                                    <TextInput
-                                        id="price_range"
-                                        type="text"
-                                        className="mt-1 block w-full"
-                                        value={data.price_range}
-                                        onChange={(e) => setData('price_range', e.target.value)}
-                                        placeholder="e.g., $400,000 - $1,200,000"
-                                    />
-                                    <InputError message={errors.price_range} className="mt-2" />
+                                    <InputLabel value="Price Range" />
+                                    <p className="mt-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                        {building.price_range
+                                            ? `Current: ${building.price_range} — auto-refreshed from live MLS listings on every save.`
+                                            : 'Auto-filled from live MLS listings after saving — no manual entry needed.'}
+                                    </p>
                                 </div>
 
                                 <div className="sm:col-span-3">

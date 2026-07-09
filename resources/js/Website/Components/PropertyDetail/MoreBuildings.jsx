@@ -937,15 +937,16 @@ const MoreBuildings = ({
           return null;
         })()}
 
-        {/* Mobile: Grid Layout (for carousel layouts - same as Properties For Sale) */}
+        {/* Mobile: Horizontal Scrollable Row (same as Comparable Sales) */}
         {!isLoading && !isLoadingImages && buildings.length > 0 && !isGridLayout && (
         <div className="block md:hidden">
-          <div className="grid grid-cols-1 gap-4">
-            {buildings.slice(0, 6).map((building) => (
-              <div key={building.listingKey || building.id} className="flex justify-center">
+          <div className="mobile-listings-scroll">
+            {buildings.map((building) => (
+              <div key={building.listingKey || building.id} className="flex-shrink-0 carousel-item">
                 <PropertyCardV5
                   property={building}
-                  size="grid"
+                  size="default"
+                  className="w-[300px]"
                   onClick={() => {
                     if (building.source === 'building' && building.id) {
                       window.location.href = createBuildingUrl(building.name || building.address, building.id);

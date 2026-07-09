@@ -376,10 +376,22 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 placeholder="e.g., luxurycondos.com"
                                             />
                                             <InputError message={errors.domain} className="mt-2" />
-                                            {ploiEnabled && (
+                                            {ploiEnabled ? (
                                                 <p className="mt-1 text-xs text-green-700">
-                                                    This domain will be added to Ploi as a site alias automatically.
+                                                    This domain will be added to the server (Ploi) and get an SSL certificate automatically.
+                                                    Make sure the domain's DNS A record points to this server first.
                                                 </p>
+                                            ) : (
+                                                data.domain && (
+                                                    <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                                        <p className="font-semibold">Automatic domain connection is currently OFF.</p>
+                                                        <p className="mt-1">
+                                                            The site will be saved, but this domain will not be connected to the server automatically.
+                                                            To enable it, set PLOI_API_TOKEN, PLOI_SERVER_ID and PLOI_SITE_ID in the server's .env,
+                                                            then use "Retry" on the website's status page. The domain's DNS A record must also point to the server.
+                                                        </p>
+                                                    </div>
+                                                )
                                             )}
                                         </div>
 
