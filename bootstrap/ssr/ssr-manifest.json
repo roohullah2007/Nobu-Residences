@@ -4,7 +4,7 @@
     "/build/assets/QuickCreateSelect-ITDJ5W80.js"
   ],
   "resources/js/Components/Dropdown.jsx": [
-    "/build/assets/Navbar-Cf7RY0yN.js"
+    "/build/assets/Navbar-CZkePEXz.js"
   ],
   "resources/js/Components/GoogleLoginButton.jsx": [
     "/build/assets/GoogleLoginButton-wrwag0eM.js"
@@ -166,10 +166,10 @@
     "/build/assets/Show-BD4LtiJe.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-DxUGsA2k.js"
+    "/build/assets/PropertyDetail-DC7Hu2GG.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PublicPropertyListing.jsx": [
-    "/build/assets/PublicPropertyListing-D0JAaaWv.js"
+    "/build/assets/PublicPropertyListing-BJLF6pYx.js"
   ],
   "resources/js/Pages/Auth/ConfirmPassword.jsx": [
     "/build/assets/ConfirmPassword-D9RcnlFA.js"
@@ -190,37 +190,37 @@
     "/build/assets/VerifyEmail-CF2w5gLr.js"
   ],
   "resources/js/Pages/Blog.jsx": [
-    "/build/assets/Blog-CciXJsLG.js"
+    "/build/assets/Blog-eJTf_b4c.js"
   ],
   "resources/js/Pages/BlogDetail.jsx": [
-    "/build/assets/BlogDetail-CNyRYqwg.js"
+    "/build/assets/BlogDetail-eDR2bx8e.js"
   ],
   "resources/js/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-aw3rYoKb.js"
+    "/build/assets/BuildingDetail-DYcBOiAz.js"
   ],
   "resources/js/Pages/BuildingPriceHistory.jsx": [
-    "/build/assets/BuildingPriceHistory-BT4D8VdS.js"
+    "/build/assets/BuildingPriceHistory-D10ZH0nx.js"
   ],
   "resources/js/Pages/Carousel.jsx": [
-    "/build/assets/Carousel-B2QWrVTA.js"
+    "/build/assets/Carousel-DfYj5s9h.js"
   ],
   "resources/js/Pages/CompareListings.jsx": [
-    "/build/assets/CompareListings-C3BR2un_.js"
+    "/build/assets/CompareListings-hVr0B7sE.js"
   ],
   "resources/js/Pages/Contact.jsx": [
-    "/build/assets/Contact-Cdiv1g__.js"
+    "/build/assets/Contact-DcLzeVos.js"
   ],
   "resources/js/Pages/Dashboard.jsx": [
-    "/build/assets/Dashboard-BeuzB3n5.js"
+    "/build/assets/Dashboard-CTewqfOG.js"
   ],
   "resources/js/Pages/DeveloperDetail.jsx": [
-    "/build/assets/DeveloperDetail-CWrSqsok.js"
+    "/build/assets/DeveloperDetail-TbLbNq-N.js"
   ],
   "resources/js/Pages/PriceHistorySearch.jsx": [
-    "/build/assets/PriceHistorySearch-Dyx_Tqlk.js"
+    "/build/assets/PriceHistorySearch-CELePH4y.js"
   ],
   "resources/js/Pages/Privacy.jsx": [
-    "/build/assets/Privacy-D7X2TSuG.js"
+    "/build/assets/Privacy-D8jvZGu-.js"
   ],
   "resources/js/Pages/Profile/Edit.jsx": [
     "/build/assets/Edit-Wm_OOiHv.js"
@@ -235,34 +235,34 @@
     "/build/assets/UpdateProfileInformationForm-Cf2a53xK.js"
   ],
   "resources/js/Pages/Profile/UserProfile.jsx": [
-    "/build/assets/UserProfile-DaZgooqK.js"
+    "/build/assets/UserProfile-BasPcYub.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CZ0K1Oio.js"
+    "/build/assets/PropertyDetail-BhSuGTfJ.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
-    "/build/assets/PropertyPriceHistory-B56xoQNf.js"
+    "/build/assets/PropertyPriceHistory-ByPd_nYF.js"
   ],
   "resources/js/Pages/Rent.jsx": [
-    "/build/assets/Rent-CrrQelRM.js"
+    "/build/assets/Rent-BFdMG2BZ.js"
   ],
   "resources/js/Pages/Sale.jsx": [
-    "/build/assets/Sale-BDqaS0u5.js"
+    "/build/assets/Sale-B8vhFlXv.js"
   ],
   "resources/js/Pages/SchoolDetail.jsx": [
-    "/build/assets/SchoolDetail-DpbDFdt0.js"
+    "/build/assets/SchoolDetail-BXksJRBF.js"
   ],
   "resources/js/Pages/Search.jsx": [
-    "/build/assets/Search-CDiQjR1M.js"
+    "/build/assets/Search-Bq836CAR.js"
   ],
   "resources/js/Pages/Terms.jsx": [
-    "/build/assets/Terms-IvoyGSJp.js"
+    "/build/assets/Terms-CQ4oMl-L.js"
   ],
   "resources/js/Pages/UserDashboard.jsx": [
-    "/build/assets/UserDashboard-BvCO1TXR.js"
+    "/build/assets/UserDashboard-D7NtthPQ.js"
   ],
   "resources/js/Pages/Welcome.jsx": [
-    "/build/assets/Welcome-Bcl1b5nu.js"
+    "/build/assets/Welcome-cfWJwqBr.js"
   ],
   "resources/js/Website/Components/CategoryCard.jsx": [
     "/build/assets/CategoryCard-DsOzFIOh.js"
@@ -391,7 +391,7 @@
     "/build/assets/BuildingAmenities-CRhHequP.js"
   ],
   "resources/js/Website/Components/PropertyDetail/BuildingTourScheduling.jsx": [
-    "/build/assets/BuildingTourScheduling-CMp6BYuN.js"
+    "/build/assets/BuildingTourScheduling-BtpieOVr.js"
   ],
   "resources/js/Website/Components/PropertyDetail/ComparableSales.jsx": [
     "/build/assets/ComparableSales-D3IJAIM5.js"
@@ -412,7 +412,7 @@
     "/build/assets/MoreBuildings-KSxUuvhG.js"
   ],
   "resources/js/Website/Components/PropertyDetail/MortgageCalculator.jsx": [
-    "/build/assets/MortgageCalculator-Oo7_FBQb.js"
+    "/build/assets/MortgageCalculator-Cp8HgKSN.js"
   ],
   "resources/js/Website/Components/PropertyDetail/NearbySchools.jsx": [
     "/build/assets/NearbySchools-B1yt2xDw.js"
@@ -433,16 +433,16 @@
     "/build/assets/PropertyDescriptionSection-DKC5YnW2.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyDetailsSections.jsx": [
-    "/build/assets/PropertyDetailsSections-BG3w5GXg.js"
+    "/build/assets/PropertyDetailsSections-DJ7JMfgy.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyRooms.jsx": [
     "/build/assets/PropertyRooms-CuQrzH0C.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertySidebar.jsx": [
-    "/build/assets/PropertySidebar-XuatcEmZ.js"
+    "/build/assets/PropertySidebar-BionsXsT.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyStatusTabs.jsx": [
-    "/build/assets/PropertyStatusTabs-zFu3Ixee.js"
+    "/build/assets/PropertyStatusTabs-_rp3ZR0W.js"
   ],
   "resources/js/Website/Components/PropertyDetail/RealEstateLinksSection.jsx": [
     "/build/assets/RealEstateLinksSection-rgnwZUht.js"
@@ -454,7 +454,7 @@
     "/build/assets/SimilarListings-5lGMJvR-.js"
   ],
   "resources/js/Website/Components/PropertyDetail/TourScheduling.jsx": [
-    "/build/assets/TourScheduling-UY9B6IS4.js"
+    "/build/assets/TourScheduling-uu6k3Gw7.js"
   ],
   "resources/js/Website/Components/PropertyDetail/TourSection.jsx": [
     "/build/assets/TourSection-Aw9dFwTy.js"
@@ -466,13 +466,13 @@
     "/build/assets/PropertyImageLoader-BD5_TkCg.js"
   ],
   "resources/js/Website/Components/PropertySearch/IDXAmpreSearchBar.jsx": [
-    "/build/assets/IDXAmpreSearchBar-jwPm_q4-.js"
+    "/build/assets/IDXAmpreSearchBar-DH9PJfvB.js"
   ],
   "resources/js/Website/Components/PropertySearch/SaveSearchModal.jsx": [
     "/build/assets/SaveSearchModal-BFxxLWhL.js"
   ],
   "resources/js/Website/Components/RequestTourModal.jsx": [
-    "/build/assets/RequestTourModal-Dw9OPzmF.js"
+    "/build/assets/RequestTourModal-CSp0gv_R.js"
   ],
   "resources/js/Website/Components/SavedSearchesTab.jsx": [
     "/build/assets/SavedSearchesTab-BLqFxI4T.js"
@@ -529,10 +529,10 @@
     "/build/assets/FAQ-zFddXG5C.js"
   ],
   "resources/js/Website/Global/Components/LoginModal.jsx": [
-    "/build/assets/LoginModal-C-0W-anf.js"
+    "/build/assets/LoginModal-BIklH_00.js"
   ],
   "resources/js/Website/Global/Components/PropertyCards.jsx": [
-    "/build/assets/PropertyCards-BCwncpNk.js"
+    "/build/assets/PropertyCards-Bgw2j62j.js"
   ],
   "resources/js/Website/Global/Components/PropertyCards/LazyPropertyCard.jsx": [
     "/build/assets/LazyPropertyCard-DqSmzLtr.js"
@@ -550,7 +550,7 @@
     "/build/assets/PropertyCardV5-BLJPzawm.js"
   ],
   "resources/js/Website/Global/Components/PropertyCards/PropertyCardV6.jsx": [
-    "/build/assets/PropertyCardV6-Cjgt5EbS.js"
+    "/build/assets/PropertyCardV6-DvlpJtMz.js"
   ],
   "resources/js/Website/Global/Components/PropertyCards/ProtectedPropertyCard.jsx": [
     "/build/assets/ProtectedPropertyCard-BIxREphI.js"
@@ -562,58 +562,58 @@
     "/build/assets/PropertyCarouselV2-BYh6U-f8.js"
   ],
   "resources/js/Website/Global/Components/PropertyHeader.jsx": [
-    "/build/assets/PropertyHeader-BGY8w5fx.js"
+    "/build/assets/PropertyHeader-B8I82f7N.js"
   ],
   "resources/js/Website/Global/Components/RealEstateLinksSection.jsx": [
     "/build/assets/RealEstateLinksSection-BwRekZ9s.js"
   ],
   "resources/js/Website/Global/Components/ViewingRequestModal.jsx": [
-    "/build/assets/ViewingRequestModal-Dmz9BeSZ.js"
+    "/build/assets/ViewingRequestModal-Bf-aIhpu.js"
   ],
   "resources/js/Website/Global/Footer.jsx": [
     "/build/assets/Footer-BjazYOa4.js"
   ],
   "resources/js/Website/Global/MainLayout.jsx": [
-    "/build/assets/MainLayout-B3DCp-WI.js"
+    "/build/assets/MainLayout-h_rLNTUZ.js"
   ],
   "resources/js/Website/Global/Navbar.jsx": [
-    "/build/assets/Navbar-Cf7RY0yN.js"
+    "/build/assets/Navbar-CZkePEXz.js"
   ],
   "resources/js/Website/Global/ViewingRequestProvider.jsx": [
-    "/build/assets/ViewingRequestProvider-pPioA8Kj.js"
+    "/build/assets/ViewingRequestProvider-RYomb9tc.js"
   ],
   "resources/js/Website/Home.jsx": [
-    "/build/assets/Home-dJfpKrW9.js"
+    "/build/assets/Home-tMyVOxAG.js"
   ],
   "resources/js/Website/Pages/Blog.jsx": [
-    "/build/assets/Blog-QXJMe-po.js"
+    "/build/assets/Blog-Cf337DtA.js"
   ],
   "resources/js/Website/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-eR22ed5o.js"
+    "/build/assets/BuildingDetail-BkuzdDqh.js"
   ],
   "resources/js/Website/Pages/Contact.jsx": [
-    "/build/assets/Contact-CdxGDhsu.js"
+    "/build/assets/Contact-SGwTbEY0.js"
   ],
   "resources/js/Website/Pages/PropertyAiDemo.jsx": [
-    "/build/assets/PropertyAiDemo-CysIWutB.js"
+    "/build/assets/PropertyAiDemo-DYGvi-ra.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-DG-EwRUb.js"
+    "/build/assets/PropertyDetail-CfMQAuaK.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
-    "/build/assets/SchoolDetail-DFWTAjHR.js"
+    "/build/assets/SchoolDetail-BlDbckWG.js"
   ],
   "resources/js/Website/Pages/Search.jsx": [
-    "/build/assets/Search-DCEklvc0.js"
+    "/build/assets/Search-CbkrGpE0.js"
   ],
   "resources/js/Website/Pages/UserAlerts.jsx": [
-    "/build/assets/UserAlerts-BOktIt8o.js"
+    "/build/assets/UserAlerts-BQF2EJFV.js"
   ],
   "resources/js/Website/Pages/UserDashboard.jsx": [
-    "/build/assets/UserDashboard-CZv3eQh7.js"
+    "/build/assets/UserDashboard--3zrO8Gq.js"
   ],
   "resources/js/Website/Pages/UserFavourites.jsx": [
-    "/build/assets/UserFavourites-D1rGGMKJ.js"
+    "/build/assets/UserFavourites-CcnvHp01.js"
   ],
   "resources/js/Website/Sections/Blog/FeaturedBlogsSection.jsx": [
     "/build/assets/FeaturedBlogsSection-CD3vxA0t.js"
@@ -622,10 +622,10 @@
     "/build/assets/BuildingGallery-DC8kV5VF.js"
   ],
   "resources/js/Website/Sections/BuildingDetail/BuildingSections.jsx": [
-    "/build/assets/BuildingSections-CgFOA6_p.js"
+    "/build/assets/BuildingSections-BtpVcRY0.js"
   ],
   "resources/js/Website/Sections/BuildingDetail/BuildingStatusTabs.jsx": [
-    "/build/assets/BuildingStatusTabs-D5QGwG0n.js"
+    "/build/assets/BuildingStatusTabs-BdvQiMFQ.js"
   ],
   "resources/js/Website/Sections/BuildingDetail/PropertyCarouselBuilding.jsx": [
     "/build/assets/PropertyCarouselBuilding-Q4Qz-yIT.js"
@@ -667,10 +667,10 @@
     "/build/assets/HistoryTimeline-CV9hjCgc.js"
   ],
   "resources/js/Website/Sections/Home/HomeHeader.jsx": [
-    "/build/assets/HomeHeader-BhW8p5Mn.js"
+    "/build/assets/HomeHeader-DC0nKCBe.js"
   ],
   "resources/js/Website/Sections/Home/ListingCarousel.jsx": [
-    "/build/assets/ListingCarousel-Bxs1tB2-.js"
+    "/build/assets/ListingCarousel-D8lb_2C5.js"
   ],
   "resources/js/Website/Sections/Home/LocationSection.jsx": [
     "/build/assets/LocationSection-DYly92Rt.js"
@@ -703,10 +703,10 @@
     "/build/assets/PropertyHeader-BmnRhyZ9.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertySections.jsx": [
-    "/build/assets/PropertySections-BHkjPH11.js"
+    "/build/assets/PropertySections-B4JRTAng.js"
   ],
   "resources/js/Website/Sections/School/SchoolHeroSection.jsx": [
-    "/build/assets/SchoolHeroSection-BmZdlp7W.js"
+    "/build/assets/SchoolHeroSection-BLyue8WO.js"
   ],
   "resources/js/Website/Sections/Terms/TermsContent.jsx": [
     "/build/assets/TermsContent-D-9Lrfq1.js"
@@ -718,15 +718,18 @@
     "/build/assets/usePropertyAiDescription-C5QLpmY7.js"
   ],
   "resources/js/hooks/usePropertyFavourite.js": [
-    "/build/assets/PropertyHeader-BGY8w5fx.js"
+    "/build/assets/PropertyHeader-B8I82f7N.js"
   ],
   "resources/js/hooks/usePropertyImageLazyLoad.js": [
-    "/build/assets/Search-DCEklvc0.js"
+    "/build/assets/Search-CbkrGpE0.js"
   ],
   "resources/js/services/frontendGeocoding.js": [
     "/build/assets/SimplePropertyMap-CcNI_Icw.js"
   ],
   "resources/js/ssr.jsx": [],
+  "resources/js/utils/contactFormValidation.js": [
+    "/build/assets/contactFormValidation-CEuKRxjY.js"
+  ],
   "resources/js/utils/propertyFormatters.js": [
     "/build/assets/propertyFormatters-B0QibXFa.js"
   ],
