@@ -43,6 +43,9 @@ Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
     ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-rent');
 Route::get('/blogs', [WebsiteController::class, 'blog'])->name('blog');
+// Category listing (must be registered before /blogs/{slug} so "category"
+// isn't swallowed as a post slug). Reuses the Blog page filtered by category.
+Route::get('/blogs/category/{categorySlug}', [WebsiteController::class, 'blogCategory'])->name('blog.category');
 Route::get('/blogs/{slug}', [WebsiteController::class, 'blogDetail'])->name('blog.detail');
 
 // Developer routes

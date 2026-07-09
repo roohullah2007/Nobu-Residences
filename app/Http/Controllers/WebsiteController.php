@@ -868,6 +868,19 @@ class WebsiteController extends Controller
     }
 
     /**
+     * Category listing page: /blogs/category/{slug}. Reuses blog() with the
+     * category filter applied, so the Blog page renders with the category
+     * hero/breadcrumb and only that category's posts — and the paginator
+     * keeps the category in its links (the old ?category= query param was
+     * dropped on page 2+).
+     */
+    public function blogCategory(Request $request, $categorySlug)
+    {
+        $request->merge(['category' => $categorySlug]);
+        return $this->blog($request);
+    }
+
+    /**
      * Display individual blog post
      */
     public function blogDetail($slug)

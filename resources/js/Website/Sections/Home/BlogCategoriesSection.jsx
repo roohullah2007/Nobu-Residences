@@ -81,7 +81,7 @@ const BlogCategoryCard = ({ category }) => {
 
     return (
         <Link
-            href={`/blogs?category=${category.slug}`}
+            href={`/blogs/category/${category.slug}`}
             className="group relative block w-full h-[397px] rounded-xl p-6 overflow-hidden bg-cover bg-center transition-transform hover:scale-[1.02]"
             style={{
                 backgroundImage: `url(${bgImage})`
