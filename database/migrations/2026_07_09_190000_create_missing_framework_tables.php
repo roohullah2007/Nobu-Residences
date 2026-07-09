@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -25,6 +26,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // The same dump import that lost the framework tables also stripped
+        // AUTO_INCREMENT from migrations.id, so Laravel can't even RECORD a
+        // migration after running it (error 1364 on insert into migrations).
+        // Repair it here, before the runner tries to record this migration.
+        $this->repairMigrationsTableAutoIncrement();
+
         if (!Schema::hasTable('sessions')) {
             Schema::create('sessions', function (Blueprint $table) {
                 $table->string('id')->primary();
@@ -98,6 +105,39 @@ return new class extends Migration
                 $table->timestamp('failed_at')->useCurrent();
             });
         }
+    }
+
+    /**
+     * Restore AUTO_INCREMENT (and the primary key if missing) on
+     * migrations.id when a dump import stripped them. No-op on healthy
+     * databases. MySQL only — the check reads information_schema.
+     */
+    private function repairMigrationsTableAutoIncrement(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        $column = DB::selectOne(
+            "SELECT EXTRA AS extra, COLUMN_KEY AS column_key, DATA_TYPE AS data_type
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'migrations'
+               AND COLUMN_NAME = 'id'"
+        );
+
+        if (!$column || str_contains(strtolower($column->extra ?? ''), 'auto_increment')) {
+            return;
+        }
+
+        $type = strtoupper($column->data_type ?? '') === 'BIGINT' ? 'BIGINT' : 'INT';
+        $hasPrimaryKey = strtoupper($column->column_key ?? '') === 'PRI';
+
+        DB::statement(
+            $hasPrimaryKey
+                ? "ALTER TABLE migrations MODIFY id {$type} UNSIGNED NOT NULL AUTO_INCREMENT"
+                : "ALTER TABLE migrations MODIFY id {$type} UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY (id)"
+        );
     }
 
     /**
