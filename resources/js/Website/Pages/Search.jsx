@@ -864,7 +864,14 @@ export default function EnhancedPropertySearch({
       images: building.images || [],
       isImageLoading: false,
       // Additional building-specific data
-      developer: building.developer?.name || building.developer_name || null,
+      // `developer` may arrive as an object ({id, name, slug}) or, in older/
+      // cached payloads, as a plain string name — handle both shapes.
+      developer: (building.developer && typeof building.developer === 'object'
+        ? building.developer.name
+        : building.developer) || building.developer_name || null,
+      // Used by PropertyCardV5 to link the developer name to /developer/{slug}
+      developerSlug: (building.developer && typeof building.developer === 'object' ? building.developer.slug : null) || building.developer_slug || null,
+      developerId: (building.developer && typeof building.developer === 'object' ? building.developer.id : null) || building.developer_id || null,
       totalUnits: building.total_units,
       floors: building.floors,
       status: building.status,
@@ -1718,7 +1725,9 @@ export default function EnhancedPropertySearch({
                       )
                     ) : (
                       buildings && buildings.length > 0 ? (
-                        <div className="idx-ampre-mixed-grid">
+                        // alignItems: stretch (overrides the grid's align-items: start)
+                        // + h-full on the cards = equal-height building cards
+                        <div className="idx-ampre-mixed-grid" style={{ alignItems: 'stretch' }}>
                           {buildings.map((building) => {
                             const formattedBuilding = formatBuildingForCard(building);
                             return (
@@ -1729,7 +1738,7 @@ export default function EnhancedPropertySearch({
                                 onClick={() => {
                                 window.location.href = createSEOBuildingUrl(building);
                                 }}
-                                className={`w-full transition-all duration-300 ${
+                                className={`w-full h-full transition-all duration-300 ${
                                   activeProperty === building.id ? 'scale-[1.02] z-10' : ''
                                 }`}
                               />
@@ -1831,7 +1840,9 @@ export default function EnhancedPropertySearch({
                 ) : (
                   // Building Cards - using same PropertyCardV5 as properties
                   buildings && buildings.length > 0 ? (
-                    <div className="idx-ampre-grid">
+                    // alignItems: stretch (overrides the grid's align-items: start)
+                    // + h-full on the cards = equal-height building cards
+                    <div className="idx-ampre-grid" style={{ alignItems: 'stretch' }}>
                       {buildings.map((building) => {
                         const formattedBuilding = formatBuildingForCard(building);
                         return (
@@ -1842,7 +1853,7 @@ export default function EnhancedPropertySearch({
                             onClick={() => {
                               window.location.href = createSEOBuildingUrl(building);
                             }}
-                            className=""
+                            className="h-full"
                           />
                         );
                       })

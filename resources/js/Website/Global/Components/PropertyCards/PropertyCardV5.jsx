@@ -644,8 +644,10 @@ const PropertyCardV5 = ({
             )}
           </div>
 
-          {/* Property Details - Compact layout without excessive spacing */}
-          <div className="flex flex-col items-start gap-2 w-full">
+          {/* Property Details - Compact layout without excessive spacing.
+              flex-grow lets the last row (counts) pin to the card bottom via
+              mt-auto when the grid stretches cards to equal heights. */}
+          <div className="flex flex-col items-start gap-2 w-full flex-grow">
             {/* Address */}
             <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056] line-clamp-2 ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
               {displayAddress}
@@ -695,17 +697,49 @@ const PropertyCardV5 = ({
               );
             })()}
 
-            {/* Developer/Builder Name for Buildings */}
-            {property.source === 'building' && property.developer && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600`}>
-                <span className="text-gray-500">By</span>&nbsp;<span className="text-[#293056] font-medium">{property.developer}</span>
-              </div>
-            )}
+            {/* Developer/Builder Name for Buildings — ALWAYS rendered for
+                buildings at a fixed height (empty placeholder when there is
+                no developer) so every card has the same row structure and
+                the "Condos for Sale | Rent" row aligns across the grid.
+                The developer name links to its /developer/{slug} page. */}
+            {property.source === 'building' && (() => {
+              const developerUrl = (property.developerSlug || property.developerId)
+                ? `/developer/${property.developerSlug || property.developerId}`
+                : null;
+              return (
+                <div className={`flex items-center justify-start w-full h-8 min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600 min-w-0`}>
+                  {property.developer ? (
+                    <>
+                      <span className="text-gray-500 whitespace-nowrap">By&nbsp;</span>
+                      {developerUrl ? (
+                        <a
+                          href={developerUrl}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.location.href = developerUrl;
+                          }}
+                          className="text-[#293056] font-medium truncate hover:underline"
+                          title={`View ${property.developer} developer page`}
+                        >
+                          {property.developer}
+                        </a>
+                      ) : (
+                        <span className="text-[#293056] font-medium truncate">{property.developer}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span aria-hidden="true">&nbsp;</span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Features or Building Stats - Only show if exists */}
             {property.source === 'building' ? (
-              /* Condos for Sale and Rent */
-              <div className={`flex items-center justify-start w-full min-h-8 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
+              /* Condos for Sale and Rent — mt-auto keeps this row bottom-aligned
+                 so it sits at the same vertical position on every equal-height card */
+              <div className={`flex items-center justify-start w-full min-h-8 mt-auto font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]`}>
                 {/* Counts arrive a moment after the card via /api/buildings-counts. */}
                 {/* While null/undefined, show a subtle "—" placeholder instead of "0". */}
                 {`${property.unitsForSale ?? '—'} Condos for Sale | ${property.unitsForRent ?? '—'} Condos for Rent`}

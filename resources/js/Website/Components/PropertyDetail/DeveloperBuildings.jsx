@@ -120,6 +120,13 @@ const DeveloperBuildings = ({ buildingData }) => {
             isRental: false,
             transactionType: 'Building',
             source: 'building',
+            // Developer row on the card — name plus slug/id so PropertyCardV5
+            // renders "By {name}" as a link to /developer/{slug||id}
+            developer: (building.developer && typeof building.developer === 'object'
+              ? building.developer.name
+              : building.developer) || building.developer_name || null,
+            developerSlug: (building.developer && typeof building.developer === 'object' ? building.developer.slug : null) || null,
+            developerId: (building.developer && typeof building.developer === 'object' ? building.developer.id : null) || building.developer_id || null,
             // Add formatted address for card display
             UnitNumber: '',
             StreetNumber: '',

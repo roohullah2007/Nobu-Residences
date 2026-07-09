@@ -716,6 +716,14 @@ class BuildingController extends Controller
                 // fills them in afterwards via POST /api/buildings-counts, which
                 // fetches them in parallel. The list query itself is pure DB.
                 $counts = \Cache::get('building_listing_counts:' . $building->id);
+                // IMPORTANT: the buildings table has a physical `developer`
+                // COLUMN (usually null), which shadows the developer()
+                // relation on property access — $building->developer returns
+                // the column, never the eager-loaded model. Read the relation
+                // explicitly so the payload carries id/name/slug.
+                $developer = $building->relationLoaded('developer')
+                    ? $building->getRelation('developer')
+                    : null;
                 return [
                     'id' => $building->id,
                     'name' => $building->name,
@@ -746,11 +754,14 @@ class BuildingController extends Controller
                             'icon' => $amenity->icon,
                         ];
                     }) : [],
-                    'developer' => $building->developer ? [
-                        'id' => $building->developer->id,
-                        'name' => $building->developer->name,
+                    'developer' => $developer ? [
+                        'id' => $developer->id,
+                        'name' => $developer->name,
+                        // Canonical /developer/{slug} URL segment for card links
+                        'slug' => $developer->slug,
                     ] : null,
-                    'developer_name' => $building->developer_name ?? ($building->developer ? $building->developer->name : null),
+                    'developer_id' => $building->developer_id,
+                    'developer_name' => $building->developer_name ?? ($developer ? $developer->name : null),
                     'latitude' => $building->latitude,
                     'longitude' => $building->longitude,
                 ];

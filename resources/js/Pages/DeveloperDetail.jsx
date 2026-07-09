@@ -345,12 +345,13 @@ export default function DeveloperDetail({
 
                             {/* View All Button */}
                             <div className="mt-8 sm:mt-10">
-                                <Link
-                                    href={`/toronto/for-sale?developer=${developer.slug || developer.id}`}
+                                <button
+                                    type="button"
+                                    onClick={() => document.getElementById('developer-buildings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                                     className="inline-flex items-center justify-center w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-[#101323] text-white font-work-sans font-semibold text-sm sm:text-base rounded-full hover:bg-[#101323]/90 transition-colors"
                                 >
                                     View all the projects for sale
-                                </Link>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -513,8 +514,10 @@ export default function DeveloperDetail({
 
                 {/* Buildings by Developer Section */}
                 {buildings.length > 0 && (
-                    <section className="py-8 sm:py-12 bg-white">
-                        <div className="max-w-[1280px] mx-auto px-4">
+                    <section id="developer-buildings" className="py-8 sm:py-12 bg-white scroll-mt-24">
+                        {/* px-4 md:px-0 matches the FAQ / RealEstateLinksSection containers
+                            so this heading shares the same left edge as the sections below */}
+                        <div className="max-w-[1280px] mx-auto px-4 md:px-0">
                             {/* Section Header */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-2">
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -567,14 +570,21 @@ export default function DeveloperDetail({
                                                         {building.address || building.street_address || 'Address not available'}
                                                     </div>
 
-                                                    {/* Developer */}
+                                                    {/* Developer — clickable link to the developer page */}
                                                     <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-gray-600">
                                                         <span className="text-gray-500">By</span>&nbsp;
-                                                        <span className="text-[#293056] font-medium">{developer?.name || 'Developer'}</span>
+                                                        <a
+                                                            href={`/developer/${developer?.slug || developer?.id}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-[#293056] font-medium truncate hover:underline"
+                                                        >
+                                                            {developer?.name || 'Developer'}
+                                                        </a>
                                                     </div>
 
-                                                    {/* Units | Floors | Year Built */}
-                                                    <div className="flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
+                                                    {/* Units | Floors | Year Built — last row, so no bottom border
+                                                        (separators only appear BETWEEN rows) */}
+                                                    <div className="flex items-center justify-start w-full min-h-8 font-work-sans font-normal text-sm leading-6 tracking-tight text-[#293056]">
                                                         {building.total_units && `${building.total_units} Units`}
                                                         {building.total_units && building.floors && ' | '}
                                                         {building.floors && `${building.floors} Floors`}
@@ -595,7 +605,7 @@ export default function DeveloperDetail({
                 {/* Expertise Highlights & Awards Section (admin-managed; each column hides when empty) */}
                 {((developer.highlights && developer.highlights.length > 0) || (developer.awards && developer.awards.length > 0)) && (
                 <section className="py-10 sm:py-16 bg-white">
-                    <div className="max-w-[1280px] mx-auto px-4">
+                    <div className="max-w-[1280px] mx-auto px-4 md:px-0">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
                             {/* Expertise Highlights */}
                             {developer.highlights && developer.highlights.length > 0 && (
@@ -644,7 +654,7 @@ export default function DeveloperDetail({
                 {/* Listings by Developer Section */}
                 {listings.length > 0 && (
                     <section className="py-8 sm:py-12 bg-white">
-                        <div className="max-w-[1280px] mx-auto px-4">
+                        <div className="max-w-[1280px] mx-auto px-4 md:px-0">
                             {/* Section Header */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-2">
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
