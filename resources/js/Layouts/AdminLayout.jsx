@@ -72,16 +72,6 @@ export default function AdminLayout({ children, title = 'Admin' }) {
             ]
         },
         {
-            name: 'MLS Properties',
-            href: route('admin.mls.index'),
-            icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                </svg>
-            ),
-            current: url?.startsWith('/admin/mls') || false
-        },
-        {
             name: 'Tour Requests',
             href: route('admin.tour-requests.index'),
             icon: (
@@ -90,16 +80,6 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                 </svg>
             ),
             current: url?.startsWith('/admin/tour-requests') || false
-        },
-        {
-            name: 'FAQs',
-            href: route('admin.faqs.index'),
-            icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            ),
-            current: url?.startsWith('/admin/faqs') || false
         },
         {
             name: 'Saved Searches',

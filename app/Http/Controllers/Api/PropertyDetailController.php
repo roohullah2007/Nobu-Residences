@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\MLSProperty;
 use App\Services\RepliersApiService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -41,13 +40,7 @@ class PropertyDetailController extends Controller
         $items = [];
         foreach ($keys as $key) {
             try {
-                $listing = null;
-                $mlsProperty = MLSProperty::where('mls_id', $key)->first();
-                if ($mlsProperty && ! empty($mlsProperty->mls_data)) {
-                    $listing = $mlsProperty->mls_data;
-                } else {
-                    $listing = $this->repliersApi->getListingByMlsNumber($key);
-                }
+                $listing = $this->repliersApi->getListingByMlsNumber($key);
                 if (! $listing) {
                     continue;
                 }
@@ -237,17 +230,8 @@ class PropertyDetailController extends Controller
         }
 
         try {
-            // First try to get from database (has full mls_data JSON)
-            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-
-            $listing = null;
-
-            if ($mlsProperty && !empty($mlsProperty->mls_data)) {
-                $listing = $mlsProperty->mls_data;
-            } else {
-                // Fallback: fetch from Repliers API
-                $listing = $this->repliersApi->getListingByMlsNumber($listingKey);
-            }
+            // Fetch from the Repliers API
+            $listing = $this->repliersApi->getListingByMlsNumber($listingKey);
 
             if (!$listing) {
                 return response()->json(['error' => 'Property not found'], 404);
@@ -510,23 +494,15 @@ class PropertyDetailController extends Controller
         }
 
         try {
-            // Resolve the current property's city. Prefer the local cache, but
-            // fall back to the Repliers API — most detail pages are rendered
-            // straight from Repliers and have NO local mls_properties row, which
-            // is why this used to return "No listings available".
+            // Resolve the current property's city from the Repliers API
             $city = null;
             $listingType = 'sale';
 
-            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-            if ($mlsProperty && !empty($mlsProperty->city)) {
-                $city = $mlsProperty->city;
-            } else {
-                $current = $this->repliersApi->getListingByMlsNumber($listingKey);
-                if ($current) {
-                    $city = $current['address']['city'] ?? null;
-                    if (strtolower($current['type'] ?? 'sale') === 'lease') {
-                        $listingType = 'lease';
-                    }
+            $current = $this->repliersApi->getListingByMlsNumber($listingKey);
+            if ($current) {
+                $city = $current['address']['city'] ?? null;
+                if (strtolower($current['type'] ?? 'sale') === 'lease') {
+                    $listingType = 'lease';
                 }
             }
 
@@ -581,11 +557,10 @@ class PropertyDetailController extends Controller
         }
 
         try {
-            // Get from DB first for context
-            $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-            $mlsData = $mlsProperty->mls_data ?? [];
+            // Get the current listing from the Repliers API for context
+            $current = $this->repliersApi->getListingByMlsNumber($listingKey);
 
-            $boardId = $mlsData['boardId'] ?? null;
+            $boardId = $current['boardId'] ?? null;
 
             // Try Repliers similar endpoint if we have boardId
             if ($boardId) {
@@ -610,17 +585,21 @@ class PropertyDetailController extends Controller
                 'sortBy' => 'updatedOnDesc',
             ];
 
-            if ($mlsProperty) {
-                if ($mlsProperty->city) {
-                    $params['city'] = $mlsProperty->city;
+            if ($current) {
+                $city = $current['address']['city'] ?? null;
+                $price = $current['listPrice'] ?? null;
+                $bedrooms = $current['details']['numBedrooms'] ?? null;
+
+                if ($city) {
+                    $params['city'] = $city;
                 }
-                if ($mlsProperty->price) {
-                    $params['minPrice'] = max(0, (int) ($mlsProperty->price * 0.7));
-                    $params['maxPrice'] = (int) ($mlsProperty->price * 1.3);
+                if ($price) {
+                    $params['minPrice'] = max(0, (int) ($price * 0.7));
+                    $params['maxPrice'] = (int) ($price * 1.3);
                 }
-                if ($mlsProperty->bedrooms) {
-                    $params['minBedrooms'] = max(0, $mlsProperty->bedrooms - 1);
-                    $params['maxBedrooms'] = $mlsProperty->bedrooms + 1;
+                if ($bedrooms) {
+                    $params['minBedrooms'] = max(0, (int) $bedrooms - 1);
+                    $params['maxBedrooms'] = (int) $bedrooms + 1;
                 }
             }
 
@@ -697,28 +676,10 @@ class PropertyDetailController extends Controller
     }
 
     /**
-     * Get images for a listing from DB or listing data
+     * Get images for a listing from the API listing data
      */
     private function getImagesForListing(string $listingKey, array $listing): array
     {
-        // Try database first
-        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-
-        if ($mlsProperty && !empty($mlsProperty->image_urls)) {
-            $images = [];
-            foreach ($mlsProperty->image_urls as $index => $url) {
-                $images[] = [
-                    'url' => $url,
-                    'caption' => '',
-                    'description' => '',
-                    'order' => $index,
-                    'modificationTimestamp' => null,
-                ];
-            }
-            return $images;
-        }
-
-        // Fall back to listing images from API
         $listingImages = $listing['images'] ?? [];
         $images = [];
         foreach ($listingImages as $index => $filename) {

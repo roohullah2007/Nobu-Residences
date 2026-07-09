@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import PhoneInput from '@/Components/PhoneInput';
 
 export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, auth }) {
     const { globalWebsite, website } = usePage().props;
@@ -207,8 +208,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                             <label className="block font-work-sans font-medium text-gray-700 mb-2">
                                 Phone Number
                             </label>
-                            <input
-                                type="tel"
+                            <PhoneInput
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}

@@ -241,15 +241,26 @@ class PropertyFavouriteController extends Controller
             // Get all listing keys for batch image fetching
             $listingKeys = $favourites->pluck('property_listing_key')->toArray();
 
-            // Fetch fresh image URLs from MLS database if listing keys exist
+            // Fetch fresh image URLs from the Repliers API if listing keys exist
             $imagesByKey = [];
             if (!empty($listingKeys)) {
                 try {
-                    // Fetch images from local mls_properties table (synced from Repliers)
-                    $mlsProperties = \App\Models\MLSProperty::whereIn('mls_id', $listingKeys)->get();
-                    foreach ($mlsProperties as $mlsProp) {
-                        if (!empty($mlsProp->image_urls)) {
-                            $imagesByKey[$mlsProp->mls_id] = $mlsProp->image_urls;
+                    $repliersApi = app(\App\Services\RepliersApiService::class);
+                    $batch = array_slice(array_values($listingKeys), 0, 50);
+                    $result = $repliersApi->searchListings([
+                        'mlsNumber' => $batch,
+                        'status' => ['A', 'U'],
+                        'resultsPerPage' => count($batch),
+                        'fields' => 'mlsNumber,images',
+                    ]);
+                    foreach ($result['listings'] ?? [] as $listing) {
+                        $mlsNumber = $listing['mlsNumber'] ?? null;
+                        if (!$mlsNumber) {
+                            continue;
+                        }
+                        $imageUrls = $repliersApi->getListingImageUrls($listing);
+                        if (!empty($imageUrls)) {
+                            $imagesByKey[$mlsNumber] = array_values($imageUrls);
                         }
                     }
                 } catch (\Exception $e) {

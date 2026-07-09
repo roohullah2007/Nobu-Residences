@@ -22,10 +22,6 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
         walkscore_api_key: '',
         
         // MLS Settings
-        mls_auto_sync: mls_settings?.auto_sync ?? true,
-        mls_sync_interval: mls_settings?.sync_interval ?? 60,
-        mls_max_properties: mls_settings?.max_properties ?? 1000,
-        mls_default_city: mls_settings?.default_city ?? 'Toronto',
         default_building_address: mls_settings?.default_building_address ?? '55 Mercer Street',
         cache_ttl: mls_settings?.cache_ttl ?? 300,
     });
@@ -304,74 +300,6 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                     <div className="bg-white shadow rounded-lg">
                         <form onSubmit={submit} className="space-y-6 p-6">
                             <div className="grid grid-cols-1 gap-6">
-                                {/* Auto Sync */}
-                                <div className="space-y-2">
-                                    <InputLabel htmlFor="mls_auto_sync" value="Auto Sync MLS" className="font-semibold" />
-                                    <p className="text-sm text-gray-600 mb-2">Automatically synchronize properties from MLS API</p>
-                                    <div className="flex items-center">
-                                        <input
-                                            id="mls_auto_sync"
-                                            type="checkbox"
-                                            checked={data.mls_auto_sync}
-                                            onChange={(e) => setData('mls_auto_sync', e.target.checked)}
-                                            className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                                        />
-                                        <label htmlFor="mls_auto_sync" className="ml-2 text-sm text-gray-700">
-                                            Enable automatic MLS synchronization
-                                        </label>
-                                    </div>
-                                    <InputError message={errors.mls_auto_sync} className="mt-2" />
-                                </div>
-
-                                {/* Sync Interval */}
-                                <div className="space-y-2">
-                                    <InputLabel htmlFor="mls_sync_interval" value="Sync Interval (minutes)" className="font-semibold" />
-                                    <p className="text-sm text-gray-600 mb-2">How often to sync properties from MLS API (5-1440 minutes)</p>
-                                    <TextInput
-                                        id="mls_sync_interval"
-                                        type="number"
-                                        min="5"
-                                        max="1440"
-                                        value={data.mls_sync_interval}
-                                        className="block w-full"
-                                        placeholder="60"
-                                        onChange={(e) => setData('mls_sync_interval', parseInt(e.target.value) || 60)}
-                                    />
-                                    <InputError message={errors.mls_sync_interval} className="mt-2" />
-                                </div>
-
-                                {/* Max Properties */}
-                                <div className="space-y-2">
-                                    <InputLabel htmlFor="mls_max_properties" value="Max Properties" className="font-semibold" />
-                                    <p className="text-sm text-gray-600 mb-2">Maximum number of properties to sync (10-10,000)</p>
-                                    <TextInput
-                                        id="mls_max_properties"
-                                        type="number"
-                                        min="10"
-                                        max="10000"
-                                        value={data.mls_max_properties}
-                                        className="block w-full"
-                                        placeholder="1000"
-                                        onChange={(e) => setData('mls_max_properties', parseInt(e.target.value) || 1000)}
-                                    />
-                                    <InputError message={errors.mls_max_properties} className="mt-2" />
-                                </div>
-
-                                {/* Default City */}
-                                <div className="space-y-2">
-                                    <InputLabel htmlFor="mls_default_city" value="Default City" className="font-semibold" />
-                                    <p className="text-sm text-gray-600 mb-2">Default city for MLS property searches</p>
-                                    <TextInput
-                                        id="mls_default_city"
-                                        type="text"
-                                        value={data.mls_default_city}
-                                        className="block w-full"
-                                        placeholder="Toronto"
-                                        onChange={(e) => setData('mls_default_city', e.target.value)}
-                                    />
-                                    <InputError message={errors.mls_default_city} className="mt-2" />
-                                </div>
-
                                 {/* Default Building Address */}
                                 <div className="space-y-2">
                                     <InputLabel htmlFor="default_building_address" value="Default Building Address" className="font-semibold" />

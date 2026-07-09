@@ -3,14 +3,17 @@
 namespace App\Notifications;
 
 use App\Models\SavedSearch;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SavedSearchAlertNotification extends Notification implements ShouldQueue
+/**
+ * Sent synchronously (no ShouldQueue) on purpose: alerts go out from the
+ * scheduled alerts:send-saved-search command, and the production server
+ * runs no queue worker — a queued notification would sit in the jobs
+ * table forever and never reach the user.
+ */
+class SavedSearchAlertNotification extends Notification
 {
-    use Queueable;
 
     protected SavedSearch $savedSearch;
     protected array $listings;

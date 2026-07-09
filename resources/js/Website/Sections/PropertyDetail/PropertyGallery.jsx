@@ -274,8 +274,10 @@ export default function PropertyGallery({
         <div className="flex flex-col md:flex-row gap-0 md:gap-[17px]">
           {/* Images Section */}
           <div className="flex gap-0 md:gap-[17px] flex-1 order-1 lg:order-none relative">
-            {/* Main Large Image - Desktop Only */}
-            <div className="hidden lg:block relative w-[619px] h-[645px] flex-shrink-0">
+            {/* Main Large Image - Desktop Only. Fluid between lg and xl so
+                the fixed-width thumbs + details card still fit on ~1024-1279px
+                viewports; locks to the designed 619px from xl. */}
+            <div className="hidden lg:block relative flex-1 min-w-0 xl:flex-none xl:w-[619px] h-[645px]">
               {images.length > 0 ? (
                 <div
                   className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
@@ -331,10 +333,10 @@ export default function PropertyGallery({
               )}
             </div>
             
-            {/* Small Images Column - Hidden on Mobile */}
-            {/* Fluid at md (fills what the 309px details card leaves), fixed
-                318px only from lg where the 619px main image also renders */}
-            <div className="hidden md:flex lg:flex justify-between flex-col w-full md:flex-1 md:min-w-0 lg:flex-none lg:w-[318px] h-auto md:h-[645px] gap-2 md:gap-0">
+            {/* Small Images Column - lg and up only. Below lg the carousel
+                is the sole gallery; showing this column at md kept the row
+                645px tall and left a big void under the 400px carousel. */}
+            <div className="hidden lg:flex justify-between flex-col w-[318px] flex-none h-[645px]">
               {/* Small Image 1 */}
               <div className="relative w-full lg:w-[318px] h-[200px] md:h-[310px]">
                 {images.length > 0 ? (
@@ -523,7 +525,7 @@ export default function PropertyGallery({
           {/* Fixed 309px from md (it used to be w-full + flex-shrink-0 at md,
               which made the flex row 768px + 318px wide and clipped the
               "Enquire this Property" button off-screen) */}
-          <div className="w-full md:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-0">
+          <div className="w-full md:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-4 md:mt-0">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
                 {/* Property Status and Price Section */}

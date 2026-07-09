@@ -93,24 +93,49 @@ class AlertHistoryController extends Controller
             ], 404);
         }
 
-        // Get property details for the listing keys
+        // Get property details for the listing keys from the Repliers API
         $properties = [];
         if (!empty($alert->listing_keys)) {
-            $properties = \App\Models\MLSProperty::whereIn('mls_id', $alert->listing_keys)
-                ->get()
-                ->map(function ($prop) {
-                    return [
-                        'mls_id' => $prop->mls_id,
-                        'address' => $prop->address,
-                        'city' => $prop->city,
-                        'price' => $prop->price,
-                        'formatted_price' => '$' . number_format($prop->price),
-                        'bedrooms' => $prop->bedrooms,
-                        'bathrooms' => $prop->bathrooms,
-                        'image_url' => is_array($prop->image_urls) && !empty($prop->image_urls) ? $prop->image_urls[0] : null,
-                        'url' => '/property/' . $prop->mls_id,
+            try {
+                $repliersApi = app(\App\Services\RepliersApiService::class);
+                $listingKeys = array_slice(array_values($alert->listing_keys), 0, 20);
+
+                $result = $repliersApi->searchListings([
+                    'mlsNumber' => $listingKeys,
+                    'status' => ['A', 'U'],
+                    'resultsPerPage' => count($listingKeys),
+                    'fields' => 'mlsNumber,listPrice,address,details,images[1]',
+                ]);
+
+                foreach ($result['listings'] ?? [] as $listing) {
+                    $mlsNumber = $listing['mlsNumber'] ?? null;
+                    if (!$mlsNumber) {
+                        continue;
+                    }
+                    $address = $listing['address'] ?? [];
+                    $details = $listing['details'] ?? [];
+                    $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                    if (!empty($address['unitNumber'])) {
+                        $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+                    }
+                    $images = $listing['images'] ?? [];
+                    $price = (float) ($listing['listPrice'] ?? 0);
+
+                    $properties[] = [
+                        'mls_id' => $mlsNumber,
+                        'address' => $fullAddress,
+                        'city' => $address['city'] ?? '',
+                        'price' => $price,
+                        'formatted_price' => '$' . number_format($price),
+                        'bedrooms' => $details['numBedrooms'] ?? 0,
+                        'bathrooms' => $details['numBathrooms'] ?? 0,
+                        'image_url' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                        'url' => '/property/' . $mlsNumber,
                     ];
-                });
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to hydrate alert listings from Repliers: ' . $e->getMessage());
+            }
         }
 
         return response()->json([

@@ -6,7 +6,6 @@ use App\Services\RepliersApiService;
 use App\Services\GeocodingService;
 use App\Models\SavedSearch;
 use App\Models\Property;
-use App\Models\MLSProperty;
 use App\Models\Building;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -79,8 +78,7 @@ class PropertySearchController extends Controller
 
     /**
      * Handle AJAX property search requests
-     * DATABASE-ONLY: All properties loaded from mls_properties table (synced via cron)
-     * NO direct MLS API calls - fast page-by-page loading
+     * Properties are fetched live from the Repliers API.
      */
     public function search(Request $request)
     {
@@ -354,7 +352,9 @@ class PropertySearchController extends Controller
      * Build the Repliers GET /listings query params from our internal search shape.
      * Shared by the listings grid and the map cluster endpoint.
      */
-    private function buildRepliersListingsParams(array $params): array
+    // Public: SavedSearchAlertService reuses this mapping so alert emails
+    // match exactly what the same saved search shows on the search page.
+    public function buildRepliersListingsParams(array $params): array
     {
         $apiParams = [
             'pageNum' => $params['page'] ?? 1,
@@ -992,493 +992,6 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Fetch properties from the mls_properties table (synced MLS data)
-     * Kept as fallback - primary search now uses Repliers API directly
-     */
-    private function fetchMLSPropertiesFromDatabase(array $params): array
-    {
-        $startTime = microtime(true);
-
-        // Check if searching for Sold/Leased properties
-        $propertyStatus = $params['property_status'] ?? '';
-        $isSoldOrLeased = !empty($propertyStatus) && in_array(strtolower($propertyStatus), ['sold', 'leased']);
-
-        // When doing location searches, use FULLTEXT index (don't force other index)
-        // For non-location searches, use optimized scope for faster COUNT queries
-        $hasLocationQuery = !empty($params['query']);
-
-        if ($hasLocationQuery) {
-            // Use regular query - MySQL will choose FULLTEXT index automatically
-            $query = MLSProperty::query();
-            // For active properties, filter by is_active; for sold/leased, don't filter
-            if (!$isSoldOrLeased) {
-                $query->where('is_active', true);
-            }
-        } else {
-            // Use optimized search scope to force use of idx_mls_search_sort index
-            // This improves COUNT query performance from ~2400ms to ~6ms
-            if ($isSoldOrLeased) {
-                // For sold/leased, use regular query without is_active filter
-                $query = MLSProperty::query();
-            } else {
-                $query = MLSProperty::optimizedSearch()->where('is_active', true);
-            }
-        }
-
-        // Apply status/transaction type filter
-        $status = $params['status'] ?? 'For Sale';
-
-        if (!empty($propertyStatus)) {
-            // Sold/Leased filtering - search properties with sold/leased status
-            if (strtolower($propertyStatus) === 'sold') {
-                $query->where('status', 'sold');
-                // Also filter by sale properties
-                $query->where('property_type', 'For Sale');
-            } elseif (strtolower($propertyStatus) === 'leased') {
-                $query->whereIn('status', ['leased', 'rented']);
-                // Also filter by rental properties
-                $query->where('property_type', 'For Rent');
-            }
-        } else {
-            // Active listings filtering
-            $query->where('status', 'active');
-
-            // Map frontend status to database property_type
-            // Frontend sends: "For Sale" or "For Lease"/"For Rent"
-            // Database stores: "For Sale" or "For Rent"
-            if ($status === 'For Sale') {
-                $query->where('property_type', 'For Sale');
-            } elseif (in_array($status, ['For Lease', 'For Rent'])) {
-                // Database stores rentals as "For Rent"
-                $query->where('property_type', 'For Rent');
-            }
-        }
-
-        // Apply building_id filter - lookup building and search for all its addresses
-        // This handles multi-address buildings like NOBU Residences (15 and 35 Mercer)
-        $buildingAddressesApplied = false;
-        if (!empty($params['building_id'])) {
-            $building = Building::find($params['building_id']);
-            if ($building) {
-                // Collect all street addresses from the building
-                $streetAddresses = [];
-
-                if (!empty($building->street_address_1)) {
-                    $streetAddresses[] = trim($building->street_address_1);
-                }
-                if (!empty($building->street_address_2)) {
-                    $streetAddresses[] = trim($building->street_address_2);
-                }
-
-                // If we have street addresses, apply OR filter for each address
-                if (!empty($streetAddresses)) {
-                    $query->where(function($q) use ($streetAddresses) {
-                        foreach ($streetAddresses as $idx => $streetAddress) {
-                            // Extract street number and name for matching
-                            // Handle formats like "15 Mercer St", "35 Mercer", etc.
-                            if (preg_match('/^(\d+)\s+(.+)/', $streetAddress, $matches)) {
-                                $streetNumber = $matches[1];
-                                $streetName = preg_replace('/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive)\.?\s*$/i', '', trim($matches[2]));
-
-                                if ($idx === 0) {
-                                    // First address - use where
-                                    $q->where(function($subQ) use ($streetNumber, $streetName) {
-                                        $subQ->where('address', 'like', $streetNumber . ' %')
-                                             ->where('address', 'like', '%' . $streetName . '%');
-                                    });
-                                } else {
-                                    // Additional addresses - use orWhere
-                                    $q->orWhere(function($subQ) use ($streetNumber, $streetName) {
-                                        $subQ->where('address', 'like', $streetNumber . ' %')
-                                             ->where('address', 'like', '%' . $streetName . '%');
-                                    });
-                                }
-                            }
-                        }
-                    });
-                    $buildingAddressesApplied = true;
-
-                    Log::info('Building address filter applied', [
-                        'building_id' => $params['building_id'],
-                        'street_addresses' => $streetAddresses
-                    ]);
-                }
-            }
-        }
-
-        // Apply location filter - use FULLTEXT on address column for fast searches
-        // Skip if building_id filter was already applied
-        if (!$buildingAddressesApplied && !empty($params['query'])) {
-            $searchQuery = trim($params['query']);
-
-            // Detect if it's a postal code (Canadian format: A1A 1A1 or A1A1A1)
-            if (preg_match('/^[A-Za-z]\d[A-Za-z][\s-]?\d[A-Za-z]\d$/i', $searchQuery)) {
-                // Postal code search - exact match on postal_code column
-                $postalCode = strtoupper(str_replace([' ', '-'], '', $searchQuery));
-                $query->whereRaw("REPLACE(REPLACE(postal_code, ' ', ''), '-', '') LIKE ?", ["%{$postalCode}%"]);
-            } else {
-                // Street address or city search - use FULLTEXT on address
-                // Extract words >= 4 chars for FULLTEXT (MySQL min word length)
-                $words = preg_split('/\s+/', $searchQuery);
-                $longWords = array_filter($words, fn($w) => strlen($w) >= 4);
-                $shortWords = array_filter($words, fn($w) => strlen($w) < 4 && strlen($w) > 0);
-
-                if (!empty($longWords)) {
-                    // Use FULLTEXT for long words (fast index lookup)
-                    $fulltextQuery = implode(' ', array_map(fn($w) => '+' . $w . '*', $longWords));
-                    $query->whereRaw("MATCH(address) AGAINST(? IN BOOLEAN MODE)", [$fulltextQuery]);
-                }
-
-                // For short words (street numbers like "15"), use simple LIKE
-                if (!empty($shortWords)) {
-                    foreach ($shortWords as $word) {
-                        $query->where('address', 'like', $word . ' %');
-                    }
-                }
-            }
-        }
-
-        // Apply property type filter (PropertySubType)
-        // Map frontend names to DB values (Repliers uses different names than AMPRE)
-        if (!empty($params['property_type']) && count($params['property_type']) > 0) {
-            $typeMap = [
-                'Condo Apartment' => ['Condo Apartment', 'Apartment'],
-                'Condo Townhouse' => ['Condo Townhouse', 'Stacked Townhouse'],
-                'Detached' => ['Detached'],
-                'Semi-Detached' => ['Semi-Detached'],
-                'Attached/Townhouse' => ['Attached/Townhouse', 'Townhouse'],
-                'Vacant Land' => ['Vacant Land'],
-            ];
-
-            $dbTypes = [];
-            foreach ($params['property_type'] as $type) {
-                if (isset($typeMap[$type])) {
-                    $dbTypes = array_merge($dbTypes, $typeMap[$type]);
-                } else {
-                    $dbTypes[] = $type;
-                }
-            }
-            $query->whereIn('property_sub_type', array_unique($dbTypes));
-        }
-
-        // Apply price range filter
-        if ($params['price_min'] > 0) {
-            $query->where('price', '>=', $params['price_min']);
-        }
-        if ($params['price_max'] > 0 && $params['price_max'] < 10000000) {
-            $query->where('price', '<=', $params['price_max']);
-        }
-
-        // Apply bedroom filter
-        if ($params['bedrooms'] > 0) {
-            $query->where('bedrooms', '>=', $params['bedrooms']);
-        }
-
-        // Apply bathroom filter
-        if ($params['bathrooms'] > 0) {
-            $query->where('bathrooms', '>=', $params['bathrooms']);
-        }
-
-        // Apply sorting - prioritize properties with images first for better UX
-        // Using indexed has_images column for fast sorting
-        $query->orderBy('has_images', 'desc');
-
-        switch ($params['sort'] ?? 'newest') {
-            case 'newest':
-                // Only sort by listed_date - adding created_at breaks index coverage
-                $query->orderBy('listed_date', 'desc');
-                break;
-            case 'price-high':
-                $query->orderBy('price', 'desc');
-                break;
-            case 'price-low':
-                $query->orderBy('price', 'asc');
-                break;
-            case 'bedrooms':
-                $query->orderBy('bedrooms', 'desc');
-                break;
-            case 'bathrooms':
-                $query->orderBy('bathrooms', 'desc');
-                break;
-            case 'sqft':
-                $query->orderBy('square_footage', 'desc');
-                break;
-            default:
-                $query->orderBy('last_synced_at', 'desc');
-        }
-
-        // Get total count
-        $countStart = microtime(true);
-        $totalCount = $query->count();
-        $countTime = round((microtime(true) - $countStart) * 1000, 2);
-
-        // Apply pagination
-        $pageSize = $params['page_size'] ?? 16;
-        $page = $params['page'] ?? 1;
-        $offset = ($page - 1) * $pageSize;
-
-        $fetchStart = microtime(true);
-        $properties = $query->skip($offset)->take($pageSize)->get();
-        $fetchTime = round((microtime(true) - $fetchStart) * 1000, 2);
-
-        // Convert to MLS-like format for consistency
-        $formatStart = microtime(true);
-        $formattedProperties = $properties->map(function ($mlsProperty) {
-            return $this->convertMLSPropertyToApiFormat($mlsProperty);
-        })->toArray();
-        $formatTime = round((microtime(true) - $formatStart) * 1000, 2);
-
-        $totalTime = round((microtime(true) - $startTime) * 1000, 2);
-
-        Log::info('MLS DB Query Performance', [
-            'count_time_ms' => $countTime,
-            'fetch_time_ms' => $fetchTime,
-            'format_time_ms' => $formatTime,
-            'total_time_ms' => $totalTime,
-            'count' => $totalCount,
-            'fetched' => count($formattedProperties)
-        ]);
-
-        return [
-            'properties' => $formattedProperties,
-            'count' => $totalCount
-        ];
-    }
-
-    /**
-     * Get total count from MLS database for pagination calculation
-     * This is a lightweight query that only counts, doesn't fetch data
-     * Uses optimized index for fast COUNT queries
-     */
-    private function getMLSDatabaseCount(array $params): int
-    {
-        // Check if searching for Sold/Leased properties
-        $propertyStatus = $params['property_status'] ?? '';
-        $isSoldOrLeased = !empty($propertyStatus) && in_array(strtolower($propertyStatus), ['sold', 'leased']);
-
-        // When doing location searches, use FULLTEXT index (don't force other index)
-        $hasLocationQuery = !empty($params['query']);
-
-        if ($hasLocationQuery) {
-            $query = MLSProperty::query();
-            if (!$isSoldOrLeased) {
-                $query->where('is_active', true);
-            }
-        } else {
-            // Use optimized search scope to force use of idx_mls_search_optimized index
-            if ($isSoldOrLeased) {
-                $query = MLSProperty::query();
-            } else {
-                $query = MLSProperty::optimizedSearch()->where('is_active', true);
-            }
-        }
-
-        // Apply status/transaction type filter
-        $status = $params['status'] ?? 'For Sale';
-
-        if (!empty($propertyStatus)) {
-            if (strtolower($propertyStatus) === 'sold') {
-                $query->where('status', 'sold');
-                $query->where('property_type', 'For Sale');
-            } elseif (strtolower($propertyStatus) === 'leased') {
-                $query->whereIn('status', ['leased', 'rented']);
-                $query->where('property_type', 'For Rent');
-            }
-        } else {
-            $query->where('status', 'active');
-
-            if ($status === 'For Sale') {
-                $query->where('property_type', 'For Sale');
-            } elseif (in_array($status, ['For Lease', 'For Rent'])) {
-                $query->whereIn('property_type', ['For Rent', 'For Lease']);
-            }
-        }
-
-        // Apply building_id filter - lookup building and search for all its addresses
-        $buildingAddressesApplied = false;
-        if (!empty($params['building_id'])) {
-            $building = Building::find($params['building_id']);
-            if ($building) {
-                $streetAddresses = [];
-                if (!empty($building->street_address_1)) {
-                    $streetAddresses[] = trim($building->street_address_1);
-                }
-                if (!empty($building->street_address_2)) {
-                    $streetAddresses[] = trim($building->street_address_2);
-                }
-
-                if (!empty($streetAddresses)) {
-                    $query->where(function($q) use ($streetAddresses) {
-                        foreach ($streetAddresses as $idx => $streetAddress) {
-                            if (preg_match('/^(\d+)\s+(.+)/', $streetAddress, $matches)) {
-                                $streetNumber = $matches[1];
-                                $streetName = preg_replace('/\s*(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive)\.?\s*$/i', '', trim($matches[2]));
-
-                                if ($idx === 0) {
-                                    $q->where(function($subQ) use ($streetNumber, $streetName) {
-                                        $subQ->where('address', 'like', $streetNumber . ' %')
-                                             ->where('address', 'like', '%' . $streetName . '%');
-                                    });
-                                } else {
-                                    $q->orWhere(function($subQ) use ($streetNumber, $streetName) {
-                                        $subQ->where('address', 'like', $streetNumber . ' %')
-                                             ->where('address', 'like', '%' . $streetName . '%');
-                                    });
-                                }
-                            }
-                        }
-                    });
-                    $buildingAddressesApplied = true;
-                }
-            }
-        }
-
-        // Apply location filter - use FULLTEXT on address column for fast searches
-        // Skip if building_id filter was already applied
-        if (!$buildingAddressesApplied && $hasLocationQuery) {
-            $searchQuery = trim($params['query']);
-
-            // Detect if it's a postal code (Canadian format: A1A 1A1 or A1A1A1)
-            if (preg_match('/^[A-Za-z]\d[A-Za-z][\s-]?\d[A-Za-z]\d$/i', $searchQuery)) {
-                $postalCode = strtoupper(str_replace([' ', '-'], '', $searchQuery));
-                $query->whereRaw("REPLACE(REPLACE(postal_code, ' ', ''), '-', '') LIKE ?", ["%{$postalCode}%"]);
-            } else {
-                // Street address or city search - use FULLTEXT on address
-                $words = preg_split('/\s+/', $searchQuery);
-                $longWords = array_filter($words, fn($w) => strlen($w) >= 4);
-                $shortWords = array_filter($words, fn($w) => strlen($w) < 4 && strlen($w) > 0);
-
-                if (!empty($longWords)) {
-                    $fulltextQuery = implode(' ', array_map(fn($w) => '+' . $w . '*', $longWords));
-                    $query->whereRaw("MATCH(address) AGAINST(? IN BOOLEAN MODE)", [$fulltextQuery]);
-                }
-
-                if (!empty($shortWords)) {
-                    foreach ($shortWords as $word) {
-                        $query->where('address', 'like', $word . ' %');
-                    }
-                }
-            }
-        }
-
-        // Apply property type filter
-        if (!empty($params['property_type']) && count($params['property_type']) > 0) {
-            $query->whereIn('property_sub_type', $params['property_type']);
-        }
-
-        // Apply price range filter
-        if ($params['price_min'] > 0) {
-            $query->where('price', '>=', $params['price_min']);
-        }
-        if ($params['price_max'] > 0 && $params['price_max'] < 10000000) {
-            $query->where('price', '<=', $params['price_max']);
-        }
-
-        // Apply bedroom filter
-        if ($params['bedrooms'] > 0) {
-            $query->where('bedrooms', '>=', $params['bedrooms']);
-        }
-
-        // Apply bathroom filter
-        if ($params['bathrooms'] > 0) {
-            $query->where('bathrooms', '>=', $params['bathrooms']);
-        }
-
-        return $query->count();
-    }
-
-    /**
-     * Convert MLSProperty model to API-like format for consistent handling
-     * DATABASE-ONLY: No API calls - uses images stored in database
-     */
-    private function convertMLSPropertyToApiFormat(MLSProperty $mlsProperty): array
-    {
-        $images = $mlsProperty->image_urls ?? [];
-        $mediaUrl = !empty($images) ? $images[0] : null;
-        $mlsData = $mlsProperty->mls_data ?? [];
-
-        // Detect format: Repliers has nested 'address' object, AMPRE has flat 'City'
-        $isRepliers = isset($mlsData['address']) && is_array($mlsData['address']);
-
-        if ($isRepliers) {
-            $address = $mlsData['address'] ?? [];
-            $details = $mlsData['details'] ?? [];
-            $office = $mlsData['office'] ?? [];
-            $unitNumber = $address['unitNumber'] ?? '';
-            $streetNumber = $address['streetNumber'] ?? '';
-            $streetName = $address['streetName'] ?? '';
-            $streetSuffix = $address['streetSuffix'] ?? '';
-            $sqft = $details['sqft'] ?? '';
-            $publicRemarks = $details['description'] ?? '';
-            $officeName = $office['brokerageName'] ?? '';
-            $listDate = $mlsData['listDate'] ?? '';
-            $mlsStatus = $mlsData['lastStatus'] ?? '';
-        } else {
-            // Old AMPRE flat format
-            $unitNumber = $mlsData['UnitNumber'] ?? '';
-            $streetNumber = $mlsData['StreetNumber'] ?? '';
-            $streetName = $mlsData['StreetName'] ?? '';
-            $streetSuffix = $mlsData['StreetSuffix'] ?? '';
-            $sqft = $mlsData['LivingAreaRange'] ?? $mlsData['LivingArea'] ?? '';
-            $publicRemarks = $mlsData['PublicRemarks'] ?? '';
-            $officeName = $mlsData['ListOfficeName'] ?? '';
-            $listDate = $mlsData['ListingContractDate'] ?? '';
-            $mlsStatus = $mlsData['MlsStatus'] ?? '';
-        }
-
-        return [
-            'ListingKey' => $mlsProperty->mls_id,
-            'ListPrice' => (float) $mlsProperty->price,
-            'UnparsedAddress' => $mlsProperty->address ?? '',
-            'BedroomsTotal' => $mlsProperty->bedrooms ?? 0,
-            'BathroomsTotalInteger' => $mlsProperty->bathrooms ?? 0,
-            'AboveGradeFinishedArea' => $mlsProperty->square_footage ?? 0,
-            'LivingAreaRange' => $sqft,
-            'ParkingTotal' => $mlsProperty->parking_spaces ?? 0,
-            'PropertySubType' => $mlsProperty->property_sub_type ?? '',
-            'PropertyType' => $isRepliers ? ($mlsData['details']['propertyType'] ?? 'Residential') : ($mlsData['PropertyType'] ?? 'Residential'),
-            'StandardStatus' => $this->mapMLSPropertyStatus($mlsProperty->status),
-            'MlsStatus' => $mlsStatus ?: $this->mapMLSPropertyStatus($mlsProperty->status),
-            'TransactionType' => $mlsProperty->property_type ?? 'For Sale',
-            'City' => $mlsProperty->city ?? '',
-            'StateOrProvince' => $mlsProperty->province ?? 'ON',
-            'PostalCode' => $mlsProperty->postal_code ?? '',
-            'Latitude' => $mlsProperty->latitude ? (string) $mlsProperty->latitude : '',
-            'Longitude' => $mlsProperty->longitude ? (string) $mlsProperty->longitude : '',
-            'UnitNumber' => $unitNumber,
-            'StreetNumber' => $streetNumber,
-            'StreetName' => $streetName,
-            'StreetSuffix' => $streetSuffix,
-            'ListingContractDate' => $mlsProperty->listed_date ? $mlsProperty->listed_date->format('Y-m-d') : $listDate,
-            'PublicRemarks' => $publicRemarks,
-            'ListOfficeName' => $officeName,
-            'AssociationFee' => $mlsData['AssociationFee'] ?? ($isRepliers ? ($mlsData['details']['maintenanceFee'] ?? null) : null),
-            'TaxAnnualAmount' => $mlsData['TaxAnnualAmount'] ?? null,
-            'MediaURL' => $mediaUrl,
-            'Images' => array_map(function($url) {
-                return ['MediaURL' => $url];
-            }, $images),
-            '_source' => 'mls_database',
-            '_mls_property_id' => $mlsProperty->id,
-        ];
-    }
-
-    /**
-     * Map MLSProperty status to StandardStatus format
-     */
-    private function mapMLSPropertyStatus(string $status): string
-    {
-        $statusMap = [
-            'active' => 'Active',
-            'sold' => 'Sold',
-            'leased' => 'Leased',
-            'rented' => 'Leased',
-            'inactive' => 'Off Market',
-        ];
-        return $statusMap[strtolower($status)] ?? 'Active';
-    }
-
-    /**
      * Map Repliers listing to readable status (Active, Sold, Leased)
      */
     private function mapRepliersListingStatus(array $listing): string
@@ -1510,83 +1023,6 @@ class PropertySearchController extends Controller
         }
 
         return $defaultType;
-    }
-
-    /**
-     * Fetch images from Repliers API and update MLSProperty record
-     */
-    private function fetchAndUpdateMLSPropertyImages(MLSProperty $mlsProperty): array
-    {
-        try {
-            $result = $this->repliersApi->searchListings([
-                'search' => $mlsProperty->mls_id,
-                'resultsPerPage' => 1,
-                'fields' => 'mlsNumber,images',
-            ]);
-            $listing = $result['listings'][0] ?? null;
-            if ($listing && ($listing['mlsNumber'] ?? '') === $mlsProperty->mls_id && !empty($listing['images'])) {
-                $imageUrls = $this->repliersApi->getListingImageUrls($listing);
-                $imageUrls = array_filter($imageUrls);
-
-                if (!empty($imageUrls)) {
-                    // Update the database
-                    $mlsProperty->update(['image_urls' => array_values($imageUrls)]);
-                    return $imageUrls;
-                }
-            }
-        } catch (Exception $e) {
-            Log::warning('Failed to fetch and update MLS property images', [
-                'mls_id' => $mlsProperty->mls_id,
-                'error' => $e->getMessage()
-            ]);
-        }
-        return [];
-    }
-
-    /**
-     * Fetch coordinates from geocoding service and update MLSProperty record
-     */
-    private function fetchAndUpdateMLSPropertyCoordinates(MLSProperty $mlsProperty): ?array
-    {
-        if ($mlsProperty->latitude && $mlsProperty->longitude) {
-            return ['latitude' => $mlsProperty->latitude, 'longitude' => $mlsProperty->longitude];
-        }
-
-        try {
-            // Build address string
-            $address = $mlsProperty->address;
-            if (!empty($mlsProperty->city)) {
-                $address .= ', ' . $mlsProperty->city;
-            }
-            if (!empty($mlsProperty->province)) {
-                $address .= ', ' . $mlsProperty->province;
-            }
-            if (!empty($mlsProperty->postal_code)) {
-                $address .= ' ' . $mlsProperty->postal_code;
-            }
-            $address .= ', Canada';
-
-            $coordinates = $this->geocoder->geocodeAddress($address);
-
-            if ($coordinates && isset($coordinates['latitude']) && isset($coordinates['longitude'])) {
-                // Update the database
-                $mlsProperty->update([
-                    'latitude' => $coordinates['latitude'],
-                    'longitude' => $coordinates['longitude'],
-                    'geocode_attempted_at' => now(),
-                    'geocode_source' => $coordinates['source'] ?? 'api'
-                ]);
-                return $coordinates;
-            }
-        } catch (Exception $e) {
-            Log::warning('Failed to geocode MLS property', [
-                'mls_id' => $mlsProperty->mls_id,
-                'error' => $e->getMessage()
-            ]);
-            // Mark geocode attempt
-            $mlsProperty->update(['geocode_attempted_at' => now()]);
-        }
-        return null;
     }
 
     /**
@@ -1689,16 +1125,7 @@ class PropertySearchController extends Controller
     private function fetchMlsImagesForProperty(string $mlsNumber): array
     {
         try {
-            // First check if we have cached images in mls_properties table
-            $mlsProperty = MLSProperty::where('mls_id', $mlsNumber)
-                ->orWhere('mls_number', $mlsNumber)
-                ->first();
-
-            if ($mlsProperty && !empty($mlsProperty->image_urls)) {
-                return $mlsProperty->image_urls;
-            }
-
-            // If not in cache, try to fetch from Repliers API
+            // Fetch from the Repliers API
             $result = $this->repliersApi->searchListings([
                 'search' => $mlsNumber,
                 'resultsPerPage' => 1,
@@ -1784,96 +1211,6 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Add property images with priority: backend images first, then MLS
-     */
-    private function addPropertyImagesWithPriority(array $properties): array
-    {
-        if (empty($properties)) {
-            return $properties;
-        }
-
-        // Separate backend and MLS properties
-        $backendProperties = [];
-        $mlsProperties = [];
-        $mlsListingKeys = [];
-
-        foreach ($properties as $index => $property) {
-            if (($property['_source'] ?? '') === 'backend') {
-                // Backend properties already have images
-                $backendProperties[$index] = $property;
-            } else {
-                // MLS properties need image fetching
-                $mlsProperties[$index] = $property;
-                if (!empty($property['ListingKey'])) {
-                    $mlsListingKeys[] = $property['ListingKey'];
-                }
-            }
-        }
-
-        // Fetch images for MLS properties only
-        if (!empty($mlsListingKeys)) {
-            try {
-                $batchSize = 5;
-                $imagesByKey = [];
-
-                // Load images from database (synced from Repliers CDN)
-                $mlsProps = MLSProperty::whereIn('mls_id', $mlsListingKeys)
-                    ->whereNotNull('image_urls')
-                    ->get()
-                    ->keyBy('mls_id');
-
-                foreach ($mlsProps as $mlsId => $mlsProp) {
-                    if (!empty($mlsProp->image_urls)) {
-                        $imagesByKey[$mlsId] = array_map(function($url, $idx) {
-                            return ['MediaURL' => $url, 'Order' => $idx];
-                        }, $mlsProp->image_urls, array_keys($mlsProp->image_urls));
-                    }
-                }
-
-                // Track used images to avoid duplicates
-                $usedImages = [];
-
-                foreach ($mlsProperties as $index => $property) {
-                    $listingKey = $property['ListingKey'] ?? null;
-                    $propertyImages = $imagesByKey[$listingKey] ?? [];
-
-                    $properties[$index]['Images'] = $propertyImages;
-
-                    // Get the first valid image URL
-                    $imageUrl = null;
-                    foreach ($propertyImages as $img) {
-                        if (!empty($img['MediaURL']) && $this->isValidImageUrl($img['MediaURL'])) {
-                            if (!in_array($img['MediaURL'], $usedImages)) {
-                                $imageUrl = $img['MediaURL'];
-                                $usedImages[] = $imageUrl;
-                                break;
-                            }
-                        }
-                    }
-
-                    $properties[$index]['MediaURL'] = $imageUrl;
-                    $properties[$index]['_source'] = 'mls';
-                }
-
-            } catch (Exception $e) {
-                Log::error('Error fetching MLS property images: ' . $e->getMessage());
-
-                foreach ($mlsProperties as $index => $property) {
-                    $properties[$index]['Images'] = [];
-                    $properties[$index]['MediaURL'] = null;
-                }
-            }
-        }
-
-        // Merge back backend properties (they already have images)
-        foreach ($backendProperties as $index => $property) {
-            $properties[$index] = $property;
-        }
-
-        return $properties;
-    }
-
-    /**
      * Search properties based on map viewport bounds
      * Priority: 1. Backend database properties first, 2. MLS properties (excluding those already in DB)
      */
@@ -1915,21 +1252,13 @@ class PropertySearchController extends Controller
             // Get MLS IDs from backend to exclude from MLS results
             $excludeMlsIds = $this->getBackendMlsIdentifiers();
 
-            // Step 2: Fetch MLS properties from database within viewport
-            $mlsQuery = MLSProperty::query()
-                ->whereNull('deleted_at')
-                ->where('latitude', '>=', $viewportBounds['south'])
-                ->where('latitude', '<=', $viewportBounds['north'])
-                ->where('longitude', '>=', $viewportBounds['west'])
-                ->where('longitude', '<=', $viewportBounds['east'])
-                ->where('is_active', true)
-                ->limit(100);
-
-            $mlsResults = $mlsQuery->get();
-            $allMlsProperties = $mlsResults->map(function($mlsProp) {
-                return $this->convertMLSPropertyToApiFormat($mlsProp);
-            })->toArray();
-            $mlsTotalCount = count($allMlsProperties);
+            // Step 2: Fetch MLS listings within the viewport from the Repliers API
+            $apiParams = $sanitizedParams;
+            $apiParams['viewport_bounds'] = $viewportBounds;
+            $apiParams['page_size'] = 100;
+            $apiResult = $this->fetchPropertiesFromRepliersAPI($apiParams);
+            $allMlsProperties = $apiResult['properties'];
+            $mlsTotalCount = $apiResult['count'];
 
             // Filter out MLS properties that exist in backend database
             $mlsProperties = $this->filterOutBackendProperties($allMlsProperties, $excludeMlsIds);
@@ -1966,11 +1295,9 @@ class PropertySearchController extends Controller
                 'total_combined' => count($combinedProperties)
             ]);
 
-            // Add images with priority (backend images first, then MLS)
-            $propertiesWithImages = $this->addPropertyImagesWithPriority($combinedProperties);
-
-            // Format properties for JSON response
-            $formattedProperties = $this->formatProperties($propertiesWithImages);
+            // Repliers listings already include CDN image URLs and backend
+            // properties carry their own images — format directly.
+            $formattedProperties = $this->formatProperties($combinedProperties);
 
             return response()->json([
                 'success' => true,
@@ -2132,119 +1459,6 @@ class PropertySearchController extends Controller
         // Default to Toronto if no specific city matched
         Log::info('No city matched, defaulting to Toronto');
         return 'Toronto';
-    }
-
-    /**
-     * Get available property types with counts
-     */
-    public function getAvailablePropertyTypes(Request $request)
-    {
-        try {
-            // Clean any existing output
-            $this->cleanOutputBuffer();
-            
-            // Get base filters from request (location, status, etc.)
-            $baseFilters = $request->input('filters', []);
-            
-            // Get property type counts from database
-            $query = MLSProperty::active()->whereNull('deleted_at');
-
-            // Apply status filter
-            if (!empty($baseFilters['status'])) {
-                $type = strtolower($baseFilters['status']);
-                if (str_contains($type, 'rent') || str_contains($type, 'lease')) {
-                    $query->where('property_type', 'For Rent');
-                } else {
-                    $query->where('property_type', 'For Sale');
-                }
-            }
-
-            // Apply location filter
-            if (!empty($baseFilters['query'])) {
-                $query->where('city', 'like', '%' . $baseFilters['query'] . '%');
-            }
-            
-            // Define all possible property types based on MLS standards
-            $propertyTypes = [
-                'Condo Apartment',
-                'Condo Townhouse',
-                'Detached',
-                'Semi-Detached', 
-                'Attached/Townhouse',
-                'Link',
-                'Duplex',
-                'Triplex',
-                'Fourplex',
-                'Multiplex',
-                'Co-op Apartment',
-                'Co-operative Apartment',
-                'Vacant Land',
-                'Commercial',
-                'Store W/Apartment/Office',
-                'Mobile/Trailer',
-                'Farm',
-                'Cottage',
-                'Investment',
-                'Other'
-            ];
-            
-            // Get actual counts from database with type mapping
-            $typeMapping = [
-                'Condo Apartment' => ['Condo Apartment', 'Apartment'],
-                'Condo Townhouse' => ['Condo Townhouse', 'Stacked Townhouse'],
-                'Loft' => ['Loft', 'Industrial Loft'],
-                'Bachelor/Studio' => ['Bachelor/Studio'],
-                'Multi-Level' => ['Multi-Level'],
-                'Other' => ['Other', 'Bungalow', 'Bungaloft'],
-            ];
-
-            $availableTypes = [];
-            foreach ($typeMapping as $displayName => $dbValues) {
-                $typeQuery = clone $query;
-                $count = $typeQuery->whereIn('property_sub_type', $dbValues)->count();
-                if ($count > 0) {
-                    $availableTypes[] = [
-                        'value' => $displayName,
-                        'label' => $displayName,
-                        'count' => $count,
-                    ];
-                }
-            }
-            
-            // Don't filter out any types - show all available property types
-            // In production, you might want to get actual counts from the API
-            
-            // Always include "All Types" option if there are any listings
-            if (count($availableTypes) > 0) {
-                array_unshift($availableTypes, [
-                    'value' => '',
-                    'label' => 'All Types',
-                    'count' => array_sum(array_column($availableTypes, 'count'))
-                ]);
-            }
-            
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'propertyTypes' => $availableTypes
-                ]
-            ]);
-            
-        } catch (Exception $e) {
-            Log::error('Get available property types error: ' . $e->getMessage());
-            
-            // Return default types on error
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch property types',
-                'data' => [
-                    'propertyTypes' => [
-                        ['value' => '', 'label' => 'All Types', 'count' => 0],
-                        ['value' => 'Condo Apartment', 'label' => 'Condo Apartment', 'count' => 0]
-                    ]
-                ]
-            ], 500);
-        }
     }
 
     /**
@@ -2941,100 +2155,6 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Add property images using the same pattern as WordPress plugin
-     */
-    private function addPropertyImages(array $properties)
-    {
-        if (empty($properties)) {
-            return $properties;
-        }
-
-        $listingKeys = array_column($properties, 'ListingKey');
-
-        if (empty($listingKeys)) {
-            return $properties;
-        }
-
-        try {
-            // Fetch images in smaller batches to avoid API limits and improve accuracy
-            $batchSize = 5;
-            $imagesByKey = [];
-            
-            // Load images from database (synced from Repliers CDN)
-            $mlsProps = MLSProperty::whereIn('mls_id', $listingKeys)
-                ->whereNotNull('image_urls')
-                ->get()
-                ->keyBy('mls_id');
-
-            foreach ($mlsProps as $mlsId => $mlsProp) {
-                if (!empty($mlsProp->image_urls)) {
-                    $imagesByKey[$mlsId] = array_map(function($url, $idx) {
-                        return ['MediaURL' => $url, 'Order' => $idx];
-                    }, $mlsProp->image_urls, array_keys($mlsProp->image_urls));
-                }
-            }
-            
-            // Track used images to avoid duplicates
-            $usedImages = [];
-
-            foreach ($properties as $index => $property) {
-                $listingKey = $property['ListingKey'] ?? null;
-                $propertyImages = $imagesByKey[$listingKey] ?? [];
-
-                // Add full Images array to property
-                $properties[$index]['Images'] = $propertyImages;
-                
-                // Get the first valid image URL
-                $imageUrl = null;
-                foreach ($propertyImages as $img) {
-                    if (!empty($img['MediaURL']) && $this->isValidImageUrl($img['MediaURL'])) {
-                        $imageUrl = $img['MediaURL'];
-                        break;
-                    }
-                }
-                
-                // Check if this image has been used already
-                if ($imageUrl && in_array($imageUrl, $usedImages)) {
-                    // Try to find an alternative image from the array
-                    $alternativeFound = false;
-                    foreach ($propertyImages as $img) {
-                        if (!empty($img['MediaURL']) && 
-                            !in_array($img['MediaURL'], $usedImages) && 
-                            $this->isValidImageUrl($img['MediaURL'])) {
-                            $imageUrl = $img['MediaURL'];
-                            $alternativeFound = true;
-                            break;
-                        }
-                    }
-                    
-                    // If no alternative found, log it for debugging
-                    if (!$alternativeFound && $imageUrl) {
-                        Log::debug("Duplicate image detected for property {$listingKey}, still using it");
-                    }
-                }
-                
-                // Track this image as used
-                if ($imageUrl) {
-                    $usedImages[] = $imageUrl;
-                }
-                
-                // Add MediaURL - ensure it's a valid URL or null
-                $properties[$index]['MediaURL'] = $imageUrl;
-            }
-
-        } catch (Exception $e) {
-            Log::error('Error fetching property images: ' . $e->getMessage());
-
-            foreach ($properties as $index => $property) {
-                $properties[$index]['Images'] = [];
-                $properties[$index]['MediaURL'] = null;
-            }
-        }
-
-        return $properties;
-    }
-
-    /**
      * Format properties for JSON response
      */
     private function formatProperties(array $properties)
@@ -3341,42 +2461,46 @@ class PropertySearchController extends Controller
                 return response()->json(['suggestions' => []]);
             }
 
-            $isMlsLike = (bool) preg_match('/^[A-Za-z]\d+$/', $query);
+            $repliersApi = app(\App\Services\RepliersApiService::class);
 
-            $builder = MLSProperty::where('is_active', true)->whereNull('deleted_at');
-
-            if ($isMlsLike) {
-                // Direct MLS lookup — most precise
-                $builder->where('mls_id', 'like', strtoupper($query) . '%');
+            // MLS-number-like query ("C1234567") — exact lookup (include
+            // unavailable listings, since price history covers sold/leased).
+            $apiParams = [
+                'resultsPerPage' => $limit,
+                'fields' => 'mlsNumber,address,images[1]',
+            ];
+            if (preg_match('/^[A-Za-z]\d+$/', $query)) {
+                $apiParams['mlsNumber'] = strtoupper($query);
+                $apiParams['status'] = ['A', 'U'];
             } else {
-                // Address-based search using FULLTEXT for speed; falls back
-                // to LIKE for very short / single-word queries that the
-                // boolean parser rejects.
-                $words = preg_split('/\s+/', $query);
-                $fulltextQuery = implode(' ', array_map(fn($w) => '+' . $w . '*', $words));
-                $builder->whereRaw(
-                    "MATCH(address, city, postal_code) AGAINST(? IN BOOLEAN MODE)",
-                    [$fulltextQuery]
-                );
+                $apiParams['search'] = $query;
+                $apiParams['status'] = 'A';
             }
 
-            $suggestions = $builder
-                ->select('mls_id', 'address', 'city', 'province', 'postal_code', 'image_urls')
-                ->orderByDesc('updated_date')
-                ->limit($limit)
-                ->get()
-                ->map(function ($p) {
-                    $images = $p->image_urls ?? [];
-                    return [
-                        'listingKey' => $p->mls_id,
-                        'address' => $p->address,
-                        'city' => $p->city,
-                        'province' => $p->province,
-                        'postalCode' => $p->postal_code,
-                        'image' => is_array($images) && !empty($images) ? $images[0] : null,
-                        'href' => '/price-history/' . $p->mls_id,
-                    ];
-                });
+            $result = $repliersApi->searchListings($apiParams);
+
+            $suggestions = [];
+            foreach ($result['listings'] ?? [] as $listing) {
+                $mlsNumber = $listing['mlsNumber'] ?? null;
+                if (!$mlsNumber) {
+                    continue;
+                }
+                $address = $listing['address'] ?? [];
+                $fullAddress = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                if (!empty($address['unitNumber'])) {
+                    $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
+                }
+                $images = $listing['images'] ?? [];
+                $suggestions[] = [
+                    'listingKey' => $mlsNumber,
+                    'address' => $fullAddress,
+                    'city' => $address['city'] ?? '',
+                    'province' => $address['state'] ?? 'ON',
+                    'postalCode' => $address['zip'] ?? '',
+                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                    'href' => '/price-history/' . $mlsNumber,
+                ];
+            }
 
             return response()->json(['suggestions' => $suggestions]);
         } catch (Exception $e) {
@@ -3397,43 +2521,49 @@ class PropertySearchController extends Controller
 
             $searchQuery = trim($query);
 
-            // Build FULLTEXT query with prefix matching
-            $words = preg_split('/\s+/', $searchQuery);
-            $fulltextQuery = implode(' ', array_map(function($word) {
-                return '+' . $word . '*';
-            }, $words));
+            $repliersApi = app(\App\Services\RepliersApiService::class);
+            $result = $repliersApi->searchListings([
+                'search' => $searchQuery,
+                'status' => 'A',
+                'resultsPerPage' => $limit * 3,
+                'fields' => 'address',
+            ]);
 
-            // Search MLS properties using FULLTEXT for fast performance
-            $suggestions = MLSProperty::where('is_active', true)
-                ->whereNull('deleted_at')
-                ->whereRaw(
-                    "MATCH(address, city, postal_code) AGAINST(? IN BOOLEAN MODE)",
-                    [$fulltextQuery]
-                )
-                ->select('address', 'city', 'province', 'postal_code')
-                ->selectRaw("MATCH(address, city, postal_code) AGAINST(? IN BOOLEAN MODE) as relevance", [$fulltextQuery])
-                ->groupBy('address', 'city', 'province', 'postal_code')
-                ->orderByDesc('relevance')
-                ->limit($limit)
-                ->get()
-                ->map(function($property) {
-                    $mainText = $property->address;
-                    $secondaryText = implode(', ', array_filter([
-                        $property->city,
-                        $property->province,
-                        $property->postal_code
-                    ]));
+            $suggestions = [];
+            $seen = [];
+            foreach ($result['listings'] ?? [] as $listing) {
+                $address = $listing['address'] ?? [];
+                $mainText = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+                if ($mainText === '') {
+                    continue;
+                }
+                $city = $address['city'] ?? '';
+                $key = strtolower($mainText . '|' . $city);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
 
-                    return [
-                        'main_text' => $mainText,
-                        'secondary_text' => $secondaryText,
-                        'description' => $mainText . ', ' . $secondaryText,
-                        'address' => $mainText,
-                        'city' => $property->city,
-                        'postal_code' => $property->postal_code,
-                        'display' => $mainText . ', ' . $property->city,
-                    ];
-                });
+                $secondaryText = implode(', ', array_filter([
+                    $city,
+                    $address['state'] ?? 'ON',
+                    $address['zip'] ?? '',
+                ]));
+
+                $suggestions[] = [
+                    'main_text' => $mainText,
+                    'secondary_text' => $secondaryText,
+                    'description' => $mainText . ', ' . $secondaryText,
+                    'address' => $mainText,
+                    'city' => $city,
+                    'postal_code' => $address['zip'] ?? '',
+                    'display' => $mainText . ', ' . $city,
+                ];
+
+                if (count($suggestions) >= $limit) {
+                    break;
+                }
+            }
 
             return response()->json(['suggestions' => $suggestions]);
 
@@ -3444,8 +2574,8 @@ class PropertySearchController extends Controller
     }
 
     /**
-     * Get city suggestions from the MLS database
-     * Returns distinct cities that match the search query
+     * Get city suggestions from the Repliers API city aggregates.
+     * Returns distinct cities that match the search query.
      */
     public function getCitySuggestions(Request $request)
     {
@@ -3457,26 +2587,34 @@ class PropertySearchController extends Controller
                 return response()->json(['suggestions' => []]);
             }
 
-            $searchQuery = trim($query);
+            $searchQuery = strtolower(trim($query));
 
-            // Get distinct cities that match the search query
-            // Using LIKE for city search since cities are relatively short strings
-            $suggestions = MLSProperty::where('is_active', true)
-                ->whereNull('deleted_at')
-                ->where('city', 'like', $searchQuery . '%')
-                ->selectRaw('city, province, COUNT(*) as listing_count')
-                ->groupBy('city', 'province')
-                ->orderByRaw('listing_count DESC')
-                ->limit($limit)
-                ->get()
-                ->map(function($item) {
-                    return [
-                        'main_text' => $item->city,
-                        'secondary_text' => $item->province,
-                        'listing_count' => $item->listing_count,
-                        'display' => $item->city . ', ' . $item->province,
-                    ];
-                });
+            $repliersApi = app(\App\Services\RepliersApiService::class);
+            $result = $repliersApi->searchListings([
+                'status' => 'A',
+                'aggregates' => 'address.city',
+                'listings' => 'false',
+                'resultsPerPage' => 1,
+            ]);
+
+            $cityCounts = $result['aggregates']['address']['city'] ?? [];
+
+            $matches = [];
+            foreach ($cityCounts as $city => $count) {
+                if (str_starts_with(strtolower((string) $city), $searchQuery)) {
+                    $matches[] = ['city' => (string) $city, 'count' => (int) $count];
+                }
+            }
+
+            usort($matches, fn ($a, $b) => $b['count'] <=> $a['count']);
+            $matches = array_slice($matches, 0, $limit);
+
+            $suggestions = array_map(fn ($m) => [
+                'main_text' => $m['city'],
+                'secondary_text' => 'ON',
+                'listing_count' => $m['count'],
+                'display' => $m['city'] . ', ON',
+            ], $matches);
 
             return response()->json(['suggestions' => $suggestions]);
 
@@ -3544,15 +2682,7 @@ class PropertySearchController extends Controller
 
             $repliersApi = app(\App\Services\RepliersApiService::class);
 
-            // If Repliers itself is down / misconfigured (bad API key etc.)
-            // fall back to pins from the locally-synced mls_properties table
-            // instead of blanking the whole map with a 500.
-            try {
-                $result = $repliersApi->searchListings($apiParams);
-            } catch (Exception $e) {
-                Log::warning('Repliers map clusters failed, falling back to local DB: ' . $e->getMessage());
-                return $this->getMapCoordinatesFromLocalDb($request);
-            }
+            $result = $repliersApi->searchListings($apiParams);
 
             $totalCount = $result['count'] ?? 0;
             $rawClusters = $result['aggregates']['map']['clusters'] ?? [];
@@ -3572,19 +2702,24 @@ class PropertySearchController extends Controller
                 && !empty($searchParams['query']) && $hasSpatialFilter && !$hasUserPolygon) {
                 $retryParams = $apiParams;
                 unset($retryParams['lat'], $retryParams['long'], $retryParams['radius'], $retryParams['map']);
-                try {
-                    $result = $repliersApi->searchListings($retryParams);
-                } catch (Exception $e) {
-                    Log::warning('Repliers map broaden retry failed, falling back to local DB: ' . $e->getMessage());
-                    return $this->getMapCoordinatesFromLocalDb($request);
-                }
+                $result = $repliersApi->searchListings($retryParams);
                 $totalCount = $result['count'] ?? 0;
                 $rawClusters = $result['aggregates']['map']['clusters'] ?? [];
                 $searchMovedMap = !empty($rawClusters);
                 if (empty($rawClusters)) {
-                    // Nothing from Repliers for this query at all — last resort:
-                    // locally-synced coordinates (also covers stale-sync gaps).
-                    return $this->getMapCoordinatesFromLocalDb($request);
+                    // Nothing from Repliers for this query at all — return an
+                    // empty result set rather than erroring the map.
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'coordinates' => [],
+                            'clusters' => [],
+                            'total' => 0,
+                            'displayed' => 0,
+                            'zoom_level' => $zoomLevel,
+                            'has_more' => false,
+                        ],
+                    ]);
                 }
             }
 
@@ -3737,151 +2872,6 @@ class PropertySearchController extends Controller
                         'west' => min($lngs),
                     ];
                 }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-            ]);
-
-        } catch (Exception $e) {
-            Log::error('Map coordinates error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch map coordinates: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Legacy local-DB map coordinates (kept for reference / fallback)
-     */
-    private function getMapCoordinatesFromLocalDb(Request $request)
-    {
-        try {
-            $searchParams = $request->input('search_params', []);
-            $viewportBounds = $searchParams['viewport_bounds'] ?? null;
-            $zoomLevel = (int)($searchParams['zoom_level'] ?? 10);
-
-            // Build base query for MLS properties with coordinates
-            $query = MLSProperty::query()
-                ->whereNotNull('latitude')
-                ->whereNotNull('longitude')
-                ->where('latitude', '!=', 0)
-                ->where('longitude', '!=', 0)
-                ->where('is_active', true)
-                ->whereNull('deleted_at');
-
-            // Apply status filter
-            $status = $searchParams['status'] ?? 'For Sale';
-            if ($status === 'For Sale') {
-                $query->where('property_type', 'For Sale');
-            } elseif (in_array($status, ['For Lease', 'For Rent'])) {
-                $query->where('property_type', 'For Rent');
-            }
-
-            // City-scoped query (e.g. "Aurora" from a city landing page): filter
-            // by city and IGNORE the viewport — the map may still be centred on
-            // Toronto, and the frontend pans to the results via fit_bounds.
-            $matchedCity = $this->matchGtaCity($searchParams['query'] ?? null);
-            if ($matchedCity) {
-                $query->where('city', 'like', $matchedCity . '%');
-            } elseif ($viewportBounds && isset($viewportBounds['north'], $viewportBounds['south'], $viewportBounds['east'], $viewportBounds['west'])) {
-                // Viewport bounds are the key filter otherwise: zoomed out =
-                // larger viewport = more properties shown.
-                $query->whereBetween('latitude', [$viewportBounds['south'], $viewportBounds['north']])
-                      ->whereBetween('longitude', [$viewportBounds['west'], $viewportBounds['east']]);
-            }
-
-            // Apply price filters
-            if (!empty($searchParams['price_min']) && $searchParams['price_min'] > 0) {
-                $query->where('price', '>=', $searchParams['price_min']);
-            }
-            if (!empty($searchParams['price_max']) && $searchParams['price_max'] > 0 && $searchParams['price_max'] < 50000000) {
-                $query->where('price', '<=', $searchParams['price_max']);
-            }
-
-            // Apply bedroom filter
-            if (!empty($searchParams['bedrooms']) && $searchParams['bedrooms'] > 0) {
-                $query->where('bedrooms', '>=', $searchParams['bedrooms']);
-            }
-
-            // Apply bathroom filter
-            if (!empty($searchParams['bathrooms']) && $searchParams['bathrooms'] > 0) {
-                $query->where('bathrooms', '>=', $searchParams['bathrooms']);
-            }
-
-            // Apply property type filter
-            if (!empty($searchParams['property_type']) && is_array($searchParams['property_type'])) {
-                $query->whereIn('property_sub_type', $searchParams['property_type']);
-            }
-
-            // Get total count in viewport
-            $totalCount = $query->count();
-
-            // Dynamic limit based on viewport - show ALL properties in the viewport
-            // The frontend MarkerClusterer will handle grouping them into clusters
-            // Max limit prevents browser from crashing with too many markers
-            $maxLimit = 2000; // Maximum markers the browser can handle efficiently
-
-            // Calculate limit - show all properties up to max
-            $limit = min($totalCount, $maxLimit);
-
-            // Fetch lightweight coordinate data
-            // All properties in viewport will be shown - clustering handles the display
-            $coordinates = $query
-                ->orderByRaw('has_images DESC, listed_date DESC')
-                ->limit($limit)
-                ->select([
-                    'id',
-                    'mls_id',
-                    'latitude',
-                    'longitude',
-                    'price',
-                    'address',
-                    'city',
-                    'bedrooms',
-                    'bathrooms',
-                    'property_sub_type',
-                    'has_images'
-                ])
-                ->get()
-                ->map(function ($property) {
-                    return [
-                        'id' => $property->id,
-                        'mls_id' => $property->mls_id,
-                        'lat' => (float)$property->latitude,
-                        'lng' => (float)$property->longitude,
-                        'price' => (int)$property->price,
-                        'address' => $property->address,
-                        'city' => $property->city,
-                        'beds' => $property->bedrooms,
-                        'baths' => $property->bathrooms,
-                        'type' => $property->property_sub_type,
-                        'hasImage' => (bool)$property->has_images
-                    ];
-                });
-
-            $data = [
-                'coordinates' => $coordinates,
-                'clusters' => [],
-                'total' => $totalCount,
-                'displayed' => $coordinates->count(),
-                'zoom_level' => $zoomLevel,
-                'has_more' => $totalCount > $coordinates->count()
-            ];
-
-            // City-scoped results may sit outside the current viewport (map
-            // still centred on Toronto) — hand the frontend bounds to pan to.
-            if ($matchedCity && $coordinates->isNotEmpty()) {
-                $lats = $coordinates->pluck('lat');
-                $lngs = $coordinates->pluck('lng');
-                $data['fit_bounds'] = [
-                    'north' => (float) $lats->max(),
-                    'south' => (float) $lats->min(),
-                    'east' => (float) $lngs->max(),
-                    'west' => (float) $lngs->min(),
-                ];
             }
 
             return response()->json([

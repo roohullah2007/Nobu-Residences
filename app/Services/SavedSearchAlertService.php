@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\MLSProperty;
+use App\Http\Controllers\PropertySearchController;
 use App\Models\SavedSearch;
 use App\Models\SavedSearchAlertHistory;
 use App\Models\User;
 use App\Notifications\SavedSearchAlertNotification;
+use App\Services\RepliersApiService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Collection;
@@ -17,12 +18,18 @@ use Illuminate\Support\Facades\Log;
  *
  * Handles:
  * - Finding saved searches due for alerts
- * - Running searches to find new listings
+ * - Running searches to find new listings (live Repliers API — the local
+ *   mls_properties mirror and its sync commands were removed, so matching
+ *   queries the same source the search page uses)
  * - Sending notifications to users
  * - Tracking alert history
  */
 class SavedSearchAlertService
 {
+    public function __construct(protected RepliersApiService $repliersApi)
+    {
+    }
+
     /**
      * Process all due saved search alerts
      *
@@ -147,118 +154,29 @@ class SavedSearchAlertService
         // Determine the date to look for new listings from
         $sinceDate = $savedSearch->last_alert_sent ?? now()->subDays($savedSearch->frequency ?? 1);
 
-        // Build query
-        $query = MLSProperty::query()
-            ->where('is_active', true)
-            ->where('status', 'active');
+        // Reuse the search page's param mapping (city/address parsing,
+        // property-type expansion, price/bed/bath filters, building
+        // scoping) so alert emails match exactly what the user sees when
+        // they run the same search on the site.
+        $apiParams = app(PropertySearchController::class)->buildRepliersListingsParams($params);
 
-        // Apply listing date filter - only get listings added since last alert
-        $query->where('listed_date', '>=', $sinceDate);
+        // Alerts are always about NEW active listings — never sold/leased
+        // history, even if the saved search was created from a Sold tab.
+        $apiParams['status'] = 'A';
+        unset($apiParams['lastStatus']);
 
-        // Apply status/transaction type filter
-        $status = $params['status'] ?? 'For Sale';
-        if ($status === 'For Sale') {
-            $query->where('property_type', 'For Sale');
-        } elseif (in_array($status, ['For Lease', 'For Rent'])) {
-            $query->where('property_type', 'For Rent');
-        }
+        // Only listings added since the last alert
+        $apiParams['minListDate'] = $sinceDate->format('Y-m-d');
 
-        // Apply location filter
-        if (!empty($params['query'])) {
-            $searchQuery = trim($params['query']);
+        // Limit to 10 newest for the email (don't want to overwhelm);
+        // bypass the search cache so a stale count never suppresses alerts.
+        $apiParams['pageNum'] = 1;
+        $apiParams['resultsPerPage'] = 10;
+        $apiParams['sortBy'] = 'createdOnDesc';
 
-            // Detect if it's a postal code
-            if (preg_match('/^[A-Za-z]\d[A-Za-z][\s-]?\d[A-Za-z]\d$/i', $searchQuery)) {
-                $postalCode = strtoupper(str_replace([' ', '-'], '', $searchQuery));
-                $query->whereRaw("REPLACE(REPLACE(postal_code, ' ', ''), '-', '') LIKE ?", ["%{$postalCode}%"]);
-            } else {
-                // Street address or city search - use FULLTEXT on address
-                $words = preg_split('/\s+/', $searchQuery);
-                $longWords = array_filter($words, fn($w) => strlen($w) >= 4);
-                $shortWords = array_filter($words, fn($w) => strlen($w) < 4 && strlen($w) > 0);
+        $result = $this->repliersApi->searchListingsNoCache($apiParams);
 
-                if (!empty($longWords)) {
-                    $fulltextQuery = implode(' ', array_map(fn($w) => '+' . $w . '*', $longWords));
-                    $query->whereRaw("MATCH(address) AGAINST(? IN BOOLEAN MODE)", [$fulltextQuery]);
-                }
-
-                if (!empty($shortWords)) {
-                    foreach ($shortWords as $word) {
-                        $query->where('address', 'like', $word . ' %');
-                    }
-                }
-            }
-        }
-
-        // Apply property type filter
-        if (!empty($params['property_type']) && is_array($params['property_type']) && count($params['property_type']) > 0) {
-            $query->whereIn('property_sub_type', $params['property_type']);
-        }
-
-        // Apply price range filter
-        $priceMin = $params['price_min'] ?? 0;
-        $priceMax = $params['price_max'] ?? 0;
-
-        if ($priceMin > 0) {
-            $query->where('price', '>=', $priceMin);
-        }
-        if ($priceMax > 0 && $priceMax < 10000000) {
-            $query->where('price', '<=', $priceMax);
-        }
-
-        // Apply bedroom filter
-        $bedrooms = $params['bedrooms'] ?? 0;
-        if ($bedrooms > 0) {
-            $query->where('bedrooms', '>=', $bedrooms);
-        }
-
-        // Apply bathroom filter
-        $bathrooms = $params['bathrooms'] ?? 0;
-        if ($bathrooms > 0) {
-            $query->where('bathrooms', '>=', $bathrooms);
-        }
-
-        // Apply square footage filter
-        $minSqft = $params['min_sqft'] ?? 0;
-        $maxSqft = $params['max_sqft'] ?? 0;
-        if ($minSqft > 0) {
-            $query->where('square_footage', '>=', $minSqft);
-        }
-        if ($maxSqft > 0) {
-            $query->where('square_footage', '<=', $maxSqft);
-        }
-
-        // Building-scoped alerts ("notify me when units become available at
-        // {building}"): match on the building's street address(es).
-        if (!empty($params['building_id'])) {
-            $building = \App\Models\Building::find($params['building_id']);
-            if ($building) {
-                $addresses = array_filter([
-                    $building->street_address_1,
-                    $building->street_address_2,
-                    $building->address,
-                ]);
-                if (!empty($addresses)) {
-                    $query->where(function ($q) use ($addresses) {
-                        foreach ($addresses as $address) {
-                            // "8 Widmer St, Toronto" → match listings starting
-                            // with "8 Widmer"
-                            $parsed = \App\Models\Building::parseStreetAddress($address);
-                            if ($parsed) {
-                                $q->orWhere('address', 'like', $parsed['number'] . ' ' . $parsed['name'] . '%');
-                            }
-                        }
-                    });
-                }
-            }
-        }
-
-        // Prioritize properties with images, order by newest
-        $query->orderBy('has_images', 'desc')
-              ->orderBy('listed_date', 'desc');
-
-        // Limit to 10 properties for email (don't want to overwhelm)
-        return $query->limit(10)->get();
+        return collect($result['listings'] ?? []);
     }
 
     /**
@@ -278,21 +196,24 @@ class SavedSearchAlertService
             return;
         }
 
-        // Format properties for the notification
-        $formattedListings = $newListings->map(function ($property) {
+        // Format Repliers listings for the notification
+        $formattedListings = $newListings->map(function ($listing) {
+            $price = (float) ($listing['listPrice'] ?? 0);
+            $details = $listing['details'] ?? [];
+
             return [
-                'id' => $property->id,
-                'mls_id' => $property->mls_id,
-                'address' => $property->address,
-                'city' => $property->city,
-                'price' => $property->price,
-                'formatted_price' => '$' . number_format($property->price),
-                'bedrooms' => $property->bedrooms,
-                'bathrooms' => $property->bathrooms,
-                'square_footage' => $property->square_footage,
-                'property_type' => $property->property_sub_type ?? $property->property_type,
-                'image_url' => $this->getFirstImageUrl($property),
-                'url' => $this->getPropertyUrl($property),
+                'id' => $listing['mlsNumber'] ?? null,
+                'mls_id' => $listing['mlsNumber'] ?? null,
+                'address' => $this->formatListingAddress($listing),
+                'city' => $listing['address']['city'] ?? '',
+                'price' => $price,
+                'formatted_price' => '$' . number_format($price),
+                'bedrooms' => $details['numBedrooms'] ?? null,
+                'bathrooms' => $details['numBathrooms'] ?? null,
+                'square_footage' => $details['sqft'] ?? null,
+                'property_type' => $details['propertyType'] ?? null,
+                'image_url' => $this->getFirstImageUrl($listing),
+                'url' => $this->getPropertyUrl($listing),
             ];
         })->toArray();
 
@@ -305,7 +226,7 @@ class SavedSearchAlertService
 
         // Record alert history
         try {
-            $listingKeys = $newListings->pluck('mls_id')->toArray();
+            $listingKeys = $newListings->pluck('mlsNumber')->filter()->values()->toArray();
             SavedSearchAlertHistory::recordAlert($savedSearch, $listingKeys, 'sent');
 
             // Increment total alerts sent counter
@@ -319,31 +240,49 @@ class SavedSearchAlertService
     }
 
     /**
-     * Get the first image URL for a property
+     * Format a Repliers listing's street address, e.g. "3201 - 308 Jarvis St E"
      *
-     * @param MLSProperty $property
+     * @param array $listing
+     * @return string
+     */
+    protected function formatListingAddress(array $listing): string
+    {
+        $address = $listing['address'] ?? [];
+
+        $street = trim(implode(' ', array_filter([
+            $address['streetNumber'] ?? null,
+            $address['streetName'] ?? null,
+            $address['streetSuffix'] ?? null,
+            $address['streetDirection'] ?? null,
+        ])));
+
+        $unit = $address['unitNumber'] ?? null;
+
+        return $unit ? "{$unit} - {$street}" : $street;
+    }
+
+    /**
+     * Get the first image URL for a Repliers listing
+     *
+     * @param array $listing
      * @return string|null
      */
-    protected function getFirstImageUrl(MLSProperty $property): ?string
+    protected function getFirstImageUrl(array $listing): ?string
     {
-        $imageUrls = $property->image_urls;
+        $urls = $this->repliersApi->getListingImageUrls($listing);
 
-        if (is_array($imageUrls) && !empty($imageUrls)) {
-            return $imageUrls[0];
-        }
-
-        return null;
+        return $urls[0] ?? null;
     }
 
     /**
      * Generate property URL
      *
-     * @param MLSProperty $property
+     * @param array $listing
      * @return string
      */
-    protected function getPropertyUrl(MLSProperty $property): string
+    protected function getPropertyUrl(array $listing): string
     {
-        return config('app.url') . '/property/' . $property->mls_id;
+        return config('app.url') . '/property/' . ($listing['mlsNumber'] ?? '');
     }
 
     /**

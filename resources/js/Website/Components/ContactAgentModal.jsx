@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import PhoneInput from '@/Components/PhoneInput';
 
 export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
     const { globalWebsite, website } = usePage().props;
@@ -193,8 +194,7 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
                         <label htmlFor="phone" className="block text-gray-700 mb-1 font-medium">
                             Phone Number
                         </label>
-                        <input
-                            type="tel"
+                        <PhoneInput
                             id="phone"
                             name="phone"
                             value={formData.phone}

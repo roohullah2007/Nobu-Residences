@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import PhoneInput from '@/Components/PhoneInput';
 
 // Contact — ICE-reference layout (5-col: info + AI concierge box | form card).
 // Submit posts to /contact (same endpoint as before). Contact/agent details
@@ -185,7 +186,7 @@ export default function ContactSection({ website, pageContent, building = {} }) 
                                 </div>
                                 <div>
                                     <label className="block text-[12px] tracking-[0.1em] uppercase text-neutral-400 mb-2">Phone</label>
-                                    <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(416) 555-0123" className={fieldClass('phone')} />
+                                    <PhoneInput name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(416) 555-0123" className={fieldClass('phone')} />
                                     {formErrors.phone && <span className="mt-1 block text-xs text-red-500">{formErrors.phone}</span>}
                                 </div>
                                 <div>

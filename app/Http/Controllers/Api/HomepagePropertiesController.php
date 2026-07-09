@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Services\RepliersApiService;
 use App\Models\Setting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
@@ -22,7 +21,7 @@ class HomepagePropertiesController extends Controller
     /**
      * Get properties for homepage carousels
      * Uses the default building address from MLS settings
-     * Now fetches from local mls_properties database
+     * Fetches live from the Repliers API
      */
     public function getHomepageProperties(Request $request)
     {
@@ -260,123 +259,6 @@ class HomepagePropertiesController extends Controller
             Log::error("Error fetching homepage properties from Repliers ({$type}): " . $e->getMessage());
             return [];
         }
-    }
-
-    /**
-     * Fetch properties from local mls_properties database
-     */
-    private function fetchPropertiesFromDB(string $propertyType, array $streetAddresses)
-    {
-        try {
-            $query = DB::table('mls_properties')
-                ->where('is_active', true)
-                ->where('status', 'active')
-                ->where('property_type', $propertyType)
-                ->where(function($q) use ($streetAddresses) {
-                    foreach ($streetAddresses as $streetAddr) {
-                        $q->orWhereRaw('LOWER(address) LIKE ?', [strtolower($streetAddr) . '%']);
-                    }
-                })
-                ->select([
-                    'id', 'mls_id', 'address', 'city', 'province', 'postal_code',
-                    'price', 'bedrooms', 'bathrooms', 'square_footage',
-                    'property_type', 'property_sub_type', 'image_urls',
-                    'has_images', 'listed_date', 'parking_spaces'
-                ])
-                ->orderBy('listed_date', 'desc')
-                ->limit(12)
-                ->get();
-
-            // Format for frontend carousel
-            $formatted = [];
-            $isRental = $propertyType === 'For Rent';
-
-            foreach ($query as $property) {
-                $imageUrls = json_decode($property->image_urls ?? '[]', true);
-                $imageUrl = !empty($imageUrls) ? $imageUrls[0] : null;
-
-                // Parse address for unit/street formatting
-                $addressParts = $this->parseAddress($property->address);
-
-                $formatted[] = [
-                    'id' => $property->id,
-                    'listingKey' => $property->mls_id,
-                    'imageUrl' => $imageUrl,
-                    'image' => $imageUrl,
-                    'images' => $imageUrls,
-                    'price' => (int)$property->price,
-                    'propertyType' => $property->property_sub_type ?? 'Condo Apartment',
-                    'transactionType' => $property->property_type,
-                    'bedrooms' => (int)$property->bedrooms,
-                    'bathrooms' => (int)$property->bathrooms,
-                    'address' => $property->address,
-                    'city' => $property->city,
-                    'postalCode' => $property->postal_code,
-                    'sqft' => $property->square_footage,
-                    'LivingAreaRange' => $property->square_footage ? "{$property->square_footage} sqft" : '',
-                    'livingAreaRange' => $property->square_footage ? "{$property->square_footage} sqft" : '',
-                    'parking' => (int)$property->parking_spaces,
-                    'isRental' => $isRental,
-                    'source' => 'mls',
-                    // Address parts for formatters
-                    'UnitNumber' => $addressParts['unit'] ?? '',
-                    'unitNumber' => $addressParts['unit'] ?? '',
-                    'StreetNumber' => $addressParts['streetNumber'] ?? '',
-                    'streetNumber' => $addressParts['streetNumber'] ?? '',
-                    'StreetName' => $addressParts['streetName'] ?? '',
-                    'streetName' => $addressParts['streetName'] ?? '',
-                    'StreetSuffix' => $addressParts['streetSuffix'] ?? '',
-                    'streetSuffix' => $addressParts['streetSuffix'] ?? '',
-                    'ParkingTotal' => (int)$property->parking_spaces,
-                    'parkingTotal' => (int)$property->parking_spaces,
-                    'BedroomsTotal' => (int)$property->bedrooms,
-                    'bedroomsTotal' => (int)$property->bedrooms,
-                    'BathroomsTotalInteger' => (int)$property->bathrooms,
-                    'bathroomsTotalInteger' => (int)$property->bathrooms,
-                ];
-            }
-
-            Log::info("Fetched {$propertyType} properties from DB", [
-                'addresses' => $streetAddresses,
-                'count' => count($formatted)
-            ]);
-
-            return $formatted;
-
-        } catch (Exception $e) {
-            Log::error("Error fetching {$propertyType} properties from DB: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Parse address string to extract parts
-     * Example: "15 Mercer Street 419, Toronto C01, ON M5V 1H2" -> unit=419, streetNumber=15, streetName=Mercer, streetSuffix=Street
-     */
-    private function parseAddress(string $address): array
-    {
-        $parts = [
-            'unit' => '',
-            'streetNumber' => '',
-            'streetName' => '',
-            'streetSuffix' => ''
-        ];
-
-        // Try to extract: "15 Mercer Street 419" pattern
-        if (preg_match('/^(\d+)\s+([A-Za-z]+)\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)\s+(\d+|[A-Z]+\d*)/i', $address, $matches)) {
-            $parts['streetNumber'] = $matches[1];
-            $parts['streetName'] = $matches[2];
-            $parts['streetSuffix'] = $matches[3];
-            $parts['unit'] = $matches[4];
-        }
-        // Try: "15 Mercer Street" pattern (no unit)
-        elseif (preg_match('/^(\d+)\s+([A-Za-z]+)\s+(Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Court|Ct|Place|Pl|Lane|Ln|Way)/i', $address, $matches)) {
-            $parts['streetNumber'] = $matches[1];
-            $parts['streetName'] = $matches[2];
-            $parts['streetSuffix'] = $matches[3];
-        }
-
-        return $parts;
     }
 
     /**

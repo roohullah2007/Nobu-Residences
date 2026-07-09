@@ -6,6 +6,7 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import { createBuildingUrl } from '@/utils/slug';
 import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
+import PhoneInput from '@/Components/PhoneInput';
 
 export default function DeveloperDetail({
     auth,
@@ -791,7 +792,7 @@ export default function DeveloperDetail({
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                                    <input type="tel" id="devTourPhone" name="phone" value={formData.phone} onChange={handleInputChange} className={inputClass(formErrors.phone)} aria-invalid={!!formErrors.phone} />
+                                    <PhoneInput id="devTourPhone" name="phone" value={formData.phone} onChange={handleInputChange} className={inputClass(formErrors.phone)} aria-invalid={!!formErrors.phone} />
                                     <FieldError message={formErrors.phone} />
                                 </div>
                                 <div className="mb-4">
@@ -831,7 +832,7 @@ export default function DeveloperDetail({
                                 </div>
                                 <div className="mb-4">
                                     <label className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                                    <input type="tel" id="devQuestionPhone" name="phone" value={questionFormData.phone} onChange={handleQuestionInputChange} className={inputClass(questionErrors.phone)} aria-invalid={!!questionErrors.phone} />
+                                    <PhoneInput id="devQuestionPhone" name="phone" value={questionFormData.phone} onChange={handleQuestionInputChange} className={inputClass(questionErrors.phone)} aria-invalid={!!questionErrors.phone} />
                                     <FieldError message={questionErrors.phone} />
                                 </div>
                                 <div className="mb-4">

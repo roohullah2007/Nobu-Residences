@@ -99,10 +99,6 @@ class AdminController extends Controller
                 'walkscore_api_key' => $this->maskApiKey($walkscoreKey),
             ],
             'mls_settings' => [
-                'auto_sync' => $apiSettings->get('mls_auto_sync')?->value ?? true,
-                'sync_interval' => $apiSettings->get('mls_sync_interval')?->value ?? 60,
-                'max_properties' => $apiSettings->get('mls_max_properties')?->value ?? 1000,
-                'default_city' => $apiSettings->get('mls_default_city')?->value ?? 'Toronto',
                 'default_building_address' => $apiSettings->get('default_building_address')?->value ?? '55 Mercer Street',
                 'cache_ttl' => $apiSettings->get('cache_ttl')?->value ?? 300,
             ],
@@ -169,10 +165,6 @@ class AdminController extends Controller
 
         // Update MLS settings if provided
         $mlsSettings = [
-            'mls_auto_sync' => $validated['mls_auto_sync'] ?? null,
-            'mls_sync_interval' => $validated['mls_sync_interval'] ?? null,
-            'mls_max_properties' => $validated['mls_max_properties'] ?? null,
-            'mls_default_city' => $validated['mls_default_city'] ?? null,
             'default_building_address' => $validated['default_building_address'] ?? null,
             'cache_ttl' => $validated['cache_ttl'] ?? null,
         ];

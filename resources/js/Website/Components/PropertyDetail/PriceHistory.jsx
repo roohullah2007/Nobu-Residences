@@ -171,6 +171,10 @@ const PriceHistory = ({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
+          {/* On mobile the stacked cards can make the section extremely tall,
+              so cap the list height and scroll it internally; desktop keeps
+              the natural (preview-limited) height. */}
+          <div className="flex flex-col gap-3 max-h-[360px] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
           {visibleHistory.map((entry, idx) => {
             const status = statusDisplay(entry.lastStatus);
             const wasSold = ['Sold', 'Leased'].includes(status.label);
@@ -251,6 +255,7 @@ const PriceHistory = ({
               </div>
             );
           })}
+          </div>
 
           {/* Footer button — always shown (unless caller already requested
               showAll). Resolves to a link to the building's dedicated full

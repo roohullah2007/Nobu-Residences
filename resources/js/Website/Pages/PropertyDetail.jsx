@@ -319,7 +319,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website} blueHeader={true}>
       <Head title={`${displayData.address} - Property Details - ${siteName}`} />
       <div className="idx mx-auto overflow-hidden bg-primary pb-24 md:pb-0">
-        <div className="px-4 md:px-0 max-w-[1280px] mx-auto pt-8 md:pt-12">
+        {/* Keep edge padding through tablet/small-desktop; only drop it at
+            xl where the 1280px design width fits the viewport exactly. */}
+        <div className="px-4 xl:px-0 max-w-[1280px] mx-auto pt-8 md:pt-12">
 
           {/* Property Header */}
           <div className="mb-5">

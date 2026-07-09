@@ -6,7 +6,6 @@ use App\Http\Controllers\WebsiteController;
 use App\Http\Controllers\PropertyEnquiryController;
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\MLSController;
 use App\Http\Controllers\Admin\RealEstateController;
 use App\Http\Controllers\Admin\WebsiteManagementController;
 use Illuminate\Foundation\Application;
@@ -141,7 +140,6 @@ Route::post('/api/property-search', [\App\Http\Controllers\PropertySearchControl
 Route::post('/api/property-search-count', [\App\Http\Controllers\PropertySearchController::class, 'searchCount']);
 Route::post('/api/property-search-viewport', [\App\Http\Controllers\PropertySearchController::class, 'searchByViewport']);
 Route::post('/api/map-coordinates', [\App\Http\Controllers\PropertySearchController::class, 'getMapCoordinates']);
-Route::post('/api/property-types', [\App\Http\Controllers\PropertySearchController::class, 'getAvailablePropertyTypes']);
 Route::get('/api/address-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getAddressSuggestions']);
 Route::get('/api/price-history-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getPriceHistorySuggestions']);
 Route::get('/api/city-suggestions', [\App\Http\Controllers\PropertySearchController::class, 'getCitySuggestions']);
@@ -430,9 +428,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Saved searches / email alert stats
     Route::get('saved-searches', [\App\Http\Controllers\Admin\SavedSearchAdminController::class, 'index'])->name('saved-searches.index');
 
-    // Site-wide FAQ management
-    Route::resource('faqs', \App\Http\Controllers\Admin\FaqController::class);
-
     // Maintenance Fee Amenity Management routes
     Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);
     Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);
@@ -511,19 +506,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/api/store', [WebsiteManagementController::class, 'storeIconAjax'])->name('api.store');
     });
     
-    // MLS Properties Management routes
-    Route::prefix('mls')->name('mls.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Admin\MLSController::class, 'index'])->name('index');
-        Route::get('/stats', [\App\Http\Controllers\Admin\MLSController::class, 'getStats'])->name('stats');
-        Route::post('/sync-full', [\App\Http\Controllers\Admin\MLSController::class, 'syncFull'])->name('sync-full');
-        Route::post('/sync-incremental', [\App\Http\Controllers\Admin\MLSController::class, 'syncIncremental'])->name('sync-incremental');
-        Route::post('/sync-property', [\App\Http\Controllers\Admin\MLSController::class, 'syncProperty'])->name('sync-property');
-        Route::post('/bulk-delete', [\App\Http\Controllers\Admin\MLSController::class, 'bulkDelete'])->name('bulk-delete');
-        Route::post('/clear-all', [\App\Http\Controllers\Admin\MLSController::class, 'clearAll'])->name('clear-all');
-        Route::get('/{id}', [\App\Http\Controllers\Admin\MLSController::class, 'show'])->name('show');
-        Route::delete('/{id}', [\App\Http\Controllers\Admin\MLSController::class, 'destroy'])->name('destroy');
-    });
-
     // Blog Management routes
     Route::prefix('blog')->name('blog.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\BlogController::class, 'index'])->name('index');

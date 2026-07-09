@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\MLSProperty;
 use App\Services\RepliersApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -48,9 +47,9 @@ class PropertyImageController extends Controller
             $batchSize = min(count($listingKeys), 15);
             $listingKeys = array_slice($listingKeys, 0, $batchSize);
 
-            Log::info('Fetching images from DATABASE for listing keys: ' . implode(', ', $listingKeys));
+            Log::info('Fetching images from Repliers API for listing keys: ' . implode(', ', $listingKeys));
 
-            $imagesByKey = $this->getImagesFromDatabase($listingKeys);
+            $imagesByKey = $this->getImagesFromApi($listingKeys);
 
             $formattedImages = [];
             $successCount = 0;
@@ -130,7 +129,7 @@ class PropertyImageController extends Controller
                 ], 400);
             }
 
-            $images = $this->getImagesFromDatabase([$listingKey]);
+            $images = $this->getImagesFromApi([$listingKey]);
             $propertyImages = $images[$listingKey] ?? [];
 
             if (!empty($propertyImages) && isset($propertyImages[0]['MediaURL'])) {
@@ -174,49 +173,56 @@ class PropertyImageController extends Controller
     }
 
     /**
-     * Get images from database for multiple properties
-     * Images are Repliers CDN URLs stored during sync
+     * Get images for multiple properties from the Repliers API in one call.
+     * Returns Repliers CDN URLs keyed by listing key.
      */
-    private function getImagesFromDatabase(array $listingKeys): array
+    private function getImagesFromApi(array $listingKeys): array
     {
         if (empty($listingKeys)) {
             return [];
         }
 
-        $mlsProperties = MLSProperty::whereIn('mls_id', $listingKeys)
-            ->whereNotNull('image_urls')
-            ->get()
-            ->keyBy('mls_id');
+        $imagesByKey = array_fill_keys($listingKeys, []);
 
-        $imagesByKey = [];
+        $result = $this->repliersApi->searchListings([
+            'mlsNumber' => array_values($listingKeys),
+            'status' => ['A', 'U'],
+            'fields' => 'mlsNumber,images',
+            'resultsPerPage' => count($listingKeys),
+        ]);
 
-        foreach ($listingKeys as $listingKey) {
-            $mlsProperty = $mlsProperties->get($listingKey);
-
-            if ($mlsProperty && !empty($mlsProperty->image_urls)) {
-                $images = [];
-                foreach ($mlsProperty->image_urls as $index => $url) {
-                    $images[] = [
-                        'MediaURL' => $url,
-                        'Order' => $index,
-                    ];
-                }
-                $imagesByKey[$listingKey] = $images;
-            } else {
-                $imagesByKey[$listingKey] = [];
+        $found = 0;
+        foreach ($result['listings'] ?? [] as $listing) {
+            $mlsNumber = $listing['mlsNumber'] ?? null;
+            if (!$mlsNumber || !array_key_exists($mlsNumber, $imagesByKey)) {
+                continue;
             }
+            $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+            if (empty($imageUrls)) {
+                continue;
+            }
+            $images = [];
+            foreach (array_values($imageUrls) as $index => $url) {
+                $images[] = [
+                    'MediaURL' => $url,
+                    'Order' => $index,
+                ];
+            }
+            $imagesByKey[$mlsNumber] = $images;
+            $found++;
         }
 
-        Log::debug('Loaded images from database', [
+        Log::debug('Loaded images from Repliers API', [
             'requested' => count($listingKeys),
-            'found' => $mlsProperties->count(),
+            'found' => $found,
         ]);
 
         return $imagesByKey;
     }
 
     /**
-     * Get property images for a single listing with Repliers API fallback
+     * Get property images for a single listing from the Repliers API.
+     * (Endpoint name kept for frontend compatibility.)
      */
     public function getPropertyImagesWithFallback(string $listingKey)
     {
@@ -230,29 +236,12 @@ class PropertyImageController extends Controller
                 ], 400);
             }
 
-            Log::info('Fetching images with fallback for listing: ' . $listingKey);
-
-            // Step 1: Try database first
-            $dbImages = $this->getImagesFromDatabase([$listingKey]);
-            $propertyImages = $dbImages[$listingKey] ?? [];
-
-            if (!empty($propertyImages)) {
-                $executionTime = round((microtime(true) - $startTime) * 1000, 2);
-
-                return response()->json([
-                    'success' => true,
-                    'source' => 'database',
-                    'images' => array_map(fn($img) => $img['MediaURL'], $propertyImages),
-                    'execution_time_ms' => $executionTime,
-                ])->header('Cache-Control', 'public, max-age=300');
-            }
-
-            // Step 2: Try Repliers API
-            Log::info('No images in DB, fetching from Repliers API for: ' . $listingKey);
+            Log::info('Fetching images from Repliers API for listing: ' . $listingKey);
 
             try {
                 $result = $this->repliersApi->searchListings([
-                    'search' => $listingKey,
+                    'mlsNumber' => $listingKey,
+                    'status' => ['A', 'U'],
                     'resultsPerPage' => 1,
                     'fields' => 'mlsNumber,images',
                 ]);
@@ -276,7 +265,7 @@ class PropertyImageController extends Controller
                 Log::warning('Repliers API image fetch failed: ' . $e->getMessage());
             }
 
-            // Step 3: No images found
+            // No images found
             $executionTime = round((microtime(true) - $startTime) * 1000, 2);
 
             return response()->json([

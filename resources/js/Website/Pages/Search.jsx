@@ -174,6 +174,22 @@ export default function EnhancedPropertySearch({
   });
 
   const [viewType, setViewType] = useState('grid'); // 'grid', 'map', 'mixed'
+
+  // Mixed view needs the md+ map pane (it is hidden below 768px, and so is
+  // the mixed toggle button). If the state still says 'mixed' on a narrow
+  // screen — e.g. ?view_mode=mixed opened on a phone, or the window was
+  // resized down — fall back to grid instead of rendering a map-less split.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const enforce = () => {
+      if (mq.matches) {
+        setViewType(prev => (prev === 'mixed' ? 'grid' : prev));
+      }
+    };
+    enforce();
+    mq.addEventListener('change', enforce);
+    return () => mq.removeEventListener('change', enforce);
+  }, []);
   const [activeTab, setActiveTab] = useState(searchTab || 'listings');
   const [isLoading, setIsLoading] = useState(false);
   const [properties, setProperties] = useState([]);

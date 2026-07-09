@@ -5,6 +5,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import PhoneInput from '@/Components/PhoneInput';
 import { Transition } from '@headlessui/react';
 import MainLayout from '@/Website/Global/MainLayout';
 
@@ -328,9 +329,8 @@ export default function UserProfile({ auth, mustVerifyEmail, status, website, si
                                             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 font-work-sans mb-2">
                                                 Phone Number
                                             </label>
-                                            <input
+                                            <PhoneInput
                                                 id="phone"
-                                                type="tel"
                                                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#912018] focus:border-transparent transition-all font-work-sans"
                                                 value={profileForm.data.phone}
                                                 onChange={(e) => profileForm.setData('phone', e.target.value)}

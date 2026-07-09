@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
 import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
+import PhoneInput from '@/Components/PhoneInput';
 
 const BuildingTourScheduling = ({ website, buildingData }) => {
   const { globalWebsite, website: pageWebsite } = usePage().props;
@@ -629,8 +630,7 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
 
               <div className="mb-4">
                 <label htmlFor="phone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                <input
-                  type="tel"
+                <PhoneInput
                   id="phone"
                   name="phone"
                   value={formData.phone}
@@ -733,8 +733,7 @@ const BuildingTourScheduling = ({ website, buildingData }) => {
 
               <div className="mb-4">
                 <label htmlFor="questionPhone" className="block text-gray-700 mb-1 font-medium">Phone Number</label>
-                <input
-                  type="tel"
+                <PhoneInput
                   id="questionPhone"
                   name="phone"
                   value={questionFormData.phone}

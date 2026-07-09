@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Services\RepliersApiService;
-use App\Services\MLSIntegrationService;
 use App\Models\Setting;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
@@ -18,10 +17,6 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(RepliersApiService::class, function ($app) {
             return new RepliersApiService();
-        });
-
-        $this->app->singleton(MLSIntegrationService::class, function ($app) {
-            return new MLSIntegrationService($app->make(RepliersApiService::class));
         });
     }
 

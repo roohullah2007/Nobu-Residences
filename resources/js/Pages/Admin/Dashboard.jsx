@@ -61,16 +61,6 @@ export default function Dashboard({ title, stats, websites }) {
             )
         },
         {
-            name: 'Sync MLS',
-            description: 'Update property listings',
-            href: route('admin.mls.index'),
-            icon: (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-            )
-        },
-        {
             name: 'Blog Post',
             description: 'Write a new article',
             href: route('admin.blog.create'),
@@ -214,13 +204,6 @@ export default function Dashboard({ title, stats, websites }) {
                                         <div>
                                             <p className="text-sm text-[#0f172a]">New property listing added</p>
                                             <p className="text-xs text-[#64748b] mt-0.5">2 hours ago</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-2 h-2 rounded-full bg-[#16a34a] mt-2"></div>
-                                        <div>
-                                            <p className="text-sm text-[#0f172a]">MLS sync completed</p>
-                                            <p className="text-xs text-[#64748b] mt-0.5">4 hours ago</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3">

@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Cache;
 use App\Services\RepliersApiService;
 use App\Models\Property;
 use App\Models\Building;
-use App\Models\MLSProperty;
 
 class OptimizedPropertyDetailController extends Controller
 {
@@ -59,9 +58,9 @@ class OptimizedPropertyDetailController extends Controller
                 'building' => null
             ];
 
-            // Fetch images from DATABASE (no API call)
+            // Fetch images from the Repliers API
             if (!is_numeric($listingKey)) {
-                $images = $this->getImagesFromDatabase($listingKey);
+                $images = $this->getImagesFromApi($listingKey);
                 $responseData['images'] = $images;
             }
 
@@ -95,7 +94,7 @@ class OptimizedPropertyDetailController extends Controller
     }
 
     /**
-     * Get property data from local database or Repliers API
+     * Get property data from local backend properties or the Repliers API
      */
     private function getPropertyData($listingKey)
     {
@@ -107,13 +106,7 @@ class OptimizedPropertyDetailController extends Controller
             }
         }
 
-        // Try local MLS database first
-        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
-        if ($mlsProperty && !empty($mlsProperty->mls_data)) {
-            return $this->formatRepliersPropertyData($mlsProperty->mls_data);
-        }
-
-        // Fallback to Repliers API
+        // Fetch from the Repliers API
         $repliersListing = $this->repliersApi->getListingByMlsNumber($listingKey);
         if ($repliersListing) {
             return $this->formatRepliersPropertyData($repliersListing);
@@ -221,20 +214,21 @@ class OptimizedPropertyDetailController extends Controller
     }
 
     /**
-     * Get images from database for a property
-     * DATABASE-ONLY: No API calls
+     * Get images for a property from the Repliers API
      */
-    private function getImagesFromDatabase(string $listingKey): array
+    private function getImagesFromApi(string $listingKey): array
     {
-        $mlsProperty = MLSProperty::where('mls_id', $listingKey)->first();
+        $listing = $this->repliersApi->getListingByMlsNumber($listingKey);
 
-        if (!$mlsProperty || empty($mlsProperty->image_urls)) {
+        if (!$listing) {
             return [];
         }
 
+        $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+
         // Format images for frontend
         $images = [];
-        foreach ($mlsProperty->image_urls as $index => $url) {
+        foreach (array_values($imageUrls) as $index => $url) {
             $images[] = [
                 'url' => $url,
                 'MediaURL' => $url,

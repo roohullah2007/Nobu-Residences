@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { Phone, Calendar, Close } from '@/Website/Components/Icons';
+import PhoneInput from '@/Components/PhoneInput';
 
 export default function MobileBottomBar() {
   const { globalWebsite, website } = usePage().props;
@@ -9,6 +10,14 @@ export default function MobileBottomBar() {
 
   const buttonTertiaryBg = brandColors.button_tertiary_bg || '#000000';
   const buttonTertiaryText = brandColors.button_tertiary_text || '#FFFFFF';
+
+  const contactPhone =
+    currentWebsite?.agent_info?.agent_phone ||
+    currentWebsite?.contact_info?.agent?.phone ||
+    currentWebsite?.contact_info?.phone ||
+    '';
+  const telHref = contactPhone ? `tel:${String(contactPhone).replace(/[^+\d]/g, '')}` : null;
+
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -47,9 +56,15 @@ export default function MobileBottomBar() {
             <Calendar className="w-4 h-4" />
             Request a viewing
           </button>
-          <button className="flex-none bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-full font-work-sans font-bold text-sm hover:bg-gray-50 transition-colors">
-            <Phone className="w-4 h-4" />
-          </button>
+          {telHref && (
+            <a
+              href={telHref}
+              aria-label="Call now"
+              className="flex-none bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-full font-work-sans font-bold text-sm hover:bg-gray-50 transition-colors flex items-center justify-center"
+            >
+              <Phone className="w-4 h-4" />
+            </a>
+          )}
         </div>
       </div>
 
@@ -108,8 +123,7 @@ export default function MobileBottomBar() {
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
+                  <PhoneInput
                     id="phone"
                     name="phone"
                     value={formData.phone}

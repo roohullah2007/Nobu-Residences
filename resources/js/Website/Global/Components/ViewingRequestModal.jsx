@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
+import PhoneInput from '@/Components/PhoneInput';
 
 /**
  * Global Viewing Request Modal
@@ -188,8 +189,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number *
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   id="phone"
                   name="phone"
                   value={formData.phone}

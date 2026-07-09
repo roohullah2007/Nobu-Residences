@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
+import PhoneInput from '@/Components/PhoneInput';
 
 const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) => {
   const { googleOAuthEnabled, globalWebsite, siteName } = usePage().props;
@@ -131,7 +132,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
         newErrors.name = 'At least 2 characters';
       }
 
-      if (!formData.phone || formData.phone.trim().length < 10) {
+      if (!formData.phone || formData.phone.replace(/\D/g, '').length < 10) {
         newErrors.phone = 'At least 10 digits';
       }
 
@@ -445,8 +446,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                       Phone Number
                     </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
                       id="phone"
                       name="phone"
                       value={formData.phone}

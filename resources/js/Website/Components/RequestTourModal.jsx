@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
+import PhoneInput from '@/Components/PhoneInput';
 
 const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -225,8 +226,7 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                   Phone Number *
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   id="phone"
                   name="phone"
                   value={formData.phone}

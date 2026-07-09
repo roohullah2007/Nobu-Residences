@@ -7,7 +7,6 @@ use App\Models\Icon;
 use App\Models\Property;
 use App\Models\Building;
 use App\Models\Setting;
-use App\Services\MLSIntegrationService;
 use App\Services\RepliersApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -1173,90 +1172,22 @@ class WebsiteController extends Controller
         $limit = $request->input('limit', 6);
 
         try {
-            // First try to get current property from local database
-            $mlsProperty = \App\Models\MLSProperty::where('mls_id', $listingKey)->first();
+            // Resolve the current property from the Repliers API
+            $repliersApi = app(RepliersApiService::class);
 
-            $city = $mlsProperty->city ?? '';
-            $currentPrice = $mlsProperty->price ?? 0;
-
-            // If no local data, try Repliers API
-            if (!$city) {
-                $repliersApi = app(RepliersApiService::class);
-                $currentProperty = $repliersApi->getListingByMlsNumber($listingKey);
-                if ($currentProperty) {
-                    $city = $currentProperty['address']['city'] ?? '';
-                    $currentPrice = $currentProperty['listPrice'] ?? 0;
-                }
+            $city = '';
+            $currentPrice = 0;
+            $currentProperty = $repliersApi->getListingByMlsNumber($listingKey);
+            if ($currentProperty) {
+                $city = $currentProperty['address']['city'] ?? '';
+                $currentPrice = $currentProperty['listPrice'] ?? 0;
             }
 
             if (!$city) {
                 return response()->json(['properties' => []]);
             }
 
-            // Try database first for nearby listings (much faster)
-            $dbQuery = \App\Models\MLSProperty::active()
-                ->whereNull('deleted_at')
-                ->where('city', 'like', '%' . $city . '%')
-                ->where('mls_id', '!=', $listingKey);
-
-            if ($currentPrice > 0) {
-                $dbQuery->where('price', '>=', $currentPrice * 0.5)
-                        ->where('price', '<=', $currentPrice * 1.5);
-            }
-
-            $dbResults = $dbQuery->orderBy('price', 'desc')->limit($limit)->get();
-
-            if ($dbResults->count() > 0) {
-                $formattedProperties = $dbResults->map(function ($prop) {
-                    $images = $prop->image_urls ?? [];
-                    $mediaUrl = !empty($images) ? $images[0] : null;
-                    $mlsData = $prop->mls_data ?? [];
-                    $address = $mlsData['address'] ?? [];
-                    $details = $mlsData['details'] ?? [];
-
-                    return [
-                        'ListingKey' => $prop->mls_id,
-                        'listingKey' => $prop->mls_id,
-                        'ListPrice' => (float) $prop->price,
-                        'listPrice' => (float) $prop->price,
-                        // Same value under the lowercase key the frontend's
-                        // PropertyCardV5 reads first — the DB path was
-                        // dropping it and showing "Price on request".
-                        'price' => (float) $prop->price,
-                        'UnparsedAddress' => $prop->address ?? '',
-                        'address' => $prop->address ?? '',
-                        'BedroomsTotal' => $prop->bedrooms ?? 0,
-                        'bedroomsTotal' => $prop->bedrooms ?? 0,
-                        'BathroomsTotalInteger' => $prop->bathrooms ?? 0,
-                        'bathroomsTotalInteger' => $prop->bathrooms ?? 0,
-                        'LivingAreaRange' => $details['sqft'] ?? '',
-                        'ParkingTotal' => $prop->parking_spaces ?? 0,
-                        'PropertySubType' => $prop->property_sub_type ?? '',
-                        'propertySubType' => $prop->property_sub_type ?? '',
-                        'TransactionType' => $prop->property_type ?? 'For Sale',
-                        'City' => $prop->city ?? '',
-                        'city' => $prop->city ?? '',
-                        'StateOrProvince' => $prop->province ?? 'ON',
-                        'province' => $prop->province ?? 'ON',
-                        'country' => $this->normalizeCountry($address['country'] ?? ''),
-                        'Latitude' => $prop->latitude ? (string) $prop->latitude : '',
-                        'Longitude' => $prop->longitude ? (string) $prop->longitude : '',
-                        'UnitNumber' => $address['unitNumber'] ?? '',
-                        'StreetNumber' => $address['streetNumber'] ?? '',
-                        'StreetName' => $address['streetName'] ?? '',
-                        'MediaURL' => $mediaUrl,
-                        'imageUrl' => $mediaUrl,
-                        'Images' => array_map(fn($url) => ['MediaURL' => $url], $images),
-                        'StandardStatus' => 'Active',
-                    ];
-                })->toArray();
-
-                \Log::info('Nearby listings from DB: ' . count($formattedProperties));
-                return response()->json(['properties' => $formattedProperties]);
-            }
-
-            // Fallback to Repliers API
-            $repliersApi = app(RepliersApiService::class);
+            // Fetch nearby listings from the Repliers API
             $params = [
                 'status' => 'A',
                 'city' => $city,
@@ -1305,15 +1236,7 @@ class WebsiteController extends Controller
         try {
             $repliersApi = app(RepliersApiService::class);
 
-            // Try local database first
-            $mlsProperty = \App\Models\MLSProperty::where('mls_id', $listingKey)->first();
-            $currentProperty = null;
-
-            if ($mlsProperty && !empty($mlsProperty->mls_data)) {
-                $currentProperty = $mlsProperty->mls_data;
-            } else {
-                $currentProperty = $repliersApi->getListingByMlsNumber($listingKey);
-            }
+            $currentProperty = $repliersApi->getListingByMlsNumber($listingKey);
 
             if (!$currentProperty) {
                 return response()->json(['properties' => []]);
@@ -2611,20 +2534,7 @@ class WebsiteController extends Controller
     private function fetchMlsImagesForBackendProperty(string $mlsNumber): array
     {
         try {
-            // First check if we have cached images in mls_properties table
-            $mlsProperty = \App\Models\MLSProperty::where('mls_id', $mlsNumber)
-                ->orWhere('mls_number', $mlsNumber)
-                ->first();
-
-            if ($mlsProperty && !empty($mlsProperty->image_urls)) {
-                \Log::info('Using cached MLS images for backend property', [
-                    'mls_number' => $mlsNumber,
-                    'image_count' => count($mlsProperty->image_urls)
-                ]);
-                return $mlsProperty->image_urls;
-            }
-
-            // If not in cache, try to fetch from Repliers API
+            // Fetch from the Repliers API
             $repliersApi = app(\App\Services\RepliersApiService::class);
             $listing = $repliersApi->getListingByMlsNumber($mlsNumber);
             if ($listing && !empty($listing['images'])) {
@@ -2795,10 +2705,7 @@ class WebsiteController extends Controller
             $streetName = preg_replace('/^\d+\s+/', '', $streetAddresses[0]);
         }
 
-        // Fetch live listings for this building from the Repliers API. The
-        // local mls_properties table is often empty/stale, so the previous DB
-        // query returned nothing — leaving the For Sale / For Rent panels
-        // empty on the building page.
+        // Fetch live listings for this building from the Repliers API.
         $mlsPropertiesForSale = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'sale', $building);
         $mlsPropertiesForRent = $this->fetchBuildingListingsFromRepliers($streetAddresses, 'lease', $building);
 
