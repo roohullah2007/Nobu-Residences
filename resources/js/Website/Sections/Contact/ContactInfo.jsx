@@ -94,7 +94,15 @@ export default function ContactInfo({ website }) {
                 <div>
                   <h4 className="font-work-sans font-semibold text-gray-900 mb-1">Address</h4>
                   <p className="font-work-sans text-gray-600">
-                    {contactInfo.address}
+                    {/* Opens a Google Maps search for the address in a new tab */}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {contactInfo.address}
+                    </a>
                   </p>
                 </div>
               </div>

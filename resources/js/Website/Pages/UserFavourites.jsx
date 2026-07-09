@@ -230,7 +230,10 @@ export default function UserFavourites({ auth, website }) {
                             </Link>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        // Cards are 300px wide from md — 3 columns only fit
+                        // from lg and 4 from xl; more columns at tablet
+                        // widths clipped prices/addresses.
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {savedProperties.map((property) => (
                                 <div key={property.id} className="relative group">
                                     <PropertyCardV5

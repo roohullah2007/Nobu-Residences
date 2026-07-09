@@ -196,7 +196,9 @@ export default function UserFavouritesTab({ onCountUpdate }) {
       </div>
 
       {savedProperties.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        // Cards are 300px wide from md — 4 fixed columns at 768px produced
+        // ~170px cells and clipped the cards. Scale columns with width.
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {savedProperties.map((property) => (
             <PropertyCardV5
               key={property.id}

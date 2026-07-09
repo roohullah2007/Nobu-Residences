@@ -98,7 +98,12 @@
         @endif
         @routes
         @viteReactRefresh
-        @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
+        {{-- Component names starting with "Website/" live under resources/js
+             (e.g. resources/js/Website/Pages/UserFavourites.jsx), matching the
+             resolver in app.jsx/ssr.jsx. Blindly prepending resources/js/Pages/
+             produced resources/js/Pages/Website/... — a path that isn't in the
+             Vite manifest, which 500s in production (ViteException). --}}
+        @vite(['resources/js/app.jsx', str_starts_with($page['component'], 'Website/') ? "resources/js/{$page['component']}.jsx" : "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead
     </head>
     <body class="font-work-sans antialiased">
