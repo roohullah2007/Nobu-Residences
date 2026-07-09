@@ -309,6 +309,13 @@ class BuildingController extends Controller
         // live MLS listings after the response is sent (no queue worker needed).
         \App\Jobs\RefreshBuildingPriceRangeJob::dispatchAfterResponse($building->id);
 
+        // "Save & Launch Website" on the create form: land on the website
+        // create page with the new building preselected instead of the index.
+        if ($request->boolean('create_website')) {
+            return redirect()->route('admin.websites.create', ['building_id' => $building->id])
+                ->with('success', 'Building created successfully. Now set up its website.');
+        }
+
         return redirect()->route('admin.buildings.index')
             ->with('success', 'Building created successfully.');
     }

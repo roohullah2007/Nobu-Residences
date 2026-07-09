@@ -573,7 +573,10 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="mt-8 space-y-8 [&_input]:!bg-white [&_input]:!text-gray-900 [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_select]:!bg-white [&_select]:!text-gray-900">
+                {/* !border-gray-300 on all fields: TextInput bakes in dark:border-gray-700,
+                    so in a dark-mode browser text inputs got darker borders than the
+                    inline-styled selects/textareas. Force one border for everything. */}
+                <form onSubmit={handleSubmit} className="mt-8 space-y-8 [&_input]:!bg-white [&_input]:!text-gray-900 [&_input]:!border-gray-300 [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:!border-gray-300 [&_select]:!bg-white [&_select]:!text-gray-900 [&_select]:!border-gray-300">
                     {/* Basic Information */}
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
@@ -611,22 +614,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <InputError message={errors.building_type} className="mt-2" />
                                 </div>
 
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="listing_type" value="Listing Type *" />
-                                    <select
-                                        id="listing_type"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.listing_type}
-                                        onChange={(e) => setData('listing_type', e.target.value)}
-                                        required
-                                    >
-                                        <option value="For Sale">For Sale</option>
-                                        <option value="For Rent">For Rent</option>
-                                        <option value="Both">Both (Sale & Rent)</option>
-                                    </select>
-                                    <InputError message={errors.listing_type} className="mt-2" />
-                                </div>
-
+                                {/* Listing Type intentionally not shown — updates omit the
+                                    field so the existing DB value is preserved; public
+                                    pages/API still read it. */}
                                 <div className="sm:col-span-3">
                                     <InputLabel htmlFor="status_basic" value="Status *" />
                                     <select
