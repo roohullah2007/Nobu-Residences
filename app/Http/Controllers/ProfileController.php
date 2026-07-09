@@ -116,11 +116,16 @@ class ProfileController extends Controller
             $user->avatar = $validated['avatar'];
         }
 
-        if ($user->isDirty('email')) {
+        $emailChanged = $user->isDirty('email');
+        if ($emailChanged) {
             $user->email_verified_at = null;
         }
 
         $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+        }
 
         // Log the saved data
         \Log::info('Profile updated successfully:', [

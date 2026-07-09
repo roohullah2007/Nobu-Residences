@@ -13,32 +13,13 @@ const FAQ = ({
   isAiGenerated = false,
   isAdmin = false
 }) => {
-  // Default FAQ data if none provided
-  const defaultFAQs = [
-    {
-      id: 1,
-      question: 'The expense windows adapted sir. Wrong widen drawn.',
-      answer: 'Offending belonging promotion provision an be oh consulted ourselves it. Blessing welcomed ladyship she met humoured sir breeding her.'
-    },
-    {
-      id: 2,
-      question: 'Six curiosity day assurance bed necessary?',
-      answer: 'Six curiosity day assurance bed necessary? Living in this Banbury | Don Mills condo offers convenience and comfort.'
-    },
-    {
-      id: 3,
-      question: 'What are the nearby amenities?',
-      answer: 'This property offers easy access to restaurants, shopping, and transportation. Tim Hortons is within a 3-minute walk, and Don Valley Parkway is accessible within 4 minutes by car.'
-    },
-    {
-      id: 4,
-      question: 'What makes this location special?',
-      answer: 'The Banbury | Don Mills neighbourhood offers a perfect blend of urban convenience and suburban tranquility, with excellent transit connections and nearby amenities.'
-    }
-  ];
-
-  const faqs = faqItems || defaultFAQs;
+  // Render nothing when there are no real FAQs — no placeholder content.
+  const faqs = Array.isArray(faqItems) ? faqItems : [];
   const [activeIndex, setActiveIndex] = useState(null);
+
+  if (faqs.length === 0) {
+    return null;
+  }
 
   const toggleAccordion = (index) => {
     setActiveIndex(activeIndex === index ? null : index);

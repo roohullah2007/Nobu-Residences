@@ -218,6 +218,41 @@ class SavedSearchAlertService
             $query->where('bathrooms', '>=', $bathrooms);
         }
 
+        // Apply square footage filter
+        $minSqft = $params['min_sqft'] ?? 0;
+        $maxSqft = $params['max_sqft'] ?? 0;
+        if ($minSqft > 0) {
+            $query->where('square_footage', '>=', $minSqft);
+        }
+        if ($maxSqft > 0) {
+            $query->where('square_footage', '<=', $maxSqft);
+        }
+
+        // Building-scoped alerts ("notify me when units become available at
+        // {building}"): match on the building's street address(es).
+        if (!empty($params['building_id'])) {
+            $building = \App\Models\Building::find($params['building_id']);
+            if ($building) {
+                $addresses = array_filter([
+                    $building->street_address_1,
+                    $building->street_address_2,
+                    $building->address,
+                ]);
+                if (!empty($addresses)) {
+                    $query->where(function ($q) use ($addresses) {
+                        foreach ($addresses as $address) {
+                            // "8 Widmer St, Toronto" → match listings starting
+                            // with "8 Widmer"
+                            $parsed = \App\Models\Building::parseStreetAddress($address);
+                            if ($parsed) {
+                                $q->orWhere('address', 'like', $parsed['number'] . ' ' . $parsed['name'] . '%');
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
         // Prioritize properties with images, order by newest
         $query->orderBy('has_images', 'desc')
               ->orderBy('listed_date', 'desc');

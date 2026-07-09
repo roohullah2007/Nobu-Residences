@@ -424,6 +424,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Amenity Management routes
     Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
 
+    // Saved searches / email alert stats
+    Route::get('saved-searches', [\App\Http\Controllers\Admin\SavedSearchAdminController::class, 'index'])->name('saved-searches.index');
+
+    // Site-wide FAQ management
+    Route::resource('faqs', \App\Http\Controllers\Admin\FaqController::class);
+
     // Maintenance Fee Amenity Management routes
     Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);
     Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);

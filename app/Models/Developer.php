@@ -13,20 +13,55 @@ class Developer extends Model
 
     protected $fillable = [
         'name',
+        'slug',
         'logo',
         'type',
         'email',
-        'phone'
+        'phone',
+        'website',
+        'description',
+        'established_year',
+        'meta_title',
+        'meta_description',
+        'projects_completed',
+        'projects_under_construction',
+        'upcoming_projects',
+        'highlights',
+        'awards',
     ];
 
-    protected $appends = ['slug'];
+    protected $casts = [
+        'established_year' => 'integer',
+        'projects_completed' => 'integer',
+        'projects_under_construction' => 'integer',
+        'upcoming_projects' => 'integer',
+        'highlights' => 'array',
+        'awards' => 'array',
+    ];
+
+    protected static function booted()
+    {
+        // Persist a unique slug so developer pages have one canonical URL.
+        static::saving(function (Developer $developer) {
+            if (empty($developer->slug) && !empty($developer->name)) {
+                $base = Str::slug($developer->name) ?: 'developer';
+                $slug = $base;
+                $i = 2;
+                while (static::where('slug', $slug)->where('id', '!=', $developer->id)->exists()) {
+                    $slug = $base . '-' . $i++;
+                }
+                $developer->slug = $slug;
+            }
+        });
+    }
 
     /**
-     * Get the slug for the developer (generated from name)
+     * Persisted slug with an accessor fallback for rows saved before the
+     * slug column existed.
      */
-    public function getSlugAttribute()
+    public function getSlugAttribute($value)
     {
-        return Str::slug($this->name);
+        return $value ?: Str::slug((string) $this->name);
     }
 
     public function buildings()

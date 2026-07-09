@@ -9,16 +9,25 @@
             // Per-website SEO, resolved by domain in HandleInertiaRequests and shared as `globalWebsite`.
             // Rendered here server-side so search engines / social crawlers (which don't run JS) get the
             // correct title, description and Open Graph tags for each domain.
+            // A controller can override per page by passing an `seo` prop:
+            //   ['title' => ..., 'description' => ..., 'image' => ..., 'jsonLd' => [...]]
             $seo = $page['props']['globalWebsite'] ?? null;
-            $seoTitle = !empty($seo['meta_title'])
-                ? $seo['meta_title']
-                : ($seo['name'] ?? config('app.name', 'Laravel'));
-            $seoDescription = $seo['meta_description'] ?? ($seo['description'] ?? null);
+            $pageSeo = $page['props']['seo'] ?? [];
+            $seoTitle = $pageSeo['title']
+                ?? (!empty($seo['meta_title'])
+                    ? $seo['meta_title']
+                    : ($seo['name'] ?? config('app.name', 'Laravel')));
+            $seoDescription = $pageSeo['description'] ?? $seo['meta_description'] ?? ($seo['description'] ?? null);
             $seoKeywords = $seo['meta_keywords'] ?? null;
-            $seoImage = $seo['logo_url'] ?? null;
+            $seoImage = $pageSeo['image'] ?? $seo['logo_url'] ?? null;
             $seoFavicon = $seo['favicon_url'] ?? '/favicon.ico';
             $seoSiteName = $seo['name'] ?? config('app.name', 'Laravel');
             $seoUrl = url()->current();
+            // jsonLd may be one schema object or a list of them.
+            $seoJsonLd = $pageSeo['jsonLd'] ?? null;
+            if ($seoJsonLd && !array_is_list($seoJsonLd)) {
+                $seoJsonLd = [$seoJsonLd];
+            }
         @endphp
 
         <title inertia>{{ $seoTitle }}</title>
@@ -51,6 +60,29 @@
         @endif
         @if($seoImage)
         <meta name="twitter:image" content="{{ $seoImage }}">
+        @endif
+
+        {{-- Structured data (per-page, from the `seo.jsonLd` prop) --}}
+        @if(!empty($seoJsonLd))
+        @foreach($seoJsonLd as $schema)
+        <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+        @endforeach
+        @endif
+
+        {{-- Third-party tracking (admin-managed, rendered raw intentionally; public pages only) --}}
+        @if(!request()->is('admin*') && !empty($page['props']['globalWebsite']['tracking_scripts']))
+        {!! $page['props']['globalWebsite']['tracking_scripts'] !!}
+        @auth
+        <script>
+            // Identify the logged-in user to the Follow Up Boss widget tracker
+            // when its snippet is present; inert otherwise.
+            window.addEventListener('load', function () {
+                if (typeof widgetTracker === 'function') {
+                    widgetTracker('set', { email: @js(auth()->user()->email) });
+                }
+            });
+        </script>
+        @endauth
         @endif
 
         <!-- Fonts -->

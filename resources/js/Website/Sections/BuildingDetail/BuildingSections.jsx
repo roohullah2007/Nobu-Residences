@@ -18,6 +18,7 @@ export default function BuildingSections({
   auth,
   onLoginClick,
   onSignupClick,
+  faqs = [],
 }) {
   // Debug: Log building data to see MLS properties
   console.log('[BuildingSections] ========= DEBUG v2 =========');
@@ -110,7 +111,7 @@ export default function BuildingSections({
 
       {/* FAQ Section */}
       <div className="faq-section">
-        <FAQ />
+        <FAQ faqItems={faqs} />
       </div>
        
     </div>

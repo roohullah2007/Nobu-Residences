@@ -15,7 +15,8 @@ export default function SchoolDetail({
   year,
   schoolId,
   schoolSlug,
-  schoolData: initialSchoolData
+  schoolData: initialSchoolData,
+  faqs = []
 }) {
   const [schoolData, setSchoolData] = useState(initialSchoolData);
   const [isLoading, setIsLoading] = useState(!initialSchoolData);
@@ -505,6 +506,7 @@ export default function SchoolDetail({
 
         {/* FAQ Section */}
         <FAQ
+          faqItems={faqs}
           title="School Information FAQs"
           containerClassName="py-4 md:py-16 bg-white"
           showContainer={true}

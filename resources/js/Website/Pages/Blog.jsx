@@ -6,7 +6,7 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import FeaturedBlogsSection from '@/Website/Sections/Blog/FeaturedBlogsSection';
 import BlogCategoriesSection from '@/Website/Sections/Home/BlogCategoriesSection';
 
-export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, website, blogs, categories: backendCategories, selectedCategory: selectedCategorySlug }) {
+export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, website, blogs, categories: backendCategories, selectedCategory: selectedCategorySlug, faqs = [] }) {
     // Use backend data or fallback to empty
     const blogData = blogs?.data || [];
     const pagination = blogs || null;
@@ -304,7 +304,7 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
 
             {/* FAQ Section */}
             <div className="faq-section">
-                <FAQ />
+                <FAQ faqItems={faqs} />
             </div>
 
             {/* Real Estate Links Section */}

@@ -299,13 +299,19 @@ class WebsiteController extends Controller
 
         $searchTab = $filters['tab'] ?? 'listings';
 
+        $faqs = \App\Models\Faq::forPage('search');
+
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => [
                 'user' => $request->user(),
             ],
             'title' => 'Property Search',
             'filters' => $filters,
-            'searchTab' => $searchTab
+            'searchTab' => $searchTab,
+            'faqs' => $faqs,
+            'seo' => [
+                'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+            ],
         ]));
     }
 
@@ -822,11 +828,17 @@ class WebsiteController extends Controller
                 ->ordered()
                 ->get(['id', 'name', 'slug', 'description', 'featured_image']);
 
+            $faqs = \App\Models\Faq::forPage('blog');
+
             return Inertia::render('Blog', array_merge($this->getWebsiteSettings(), [
                 'title' => 'Real Estate Blog',
                 'blogs' => $blogs,
                 'categories' => $categories,
-                'selectedCategory' => $selectedCategory ? $selectedCategory->slug : null
+                'selectedCategory' => $selectedCategory ? $selectedCategory->slug : null,
+                'faqs' => $faqs,
+                'seo' => [
+                    'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+                ],
             ]));
         } catch (\Exception $e) {
             \Log::error('Blog page error: ' . $e->getMessage());
@@ -874,11 +886,18 @@ class WebsiteController extends Controller
             ->limit(4)
             ->get();
 
+        $faqs = \App\Models\Faq::forPage('blog');
+
         return Inertia::render('BlogDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $blog->title,
             'blog' => $blog,
             'relatedPosts' => $relatedPosts,
-            'recentPosts' => $recentPosts
+            'recentPosts' => $recentPosts,
+            'faqs' => $faqs,
+            'seo' => [
+                'title' => $blog->title,
+                'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+            ],
         ]));
     }
 
@@ -888,8 +907,14 @@ class WebsiteController extends Controller
     public function contact()
     {
         try {
+            $faqs = \App\Models\Faq::forPage('contact');
+
             return Inertia::render('Contact', array_merge($this->getWebsiteSettings(), [
-                'title' => 'Contact Us'
+                'title' => 'Contact Us',
+                'faqs' => $faqs,
+                'seo' => [
+                    'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+                ],
             ]));
         } catch (\Exception $e) {
             \Log::error('Contact page error: ' . $e->getMessage());
@@ -923,11 +948,22 @@ class WebsiteController extends Controller
 
             $developers = $developersQuery->get();
 
-            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            $settings = $this->getWebsiteSettings();
+            $siteName = $settings['siteName'] ?? config('app.name');
+
+            $faqs = \App\Models\Faq::forPage('developers');
+
+            return Inertia::render('DeveloperDetail', array_merge($settings, [
                 'title' => 'Top Condo Developers in Toronto',
                 'developer' => null,
                 'buildings' => [],
-                'allDevelopers' => $developers
+                'allDevelopers' => $developers,
+                'faqs' => $faqs,
+                'seo' => [
+                    'title' => 'Top Condo Developers in Toronto | ' . $siteName,
+                    'description' => 'Browse Toronto\'s top condo builders and developers — projects, buildings and company profiles.',
+                    'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+                ],
             ]));
         } catch (\Exception $e) {
             \Log::error('Developers page error: ' . $e->getMessage());
@@ -951,27 +987,27 @@ class WebsiteController extends Controller
     {
         try {
             $developer = null;
+            $normalizedSlug = strtolower(trim($developerSlug));
 
-            // First try to find by UUID (if it looks like a UUID)
-            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $developerSlug)) {
+            // Persisted slug is the canonical lookup
+            $developer = \App\Models\Developer::where('slug', $normalizedSlug)->first();
+
+            // Legacy: UUID URLs
+            if (!$developer && preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $developerSlug)) {
                 $developer = \App\Models\Developer::where('id', $developerSlug)->first();
             }
 
-            // If not found by ID, search all developers and match by slug
+            // Legacy: rows saved before the slug column — match by name slug
             if (!$developer) {
-                $developers = \App\Models\Developer::all();
-                $normalizedSlug = strtolower(trim($developerSlug));
-
-                foreach ($developers as $dev) {
-                    $devSlug = \Illuminate\Support\Str::slug($dev->name);
-                    if ($devSlug === $normalizedSlug) {
+                foreach (\App\Models\Developer::all() as $dev) {
+                    if (\Illuminate\Support\Str::slug($dev->name) === $normalizedSlug) {
                         $developer = $dev;
                         break;
                     }
                 }
             }
 
-            // If still not found, try partial name match (case insensitive)
+            // Last resort: partial name match (case insensitive)
             if (!$developer) {
                 $searchName = str_replace('-', ' ', $developerSlug);
                 $developer = \App\Models\Developer::whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchName) . '%'])->first();
@@ -980,6 +1016,11 @@ class WebsiteController extends Controller
             if (!$developer) {
                 \Log::warning('Developer not found for slug: ' . $developerSlug);
                 abort(404, 'Developer not found');
+            }
+
+            // Canonical-URL redirect: UUID / name-variation URLs 301 to the slug
+            if ($developer->slug && $developerSlug !== $developer->slug) {
+                return redirect('/developer/' . $developer->slug, 301);
             }
 
             // Get buildings by this developer
@@ -995,12 +1036,42 @@ class WebsiteController extends Controller
                 ->orderBy('name')
                 ->get();
 
-            return Inertia::render('DeveloperDetail', array_merge($this->getWebsiteSettings(), [
+            $settings = $this->getWebsiteSettings();
+            $siteName = $settings['siteName'] ?? config('app.name');
+
+            // Per-page SEO + Organization structured data (rendered
+            // server-side by app.blade.php)
+            $logoUrl = $developer->logo
+                ? (str_starts_with($developer->logo, 'http') ? $developer->logo : url(ltrim($developer->logo, '/')))
+                : null;
+            $jsonLd = array_filter([
+                '@context' => 'https://schema.org',
+                '@type' => 'Organization',
+                'name' => $developer->name,
+                'url' => url('/developer/' . $developer->slug),
+                'sameAs' => $developer->website ? [$developer->website] : null,
+                'logo' => $logoUrl,
+                'foundingDate' => $developer->established_year ? (string) $developer->established_year : null,
+                'description' => $developer->description ? \Illuminate\Support\Str::limit(strip_tags($developer->description), 500) : null,
+            ]);
+
+            $faqs = \App\Models\Faq::forPage('developer_detail');
+
+            return Inertia::render('DeveloperDetail', array_merge($settings, [
                 'title' => $developer->name . ' - Developer',
                 'developer' => $developer,
                 'buildings' => $buildings,
                 'listings' => $listings,
-                'allDevelopers' => $allDevelopers
+                'allDevelopers' => $allDevelopers,
+                'faqs' => $faqs,
+                'seo' => [
+                    'title' => $developer->meta_title
+                        ?: ($developer->name . ' — Condo Developer | ' . $siteName),
+                    'description' => $developer->meta_description
+                        ?: ($developer->description ? \Illuminate\Support\Str::limit(strip_tags($developer->description), 155) : null),
+                    'image' => $logoUrl,
+                    'jsonLd' => array_values(array_filter([$jsonLd, \App\Support\Schema::faqPage($faqs)])),
+                ],
             ]));
         } catch (\Exception $e) {
             \Log::error('Developer detail page error: ' . $e->getMessage());
@@ -1899,32 +1970,20 @@ class WebsiteController extends Controller
             // Use raw listing data for AI generation, or fallback to formatted data
             $aiGenerationData = $rawListingData ?: $propertyData;
 
+            // Generate missing AI content AFTER the response is sent — the two
+            // Gemini round-trips used to run inline here and added multi-second
+            // TTFB to every first view of a listing. The first view falls back
+            // to the raw MLS remarks; the content appears on the next view.
+            // Cache::add dedupes dispatch across concurrent/repeat views.
             if ($aiGenerationData && (!$aiDescriptionRecord || $aiFaqsCollection->count() == 0)) {
-                $geminiService = new \App\Services\GeminiAIService();
-
-                // Generate description if it doesn't exist
-                if (!$aiDescriptionRecord) {
-                    try {
-                        \Log::info('Generating AI description for property:', ['listingKey' => $listingKey]);
-                        $descriptions = $geminiService->generatePropertyDescriptions($aiGenerationData, $listingKey);
-                        $aiDescriptionRecord = \App\Models\PropertyAiDescription::where('mls_id', $listingKey)->first();
-                    } catch (\Exception $e) {
-                        \Log::error('Failed to generate AI description:', ['error' => $e->getMessage()]);
-                    }
-                }
-
-                // Generate FAQs if they don't exist
-                if ($aiFaqsCollection->count() == 0) {
-                    try {
-                        \Log::info('Generating AI FAQs for property:', ['listingKey' => $listingKey]);
-                        $faqsResult = $geminiService->generatePropertyFaqs($aiGenerationData, $listingKey);
-                        $aiFaqsCollection = \App\Models\PropertyFaq::where('mls_id', $listingKey)
-                            ->where('is_active', true)
-                            ->orderBy('order', 'asc')
-                            ->get();
-                    } catch (\Exception $e) {
-                        \Log::error('Failed to generate AI FAQs:', ['error' => $e->getMessage()]);
-                    }
+                if (\Cache::add('ai:gen:' . $listingKey, 1, 300)) {
+                    \Log::info('Dispatching AI content generation for property:', ['listingKey' => $listingKey]);
+                    \App\Jobs\GeneratePropertyAiContentJob::dispatchAfterResponse(
+                        $listingKey,
+                        $aiGenerationData,
+                        !$aiDescriptionRecord,
+                        $aiFaqsCollection->count() == 0
+                    );
                 }
             }
 
@@ -2721,11 +2780,19 @@ class WebsiteController extends Controller
         $buildingData['units_for_sale'] = count($mlsPropertiesForSale);
         $buildingData['units_for_rent'] = count($mlsPropertiesForRent);
 
+        $faqs = \App\Models\Faq::forPage('building_detail');
+
         return Inertia::render('BuildingDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $building->name,
             'buildingId' => $building->id,
             'buildingSlug' => $building->slug,
-            'buildingData' => $buildingData
+            'buildingData' => $buildingData,
+            'faqs' => $faqs,
+            'seo' => [
+                'title' => $building->name . ' | ' . ($this->getWebsiteSettings()['siteName'] ?? config('app.name')),
+                'description' => $building->description ? \Illuminate\Support\Str::limit(strip_tags($building->description), 155) : null,
+                'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+            ],
         ]));
     }
     
@@ -3295,7 +3362,8 @@ class WebsiteController extends Controller
             'schoolId' => $placeId,
             'placeId' => $placeId,
             'schoolName' => $schoolName,
-            'schoolData' => $schoolData
+            'schoolData' => $schoolData,
+            'faqs' => \App\Models\Faq::forPage('schools')
         ]));
     }
     
@@ -3367,7 +3435,8 @@ class WebsiteController extends Controller
         return Inertia::render('SchoolDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $schoolData ? $schoolData['name'] : 'School Detail',
             'schoolSlug' => $schoolSlug,
-            'schoolData' => $schoolData
+            'schoolData' => $schoolData,
+            'faqs' => \App\Models\Faq::forPage('schools')
         ]));
     }
 

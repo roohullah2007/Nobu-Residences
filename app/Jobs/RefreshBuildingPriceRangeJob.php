@@ -42,6 +42,8 @@ class RefreshBuildingPriceRangeJob implements ShouldQueue
             'building_id' => $this->buildingId,
             'updated' => $updated,
             'price_range' => $building->price_range,
+            'sqft_range' => $building->sqft_range,
+            'avg_price_per_sqft' => $building->avg_price_per_sqft,
         ]);
     }
 }

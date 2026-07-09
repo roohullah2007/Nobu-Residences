@@ -36,20 +36,14 @@ class DeveloperController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:builder,developer,builder_developer',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
-            'logo' => 'nullable|image|max:2048'
-        ]);
+        $validated = $request->validate($this->rules());
 
         // Handle logo upload
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('developers', 'public');
         }
 
-        Developer::create($validated);
+        Developer::create($this->normalizeContentFields($validated));
 
         return redirect()->route('admin.developers.index')
             ->with('success', 'Developer created successfully.');
@@ -78,13 +72,7 @@ class DeveloperController extends Controller
      */
     public function update(Request $request, Developer $developer)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:builder,developer,builder_developer',
-            'email' => 'nullable|email|max:255',
-            'phone' => 'nullable|string|max:50',
-            'logo' => 'nullable|image|max:2048'
-        ]);
+        $validated = $request->validate($this->rules());
 
         // Handle logo upload
         if ($request->hasFile('logo')) {
@@ -95,10 +83,66 @@ class DeveloperController extends Controller
             $validated['logo'] = $request->file('logo')->store('developers', 'public');
         }
 
-        $developer->update($validated);
+        $developer->update($this->normalizeContentFields($validated));
 
         return redirect()->route('admin.developers.index')
             ->with('success', 'Developer updated successfully.');
+    }
+
+    /**
+     * Shared validation rules for store/update.
+     */
+    private function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'type' => 'required|in:builder,developer,builder_developer',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'logo' => 'nullable|image|max:2048',
+            'website' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:65000',
+            'established_year' => 'nullable|integer|min:1800|max:' . date('Y'),
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string|max:500',
+            'projects_completed' => 'nullable|integer|min:0',
+            'projects_under_construction' => 'nullable|integer|min:0',
+            'upcoming_projects' => 'nullable|integer|min:0',
+            // Sent as JSON strings from the FormData form; normalized below
+            'highlights' => 'nullable',
+            'awards' => 'nullable',
+        ];
+    }
+
+    /**
+     * highlights/awards arrive as JSON strings via FormData — decode and keep
+     * only well-formed {title, text} rows with at least some text.
+     */
+    private function normalizeContentFields(array $validated): array
+    {
+        foreach (['highlights', 'awards'] as $field) {
+            if (!array_key_exists($field, $validated)) {
+                continue;
+            }
+            $value = $validated[$field];
+            if (is_string($value)) {
+                $value = json_decode($value, true);
+            }
+            if (!is_array($value)) {
+                $validated[$field] = null;
+                continue;
+            }
+            $validated[$field] = array_values(array_filter(array_map(function ($row) {
+                if (!is_array($row)) {
+                    return null;
+                }
+                $title = trim((string) ($row['title'] ?? ''));
+                $text = trim((string) ($row['text'] ?? ''));
+                return ($title !== '' || $text !== '') ? ['title' => $title, 'text' => $text] : null;
+            }, $value))) ?: null;
+        }
+
+        return $validated;
     }
 
     /**

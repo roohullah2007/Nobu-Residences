@@ -234,6 +234,9 @@ class WebsiteManagementController extends Controller
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
             'timezone' => 'nullable|string|max:255',
+            // Raw tracking snippets (e.g. Follow Up Boss pixel) — intentionally
+            // unsanitized; only admins can write it and it renders in <head>.
+            'tracking_scripts' => 'nullable|string|max:20000',
         ]);
 
         // If user picked a building in step 1 and didn't override the homepage_building_id, copy it across.
@@ -735,7 +738,7 @@ class WebsiteManagementController extends Controller
         }
 
         // Convert empty strings to null for nullable fields
-        $nullableFields = ['homepage_building_id', 'domain', 'logo_url', 'favicon_url', 'meta_title', 'meta_description', 'meta_keywords', 'description'];
+        $nullableFields = ['homepage_building_id', 'domain', 'logo_url', 'favicon_url', 'meta_title', 'meta_description', 'meta_keywords', 'description', 'tracking_scripts'];
         foreach ($nullableFields as $field) {
             if (isset($data[$field]) && $data[$field] === '') {
                 $data[$field] = null;
@@ -836,6 +839,9 @@ class WebsiteManagementController extends Controller
             'description' => 'nullable|string',
             'business_hours' => 'nullable|array',
             'timezone' => 'nullable|string|max:255',
+            // Raw tracking snippets (e.g. Follow Up Boss pixel) — intentionally
+            // unsanitized; only admins can write it and it renders in <head>.
+            'tracking_scripts' => 'nullable|string|max:20000',
         ]);
 
         // Handle logo file upload

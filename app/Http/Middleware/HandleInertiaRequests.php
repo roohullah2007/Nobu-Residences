@@ -142,6 +142,9 @@ class HandleInertiaRequests extends Middleware
                 'description' => $website->description,
                 'header_links' => $headerLinks,
                 'footer_content' => $globalFooterContent,
+                // Admin-managed raw tracking snippets, injected into the public
+                // <head> by app.blade.php; kept out of admin pages.
+                'tracking_scripts' => $request->is('admin*') ? null : $website->tracking_scripts,
             ];
         }
 

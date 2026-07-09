@@ -3,14 +3,15 @@ import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import ContactForm from '@/Website/Sections/Contact/ContactForm';
 import ContactInfo from '@/Website/Sections/Contact/ContactInfo';
+import { FAQ } from '@/Website/Global/Components';
 
-export default function Contact({ auth, siteName, siteUrl, year, website }) {
+export default function Contact({ auth, siteName, siteUrl, year, website, faqs = [] }) {
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader={true}>
       <Head title={`Contact Us - ${siteName}`} />
       <div className="idx mx-auto overflow-hidden bg-primary">
         <div className="px-4 md:px-0 max-w-[1280px] mx-auto">
-          
+
           {/* Page Header */}
           <div className="mb-10 py-8">
             <div className="text-center">
@@ -24,19 +25,24 @@ export default function Contact({ auth, siteName, siteUrl, year, website }) {
           </div>
 
           <div className="flex md:flex-row flex-col gap-8 w-full mb-12">
-            
+
             {/* Contact Form */}
             <div className="md:w-2/3">
               <ContactForm website={website} />
             </div>
-            
+
             {/* Contact Information */}
             <div className="md:w-1/3">
               <ContactInfo website={website} />
             </div>
-            
+
           </div>
-          
+
+          {/* FAQ Section (admin-managed) */}
+          <div className="faq-section mb-12">
+            <FAQ faqItems={faqs} />
+          </div>
+
         </div>
       </div>
     </MainLayout>

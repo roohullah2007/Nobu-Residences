@@ -80,7 +80,11 @@ class Building extends Model
         'bathrooms',
         'locker_spots',
         'maintenance_fee_range',
+        'parking_maintenance_fee',
+        'locker_maintenance_fee',
         'price_range',
+        'sqft_range',
+        'avg_price_per_sqft',
         'website_url',
         'brochure_url',
         'floor_plans',
@@ -317,6 +321,8 @@ class Building extends Model
             'amenities' => $amenities,
             'maintenance_fee_amenities' => $maintenanceFeeAmenities,
             'available_units_count' => $this->getAvailableUnitsCountAttribute(),
+            'parking_maintenance_fee' => $this->parking_maintenance_fee,
+            'locker_maintenance_fee' => $this->locker_maintenance_fee,
             'agent_name' => $this->agent_name,
             'agent_title' => $this->agent_title,
             'agent_brokerage' => $this->agent_brokerage,
@@ -325,6 +331,10 @@ class Building extends Model
             'agent_image' => $this->agent_image,
             'main_image' => $this->main_image,
             'images' => $this->images,
+            'building_type' => $this->building_type,
+            'price_range' => $this->price_range,
+            'sqft_range' => $this->sqft_range,
+            'avg_price_per_sqft' => $this->avg_price_per_sqft,
             'year_built' => $this->year_built,
             'floors' => $this->floors,
             'total_units' => $this->total_units,
@@ -480,9 +490,10 @@ class Building extends Model
     }
 
     /**
-     * Auto-fill price_range from live MLS (Repliers) sale listings matching
-     * this building's street addresses. The admin form no longer exposes a
-     * manual Price Range input — this is the source of truth.
+     * Auto-fill price_range, sqft_range and avg_price_per_sqft from live MLS
+     * (Repliers) sale listings matching this building's street addresses.
+     * The admin form does not expose manual inputs for these — this is the
+     * source of truth.
      *
      * Only overwrites when at least one priced listing is found, so an
      * existing (e.g. CSV-imported) value survives an MLS dry spell.
@@ -507,6 +518,10 @@ class Building extends Model
 
         $min = null;
         $max = null;
+        $sqftMin = null;
+        $sqftMax = null;
+        // price-per-sqft samples: [price / midpoint sqft, ...]
+        $ppsfSamples = [];
 
         try {
             $api = app(\App\Services\RepliersApiService::class);
@@ -529,11 +544,19 @@ class Building extends Model
                         continue;
                     }
                     $price = (float) ($L['listPrice'] ?? $L['ListPrice'] ?? 0);
-                    if ($price <= 0) {
-                        continue;
+                    if ($price > 0) {
+                        $min = ($min === null) ? $price : min($min, $price);
+                        $max = ($max === null) ? $price : max($max, $price);
                     }
-                    $min = ($min === null) ? $price : min($min, $price);
-                    $max = ($max === null) ? $price : max($max, $price);
+
+                    $sqft = self::parseSqftBounds($L['details']['sqft'] ?? null);
+                    if ($sqft !== null) {
+                        $sqftMin = ($sqftMin === null) ? $sqft['low'] : min($sqftMin, $sqft['low']);
+                        $sqftMax = ($sqftMax === null) ? $sqft['high'] : max($sqftMax, $sqft['high']);
+                        if ($price > 0 && $sqft['mid'] > 0) {
+                            $ppsfSamples[] = $price / $sqft['mid'];
+                        }
+                    }
                 }
             }
         } catch (\Throwable $e) {
@@ -544,16 +567,61 @@ class Building extends Model
             return false;
         }
 
-        if ($min === null) {
+        if ($min === null && $sqftMin === null) {
             return false;
         }
 
-        $format = fn (float $v): string => '$' . number_format($v);
-        $range = $min === $max ? $format($min) : $format($min) . ' - ' . $format($max);
+        $updates = [];
 
-        $this->forceFill(['price_range' => $range])->saveQuietly();
+        if ($min !== null) {
+            $format = fn (float $v): string => '$' . number_format($v);
+            $updates['price_range'] = $min === $max ? $format($min) : $format($min) . ' - ' . $format($max);
+        }
+
+        if ($sqftMin !== null) {
+            $fmtSqft = fn (float $v): string => number_format($v);
+            $updates['sqft_range'] = $sqftMin === $sqftMax
+                ? $fmtSqft($sqftMin) . ' sqft'
+                : $fmtSqft($sqftMin) . ' sqft - ' . $fmtSqft($sqftMax) . ' sqft';
+        }
+
+        if (!empty($ppsfSamples)) {
+            $avg = array_sum($ppsfSamples) / count($ppsfSamples);
+            $updates['avg_price_per_sqft'] = '$' . number_format($avg);
+        }
+
+        $this->forceFill($updates)->saveQuietly();
 
         return true;
+    }
+
+    /**
+     * Parse a Repliers `details.sqft` value into low/high/mid bounds.
+     * Accepts a plain number ("1200") or a range string ("500-599").
+     */
+    private static function parseSqftBounds($sqft): ?array
+    {
+        if ($sqft === null || $sqft === '') {
+            return null;
+        }
+
+        if (is_numeric($sqft)) {
+            $v = (float) $sqft;
+            return $v > 0 ? ['low' => $v, 'high' => $v, 'mid' => $v] : null;
+        }
+
+        if (is_string($sqft) && str_contains($sqft, '-')) {
+            [$lo, $hi] = array_pad(explode('-', $sqft, 2), 2, '');
+            if (is_numeric(trim($lo)) && is_numeric(trim($hi))) {
+                $low = (float) trim($lo);
+                $high = (float) trim($hi);
+                if ($low > 0 && $high >= $low) {
+                    return ['low' => $low, 'high' => $high, 'mid' => ($low + $high) / 2];
+                }
+            }
+        }
+
+        return null;
     }
 
 }

@@ -159,7 +159,7 @@ const calculateDaysOnMarket = (property) => {
   return 0;
 };
 
-const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
+const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescription = null }) => {
   const { globalWebsite, website } = usePage().props;
   const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
   const buttonPrimaryBg = brandColors.button_primary_bg || '#293056';
@@ -178,15 +178,24 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
   const taxesRaw = r.taxes;
   const taxes = Array.isArray(taxesRaw) ? (taxesRaw[0] || {}) : (taxesRaw || {});
 
-  // ---- Overview / description (straight from the API) --------------------
-  const description = pick(
+  // ---- Overview / description ---------------------------------------------
+  // Prefer the AI-reprocessed overview (property_ai_descriptions, generated
+  // from the IDX remarks); the raw MLS remarks stay accessible under
+  // "Original listing remarks" in the expanded state for MLS compliance.
+  const originalDescription = pick(
     property.publicRemarks,
     property.PublicRemarks,
     property.description,
     details.description
   );
+  const aiOverview =
+    typeof aiDescription?.overview === 'string' ? aiDescription.overview.trim() : '';
+  const aiDetailed =
+    typeof aiDescription?.detailed === 'string' ? aiDescription.detailed.trim() : '';
+  const description = aiOverview || originalDescription;
   const DESC_LIMIT = 320;
   const isLong = typeof description === 'string' && description.length > DESC_LIMIT;
+  const hasExpandedExtras = !!aiOverview && !!(aiDetailed || originalDescription);
   const shownDescription = !isLong || expanded
     ? description
     : `${description.slice(0, DESC_LIMIT).trim()}...`;
@@ -255,9 +264,25 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
   ];
 
   const maintFee = pick(property.associationFee, property.AssociationFee, condo?.fees?.maintenance, details.maintenanceFee);
+  // Parking/locker maintenance: Repliers key names vary by board, so try the
+  // known candidates, then fall back to the building's admin-entered amounts.
+  const parkingMaintFee = pick(
+    condo?.fees?.parking,
+    condo?.parkingCost,
+    details.parkingCost,
+    buildingData?.parking_maintenance_fee
+  );
+  const lockerMaintFee = pick(
+    condo?.fees?.locker,
+    condo?.lockerCost,
+    details.lockerCost,
+    buildingData?.locker_maintenance_fee
+  );
   const annualTaxVal = Number(String(taxes.annualAmount || property.taxAnnualAmount || '').replace(/[^0-9.]/g, '')) || 0;
   const fees = [
     ['Strata / Maintenance Fee', maintFee ? `${money(maintFee)}/mo` : ''],
+    ['Parking Maintenance', money(parkingMaintFee) ? `${money(parkingMaintFee)}/mo` : ''],
+    ['Locker Maintenance', money(lockerMaintFee) ? `${money(lockerMaintFee)}/mo` : ''],
     ['Annual Taxes', annualTaxVal ? money(annualTaxVal) : ''],
     ['Property Taxes (Monthly)', annualTaxVal ? `${money(annualTaxVal / 12)}/mo` : ''],
   ];
@@ -322,7 +347,20 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null }) => {
     <Card key="overview" id="overview" title="Overview">
       <div className="mt-3" style={{ fontSize: '15px', color: VALUE, lineHeight: '26px' }}>
         <p style={{ whiteSpace: 'pre-line' }}>{shownDescription}</p>
-        {isLong && (
+        {expanded && aiOverview && aiDetailed && (
+          <p className="mt-3" style={{ whiteSpace: 'pre-line' }}>{aiDetailed}</p>
+        )}
+        {expanded && aiOverview && originalDescription && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <h4 style={{ fontSize: '14px', fontWeight: 600, color: LABEL }}>
+              Original listing remarks
+            </h4>
+            <p className="mt-2" style={{ whiteSpace: 'pre-line', fontSize: '14px', color: LABEL }}>
+              {originalDescription}
+            </p>
+          </div>
+        )}
+        {(isLong || hasExpandedExtras) && (
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}

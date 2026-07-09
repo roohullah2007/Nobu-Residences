@@ -392,14 +392,7 @@ class PropertySearchController extends Controller
         //   3) Anything else (neighbourhood, keyword) → free-text `search`.
         if (!empty($params['query'])) {
             $query = trim($params['query']);
-            $gtaCities = config('repliers.gta_cities', []);
-            $matchedCity = null;
-            foreach ($gtaCities as $city) {
-                if (strtolower($city) === strtolower($query)) {
-                    $matchedCity = $city;
-                    break;
-                }
-            }
+            $matchedCity = $this->matchGtaCity($query);
             if ($matchedCity) {
                 $apiParams['city'] = $matchedCity;
             } elseif (preg_match('/^(\d+)\s+(.+)/', $query, $m)) {
@@ -743,6 +736,24 @@ class PropertySearchController extends Controller
         }
 
         return $apiParams;
+    }
+
+    /**
+     * Exact (case-insensitive) match of a search query against the configured
+     * GTA city list. Returns the canonical city name or null.
+     */
+    private function matchGtaCity(?string $query): ?string
+    {
+        $query = trim((string) $query);
+        if ($query === '') {
+            return null;
+        }
+        foreach (config('repliers.gta_cities', []) as $city) {
+            if (strtolower($city) === strtolower($query)) {
+                return $city;
+            }
+        }
+        return null;
     }
 
     /**
@@ -3532,10 +3543,50 @@ class PropertySearchController extends Controller
             $apiParams['listings'] = 'false';
 
             $repliersApi = app(\App\Services\RepliersApiService::class);
-            $result = $repliersApi->searchListings($apiParams);
+
+            // If Repliers itself is down / misconfigured (bad API key etc.)
+            // fall back to pins from the locally-synced mls_properties table
+            // instead of blanking the whole map with a 500.
+            try {
+                $result = $repliersApi->searchListings($apiParams);
+            } catch (Exception $e) {
+                Log::warning('Repliers map clusters failed, falling back to local DB: ' . $e->getMessage());
+                return $this->getMapCoordinatesFromLocalDb($request);
+            }
 
             $totalCount = $result['count'] ?? 0;
             $rawClusters = $result['aggregates']['map']['clusters'] ?? [];
+
+            // Broaden-on-empty: city landing pages (e.g. /aurora/houses-for-sale)
+            // open the map on Toronto, and that viewport becomes a lat/long/radius
+            // filter Repliers ANDs with city=Aurora — a disjoint intersection that
+            // returns nothing. When a text query is scoped but the visible area
+            // has zero results, retry without the spatial filter and tell the
+            // frontend to pan to the results via fit_bounds. A user-drawn polygon
+            // is an explicit scope, so an empty result there is a valid answer.
+            $searchMovedMap = false;
+            $matchedCity = $this->matchGtaCity($searchParams['query'] ?? null);
+            $hasSpatialFilter = isset($apiParams['lat']) || isset($apiParams['map']);
+            $hasUserPolygon = !empty($searchParams['viewport_bounds']['polygon']);
+            if ($totalCount == 0 && empty($rawClusters)
+                && !empty($searchParams['query']) && $hasSpatialFilter && !$hasUserPolygon) {
+                $retryParams = $apiParams;
+                unset($retryParams['lat'], $retryParams['long'], $retryParams['radius'], $retryParams['map']);
+                try {
+                    $result = $repliersApi->searchListings($retryParams);
+                } catch (Exception $e) {
+                    Log::warning('Repliers map broaden retry failed, falling back to local DB: ' . $e->getMessage());
+                    return $this->getMapCoordinatesFromLocalDb($request);
+                }
+                $totalCount = $result['count'] ?? 0;
+                $rawClusters = $result['aggregates']['map']['clusters'] ?? [];
+                $searchMovedMap = !empty($rawClusters);
+                if (empty($rawClusters)) {
+                    // Nothing from Repliers for this query at all — last resort:
+                    // locally-synced coordinates (also covers stale-sync gaps).
+                    return $this->getMapCoordinatesFromLocalDb($request);
+                }
+            }
 
             $coordinates = [];
             $clusters = [];
@@ -3580,8 +3631,11 @@ class PropertySearchController extends Controller
                 $lng = (float) ($loc['longitude'] ?? 0);
                 if (!$lat || !$lng) continue;
 
-                // Drop clusters whose centre is outside the GTA boundary.
-                if (!empty($gtaPolygon) && !$this->isPointInPolygon($lat, $lng, $gtaPolygon)) {
+                // Drop clusters whose centre is outside the GTA boundary —
+                // except when the user explicitly searched a listed GTA city:
+                // that city's own listings must never be silently filtered out
+                // even if the polygon is later edited to exclude it.
+                if (!$matchedCity && !empty($gtaPolygon) && !$this->isPointInPolygon($lat, $lng, $gtaPolygon)) {
                     continue;
                 }
 
@@ -3641,7 +3695,7 @@ class PropertySearchController extends Controller
             }
 
             // Drop individual price markers that landed outside GTA too.
-            if (!empty($gtaPolygon) && !empty($coordinates)) {
+            if (!$matchedCity && !empty($gtaPolygon) && !empty($coordinates)) {
                 $coordinates = array_values(array_filter(
                     $coordinates,
                     fn($c) => $this->isPointInPolygon((float) $c['lat'], (float) $c['lng'], $gtaPolygon)
@@ -3650,16 +3704,44 @@ class PropertySearchController extends Controller
 
             $displayed = count($coordinates) + array_sum(array_column($clusters, 'count'));
 
+            $data = [
+                'coordinates' => $coordinates,
+                'clusters' => $clusters,
+                'total' => $totalCount,
+                'displayed' => $displayed,
+                'zoom_level' => $zoomLevel,
+                'has_more' => false,
+            ];
+
+            // Only when the broaden retry produced the results: tell the
+            // frontend to pan/zoom to them. Omitted on the normal path so the
+            // map never re-fits while the user pans around.
+            if ($searchMovedMap) {
+                $lats = [];
+                $lngs = [];
+                foreach ($coordinates as $c) {
+                    $lats[] = (float) $c['lat'];
+                    $lngs[] = (float) $c['lng'];
+                }
+                foreach ($clusters as $cl) {
+                    $lats[] = $cl['bounds']['north'];
+                    $lats[] = $cl['bounds']['south'];
+                    $lngs[] = $cl['bounds']['east'];
+                    $lngs[] = $cl['bounds']['west'];
+                }
+                if (!empty($lats)) {
+                    $data['fit_bounds'] = [
+                        'north' => max($lats),
+                        'south' => min($lats),
+                        'east' => max($lngs),
+                        'west' => min($lngs),
+                    ];
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'coordinates' => $coordinates,
-                    'clusters' => $clusters,
-                    'total' => $totalCount,
-                    'displayed' => $displayed,
-                    'zoom_level' => $zoomLevel,
-                    'has_more' => false,
-                ],
+                'data' => $data,
             ]);
 
         } catch (Exception $e) {
@@ -3698,10 +3780,15 @@ class PropertySearchController extends Controller
                 $query->where('property_type', 'For Rent');
             }
 
-            // Apply viewport bounds if provided - this is the key filter
-            // When user zooms out, viewport is larger = more properties shown
-            // When user zooms in, viewport is smaller = fewer properties but more detail
-            if ($viewportBounds && isset($viewportBounds['north'], $viewportBounds['south'], $viewportBounds['east'], $viewportBounds['west'])) {
+            // City-scoped query (e.g. "Aurora" from a city landing page): filter
+            // by city and IGNORE the viewport — the map may still be centred on
+            // Toronto, and the frontend pans to the results via fit_bounds.
+            $matchedCity = $this->matchGtaCity($searchParams['query'] ?? null);
+            if ($matchedCity) {
+                $query->where('city', 'like', $matchedCity . '%');
+            } elseif ($viewportBounds && isset($viewportBounds['north'], $viewportBounds['south'], $viewportBounds['east'], $viewportBounds['west'])) {
+                // Viewport bounds are the key filter otherwise: zoomed out =
+                // larger viewport = more properties shown.
                 $query->whereBetween('latitude', [$viewportBounds['south'], $viewportBounds['north']])
                       ->whereBetween('longitude', [$viewportBounds['west'], $viewportBounds['east']]);
             }
@@ -3775,15 +3862,31 @@ class PropertySearchController extends Controller
                     ];
                 });
 
+            $data = [
+                'coordinates' => $coordinates,
+                'clusters' => [],
+                'total' => $totalCount,
+                'displayed' => $coordinates->count(),
+                'zoom_level' => $zoomLevel,
+                'has_more' => $totalCount > $coordinates->count()
+            ];
+
+            // City-scoped results may sit outside the current viewport (map
+            // still centred on Toronto) — hand the frontend bounds to pan to.
+            if ($matchedCity && $coordinates->isNotEmpty()) {
+                $lats = $coordinates->pluck('lat');
+                $lngs = $coordinates->pluck('lng');
+                $data['fit_bounds'] = [
+                    'north' => (float) $lats->max(),
+                    'south' => (float) $lats->min(),
+                    'east' => (float) $lngs->max(),
+                    'west' => (float) $lngs->min(),
+                ];
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'coordinates' => $coordinates,
-                    'total' => $totalCount,
-                    'displayed' => $coordinates->count(),
-                    'zoom_level' => $zoomLevel,
-                    'has_more' => $totalCount > $coordinates->count()
-                ]
+                'data' => $data,
             ]);
 
         } catch (Exception $e) {

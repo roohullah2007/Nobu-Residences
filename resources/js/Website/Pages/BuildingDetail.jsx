@@ -10,8 +10,9 @@ import {
 import { BuildingTourScheduling } from '@/Website/Components/PropertyDetail';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
+import SaveSearchModal, { popPendingSavedSearch } from '@/Website/Components/PropertySearch/SaveSearchModal';
 
-export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website }) {
+export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website, faqs = [] }) {
   const { globalWebsite } = usePage().props;
   const effectiveWebsite = website || globalWebsite;
 
@@ -50,6 +51,17 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     setLoginInitialTab(tab);
     setLoginModalOpen(true);
   };
+
+  // "Notify me when units become available" — saves a building-scoped
+  // SavedSearch with email alerts (reuses the search-page alert system).
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+
+  // Restore a guest's alert intent after login (full reload back to this page).
+  useEffect(() => {
+    if (auth?.user && popPendingSavedSearch()) {
+      setShowAvailabilityModal(true);
+    }
+  }, []);
 
   // Global function to open viewing modal from property cards
   useEffect(() => {
@@ -295,6 +307,7 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                 auth={auth}
                 onLoginClick={() => openLoginModal('login')}
                 onSignupClick={() => openLoginModal('register')}
+                faqs={faqs}
               />
               
               {/* Global Viewing Request Modal */}
@@ -330,10 +343,48 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
                   </div>
                 )}
                 
+                {/* Availability email alerts */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="text-center">
+                    <h3 className="text-lg font-bold text-[#293056] mb-2 font-space-grotesk">
+                      Unit Availability Alerts
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Be the first to know when a unit becomes available in this building
+                    </p>
+                    <button
+                      onClick={() => setShowAvailabilityModal(true)}
+                      className="w-full py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                      style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Notify me
+                    </button>
+                  </div>
+                </div>
+
                 {/* Building Tour Scheduling */}
                 <BuildingTourScheduling website={website} buildingData={effectiveBuildingData} />
               </div>
             </div>
+          </div>
+
+          {/* Mobile availability-alert CTA (sidebar is hidden on mobile) */}
+          <div className="md:hidden my-4">
+            <button
+              onClick={() => setShowAvailabilityModal(true)}
+              className="w-full py-3 px-4 rounded-xl font-medium hover:opacity-90 transition-all flex items-center justify-center gap-2"
+              style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Notify me when units become available
+            </button>
           </div>
           <div className='description'>
             {/* Real Estate Market Links Section */}
@@ -350,6 +401,22 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
         isOpen={loginModalOpen}
         onClose={() => setLoginModalOpen(false)}
         initialTab={loginInitialTab}
+      />
+
+      {/* Unit availability alerts modal (building-scoped saved search) */}
+      <SaveSearchModal
+        isOpen={showAvailabilityModal}
+        onClose={() => setShowAvailabilityModal(false)}
+        searchParams={{
+          building_id: effectiveBuildingData?.id,
+          query: effectiveBuildingData?.street_address_1 || effectiveBuildingData?.address || effectiveBuildingData?.name || '',
+          status: effectiveBuildingData?.listing_type === 'For Rent' ? 'For Rent' : 'For Sale',
+        }}
+        defaultName={`New units at ${effectiveBuildingData?.name || 'this building'}`}
+        auth={auth}
+        onLoginRequired={() => openLoginModal('login')}
+        buttonPrimaryBg={buttonPrimaryBg}
+        buttonPrimaryText={buttonPrimaryText}
       />
     </MainLayout>
   );

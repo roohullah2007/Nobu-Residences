@@ -15,7 +15,8 @@ export default function DeveloperDetail({
     developer,
     buildings = [],
     listings = [],
-    allDevelopers = []
+    allDevelopers = [],
+    faqs = []
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentDateIndex, setCurrentDateIndex] = useState(0);
@@ -180,11 +181,20 @@ export default function DeveloperDetail({
                 <section className="pt-8 sm:pt-16 pb-6 sm:pb-8 bg-white">
                     <div className="max-w-[1280px] mx-auto px-4">
                         <div className="flex flex-col lg:flex-row justify-between items-start gap-6 sm:gap-8 rounded-2xl p-4 sm:p-8" style={{ backgroundColor: '#F8F9FC' }}>
-                            {/* Left Side - Rating & Name */}
+                            {/* Left Side - Name & Meta */}
                             <div className="flex-1 w-full lg:w-auto">
-                                {/* Rating Badge */}
-                                <div className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#912018] text-white text-xs sm:text-sm font-medium mb-4 sm:mb-6">
-                                    (154 Ratings, Average: 5 out of 5)
+                                {/* Type / Established badge */}
+                                <div className="flex flex-wrap items-center gap-2 mb-4 sm:mb-6">
+                                    {developer.type && (
+                                        <span className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#912018] text-white text-xs sm:text-sm font-medium capitalize">
+                                            {String(developer.type).replace(/_/g, ' & ')}
+                                        </span>
+                                    )}
+                                    {developer.established_year && (
+                                        <span className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#293056] text-white text-xs sm:text-sm font-medium">
+                                            Est. {developer.established_year}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Developer Name */}
@@ -198,6 +208,21 @@ export default function DeveloperDetail({
                                 >
                                     {developer.name}
                                 </h1>
+
+                                {developer.website && (
+                                    <a
+                                        href={developer.website.startsWith('http') ? developer.website : `https://${developer.website}`}
+                                        target="_blank"
+                                        rel="noopener nofollow"
+                                        className="inline-flex items-center gap-1.5 mt-3 font-work-sans text-sm sm:text-base text-[#293056] underline hover:opacity-80"
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                        Visit website
+                                    </a>
+                                )}
                             </div>
 
                             {/* Right Side - Logo Card */}
@@ -225,44 +250,39 @@ export default function DeveloperDetail({
                     <div className="max-w-[1280px] mx-auto px-4">
                         <div className="rounded-2xl p-4 sm:p-8" style={{ backgroundColor: '#F8F9FC' }}>
                             <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-                                {/* Left Side - Description */}
+                                {/* Left Side - Description (from admin-managed content) */}
                                 <div className="flex-1 lg:max-w-[60%]">
-                                    {/* Section 1 */}
                                     <div className="mb-8">
                                         <h3
                                             className="font-work-sans font-bold text-[#101323] mb-4"
                                             style={{ fontSize: '18px', lineHeight: '27px', letterSpacing: '-0.03em' }}
                                         >
-                                            90 Years of Excellence
+                                            {developer.established_year
+                                                ? `${new Date().getFullYear() - developer.established_year} Years of Excellence`
+                                                : `About ${developer.name}`}
                                         </h3>
-                                        <p
-                                            className="font-work-sans font-normal text-[#101323]/80"
-                                            style={{ fontSize: '16px', lineHeight: '25px', letterSpacing: '-0.03em' }}
-                                        >
-                                            {developer.name}, a Canadian homebuilder since 1934, has earned a reputation for excellence in craftsmanship, innovation, and sustainability. Having built over 25,000 green suites, {developer.name} is committed to creating communities that conserve more energy and resources than traditional standards. Over its <span className="underline font-semibold">90-year history, {developer.name} has built more than 90,000 homes across 200+ communities,</span> leading the new home and condominium market.
-                                        </p>
-                                    </div>
-
-                                    {/* Section 2 */}
-                                    <div>
-                                        <h3
-                                            className="font-work-sans font-bold text-[#101323] mb-4"
-                                            style={{ fontSize: '18px', lineHeight: '27px', letterSpacing: '-0.03em' }}
-                                        >
-                                            VIP Access Through Platinum Condo Deals
-                                        </h3>
-                                        <p
-                                            className="font-work-sans font-normal text-[#101323]/80"
-                                            style={{ fontSize: '16px', lineHeight: '25px', letterSpacing: '-0.03em' }}
-                                        >
-                                            Looking for your dream condo or new home? Platinum Condo Deals and {developer.name} have joined forces to offer you exclusive access to their best real estate options. Explore thriving neighbourhoods like Bayview Woods and find your perfect match.
-                                        </p>
+                                        {developer.description ? (
+                                            <p
+                                                className="font-work-sans font-normal text-[#101323]/80"
+                                                style={{ fontSize: '16px', lineHeight: '25px', letterSpacing: '-0.03em', whiteSpace: 'pre-line' }}
+                                            >
+                                                {developer.description}
+                                            </p>
+                                        ) : (
+                                            <p
+                                                className="font-work-sans font-normal text-[#101323]/80"
+                                                style={{ fontSize: '16px', lineHeight: '25px', letterSpacing: '-0.03em' }}
+                                            >
+                                                {developer.name} is a {String(developer.type || 'developer').replace(/_/g, ' & ')} with {developer.buildings_count || buildings.length || ''} project{(developer.buildings_count || buildings.length) === 1 ? '' : 's'} featured on this site.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Right Side - Stats Cards */}
+                                {/* Right Side - Stats Cards (admin-managed; a card hides when its value is empty) */}
+                                {(developer.projects_completed || developer.projects_under_construction || developer.upcoming_projects) ? (
                                 <div className="flex-shrink-0 w-full lg:w-[380px] space-y-4 sm:space-y-6">
-                                    {/* Total Projects Completed */}
+                                    {developer.projects_completed > 0 && (
                                     <div className="rounded-xl p-5 flex items-center gap-4" style={{ backgroundColor: '#EBECF5' }}>
                                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="1.5">
@@ -275,11 +295,12 @@ export default function DeveloperDetail({
                                             </p>
                                         </div>
                                         <span className="font-work-sans font-bold text-[#912018] text-xl">
-                                            90000
+                                            {Number(developer.projects_completed).toLocaleString()}
                                         </span>
                                     </div>
+                                    )}
 
-                                    {/* Projects Under Construction */}
+                                    {developer.projects_under_construction > 0 && (
                                     <div className="rounded-xl p-5 flex items-center gap-4" style={{ backgroundColor: '#EBECF5' }}>
                                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="1.5">
@@ -292,11 +313,12 @@ export default function DeveloperDetail({
                                             </p>
                                         </div>
                                         <span className="font-work-sans font-bold text-[#912018] text-xl">
-                                            10
+                                            {Number(developer.projects_under_construction).toLocaleString()}
                                         </span>
                                     </div>
+                                    )}
 
-                                    {/* Upcoming Projects */}
+                                    {developer.upcoming_projects > 0 && (
                                     <div className="rounded-xl p-5 flex items-center gap-4" style={{ backgroundColor: '#EBECF5' }}>
                                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="1.5">
@@ -313,10 +335,12 @@ export default function DeveloperDetail({
                                             </p>
                                         </div>
                                         <span className="font-work-sans font-bold text-[#912018] text-xl">
-                                            12
+                                            {Number(developer.upcoming_projects).toLocaleString()}
                                         </span>
                                     </div>
+                                    )}
                                 </div>
+                                ) : null}
                             </div>
 
                             {/* View All Button */}
@@ -568,78 +592,54 @@ export default function DeveloperDetail({
                     </section>
                 )}
 
-                {/* Expertise Highlights & Awards Section */}
+                {/* Expertise Highlights & Awards Section (admin-managed; each column hides when empty) */}
+                {((developer.highlights && developer.highlights.length > 0) || (developer.awards && developer.awards.length > 0)) && (
                 <section className="py-10 sm:py-16 bg-white">
                     <div className="max-w-[1280px] mx-auto px-4">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
                             {/* Expertise Highlights */}
+                            {developer.highlights && developer.highlights.length > 0 && (
                             <div>
                                 <h2 className="font-space-grotesk font-bold text-[#293056] text-xl sm:text-2xl uppercase tracking-wide mb-6 sm:mb-8">
                                     EXPERTISE HIGHLIGHTS
                                 </h2>
                                 <ul className="space-y-6">
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Building for the Future:</span> {developer.name} communities offer sustainable, innovative homes with 34% less electricity, 57% less natural gas, and 43% less water consumption than standard buildings.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">A Legacy of Craftsmanship:</span> {developer.name}'s legacy of excellence in homebuilding dates back to 1934, with their expertise evident in every meticulously crafted detail.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Creating Vibrant Communities:</span> {developer.name} goes beyond building houses; they create thriving neighbourhoods where people can connect and flourish.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Innovation at the Forefront:</span> {developer.name} stays ahead of the curve by embracing new technologies and sustainable practices to enhance their homes and communities.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Diversity and Inclusion:</span> {developer.name} believes in the power of diversity and is committed to creating an inclusive workplace and fostering positive change in the communities.
-                                        </p>
-                                    </li>
+                                    {developer.highlights.map((item, index) => (
+                                        <li key={index} className="flex items-start gap-3">
+                                            <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
+                                            <p className="font-work-sans text-[#293056]">
+                                                {item.title && <span className="font-bold">{item.title}: </span>}
+                                                {item.text}
+                                            </p>
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
+                            )}
 
                             {/* Awards & Recognitions */}
+                            {developer.awards && developer.awards.length > 0 && (
                             <div>
                                 <h2 className="font-space-grotesk font-bold text-[#293056] text-xl sm:text-2xl uppercase tracking-wide mb-6 sm:mb-8">
                                     AWARDS & RECOGNITIONS
                                 </h2>
                                 <ul className="space-y-6">
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Green Builder of the Year, Mid/High-Rise 2024:</span> {developer.name} received a prestigious 2024 BILD Award for its dedication to sustainable development.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Best High-Rise Building Design 2023:</span> {developer.name}'s Harbourwalk at Lakeview Village was honoured with the <span className="underline">Best High-Rise Building Design</span> award.
-                                        </p>
-                                    </li>
-                                    <li className="flex items-start gap-3">
-                                        <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
-                                        <p className="font-work-sans text-[#293056]">
-                                            <span className="font-bold">Ontario Builder of the Year 2022:</span> {developer.name} was celebrated as a leader in homebuilding in Ontario, receiving the <span className="underline">Builder of the Year award</span> at the 2022 BILD Awards.
-                                        </p>
-                                    </li>
+                                    {developer.awards.map((item, index) => (
+                                        <li key={index} className="flex items-start gap-3">
+                                            <span className="w-2 h-2 bg-[#293056] rounded-full mt-2 flex-shrink-0"></span>
+                                            <p className="font-work-sans text-[#293056]">
+                                                {item.title && <span className="font-bold">{item.title}: </span>}
+                                                {item.text}
+                                            </p>
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
+                            )}
                         </div>
                     </div>
                 </section>
+                )}
 
                 {/* Listings by Developer Section */}
                 {listings.length > 0 && (
@@ -788,32 +788,11 @@ export default function DeveloperDetail({
                     </div>
                 )}
 
-                {/* Optional editorial copy — renders only when the developer
-                    has a description saved. Replaces a hardcoded Lorem block
-                    that used to live here. Sits at the bottom of the detail
-                    layout so it doesn't compete with the hero/About-pane. */}
-                {developer?.description && (
-                    <section className="py-10 sm:py-16 bg-white">
-                        <div className="max-w-[1280px] mx-auto px-4">
-                            <h2
-                                className="font-space-grotesk font-bold text-[#293056] mb-4 sm:mb-6 text-[22px] sm:text-[28px]"
-                                style={{ lineHeight: '1.3' }}
-                            >
-                                About {developer.name}
-                            </h2>
-                            <p
-                                className="font-work-sans text-[#293056]/80 leading-relaxed text-base sm:text-lg"
-                                style={{ lineHeight: '1.7' }}
-                            >
-                                {developer.description}
-                            </p>
-                        </div>
-                    </section>
-                )}
+                {/* Description now renders in the Developer Info section above */}
 
                 {/* FAQ Section */}
                 <div className="faq-section">
-                    <FAQ />
+                    <FAQ faqItems={faqs} />
                 </div>
 
                 {/* Real Estate Links Section */}
@@ -1026,7 +1005,7 @@ export default function DeveloperDetail({
 
             {/* FAQ Section */}
             <div className="faq-section">
-                <FAQ />
+                <FAQ faqItems={faqs} />
             </div>
 
             {/* Real Estate Links Section */}

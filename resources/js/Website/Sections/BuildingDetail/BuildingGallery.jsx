@@ -281,6 +281,16 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                       </span>
                     </div>
                   )}
+
+                  {/* Avg Price / Sqft — auto-computed from MLS (saved on the building) */}
+                  {buildingData?.avg_price_per_sqft && (
+                    <div className="flex justify-between items-start">
+                      <span className="font-work-sans font-semibold text-sm text-[#252B37]">Avg Price / Sqft</span>
+                      <span className="font-work-sans text-sm text-[#535862]">
+                        {buildingData.avg_price_per_sqft}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Inventory buttons — Rent on top, Sale on bottom per

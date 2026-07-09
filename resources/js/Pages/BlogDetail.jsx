@@ -101,7 +101,7 @@ const BlogCard = ({ post, formatDate, calculateReadTime }) => {
     );
 };
 
-export default function BlogDetail({ auth, siteName = 'NobuResidence', siteUrl, year, website, blog, relatedPosts, recentPosts }) {
+export default function BlogDetail({ auth, siteName = 'NobuResidence', siteUrl, year, website, blog, relatedPosts, recentPosts, faqs = [] }) {
     // Format date for display
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -302,7 +302,7 @@ export default function BlogDetail({ auth, siteName = 'NobuResidence', siteUrl, 
 
             {/* FAQ Section */}
             <div className="faq-section">
-                <FAQ />
+                <FAQ faqItems={faqs} />
             </div>
 
             {/* Real Estate Links Section */}

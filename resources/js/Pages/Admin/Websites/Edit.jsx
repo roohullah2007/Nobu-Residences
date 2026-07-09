@@ -48,6 +48,7 @@ export default function Edit({ auth }) {
         meta_keywords: website?.meta_keywords || '',
         description: website?.description || '',
         timezone: website?.timezone || 'America/Toronto',
+        tracking_scripts: website?.tracking_scripts || '',
         // Brand colors - Core
         'brand_colors.primary': website?.brand_colors?.primary || '#912018',
         'brand_colors.accent': website?.brand_colors?.accent || '#F5F8FF',
@@ -809,6 +810,21 @@ export default function Edit({ auth }) {
                                         placeholder="keyword1, keyword2, keyword3"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Tracking &amp; Integrations</label>
+                                    <textarea
+                                        value={data.tracking_scripts}
+                                        onChange={(e) => setData('tracking_scripts', e.target.value)}
+                                        rows="6"
+                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono"
+                                        placeholder={'<script>\n  // e.g. Follow Up Boss widget tracker snippet\n</script>'}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Paste third-party tracking snippets (e.g. the Follow Up Boss pixel / widget tracker).
+                                        Rendered verbatim in the site &lt;head&gt; on public pages only — never on admin pages.
+                                    </p>
                                 </div>
 
                                 <div>

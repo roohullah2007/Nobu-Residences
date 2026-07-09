@@ -124,13 +124,14 @@ const ClusteredPropertyMap = ({
         return {
           coordinates: result.data.coordinates || [],
           clusters: result.data.clusters || [],
+          fitBounds: result.data.fit_bounds || null,
         };
       }
 
-      return { coordinates: [], clusters: [] };
+      return { coordinates: [], clusters: [], fitBounds: null };
     } catch (error) {
       console.error('Error fetching map coordinates:', error);
-      return { coordinates: [], clusters: [] };
+      return { coordinates: [], clusters: [], fitBounds: null };
     } finally {
       setIsLoading(false);
     }
@@ -158,11 +159,11 @@ const ClusteredPropertyMap = ({
 
   // Create cluster icon — condos.ca-style teal bubble with soft drop shadow
   const createClusterIcon = (count) => {
-    const size = count < 10 ? 40 : count < 100 ? 50 : 60;
+    const size = count < 10 ? 28 : count < 100 ? 34 : 42;
     // Slightly deeper teal for larger clusters so they read as "more".
     const bgColor = count < 10 ? '#2e7a8b' : count < 100 ? '#236676' : '#1a5260';
-    const fontSize = count < 10 ? 15 : count < 100 ? 14 : 13;
-    const pad = 4;
+    const fontSize = count < 10 ? 12 : count < 100 ? 12 : 11;
+    const pad = 3;
     const box = size + pad * 2;
 
     return {
@@ -233,7 +234,7 @@ const ClusteredPropertyMap = ({
     lastBoundsRef.current = boundsKey;
 
     // Fetch markers (server-clustered) from API
-    const { coordinates, clusters } = await fetchMapCoordinates(roundedBounds, zoom);
+    const { coordinates, clusters, fitBounds } = await fetchMapCoordinates(roundedBounds, zoom);
 
     // Clear existing markers (and any old client-side clusterer)
     clearMarkers();
@@ -329,6 +330,33 @@ const ClusteredPropertyMap = ({
     });
 
     markersRef.current = allMarkers;
+
+    // The backend sends fit_bounds only when the results live outside the
+    // current viewport (e.g. a city search while the map still shows Toronto).
+    // Pan/zoom to them; the subsequent idle refetches for the new viewport —
+    // which now intersects the results, so the next response has no
+    // fit_bounds and the map stays put.
+    if (fitBounds) {
+      lastBoundsRef.current = null; // don't dedupe away the post-fit refetch
+      const isSinglePoint =
+        Math.abs(fitBounds.north - fitBounds.south) < 0.0005 &&
+        Math.abs(fitBounds.east - fitBounds.west) < 0.0005;
+      if (isSinglePoint) {
+        map.setCenter({
+          lat: (fitBounds.north + fitBounds.south) / 2,
+          lng: (fitBounds.east + fitBounds.west) / 2,
+        });
+        map.setZoom(15);
+      } else {
+        map.fitBounds(
+          new window.google.maps.LatLngBounds(
+            { lat: fitBounds.south, lng: fitBounds.west },
+            { lat: fitBounds.north, lng: fitBounds.east }
+          ),
+          40
+        );
+      }
+    }
 
     console.log(`Map updated: ${coordinates.length} listings + ${clusters.length} clusters`);
   }, [fetchMapCoordinates, clearMarkers]);

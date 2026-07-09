@@ -37,7 +37,7 @@ export default function PropertySections({
 
      {/* Property detail cards: Overview, Property Details, Rooms, Bathroom
          Details, Amenities, Building & Condo Info, Extras, Community */}
-      <PropertyDetailsSections property={propertyData} buildingData={buildingData} />
+      <PropertyDetailsSections property={propertyData} buildingData={buildingData} aiDescription={aiDescription} />
 
       {/* Building info card — right under the listing/MLS number details */}
       <MerchandiseLofts propertyData={propertyData} />

@@ -13,6 +13,8 @@ import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
 import LoginModal from '@/Website/Global/Components/LoginModal';
 import FiltersModal from '@/Website/Components/FiltersModal';
+import SaveSearchModal, { popPendingSavedSearch } from '@/Website/Components/PropertySearch/SaveSearchModal';
+import { FAQ } from '@/Website/Global/Components';
 
 
 // Icon components
@@ -68,91 +70,6 @@ const SaveIcon = ({ className }) => (
   </svg>
 );
 
-// Save Search Modal Component
-const SaveSearchModal = ({ isOpen, onClose, onSave, currentFilters, buttonPrimaryBg, buttonPrimaryText, buttonQuaternaryBg, buttonQuaternaryText }) => {
-  const [searchName, setSearchName] = useState('');
-  const [emailAlerts, setEmailAlerts] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSave = async () => {
-    if (!searchName.trim()) {
-      alert('Please enter a name for your search');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await onSave({
-        name: searchName,
-        search_params: currentFilters,
-        email_alerts: emailAlerts
-      });
-      setSearchName('');
-      setEmailAlerts(false);
-      onClose();
-    } catch (error) {
-      alert('Failed to save search. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h3 className="text-lg font-bold mb-4">Save Search</h3>
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Search Name
-          </label>
-          <input
-            type="text"
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-            placeholder="e.g., Downtown Toronto Condos"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#293056]"
-          />
-        </div>
-        
-        <div className="mb-6">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={emailAlerts}
-              onChange={(e) => setEmailAlerts(e.target.checked)}
-              className="rounded border-gray-300 text-[#293056] focus:ring-[#293056]"
-            />
-            <span className="ml-2 text-sm text-gray-700">
-              Send me email alerts for new properties
-            </span>
-          </label>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border rounded-md hover:opacity-80 transition-all"
-            style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-md hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
-          >
-            {isLoading ? 'Saving...' : 'Save Search'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function EnhancedPropertySearch({
   auth,
   website,
@@ -161,6 +78,7 @@ export default function EnhancedPropertySearch({
   year,
   filters = {},
   searchTab = 'listings',
+  faqs = [],
 }) {
   // Debug: Log the filters being passed from WebsiteController
   console.log('🔍 Search page filters from controller:', filters);
@@ -191,6 +109,7 @@ export default function EnhancedPropertySearch({
 
   // State for login modal
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showSaveSearchModal, setShowSaveSearchModal] = useState(false);
   
   // Function to map backend status to user-friendly display
   const mapStatusToDisplay = (status) => {
@@ -807,91 +726,44 @@ export default function EnhancedPropertySearch({
     console.log(`Map showing ${displayed} of ${total} properties`);
   }, []);
 
-  const handleSaveSearch = async () => {
-    // Check if user is authenticated
-    if (!auth?.user) {
-      // Show login modal instead of saving
-      setShowLoginModal(true);
-      return;
+  // Default name for a saved search based on the active filters.
+  const generateDefaultSearchName = () => {
+    const parts = [];
+    if (searchFilters.query) parts.push(searchFilters.query);
+    if (searchFilters.status) parts.push(searchFilters.status);
+    if (searchFilters.bedrooms) parts.push(`${searchFilters.bedrooms}+ beds`);
+    if (searchFilters.price_min || (searchFilters.price_max && searchFilters.price_max < 10000000)) {
+      parts.push(`$${(searchFilters.price_min || 0).toLocaleString()}-$${(searchFilters.price_max || 10000000).toLocaleString()}`);
     }
-
-    // Generate a default name for the search based on filters
-    const filters = [];
-    if (searchFilters.status) filters.push(searchFilters.status);
-    if (searchFilters.price_min || searchFilters.price_max) {
-      filters.push(`$${(searchFilters.price_min || 0).toLocaleString()}-$${(searchFilters.price_max || 10000000).toLocaleString()}`);
-    }
-    if (searchFilters.bedrooms) filters.push(`${searchFilters.bedrooms}+ beds`);
-
-    const searchName = filters.length > 0
-      ? filters.join(', ')
-      : `Search - ${new Date().toLocaleDateString()}`;
-
-    const saveData = {
-      name: searchName,
-      search_params: searchFilters,
-      email_alerts: false
-    };
-
-    try {
-      const response = await fetch('/api/save-search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken()
-        },
-        body: JSON.stringify(saveData)
-      });
-
-      // Check if response is HTML (likely a redirect to login)
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
-        // User is not authenticated - show login modal
-        setShowLoginModal(true);
-        return;
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Please log in to save searches');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        // Show success message briefly
-        const successMsg = document.createElement('div');
-        successMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-        successMsg.innerHTML = '<span class="flex items-center gap-2">✓ Search saved successfully!</span>';
-        document.body.appendChild(successMsg);
-        
-        setTimeout(() => {
-          successMsg.style.transition = 'opacity 0.3s';
-          successMsg.style.opacity = '0';
-          setTimeout(() => successMsg.remove(), 300);
-        }, 2500);
-      } else {
-        throw new Error(result.message || 'Failed to save search');
-      }
-    } catch (error) {
-      console.error('Save search error:', error);
-      
-      // Show error message
-      const errorMsg = document.createElement('div');
-      errorMsg.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
-      errorMsg.innerHTML = `<span class="flex items-center gap-2">❌ ${error.message || 'Failed to save search'}</span>`;
-      document.body.appendChild(errorMsg);
-      
-      setTimeout(() => {
-        errorMsg.style.transition = 'opacity 0.3s';
-        errorMsg.style.opacity = '0';
-        setTimeout(() => errorMsg.remove(), 300);
-      }, 3000);
-    }
+    return parts.length > 0 ? parts.join(', ') : `Search - ${new Date().toLocaleDateString()}`;
   };
+
+  const showSaveToast = (message, isError = false) => {
+    const msg = document.createElement('div');
+    msg.className = `fixed bottom-4 right-4 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    msg.innerHTML = `<span class="flex items-center gap-2">${isError ? '❌' : '✓'} ${message}</span>`;
+    document.body.appendChild(msg);
+    setTimeout(() => {
+      msg.style.transition = 'opacity 0.3s';
+      msg.style.opacity = '0';
+      setTimeout(() => msg.remove(), 300);
+    }, 2500);
+  };
+
+  // Opens the save-search / email-alerts modal. Guests see the modal too —
+  // clicking Save stashes the intent and routes them through the login modal;
+  // the pending-intent effect below re-opens this modal after login.
+  const handleSaveSearch = () => {
+    setShowSaveSearchModal(true);
+  };
+
+  // After a guest logs in/registers (full page reload back to this URL via
+  // redirect_to), restore their save-alert intent and re-open the modal.
+  useEffect(() => {
+    if (auth?.user && popPendingSavedSearch()) {
+      setShowSaveSearchModal(true);
+    }
+  }, []);
 
   // Format property data for PropertyCardV5
   const formatPropertyForCard = (property) => {
@@ -1606,6 +1478,20 @@ export default function EnhancedPropertySearch({
 
                 {/* Right: View Toggle and Sort - Responsive */}
                 <div className="flex items-center gap-2 md:gap-4 justify-between md:justify-end">
+                    {/* Get alerts CTA — saves this search with email alerts on */}
+                    <button
+                      onClick={handleSaveSearch}
+                      className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg font-work-sans font-bold text-sm hover:opacity-90 transition-all whitespace-nowrap"
+                      style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
+                      title="Get email alerts for this search"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span className="hidden sm:inline">Get alerts</span>
+                    </button>
+
                     {/* View Toggle Buttons - Grid/Mixed/Map with border like reference */}
                     <div className="flex items-center bg-white border border-black rounded-lg p-0.5 md:p-1">
                       <button
@@ -2079,8 +1965,27 @@ export default function EnhancedPropertySearch({
           </div>
         </div>
 
-        {/* Save Search Modal */}
+        {/* FAQ Section (admin-managed, page_type=search) */}
+        <div className="faq-section">
+          <FAQ faqItems={faqs} />
         </div>
+
+        </div>
+
+        {/* Save Search / Email Alerts Modal */}
+        <SaveSearchModal
+          isOpen={showSaveSearchModal}
+          onClose={() => setShowSaveSearchModal(false)}
+          searchParams={searchFilters}
+          defaultName={generateDefaultSearchName()}
+          auth={auth}
+          onSaved={() => showSaveToast('Search saved — email alerts are on!')}
+          onLoginRequired={() => setShowLoginModal(true)}
+          buttonPrimaryBg={buttonPrimaryBg}
+          buttonPrimaryText={buttonPrimaryText}
+          buttonQuaternaryBg={buttonQuaternaryBg}
+          buttonQuaternaryText={buttonQuaternaryText}
+        />
 
         {/* Filters Modal */}
         <FiltersModal

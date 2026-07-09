@@ -70,6 +70,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         parking_spots: building.parking_spots || '',
         locker_spots: building.locker_spots || '',
         maintenance_fee_range: building.maintenance_fee_range || '',
+        parking_maintenance_fee: building.parking_maintenance_fee || '',
+        locker_maintenance_fee: building.locker_maintenance_fee || '',
         website_url: building.website_url || '',
         floor_plans: building.floor_plans || [],
         virtual_tour_url: building.virtual_tour_url || '',
@@ -989,6 +991,36 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         placeholder="e.g., $0.65 - $0.85 per sq ft"
                                     />
                                     <InputError message={errors.maintenance_fee_range} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="parking_maintenance_fee" value="Parking Maintenance ($/month)" />
+                                    <TextInput
+                                        id="parking_maintenance_fee"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="mt-1 block w-full"
+                                        value={data.parking_maintenance_fee}
+                                        onChange={(e) => setData('parking_maintenance_fee', e.target.value)}
+                                        placeholder="e.g., 65.00"
+                                    />
+                                    <InputError message={errors.parking_maintenance_fee} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="locker_maintenance_fee" value="Locker Maintenance ($/month)" />
+                                    <TextInput
+                                        id="locker_maintenance_fee"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="mt-1 block w-full"
+                                        value={data.locker_maintenance_fee}
+                                        onChange={(e) => setData('locker_maintenance_fee', e.target.value)}
+                                        placeholder="e.g., 25.00"
+                                    />
+                                    <InputError message={errors.locker_maintenance_fee} className="mt-2" />
                                 </div>
                             </div>
                         </div>

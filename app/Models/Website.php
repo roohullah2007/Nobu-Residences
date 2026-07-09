@@ -38,6 +38,7 @@ class Website extends Model
         'ploi_ssl_status',
         'ploi_ssl_issued_at',
         'ploi_last_error',
+        'tracking_scripts',
     ];
 
     protected $casts = [
