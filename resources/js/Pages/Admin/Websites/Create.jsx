@@ -5,7 +5,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import PhoneInput from '@/Components/PhoneInput';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 // Force white backgrounds on all form controls (override TextInput's dark: classes)
 const lightFormClass =
@@ -13,7 +13,7 @@ const lightFormClass =
     '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 ' +
     '[&_select]:!bg-white [&_select]:!text-gray-900';
 
-export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false }) {
+export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false, preselectedBuildingId = null }) {
     // Step 1 = pick building, Step 2 = fill out website form
     const [step, setStep] = useState(1);
     const [buildingSearch, setBuildingSearch] = useState('');
@@ -174,6 +174,16 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         applyBuildingDefaults(building);
         setStep(2);
     };
+
+    // "Launch Website" shortcut (?building_id=... from the Building edit
+    // page): preselect that building and jump straight to step 2.
+    useEffect(() => {
+        if (!preselectedBuildingId) return;
+        const building = buildings.find((b) => String(b.id) === String(preselectedBuildingId));
+        if (building) {
+            chooseBuilding(building);
+        }
+    }, []);
 
     const submit = (e) => {
         e.preventDefault();

@@ -1,7 +1,7 @@
 # Infrastructure Plan — Building Domains & Hosting Migration
 
-Status: **planning document** (client items #7 and #8, July 2026). Nothing in this
-document is executed yet — it is the step-by-step playbook for when we do.
+Status: Part 1 (building domains) is **implemented** (July 2026). Part 2 (hosting
+migration) remains a planning playbook for when we execute it.
 
 ---
 
@@ -26,29 +26,37 @@ The platform is already multi-domain capable:
 - **Admin UI** — `/admin/websites` create/edit pages already manage these rows.
 - **`php artisan` command `InitializeWebsite`** exists for setting up new websites.
 
-### How to launch a building domain today (manual, ~15 minutes)
+### How to launch a building domain (implemented — one-click flow)
 
-1. **Create the Website row** in `/admin/websites`:
-   - Name: building name (e.g. "Aurora Residences")
-   - Domain: `bought-domain.com` (or a subdomain like `aurora.nobu.wpbun.xyz`)
-   - Branding: building-specific logo/colors
-   - Optional: set `homepage_building_id` + `use_building_as_homepage` — the
-     site's homepage then IS the building page (columns already exist).
-2. **DNS**: point the domain's A record at the server IP (or CNAME the subdomain).
-3. **Server/SSL**: add the domain as an alias on the web server and issue SSL.
-   The `ploi_*` columns indicate a Ploi API flow exists/was planned — if the
-   server is Ploi-managed, use Ploi's "alias + Let's Encrypt" API; otherwise add
-   the server block + `certbot` manually.
-4. Done — the middleware serves that domain with the building's branding.
+1. **Admin → Buildings → Edit → "Launch Website"** (header button). It opens
+   Admin → Websites → Create with the building preselected and everything
+   prefilled (name, agent, branding inherited from the default site).
+   - A building that already has a site shows a green "Website: {domain}"
+     badge linking to its edit page instead.
+2. **Enter the domain** (bought domain or a subdomain), submit. On create:
+   - The home page content is auto-personalized from the building (hero
+     title/image, about/overview from the building description, key facts from
+     floors/units/year/sqft, footer/FAQ copy) — all editable afterwards in
+     Admin → Websites → Edit Home Page.
+   - Ploi provisioning runs automatically: server alias added synchronously,
+     SSL certificate queued (`RequestPloiSslJob`, retries with backoff). The
+     created-status page shows both states with retry buttons.
+     Requires `PLOI_API_TOKEN` / `PLOI_SERVER_ID` / `PLOI_SITE_ID` in `.env`.
+3. **DNS**: point the domain's A record at the server IP (or CNAME the
+   subdomain). SSL issuance succeeds once DNS resolves to the server.
+4. **Homepage style** — the "Use Building Page as Homepage" toggle (on by
+   default in the launch flow) makes `/` serve the full BuildingDetail page
+   (listings, price history, amenities). Toggle it off to serve the classic
+   Welcome template homepage with the building's personalized content instead.
+   The default (main) site always keeps the Welcome design regardless of flags.
 
-### Gaps to close for "easily generate" (future work, in order)
+### Remaining optional improvements
 
 | Gap | Change |
 | --- | --- |
-| Buildings aren't linked to websites | Migration: `website_id` (nullable FK) on `buildings`; used for canonical URLs and per-site scoping |
-| Manual multi-step setup | Admin "Launch building site" button on the Building edit page: creates the Website row from building data (name/logo/colors), sets `homepage_building_id`, calls the Ploi API for alias + SSL, and reports status from the existing `ploi_*` columns |
-| Content duplication risk | Per-building sites should canonical-link listing pages back to the main site OR carry unique content (building description, FAQs via the new `faqs` system) to avoid duplicate-content SEO penalties |
+| Content duplication risk | Per-building sites should canonical-link listing pages back to the main site OR carry unique content (building description, FAQs via the `faqs` system) to avoid duplicate-content SEO penalties |
 | Sitemap/robots per domain | Generate per-website sitemap.xml scoped by domain |
+| Per-site listing scoping | Property search on a building site currently searches the whole market (arguably desirable); scope by building if the client prefers |
 
 ### Recommended rollout
 

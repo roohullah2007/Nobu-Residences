@@ -210,12 +210,23 @@ class WebsiteController extends Controller
     {
         $website = $this->getCurrentWebsite();
 
-        // The homepage now renders the redesigned Nobu landing page
-        // (Welcome -> resources/js/Website/Home.jsx) for every site. The
-        // previous "use_building_as_homepage" short-circuit rendered the
-        // BuildingDetail layout at "/" and has been removed so the new design
-        // shows. The standalone building-detail page is served by its own
-        // routes (building-detail*) and is unaffected by this change.
+        // Sub-sites (building domains) that opt in via the admin
+        // "Use Building Page as Homepage" checkbox serve the full
+        // BuildingDetail page at "/". The default (main) site is deliberately
+        // excluded so it always shows the redesigned Welcome landing page,
+        // even if its DB flag is stale.
+        if ($website && !$website->is_default
+            && $website->use_building_as_homepage && $website->homepage_building_id) {
+            $building = \App\Models\Building::with([
+                'developer', 'amenities', 'maintenanceFeeAmenities',
+                'properties' => fn ($q) => $q->where('status', 'active')->orderBy('created_at', 'desc')->limit(10),
+            ])->find($website->homepage_building_id);
+            if ($building) {
+                return $this->renderBuildingDetailPage($building);
+            }
+            // Linked building deleted → fall through to the Welcome template.
+        }
+
         $settings = $this->getWebsiteSettings();
         $pageContent = $this->getPageContent('home');
 
@@ -2725,7 +2736,17 @@ class WebsiteController extends Controller
         if (!$building) {
             abort(404, 'Building not found');
         }
-        
+
+        return $this->renderBuildingDetailPage($building);
+    }
+
+    /**
+     * Render the BuildingDetail page for a resolved building. Shared by the
+     * building-detail routes and by home() when a sub-site has
+     * "use_building_as_homepage" enabled (its "/" serves this page).
+     */
+    private function renderBuildingDetailPage(Building $building)
+    {
         // Get building display data
         $buildingData = $building->getDisplayData();
 

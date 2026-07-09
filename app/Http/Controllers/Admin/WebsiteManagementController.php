@@ -104,6 +104,8 @@ class WebsiteManagementController extends Controller
             'defaultContactInfo' => $defaultContactInfo,
             'defaultSocialMedia' => $defaultSocialMedia,
             'ploiEnabled' => config('services.ploi.auto_provision') && !empty(config('services.ploi.token')),
+            // "Launch Website" shortcut from the Building edit page
+            'preselectedBuildingId' => request()->query('building_id'),
         ]);
     }
 
@@ -340,12 +342,15 @@ class WebsiteManagementController extends Controller
             ]);
         }
 
-        // Create default home page
+        // Create default home page — personalized from the linked building
+        // (name/city/image/facts) when this site was launched for one.
         WebsitePage::create([
             'website_id' => $website->id,
             'page_type' => 'home',
             'title' => "Home - {$website->name}",
-            'content' => WebsitePage::getDefaultHomeContent(),
+            'content' => ($homepageBuilding = $website->homepageBuilding)
+                ? WebsitePage::getDefaultHomeContentForBuilding($homepageBuilding)
+                : WebsitePage::getDefaultHomeContent(),
             'is_active' => true,
             'sort_order' => 0,
         ]);

@@ -19,7 +19,7 @@ const createBuildingSlug = (name, id) => {
     return `${slug}-${id}`;
 };
 
-export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
+export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [], linkedWebsite = null }) {
     // Debug logging
     console.log('=== BuildingsEdit Component Loaded ===');
     console.log('Building prop:', building);
@@ -547,6 +547,29 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         <p className="mt-2 text-sm text-gray-700">
                             Update building information and details.
                         </p>
+                    </div>
+                    <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+                        {linkedWebsite ? (
+                            <Link
+                                href={route('admin.websites.edit', linkedWebsite.id)}
+                                className="inline-flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2.5 text-sm font-medium text-green-800 ring-1 ring-inset ring-green-200 hover:bg-green-100 transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5 0 4.5-4 4.5-9S14.5 3 12 3 7.5 7 7.5 12s2 9 4.5 9zM3.6 9h16.8M3.6 15h16.8" />
+                                </svg>
+                                Website: {linkedWebsite.domain || linkedWebsite.name}
+                            </Link>
+                        ) : (
+                            <Link
+                                href={route('admin.websites.create', { building_id: building.id })}
+                                className="inline-flex items-center gap-2 rounded-lg bg-[#0f172a] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1e293b] transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.5 0 4.5-4 4.5-9S14.5 3 12 3 7.5 7 7.5 12s2 9 4.5 9zM3.6 9h16.8M3.6 15h16.8" />
+                                </svg>
+                                Launch Website
+                            </Link>
+                        )}
                     </div>
                 </div>
 

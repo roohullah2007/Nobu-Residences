@@ -202,4 +202,71 @@ class WebsitePage extends Model
             ]
         ];
     }
+
+    /**
+     * Default home content personalized for a building website (created via
+     * the "Launch Website" / building-picker flow). Starts from
+     * getDefaultHomeContent() and overrides the Nobu-specific copy with the
+     * building's own name, city, image and facts — everything stays editable
+     * afterwards in Admin → Websites → Edit Home Page.
+     */
+    public static function getDefaultHomeContentForBuilding(Building $building): array
+    {
+        $content = static::getDefaultHomeContent();
+        $name = trim((string) $building->name) ?: 'This Building';
+        $city = trim((string) $building->city);
+
+        $content['hero']['welcome_text'] = 'WELCOME TO ' . strtoupper($name);
+        $content['hero']['subheading'] = "Whether buying or renting, {$name} makes finding your home easy and reliable.";
+        if ($building->main_image) {
+            $content['hero']['background_image'] = $building->main_image;
+        }
+
+        $content['about']['title'] = "Learn everything about {$name}";
+        if ($building->main_image) {
+            $content['about']['image'] = $building->main_image;
+        }
+        $content['about']['image_alt'] = $name . ' Building';
+        $content['about']['tabs']['overview']['content'] = $building->description
+            ?: ($name . ($city ? " is located in {$city}." : ' — building profile coming soon.'));
+
+        // Key facts from real building fields; keep only the ones we have.
+        $keyFacts = [];
+        if ($building->floors || $building->total_units) {
+            $parts = array_filter([
+                $building->floors ? "{$building->floors} floors" : null,
+                $building->total_units ? "{$building->total_units} units" : null,
+            ]);
+            $keyFacts[] = ['icon' => 'building', 'text' => implode(' / ', $parts)];
+        }
+        if ($building->year_built) {
+            $keyFacts[] = ['icon' => 'calendar', 'text' => "Built in {$building->year_built}"];
+        }
+        if ($building->sqft_range) {
+            $keyFacts[] = ['icon' => 'dimensions', 'text' => $building->sqft_range];
+        }
+        if ($building->building_type) {
+            $keyFacts[] = ['icon' => 'building-type', 'text' => $building->building_type];
+        }
+        if ($building->avg_price_per_sqft) {
+            $keyFacts[] = ['icon' => 'price', 'text' => "Avg {$building->avg_price_per_sqft} per square foot"];
+        }
+        if (!empty($keyFacts)) {
+            $content['about']['tabs']['key_facts']['items'] = $keyFacts;
+        }
+
+        // FAQ copy: swap the brand name; the Nobu-specific facts (prices,
+        // address) remain editable via the admin home-page editor.
+        foreach ($content['faq']['items'] as &$item) {
+            $item['question'] = str_replace(['Nobu Residences', 'Nobu'], $name, $item['question']);
+            $item['answer'] = str_replace(['Nobu Residences', 'Nobu'], $name, $item['answer']);
+        }
+        unset($item);
+
+        $content['footer']['description'] = "Experience luxury living at {$name}"
+            . ($city ? " in the heart of {$city}." : '.');
+        $content['footer']['copyright_text'] = '© ' . date('Y') . " {$name}. All rights reserved.";
+
+        return $content;
+    }
 }

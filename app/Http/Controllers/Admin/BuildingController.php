@@ -449,7 +449,12 @@ class BuildingController extends Controller
             'amenities' => $amenities,
             'maintenanceFeeAmenities' => $maintenanceFeeAmenities,
             'neighbourhoods' => $neighbourhoods,
-            'subNeighbourhoods' => $subNeighbourhoods
+            'subNeighbourhoods' => $subNeighbourhoods,
+            // Standalone website launched for this building (if any) — powers
+            // the "Launch Website" / "View Website" header action.
+            'linkedWebsite' => \App\Models\Website::where('homepage_building_id', $building->id)
+                ->select('id', 'name', 'domain', 'slug')
+                ->first(),
         ]);
     }
 
