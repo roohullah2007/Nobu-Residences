@@ -85,7 +85,9 @@
 /* Responsive grid adjustments - Auto-fit with 300px cards */
 @media (max-width: 1400px) {
     .idx-ampre-grid {
-        max-width: 1200px;
+        /* 4 cards × 300px + 3 gaps × 16px = 1248px — keep 4-across on
+           laptop widths; 1200px only fit 3 columns. */
+        max-width: 1248px;
         gap: 16px;
     }
 }

@@ -35,18 +35,11 @@ form > .space-y-4 > :not([hidden]) ~ :not([hidden]),
     margin-bottom: 1rem !important;
 }
 
-/* IDX-AMPRE Grid Styles for consistency across all pages */
-.idx-ampre-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-}
-
-.idx-ampre-mixed-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-}
+/* .idx-ampre-grid / .idx-ampre-mixed-grid are defined in
+   idx-ampre-styles.css (fixed 300px columns, centered). Do not redefine
+   them here — a later duplicate with minmax(300px, 1fr) stretched the
+   columns while the cards stayed 300px wide, leaving huge gaps and only
+   3 cards per row. */
 
 /* Ensure consistent card sizing */
 .idx-ampre-property-card {

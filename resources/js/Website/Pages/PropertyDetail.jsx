@@ -341,8 +341,12 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
             />
           </div>
 
-          <div className="flex md:flex-row sm:flex-col flex-col gap-6 w-full">
-            <div className="md:w-[950px]">
+          {/* Columns: stacked below lg; from lg the sidebar sits right and the
+              content column is fluid (exact 950px only from xl, where
+              950 + 24 gap + 309 fits the 1280 container). The old md:w-[950px]
+              forced a 1283px row at 768px and clipped both edges. */}
+          <div className="flex flex-col lg:flex-row gap-6 w-full">
+            <div className="w-full min-w-0 lg:flex-1 xl:flex-none xl:w-[950px]">
 
               {/* Property Sections */}
               <PropertySections
@@ -357,8 +361,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
               />
             </div>
 
-            {/* Right sidebar */}
-            <div className="max-w-[309px] md:flex hidden w-full">
+            {/* Right sidebar — stacks below the content at tablet widths,
+                becomes the fixed 309px right column from lg */}
+            <div className="hidden md:flex w-full max-w-[309px] flex-shrink-0">
               <div className="flex flex-col gap-6 w-full">
                 {/* Login/Signup Card for Non-Authenticated Users */}
                 {!auth?.user && (

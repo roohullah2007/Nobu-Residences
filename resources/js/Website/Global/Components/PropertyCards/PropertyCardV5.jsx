@@ -434,7 +434,10 @@ const PropertyCardV5 = ({
       details: 'text-sm'
     },
     grid: {
-      container: `w-[372px] md:w-[300px] ${dynamicMinHeight}`,
+      // Fluid: the mixed list+map view's 1fr grid cells size the card. The
+      // old fixed 372/300px overflowed the ~215px cells the list pane
+      // produces at tablet widths.
+      container: `w-full ${dynamicMinHeight}`,
       image: 'h-[200px] property-image-container',
       content: 'p-4 gap-2.5',
       chip: 'px-3 py-1.5 text-sm property-badge',

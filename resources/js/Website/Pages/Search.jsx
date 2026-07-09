@@ -1511,7 +1511,7 @@ export default function EnhancedPropertySearch({
                       </button>
                       <button
                         onClick={() => setViewType('mixed')}
-                        className={`p-1.5 md:p-2 rounded ${viewType === 'mixed' ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`hidden md:block p-1.5 md:p-2 rounded ${viewType === 'mixed' ? 'text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                         style={viewType === 'mixed' ? { backgroundColor: buttonPrimaryBg } : {}}
                         title="Mixed View"
                       >

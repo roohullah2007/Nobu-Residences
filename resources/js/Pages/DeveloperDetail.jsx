@@ -587,9 +587,17 @@ export default function DeveloperDetail({
                             {/* Buildings Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {buildings.map((building) => {
-                                    const buildingImage = building.main_image
-                                        ? (building.main_image.startsWith('/') ? building.main_image : `/storage/${building.main_image}`)
-                                        : building.images?.[0] || '/images/placeholder-property.jpg';
+                                    // main_image / images[] hold either full http(s) URLs or
+                                    // root-relative paths (the Building model strips local hosts),
+                                    // so use them as-is — same as Search.jsx and BuildingCard.jsx.
+                                    // Only bare storage paths (no leading slash) need /storage/.
+                                    const resolveImage = (img) =>
+                                        img && typeof img === 'string'
+                                            ? (img.startsWith('http') || img.startsWith('/') ? img : `/storage/${img}`)
+                                            : null;
+                                    const buildingImage = resolveImage(building.main_image)
+                                        || resolveImage(building.images?.[0])
+                                        || '/images/no-image-placeholder.jpg';
 
                                     return (
                                         <div
@@ -605,7 +613,8 @@ export default function DeveloperDetail({
                                                         alt={building.name}
                                                         className="w-full h-full object-cover transition-all duration-700 ease-out"
                                                         onError={(e) => {
-                                                            e.target.src = '/images/placeholder-property.jpg';
+                                                            e.target.onerror = null;
+                                                            e.target.src = '/images/no-image-placeholder.jpg';
                                                         }}
                                                     />
                                                 </div>
@@ -732,7 +741,7 @@ export default function DeveloperDetail({
                                         name: listing.UnparsedAddress || `${listing.StreetNumber} ${listing.StreetName}`,
                                         city: listing.City,
                                         province: listing.StateOrProvince,
-                                        imageUrl: listing.MediaURL || listing.images?.[0] || '/images/placeholder-property.jpg',
+                                        imageUrl: listing.MediaURL || listing.images?.[0] || '/images/no-image-placeholder.jpg',
                                         price: listing.ListPrice || listing.price || 0,
                                         bedrooms: listing.BedroomsTotal || listing.bedrooms,
                                         bathrooms: listing.BathroomsTotalInteger || listing.bathrooms,

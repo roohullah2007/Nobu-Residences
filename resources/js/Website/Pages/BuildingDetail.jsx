@@ -296,8 +296,11 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
             />
           </div>
    
-          <div className="flex md:flex-row sm:flex-col flex-col gap-6 w-full">
-            <div className="md:w-[950px]">
+          {/* Columns: stacked below lg; from lg the sidebar sits right and the
+              content column is fluid (exact 950px only from xl). The old
+              md:w-[950px] forced a 1283px row at 768px and clipped the page. */}
+          <div className="flex flex-col lg:flex-row gap-6 w-full">
+            <div className="w-full min-w-0 lg:flex-1 xl:flex-none xl:w-[950px]">
 
               {/* Building Sections */}
               <BuildingSections
@@ -319,8 +322,9 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
               
             </div>
        
-            {/* Right sidebar */}
-            <div className={`max-w-[309px] md:flex hidden w-full transition-opacity duration-300 ${sidebarVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            {/* Right sidebar — stacks below the content at tablet widths,
+                becomes the fixed 309px right column from lg */}
+            <div className={`hidden md:flex w-full max-w-[309px] flex-shrink-0 transition-opacity duration-300 ${sidebarVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
               <div className="space-y-4">
                 {/* Login/Signup Card for Non-Authenticated Users */}
                 {!auth?.user && (

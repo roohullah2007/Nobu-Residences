@@ -754,7 +754,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                         {/* For Sale Dropdown - 40px height, 103px width */}
                         <div className="relative w-[103px] flex-shrink-0">
                             <select
-                                className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
+                                className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 h-[40px] w-full"
                                 value={searchData.propertyType}
                                 onChange={(e) => {
                                     const updatedData = { ...searchData, propertyType: e.target.value };
@@ -777,7 +777,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                         {/* Bed Type Dropdown - 40px height, 135px width */}
                         <div className="relative w-[135px] flex-shrink-0">
                             <select
-                                className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
+                                className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 h-[40px] w-full"
                                 value={searchData.bedrooms}
                                 onChange={(e) => {
                                     const updatedData = { ...searchData, bedrooms: e.target.value };

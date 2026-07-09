@@ -271,7 +271,7 @@ export default function PropertyGallery({
     <>
       {/* Main Container */}
       <div className="max-w-[1280px] mx-auto px-0 py-0">
-        <div className="flex flex-col md:flex-row gap-0 lg:gap-[17px]">
+        <div className="flex flex-col md:flex-row gap-0 md:gap-[17px]">
           {/* Images Section */}
           <div className="flex gap-0 md:gap-[17px] flex-1 order-1 lg:order-none relative">
             {/* Main Large Image - Desktop Only */}
@@ -332,9 +332,11 @@ export default function PropertyGallery({
             </div>
             
             {/* Small Images Column - Hidden on Mobile */}
-            <div className="hidden md:flex lg:flex justify-between flex-col w-full md:w-[318px] h-auto md:h-[645px] gap-2 md:gap-0">
+            {/* Fluid at md (fills what the 309px details card leaves), fixed
+                318px only from lg where the 619px main image also renders */}
+            <div className="hidden md:flex lg:flex justify-between flex-col w-full md:flex-1 md:min-w-0 lg:flex-none lg:w-[318px] h-auto md:h-[645px] gap-2 md:gap-0">
               {/* Small Image 1 */}
-              <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
+              <div className="relative w-full lg:w-[318px] h-[200px] md:h-[310px]">
                 {images.length > 0 ? (
                   <div
                     className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
@@ -373,7 +375,7 @@ export default function PropertyGallery({
               </div>
 
               {/* Small Image 2 with See All Photos Button */}
-              <div className="relative w-full md:w-[318px] h-[200px] md:h-[310px]">
+              <div className="relative w-full lg:w-[318px] h-[200px] md:h-[310px]">
                 {images.length > 0 ? (
                   <div
                     className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
@@ -518,7 +520,10 @@ export default function PropertyGallery({
           </div>
           
           {/* Property Details Card */}
-          <div className="w-full lg:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-5 lg:mt-0">
+          {/* Fixed 309px from md (it used to be w-full + flex-shrink-0 at md,
+              which made the flex row 768px + 318px wide and clipped the
+              "Enquire this Property" button off-screen) */}
+          <div className="w-full md:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-[70px] md:mt-0">
             <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
                 {/* Property Status and Price Section */}

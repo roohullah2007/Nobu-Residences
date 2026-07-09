@@ -369,11 +369,11 @@ export default function AboutSection({ website, pageContent, availableIcons }) {
                                     {/* Highlights List */}
                                     <div className="space-y-6">
                                         {getHighlightsData().map((highlight, index) => (
-                                            <div key={index} className="flex flex-row items-center gap-[14px] w-[658px] h-[54px]">
+                                            <div key={index} className="flex flex-row items-center gap-[14px] w-full max-w-[658px] min-h-[54px]">
                                                 <div className="w-8 h-8 flex-none">
                                                     {renderIcon(highlight.icon, 'highlights', defaultIcons.shield)}
                                                 </div>
-                                                <span className="w-[612px] h-[54px] font-work-sans font-normal text-lg leading-[27px] flex items-center tracking-[-0.03em] text-[#293056] flex-grow">
+                                                <span className="flex-1 min-w-0 font-work-sans font-normal text-lg leading-[27px] flex items-center tracking-[-0.03em] text-[#293056]">
                                                     {highlight.text}
                                                 </span>
                                             </div>

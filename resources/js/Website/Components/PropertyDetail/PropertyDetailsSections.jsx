@@ -527,7 +527,9 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
 
         {/* Tab navigation — same styling as the previous layout */}
         <div className="flex flex-col items-start gap-[18px] w-full">
-          <div className="flex flex-row items-center gap-[8px] h-[50px] overflow-x-auto scrollbar-hide w-full md:flex-wrap">
+          {/* min-h (not fixed h): at tablet the tabs wrap to two rows and a
+              fixed 50px height clipped the second row */}
+          <div className="flex flex-row items-center gap-[8px] min-h-[50px] overflow-x-auto scrollbar-hide w-full md:flex-wrap">
             {tabs.map((tab) => (
               <div
                 key={tab.id}
