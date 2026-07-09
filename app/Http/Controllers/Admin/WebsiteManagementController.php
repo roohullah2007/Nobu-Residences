@@ -104,6 +104,10 @@ class WebsiteManagementController extends Controller
             'defaultContactInfo' => $defaultContactInfo,
             'defaultSocialMedia' => $defaultSocialMedia,
             'ploiEnabled' => config('services.ploi.auto_provision') && !empty(config('services.ploi.token')),
+            // Origin server IP for the DNS instruction block under the Custom
+            // Domain field (PLOI_SERVER_IP env, else Ploi API; the frontend
+            // falls back to the documented IP when null).
+            'serverIp' => app(PloiService::class)->getServerIp(),
             // "Launch Website" shortcut from the Building edit page
             'preselectedBuildingId' => request()->query('building_id'),
         ]);

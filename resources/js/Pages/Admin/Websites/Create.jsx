@@ -13,7 +13,42 @@ const lightFormClass =
     '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 ' +
     '[&_select]:!bg-white [&_select]:!text-gray-900';
 
-export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false, preselectedBuildingId = null }) {
+// Small clipboard button used in the DNS instruction block. Shows a brief
+// "copied" check after clicking.
+function CopyButton({ value, label = 'Copy' }) {
+    const [copied, setCopied] = useState(false);
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch {
+            // Fallback for non-secure contexts
+            const ta = document.createElement('textarea');
+            ta.value = value;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+    return (
+        <button
+            type="button"
+            onClick={copy}
+            title={`${label}: ${value}`}
+            className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-gray-200 bg-white text-gray-500 hover:text-gray-800 hover:border-gray-300 transition-colors flex-shrink-0"
+        >
+            {copied ? (
+                <svg className="h-3.5 w-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+            ) : (
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+            )}
+        </button>
+    );
+}
+
+export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false, serverIp = null, preselectedBuildingId = null }) {
     // Step 1 = pick building, Step 2 = fill out website form
     const [step, setStep] = useState(1);
     const [buildingSearch, setBuildingSearch] = useState('');
@@ -227,26 +262,69 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         reader.readAsDataURL(file);
     };
 
+    // DNS instruction block: values derived from what the admin typed plus
+    // the origin server IP resolved server-side (PLOI_SERVER_IP / Ploi API).
+    const typedDomain = String(data.domain || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    const apexDomain = typedDomain.replace(/^www\./i, '');
+    const dnsServerIp = serverIp || '157.180.26.95';
+
     return (
         <AdminLayout title="Create New Website">
             <Head title="Create New Website" />
 
-            <div className={`space-y-8 ${lightFormClass}`}>
-                {/* Stepper */}
-                <div className="bg-white shadow-sm sm:rounded-lg p-4 flex items-center gap-4">
-                    <div className={`flex items-center gap-2 ${step === 1 ? 'text-indigo-700 font-semibold' : 'text-gray-500'}`}>
-                        <span className={`h-7 w-7 rounded-full flex items-center justify-center text-sm ${step === 1 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>1</span>
-                        Select Building
+            <div className={`max-w-5xl mx-auto space-y-6 ${lightFormClass}`}>
+                {/* Page header */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-xl font-semibold text-gray-900">Create New Website</h1>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Launch a building site in two steps — pick the building, then confirm branding, contact and SEO details.
+                            </p>
+                        </div>
+                        {ploiEnabled && (
+                            <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                Auto domain + SSL enabled
+                            </span>
+                        )}
                     </div>
-                    <span className="text-gray-300">/</span>
-                    <div className={`flex items-center gap-2 ${step === 2 ? 'text-indigo-700 font-semibold' : 'text-gray-500'}`}>
-                        <span className={`h-7 w-7 rounded-full flex items-center justify-center text-sm ${step === 2 ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}>2</span>
-                        Website Details {ploiEnabled ? <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Ploi auto-alias</span> : null}
+
+                    {/* Step indicator */}
+                    <div className="mt-5 flex items-center gap-3">
+                        {[{ n: 1, label: 'Select Building' }, { n: 2, label: 'Website Details' }].map((s, i) => (
+                            <div key={s.n} className={`flex items-center gap-3 ${i > 0 ? 'flex-1' : ''}`}>
+                                {i > 0 && (
+                                    <div className={`h-px flex-1 ${step >= s.n ? 'bg-indigo-500' : 'bg-gray-200'}`} />
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => s.n === 1 && setStep(1)}
+                                    disabled={s.n === 2 && step === 1}
+                                    className={`flex items-center gap-2 ${s.n === 1 && step === 2 ? 'cursor-pointer' : 'cursor-default'}`}
+                                >
+                                    <span className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                                        step === s.n
+                                            ? 'bg-indigo-600 text-white ring-4 ring-indigo-100'
+                                            : step > s.n
+                                                ? 'bg-indigo-100 text-indigo-700'
+                                                : 'bg-gray-100 text-gray-400'
+                                    }`}>
+                                        {step > s.n ? (
+                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                                        ) : s.n}
+                                    </span>
+                                    <span className={`text-sm font-medium hidden sm:inline ${step === s.n ? 'text-gray-900' : 'text-gray-500'}`}>
+                                        {s.label}
+                                    </span>
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 {step === 1 && (
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="bg-white overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
                         <div className="p-6">
                             <div className="flex items-start justify-between mb-4 gap-4">
                                 <div>
@@ -312,7 +390,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                 {step === 2 && (() => {
                     const chosenBuilding = buildings.find((b) => b.id === selectedBuildingId);
                     return (
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="bg-white overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
                         <div className="p-6 text-gray-900">
                             {/* Selected Building (locked) */}
                             {chosenBuilding && (
@@ -361,7 +439,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
 
                             <form onSubmit={submit} className="space-y-6">
                                 {/* Basic Information */}
-                                <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
@@ -392,24 +470,92 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 placeholder="e.g., luxurycondos.com"
                                             />
                                             <InputError message={errors.domain} className="mt-2" />
-                                            {ploiEnabled ? (
+                                            {ploiEnabled && !typedDomain && (
                                                 <p className="mt-1 text-xs text-green-700">
-                                                    This domain will be added to the server (Ploi) and get an SSL certificate automatically.
-                                                    Make sure the domain's DNS A record points to this server first.
+                                                    This domain will be added to the server (Ploi) and get an SSL certificate automatically once its DNS points here.
                                                 </p>
-                                            ) : (
-                                                data.domain && (
-                                                    <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                                                        <p className="font-semibold">Automatic domain connection is currently OFF.</p>
-                                                        <p className="mt-1">
-                                                            The site will be saved, but this domain will not be connected to the server automatically.
-                                                            To enable it, set PLOI_API_TOKEN, PLOI_SERVER_ID and PLOI_SITE_ID in the server's .env,
-                                                            then use "Retry" on the website's status page. The domain's DNS A record must also point to the server.
-                                                        </p>
-                                                    </div>
-                                                )
+                                            )}
+                                            {!ploiEnabled && data.domain && (
+                                                <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                                    <p className="font-semibold">Automatic domain connection is currently OFF.</p>
+                                                    <p className="mt-1">
+                                                        The site will be saved, but this domain will not be connected to the server automatically.
+                                                        To enable it, set PLOI_API_TOKEN, PLOI_SERVER_ID and PLOI_SITE_ID in the server's .env,
+                                                        then use "Retry" on the website's status page. The DNS records below must also be in place.
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
+
+                                        {/* DNS setup instructions — appears once a domain is typed */}
+                                        {typedDomain && (
+                                            <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 sm:p-5">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="h-8 w-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="h-4.5 w-4.5" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="text-sm font-semibold text-gray-900">
+                                                            Point <code className="font-mono">{apexDomain}</code> at this server
+                                                        </h4>
+                                                        <p className="mt-0.5 text-xs text-gray-600">
+                                                            Add these records at your DNS provider. Server IP:{' '}
+                                                            <code className="font-mono font-semibold text-indigo-800">{dnsServerIp}</code>
+                                                            <span className="inline-block align-middle ml-1.5"><CopyButton value={dnsServerIp} label="Copy IP" /></span>
+                                                        </p>
+
+                                                        {/* Records table */}
+                                                        <div className="mt-3 overflow-x-auto">
+                                                            <table className="w-full text-xs border-separate border-spacing-0">
+                                                                <thead>
+                                                                    <tr className="text-left text-gray-500">
+                                                                        <th className="font-medium pb-1.5 pr-4">Type</th>
+                                                                        <th className="font-medium pb-1.5 pr-4">Host / Name</th>
+                                                                        <th className="font-medium pb-1.5">Value</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="font-mono text-gray-800">
+                                                                    <tr>
+                                                                        <td className="py-1.5 pr-4 align-top"><span className="px-1.5 py-0.5 rounded bg-white border border-gray-200">A</span></td>
+                                                                        <td className="py-1.5 pr-4 align-top">@ <span className="font-sans text-gray-400">(apex — {apexDomain})</span></td>
+                                                                        <td className="py-1.5">
+                                                                            <span className="inline-flex items-center gap-1.5">
+                                                                                {dnsServerIp}
+                                                                                <CopyButton value={dnsServerIp} label="Copy IP" />
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td className="py-1.5 pr-4 align-top"><span className="px-1.5 py-0.5 rounded bg-white border border-gray-200">CNAME</span></td>
+                                                                        <td className="py-1.5 pr-4 align-top">www</td>
+                                                                        <td className="py-1.5">
+                                                                            <span className="inline-flex items-center gap-1.5 break-all">
+                                                                                {apexDomain}
+                                                                                <CopyButton value={apexDomain} label="Copy domain" />
+                                                                            </span>
+                                                                            <span className="block font-sans text-gray-400 mt-0.5">or an A record for www → {dnsServerIp}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+                                                        {/* Cloudflare note */}
+                                                        <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
+                                                            <strong>Using Cloudflare?</strong> Set Proxy status to <strong>DNS only</strong> (gray cloud)
+                                                            on both records until the SSL certificate is issued — Let's Encrypt can't validate through the
+                                                            orange-cloud proxy. Afterwards you can re-enable the proxy with SSL/TLS mode <strong>Full (strict)</strong>.
+                                                        </div>
+
+                                                        <p className="mt-2 text-xs text-gray-500">
+                                                            DNS changes can take a few minutes to propagate. The SSL certificate is requested
+                                                            automatically after the website is created — you can watch progress and retry from the
+                                                            status page that follows.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div>
                                             <InputLabel htmlFor="timezone" value="Timezone" />
@@ -418,7 +564,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 name="timezone"
                                                 value={data.timezone}
                                                 onChange={(e) => setData('timezone', e.target.value)}
-                                                className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                                className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg shadow-sm"
                                             >
                                                 <option value="America/Toronto">America/Toronto</option>
                                                 <option value="America/New_York">America/New_York</option>
@@ -427,12 +573,32 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                             </select>
                                             <InputError message={errors.timezone} className="mt-2" />
                                         </div>
+
+                                        {/* Existing form field (already part of the submit payload) —
+                                            exposed here so admins can opt in at create time. Default
+                                            off: new sites use the shared Home design. */}
+                                        <div className="md:col-span-2 flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                            <input
+                                                id="use_building_as_homepage"
+                                                type="checkbox"
+                                                checked={!!data.use_building_as_homepage}
+                                                onChange={(e) => setData('use_building_as_homepage', e.target.checked)}
+                                                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <label htmlFor="use_building_as_homepage" className="text-sm text-gray-700 cursor-pointer">
+                                                <span className="font-medium text-gray-900">Use the building page as the homepage</span>
+                                                <span className="block text-xs text-gray-500 mt-0.5">
+                                                    Off (recommended): the site serves the standard Home design with this building's details.
+                                                    On: "/" serves the full building detail page instead.
+                                                </span>
+                                            </label>
+                                        </div>
                                     </div>
 
                                 </div>
 
                                 {/* Logo & Branding */}
-                                <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Logo & Branding</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
@@ -536,7 +702,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 </div>
 
                                 {/* Brand Colors — Core / Button / Footer / Link with live previews (mirrors Edit page) */}
-                                <div className="bg-gray-50 rounded-lg p-6 space-y-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6 space-y-6">
                                     <h3 className="text-lg font-medium text-gray-900">Brand Colors</h3>
 
                                     {/* Core Brand Colors */}
@@ -709,7 +875,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 </div>
 
                                 {/* Contact Information */}
-                                <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
@@ -860,7 +1026,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 </div>
 
                                 {/* Social Media */}
-                                <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
@@ -914,7 +1080,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 </div>
 
                                 {/* SEO Settings */}
-                                <div className="bg-gray-50 rounded-lg p-6">
+                                <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <div className="flex items-center justify-between mb-4 gap-4">
                                         <h3 className="text-lg font-medium text-gray-900">SEO Settings</h3>
                                         <button
@@ -984,16 +1150,16 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 </div>
 
                                 {/* Submit Buttons */}
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-gray-100 pt-6">
                                     <Link
                                         href={route('admin.websites.index')}
-                                        className="inline-flex items-center px-4 py-2 bg-gray-300 border border-transparent rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest hover:bg-gray-400"
+                                        className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                                     >
                                         Cancel
                                     </Link>
 
-                                    <PrimaryButton className="ml-4" disabled={processing}>
-                                        {processing ? 'Creating...' : 'Create Website'}
+                                    <PrimaryButton className="justify-center sm:ml-4 !rounded-lg !px-6 !py-2.5 !text-sm !normal-case !tracking-normal" disabled={processing}>
+                                        {processing ? 'Creating…' : 'Create Website'}
                                     </PrimaryButton>
                                 </div>
                             </form>
