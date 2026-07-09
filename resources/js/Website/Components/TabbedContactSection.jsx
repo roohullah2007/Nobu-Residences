@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 
 export default function TabbedContactSection({ auth, website, pageContent }) {
     const { globalWebsite } = usePage().props;
@@ -28,7 +29,7 @@ export default function TabbedContactSection({ auth, website, pageContent }) {
         email: website?.contact_info?.email || '',
         phone: website?.agent_info?.agent_phone || website?.contact_info?.phone || '',
         address: website?.contact_info?.address || '',
-        image: website?.agent_info?.profile_image || website?.contact_info?.agent?.image || '',
+        image: normalizeImageUrl(website?.agent_info?.profile_image || website?.contact_info?.agent?.image || ''),
         brokerage: website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || ''
     };
 

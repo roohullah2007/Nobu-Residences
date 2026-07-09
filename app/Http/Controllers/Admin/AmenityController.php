@@ -47,8 +47,10 @@ class AmenityController extends Controller
         if ($request->hasFile('icon_file')) {
             $iconFile = $request->file('icon_file');
             $iconFileName = strtolower(str_replace(' ', '-', $validated['name'])) . '.' . $iconFile->getClientOriginalExtension();
+            // Relative /storage/ URL on purpose — Storage::url() bakes
+            // APP_URL into the DB and breaks the icon across hosts.
             $iconPath = $iconFile->storeAs('amenity-icons', $iconFileName, 'public');
-            $data['icon'] = Storage::url($iconPath);
+            $data['icon'] = '/storage/' . $iconPath;
         }
 
         Amenity::create($data);
@@ -96,7 +98,7 @@ class AmenityController extends Controller
             $iconFile = $request->file('icon_file');
             $iconFileName = strtolower(str_replace(' ', '-', $validated['name'])) . '.' . $iconFile->getClientOriginalExtension();
             $iconPath = $iconFile->storeAs('amenity-icons', $iconFileName, 'public');
-            $data['icon'] = Storage::url($iconPath);
+            $data['icon'] = '/storage/' . $iconPath;
         }
 
         $amenity->update($data);

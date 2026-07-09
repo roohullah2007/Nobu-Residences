@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
+import { normalizeImageUrl } from '@/utils/imageUrl';
 
 const Footer = ({
     siteName = 'Nobu Residences',
@@ -77,7 +78,7 @@ const Footer = ({
             title: agentInfo?.agent_title || contactInfo?.agent?.title || '',
             phone: agentInfo?.agent_phone || contactInfo?.agent?.phone || '',
             brokerage: agentInfo?.brokerage || contactInfo?.agent?.brokerage || '',
-            image: agentInfo?.profile_image || contactInfo?.agent?.image || ''
+            image: normalizeImageUrl(agentInfo?.profile_image || contactInfo?.agent?.image || '')
         }
     };
     
@@ -107,11 +108,11 @@ const Footer = ({
         <>
         <footer style={{ backgroundColor: footerBg, color: footerText }}>
             {/* Main Footer Section */}
-            <div className="py-8 md:py-16">
+            <div className="py-6 md:py-16">
                 <div className="mx-auto px-4 md:px-0 max-w-screen-xl">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-12 items-center">
                         {/* Left Content */}
-                        <div className="flex flex-col items-start gap-6 md:gap-8">
+                        <div className="flex flex-col items-start gap-4 md:gap-8">
                             {/* Get in touch button with responsive styles */}
                             <div className="inline-flex items-center bg-[#F5F5F5] rounded-full">
                                 <div className="flex justify-center items-center py-1.5 px-4">
@@ -199,25 +200,33 @@ const Footer = ({
                             </div>
                         </div>
 
-                        {/* Right Content - House Image with responsive styles */}
-                        <div className="flex justify-center lg:justify-end order-first lg:order-last">
-                            <div 
-                                className="mx-auto w-full max-w-[611px] h-[250px] md:w-[611px] md:h-[394px] rounded-xl bg-cover bg-center bg-no-repeat"
-                                style={{
-                                    backgroundImage: `url('${footerContent.background_image}')`
-                                }}
-                            >
+                        {/* Right Content - House Image. Rendered as a real
+                            <img> (not a CSS background) so it lazy-loads and
+                            can hide itself on failure — a background div kept
+                            a fixed-height navy void when the image was slow
+                            or broken. Content comes first on mobile. */}
+                        {footerContent.background_image && (
+                            <div className="flex justify-center lg:justify-end">
+                                <img
+                                    src={footerContent.background_image}
+                                    alt=""
+                                    loading="lazy"
+                                    className="w-full max-w-[611px] h-[200px] md:h-[394px] object-cover rounded-xl"
+                                    onError={(e) => {
+                                        e.currentTarget.parentElement.style.display = 'none';
+                                    }}
+                                />
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Bottom Footer Section */}
-            <div className="py-8 md:py-12 border-t" style={{ borderColor: `${footerText}20` }}>
+            <div className="py-6 md:py-12 border-t" style={{ borderColor: `${footerText}20` }}>
                 <div className="mx-auto px-4 md:px-0 max-w-[1280px]">
                     {/* All sections in one row with justify-between */}
-                    <div className="flex flex-col md:flex-row justify-between items-start gap-8 md:gap-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-6 md:gap-4">
                         {/* Company/Brand Section */}
                         <div className="flex flex-col items-start gap-3 md:gap-4 w-full md:w-auto">
                             {/* Brand Name with responsive styles */}
@@ -336,7 +345,7 @@ const Footer = ({
                     </div>
 
                     {/* Copyright Section */}
-                    <div className="mt-8 md:mt-12 pt-6 md:pt-8 border-t" style={{ borderColor: `${footerText}20` }}>
+                    <div className="mt-6 md:mt-12 pt-4 md:pt-8 border-t" style={{ borderColor: `${footerText}20` }}>
                         {/* Copyright with responsive styles */}
                         <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] text-center" style={{ color: footerText }}>
                             {footerContent.copyright_text}

@@ -333,9 +333,14 @@ class WebsiteManagementController extends Controller
             // Generate unique filename for agent image
             $agentImageFileName = uniqid() . '_' . time() . '.' . $agentImageFile->getClientOriginalExtension();
 
-            // Store the file with specific filename
+            // Store the file with specific filename. Use a relative
+            // /storage/ URL (not Storage::url()) so the saved value is
+            // host-agnostic — Storage::url() bakes APP_URL into the DB,
+            // which breaks the image when the record was saved with a
+            // different host (e.g. a localhost APP_URL) than it is
+            // served from.
             $agentImagePath = $agentImageFile->storeAs('agents', $agentImageFileName, 'public');
-            $agentData['profile_image'] = Storage::url($agentImagePath);
+            $agentData['profile_image'] = '/storage/' . $agentImagePath;
         }
 
         // Create agent info if any agent data is provided
@@ -988,22 +993,26 @@ class WebsiteManagementController extends Controller
                 Storage::disk('public')->makeDirectory('agents');
             }
 
-            // Delete old image if exists
+            // Delete old image if exists. Match '/storage/' anywhere in
+            // the value, not just at the start — records saved via
+            // Storage::url() hold absolute URLs (APP_URL prefix) and
+            // would otherwise never be cleaned up.
             $agentInfo = $website->agentInfo;
             if ($agentInfo && $agentInfo->profile_image &&
-                strpos($agentInfo->profile_image, '/storage/') === 0) {
-                $oldPath = str_replace('/storage/', '', $agentInfo->profile_image);
+                ($storagePos = strpos($agentInfo->profile_image, '/storage/')) !== false) {
+                $oldPath = substr($agentInfo->profile_image, $storagePos + strlen('/storage/'));
                 Storage::disk('public')->delete($oldPath);
             }
 
             // Generate unique filename for agent image
             $agentImageFileName = uniqid() . '_' . time() . '.' . $agentImageFile->getClientOriginalExtension();
 
-            // Store the file with specific filename
+            // Store the file with specific filename. Relative URL on
+            // purpose — see the matching comment in store().
             $agentImagePath = $agentImageFile->storeAs('agents', $agentImageFileName, 'public');
 
             // Update agent data with new image path
-            $agentData['profile_image'] = Storage::url($agentImagePath);
+            $agentData['profile_image'] = '/storage/' . $agentImagePath;
         }
 
         // Update or create agent info

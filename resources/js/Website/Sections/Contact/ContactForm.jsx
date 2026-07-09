@@ -1,4 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import PhoneInput from '@/Components/PhoneInput';
+
+// Fired by ContactInfo's "Schedule Meeting" button so the sidebar card can
+// prefill this form without the two sibling components sharing page state.
+export const SCHEDULE_MEETING_EVENT = 'contact:schedule-meeting';
 
 export default function ContactForm({ website }) {
   const [formData, setFormData] = useState({
@@ -13,6 +18,20 @@ export default function ContactForm({ website }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const nameInputRef = useRef(null);
+
+  // "Schedule Meeting" (in the ContactInfo sidebar) scrolls here and asks us
+  // to prefill the subject so the visitor can just describe their availability.
+  useEffect(() => {
+    const handleScheduleMeeting = () => {
+      setSubmitStatus(null);
+      setFormData(prev => ({ ...prev, subject: 'Schedule a Meeting' }));
+      // Focus once the smooth scroll has (mostly) settled.
+      setTimeout(() => nameInputRef.current?.focus({ preventScroll: true }), 400);
+    };
+    window.addEventListener(SCHEDULE_MEETING_EVENT, handleScheduleMeeting);
+    return () => window.removeEventListener(SCHEDULE_MEETING_EVENT, handleScheduleMeeting);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -78,7 +97,7 @@ export default function ContactForm({ website }) {
 
   if (submitStatus === 'success') {
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-8">
+      <div id="contact-form" className="bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +123,7 @@ export default function ContactForm({ website }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8">
+    <div id="contact-form" className="bg-white rounded-2xl shadow-lg p-8">
       <h2 className="font-space-grotesk font-bold text-2xl mb-6" style={{ color: brandColors.primary }}>
         Send us a Message
       </h2>
@@ -146,6 +165,7 @@ export default function ContactForm({ website }) {
               Full Name *
             </label>
             <input
+              ref={nameInputRef}
               type="text"
               name="name"
               value={formData.name}
@@ -178,8 +198,7 @@ export default function ContactForm({ website }) {
             <label className="block font-work-sans font-medium text-gray-700 mb-2">
               Phone Number
             </label>
-            <input
-              type="tel"
+            <PhoneInput
               name="phone"
               value={formData.phone}
               onChange={handleChange}

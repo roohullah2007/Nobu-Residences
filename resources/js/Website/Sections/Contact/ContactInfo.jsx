@@ -1,6 +1,14 @@
 import React from 'react';
+import { SCHEDULE_MEETING_EVENT } from './ContactForm';
 
 export default function ContactInfo({ website }) {
+  // "Schedule Meeting" reuses the contact form on this page: prefill its
+  // subject (via the event ContactForm listens for) and scroll it into view.
+  const handleScheduleMeeting = () => {
+    window.dispatchEvent(new CustomEvent(SCHEDULE_MEETING_EVENT));
+    document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Get contact info from website - no hardcoded fallbacks
   const contactInfo = website?.contact_info || {};
   const agentInfo = website?.agent_info || {};
@@ -147,6 +155,8 @@ export default function ContactInfo({ website }) {
               </a>
             )}
             <button
+              type="button"
+              onClick={handleScheduleMeeting}
               className="w-full py-3 border-2 rounded-full font-work-sans font-medium transition-colors hover:bg-gray-50"
               style={{ borderColor: buttonSecondaryBg, color: buttonSecondaryBg }}
             >
