@@ -139,10 +139,12 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     const buttonPrimaryBg = brandColors.button_primary_bg || brandColors.primary;
     const buttonPrimaryText = brandColors.button_primary_text || '#FFFFFF';
 
-    // Close mobile menu when screen size changes to desktop
+    // Close mobile menu when screen size changes to desktop (lg breakpoint —
+    // the desktop link row only fits from 1024px up, so tablets keep the
+    // hamburger).
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth >= 768) {
+            if (window.innerWidth >= 1024) {
                 setMobileMenuOpen(false);
             }
         };
@@ -170,8 +172,8 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     // as one continuous bar, and flip link text to white. Otherwise keep
     // the existing white pill + dark text used on the homepage.
     const mobileContainerClass = onDarkBg
-        ? 'flex md:hidden justify-between items-center w-full'
-        : 'flex md:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full';
+        ? 'flex lg:hidden justify-between items-center w-full'
+        : 'flex lg:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full';
     const linkTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
     const logoFallbackTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
     const mobileBurgerClass = onDarkBg
@@ -187,10 +189,13 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     // on the homepage.
     const headerClass = onDarkBg
         ? 'w-full h-full flex items-center justify-center z-20'
-        : 'absolute top-0 left-0 right-0 w-full h-[85px] md:h-auto flex items-center justify-center z-20';
+        : 'absolute top-0 left-0 right-0 w-full h-[85px] lg:h-auto flex items-center justify-center z-20';
+    // Horizontal padding drops at lg (not md): the compact hamburger row is
+    // shown through tablet widths and needs the gutter so the logo/pill
+    // doesn't sit flush against the screen edge.
     const innerWrapperClass = onDarkBg
-        ? 'mx-auto px-4 sm:px-6 md:px-0 w-full max-w-[1280px] h-full flex items-center'
-        : 'mx-auto px-3 w-full max-w-[1280px] sm:px-6 md:px-0 flex items-center justify-center py-0 md:py-8';
+        ? 'mx-auto px-4 sm:px-6 lg:px-0 w-full max-w-[1280px] h-full flex items-center'
+        : 'mx-auto px-3 w-full max-w-[1280px] sm:px-6 lg:px-0 flex items-center justify-center py-0 lg:py-8';
 
     return (
         <header className={headerClass}>
@@ -213,7 +218,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                     </Link>
 
                     {/* Mobile menu button */}
-                    <div className="md:hidden">
+                    <div className="lg:hidden">
                         <button
                             className={mobileBurgerClass}
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -234,8 +239,11 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                     </div>
                 </div>
                 
-                {/* Desktop Navbar */}
-                <div className={`hidden md:flex items-center justify-between w-full ${onDarkBg ? 'h-full' : 'px-6 h-16 bg-white rounded-xl'}`}>
+                {/* Desktop Navbar — lg and up only. The full link row (8 links
+                    + Log In) needs ~1050px next to the 220px logo, so md
+                    widths (768–1024) keep the hamburger; between lg and xl the
+                    row uses tighter gaps and text-sm so it fits on one line. */}
+                <div className={`hidden lg:flex items-center justify-between w-full ${onDarkBg ? 'h-full' : 'px-6 h-16 bg-white rounded-xl'}`}>
                     {/* Logo and Brand */}
                     <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
                         {website?.logo_url ? (
@@ -256,12 +264,12 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <nav className="hidden md:flex items-center gap-8">
+                    <nav className="hidden lg:flex items-center gap-4 xl:gap-8">
                         {navLinks.map((link) => (
                             <Link
                                 key={link.id}
                                 href={getNavUrl(link)}
-                                className={`hover:opacity-70 transition-colors font-work-sans text-base font-medium ${linkTextClass}`}
+                                className={`hover:opacity-70 transition-colors font-work-sans whitespace-nowrap text-sm xl:text-base font-medium ${linkTextClass}`}
                             >
                                 {link.text}
                             </Link>
@@ -269,7 +277,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                         {simplified ? (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium ${linkTextClass}`}
+                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 whitespace-nowrap text-sm xl:text-base font-medium ${linkTextClass}`}
                             >
                                 Log In
                             </button>
@@ -291,7 +299,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                                                 {auth.user.name?.charAt(0).toUpperCase() || 'U'}
                                             </div>
                                         )}
-                                        <span className={`text-base font-medium ${linkTextClass}`}>
+                                        <span className={`whitespace-nowrap text-sm xl:text-base font-medium ${linkTextClass}`}>
                                             {auth.user.name || 'User'}
                                         </span>
                                         <svg className={`w-4 h-4 ${linkTextClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,7 +345,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                         ) : (
                             <button
                                 onClick={() => setLoginModalOpen(true)}
-                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 text-base font-medium ${linkTextClass}`}
+                                className={`px-4 py-2 rounded-lg transition-colors font-work-sans hover:opacity-80 whitespace-nowrap text-sm xl:text-base font-medium ${linkTextClass}`}
                             >
                                 Log In
                             </button>
@@ -348,7 +356,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
 
             {/* Mobile Navigation Menu Overlay */}
             {mobileMenuOpen && (
-                <div className="md:hidden fixed inset-0 z-[200]">
+                <div className="lg:hidden fixed inset-0 z-[200]">
                     {/* Backdrop */}
                     <div 
                         className="absolute inset-0 bg-black/20 backdrop-blur-sm"
@@ -359,8 +367,10 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                         full sheet (including the Log In footer) sits inside
                         the viewport regardless of viewport height. */}
                     <div className="relative h-full flex items-center justify-center p-4">
-                        {/* Navigation Menu */}
-                        <div className="w-full max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {/* Navigation Menu — max-w-md keeps the sheet a neat
+                            centered card at tablet widths (the hamburger now
+                            shows up to lg) without changing phones. */}
+                        <div className="w-full max-w-md max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                             {/* Menu Header */}
                             <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center flex-shrink-0">
                                 <h3 className="font-space-grotesk font-semibold text-gray-900 text-lg">
