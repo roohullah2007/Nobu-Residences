@@ -38,6 +38,10 @@ export default function PropertySections({
      {/* Property detail cards: Overview, Property Details, Rooms, Bathroom
          Details, Amenities, Building & Condo Info, Extras, Community */}
       <PropertyDetailsSections property={propertyData} buildingData={buildingData} />
+
+      {/* Building info card — right under the listing/MLS number details */}
+      <MerchandiseLofts propertyData={propertyData} />
+
       {/* Price History Section — live from Repliers `history` field */}
       <PriceHistory
         propertyData={propertyData}
@@ -49,9 +53,6 @@ export default function PropertySections({
 
       {/* Market Data — median sold price & sales trends (live from Repliers, gated to signed-in users) */}
       <MarketData propertyData={propertyData} buildingData={buildingData} auth={auth} onLoginClick={onLoginClick} />
-
-      {/* The Merchandise Lofts Section */}
-      <MerchandiseLofts propertyData={propertyData} />
 
       {/* Building Amenities are shown in the tabs section only */}
 

@@ -193,7 +193,7 @@ const ComparableSales = ({
                 <PropertyCardV5
                   property={property}
                   size="default"
-                  className="w-[300px]"
+                  className="w-full"
                   onLoginRequired={onLoginRequired}
                   onSignupRequired={onSignupRequired}
                 />

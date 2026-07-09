@@ -245,7 +245,7 @@ const DeveloperBuildings = ({ buildingData }) => {
                     property={building}
                     size="default"
                     onClick={() => handleCardClick(building)}
-                    className="w-[300px]"
+                    className="w-full"
                   />
                 </div>
               ))}
@@ -317,9 +317,6 @@ const DeveloperBuildings = ({ buildingData }) => {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1rem;
-        }
-        .carousel-item {
-          min-width: 300px;
         }
         .slider-item {
           min-width: 0;

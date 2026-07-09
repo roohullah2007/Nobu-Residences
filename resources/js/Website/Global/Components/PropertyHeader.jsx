@@ -330,8 +330,8 @@ export default function PropertyHeader({
         <div className={`max-w-[1280px] mx-auto md:px-0 ${type === 'building' ? 'pt-8' : ''}`}>
           <div className="flex flex-col-reverse md:flex-row justify-between items-start gap-5">
             {/* Property/Building Info */}
-            <div className="flex-1 pr-5">
-              <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0">
+            <div className="flex-1 pr-5 min-w-0 w-full md:w-auto">
+              <h1 className="font-space-grotesk font-bold text-[26px] leading-[34px] md:text-[40px] md:leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0 truncate md:whitespace-normal md:overflow-visible max-w-full">
                 {getTitle()}
               </h1>
               {/* Building + neighbourhood breadcrumb — single line:
@@ -373,7 +373,7 @@ export default function PropertyHeader({
                 if (!buildingHref && !breadcrumb) return null;
 
                 return (
-                  <h2 className="font-work-sans text-lg text-[#293056] mb-2">
+                  <h2 className="font-work-sans text-base md:text-lg text-[#293056] mb-2 truncate md:whitespace-normal md:overflow-visible max-w-full">
                     <span>
                       {buildingHref && (
                         <>

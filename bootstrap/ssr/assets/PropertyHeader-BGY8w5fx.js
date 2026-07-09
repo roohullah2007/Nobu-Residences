@@ -1,0 +1,626 @@
+import { jsxs, Fragment, jsx } from "react/jsx-runtime";
+import { useState, useEffect } from "react";
+import { Share, FacebookIcon, TwitterIcon, EmailIcon, LinkIcon, Heart } from "./PropertyDetailIcons-3huqvWqW.js";
+import { usePage, Link } from "@inertiajs/react";
+import LoginModal from "./LoginModal-C-0W-anf.js";
+import "./GoogleLoginButton-wrwag0eM.js";
+const usePropertyFavourite = (property, auth) => {
+  const [isFavourited, setIsFavourited] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const isAuthenticated = auth?.user ? true : false;
+  const listingKey = property?.listingKey || property?.ListingKey || property?.id;
+  useEffect(() => {
+    if (isAuthenticated && listingKey && !isInitialized) {
+      checkFavouriteStatus();
+    } else if (!isAuthenticated) {
+      setIsFavourited(false);
+      setIsInitialized(true);
+    }
+  }, [isAuthenticated, listingKey]);
+  const checkFavouriteStatus = async () => {
+    if (!listingKey) return;
+    try {
+      const response = await fetch("/api/favourites/properties/check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || ""
+        },
+        body: JSON.stringify({
+          property_listing_key: listingKey
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setIsFavourited(data.is_favourited || false);
+      } else {
+        console.error("Failed to check favourite status");
+        setIsFavourited(false);
+      }
+    } catch (error) {
+      console.error("Error checking favourite status:", error);
+      setIsFavourited(false);
+    } finally {
+      setIsInitialized(true);
+    }
+  };
+  const toggleFavourite = async () => {
+    if (!isAuthenticated) {
+      return { success: false, requires_auth: true };
+    }
+    if (!listingKey) {
+      console.error("No listing key provided for favourite toggle");
+      return { success: false, message: "Property ID missing" };
+    }
+    setIsLoading(true);
+    try {
+      const propertyData = {
+        // Core identifiers
+        listingKey,
+        ListingKey: listingKey,
+        id: listingKey,
+        // Images - CRITICAL for display
+        MediaURL: property?.MediaURL || property?.imageUrl,
+        imageUrl: property?.imageUrl || property?.MediaURL,
+        images: property?.images || property?.Images || [],
+        // Price information
+        ListPrice: property?.price || property?.ListPrice || property?.ClosePrice,
+        price: property?.price || property?.ListPrice || property?.ClosePrice,
+        OriginalListPrice: property?.OriginalListPrice,
+        originalPrice: property?.originalPrice || property?.OriginalListPrice,
+        // Address information (formatted like search page)
+        address: property?.address || property?.Address || property?.UnparsedAddress || property?.full_address,
+        UnparsedAddress: property?.UnparsedAddress || property?.address,
+        StreetNumber: property?.StreetNumber || property?.streetNumber,
+        StreetName: property?.StreetName || property?.streetName,
+        StreetSuffix: property?.StreetSuffix || property?.streetSuffix,
+        UnitNumber: property?.UnitNumber || property?.unitNumber,
+        City: property?.city || property?.City,
+        StateOrProvince: property?.province || property?.StateOrProvince || "ON",
+        PostalCode: property?.PostalCode || property?.postalCode,
+        // Property details
+        PropertyType: property?.propertyType || property?.PropertyType,
+        PropertySubType: property?.PropertySubType || property?.propertySubType || property?.propertyType,
+        propertyType: property?.propertyType || property?.PropertyType || property?.PropertySubType,
+        TransactionType: property?.TransactionType || property?.transactionType || "For Sale",
+        transactionType: property?.transactionType || property?.TransactionType || "For Sale",
+        // Status information - IMPORTANT for proper display
+        StandardStatus: property?.StandardStatus || property?.status || "Active",
+        MlsStatus: property?.MlsStatus || property?.mlsStatus,
+        formatted_status: property?.formatted_status,
+        status: property?.status || property?.StandardStatus || "Active",
+        // Property specifications
+        BedroomsTotal: property?.bedrooms || property?.BedroomsTotal,
+        BathroomsTotalInteger: property?.bathrooms || property?.BathroomsTotalInteger,
+        LivingAreaRange: property?.area || property?.LivingAreaRange || property?.sqft,
+        AboveGradeFinishedArea: property?.AboveGradeFinishedArea,
+        ParkingTotal: property?.parking || property?.ParkingTotal,
+        // Additional MLS fields that might be needed
+        GarageSpaces: property?.GarageSpaces || property?.garageSpaces,
+        TaxAnnualAmount: property?.TaxAnnualAmount || property?.taxAmount,
+        AssociationFee: property?.AssociationFee || property?.associationFee,
+        YearBuilt: property?.YearBuilt || property?.yearBuilt,
+        LotSizeSquareFeet: property?.LotSizeSquareFeet || property?.lotSize,
+        // Dates
+        listingDate: property?.listingDate || property?.ListingContractDate,
+        ListingContractDate: property?.ListingContractDate || property?.listingDate,
+        DaysOnMarket: property?.DaysOnMarket || property?.daysOnMarket,
+        // Coordinates
+        latitude: property?.latitude || property?.Latitude,
+        longitude: property?.longitude || property?.Longitude,
+        // Store complete property object for any missing fields
+        ...property
+      };
+      const response = await fetch("/api/favourites/properties/toggle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || ""
+        },
+        body: JSON.stringify({
+          property_listing_key: listingKey,
+          property_data: propertyData,
+          property_address: propertyData.address,
+          property_price: propertyData.price,
+          property_type: propertyData.propertyType,
+          property_city: propertyData.City
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setIsFavourited(data.is_favourited);
+        showFavouriteNotification(data.message, data.action);
+        return {
+          success: true,
+          is_favourited: data.is_favourited,
+          message: data.message,
+          action: data.action
+        };
+      } else {
+        console.error("Failed to toggle favourite:", data.message);
+        return {
+          success: false,
+          message: data.message,
+          requires_auth: data.requires_auth || false
+        };
+      }
+    } catch (error) {
+      console.error("Error toggling favourite:", error);
+      return {
+        success: false,
+        message: "Network error occurred"
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const showFavouriteNotification = (message, action) => {
+    const notification = document.createElement("div");
+    const isAdded = action === "added";
+    notification.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>${isAdded ? "❤️" : "💔"}</span>
+        <span>${message}</span>
+      </div>
+    `;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${isAdded ? "#DC2626" : "#6B7280"};
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    `;
+    if (!document.getElementById("favourite-notification-styles")) {
+      const style = document.createElement("style");
+      style.id = "favourite-notification-styles";
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      notification.style.animation = "slideOut 0.3s ease-in";
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3e3);
+  };
+  return {
+    isFavourited,
+    toggleFavourite,
+    isLoading,
+    isAuthenticated,
+    checkFavouriteStatus
+  };
+};
+function PropertyHeader({
+  data,
+  auth,
+  type = "property",
+  // 'property' or 'building'
+  buildingData = null
+  // Building data for property location breadcrumb
+}) {
+  const [showShareDropdown, setShowShareDropdown] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState("login");
+  const { isFavourited, toggleFavourite, isLoading: favouriteLoading, isAuthenticated } = usePropertyFavourite(data, auth);
+  const { globalWebsite, website } = usePage().props;
+  const currentWebsite = website || globalWebsite;
+  const brandColors = currentWebsite?.brand_colors || {};
+  brandColors.button_primary_bg || "#293056";
+  brandColors.button_primary_text || "#FFFFFF";
+  brandColors.button_quaternary_bg || "#FFFFFF";
+  brandColors.button_quaternary_text || "#293056";
+  const handleShare = (platform) => {
+    const currentUrl = window.location.href;
+    const title = type === "building" ? data?.name : data?.address;
+    const subtitle = data?.subtitle || "";
+    const shareText = `Check out this ${type}: ${title}${subtitle ? " - " + subtitle : ""}`;
+    try {
+      switch (platform) {
+        case "Facebook":
+          const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`;
+          window.open(fbUrl, "_blank", "width=600,height=400,scrollbars=yes,resizable=yes");
+          break;
+        case "Twitter":
+          const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentUrl)}`;
+          window.open(tweetUrl, "_blank", "width=600,height=400,scrollbars=yes,resizable=yes");
+          break;
+        case "Email":
+          const emailSubject = encodeURIComponent(`${type === "building" ? "Building" : "Property"} Listing: ${title}`);
+          const emailBody = encodeURIComponent(
+            `Hi,
+
+I thought you might be interested in this ${type}:
+
+${shareText}
+
+View details: ${currentUrl}
+
+Best regards`
+          );
+          window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+          break;
+        case "Copy Link":
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(currentUrl).then(() => {
+              showCopySuccess();
+            }).catch(() => {
+              fallbackCopyTextToClipboard(currentUrl);
+            });
+          } else {
+            fallbackCopyTextToClipboard(currentUrl);
+          }
+          break;
+        default:
+          console.log(`Sharing to ${platform}`);
+      }
+    } catch (error) {
+      console.error(`Error sharing to ${platform}:`, error);
+      if (platform === "Copy Link") {
+        fallbackCopyTextToClipboard(currentUrl);
+      }
+    }
+    setShowShareDropdown(false);
+  };
+  const fallbackCopyTextToClipboard = (text) => {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      if (successful) {
+        showCopySuccess();
+      } else {
+        showCopyError();
+      }
+    } catch (err) {
+      console.error("Fallback copy failed:", err);
+      showCopyError();
+    }
+  };
+  const showCopySuccess = () => {
+    const message = document.createElement("div");
+    message.textContent = "✓ Link copied to clipboard!";
+    message.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10B981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    `;
+    if (!document.getElementById("copy-success-styles")) {
+      const style = document.createElement("style");
+      style.id = "copy-success-styles";
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(message);
+    setTimeout(() => {
+      message.style.animation = "slideOut 0.3s ease-in";
+      setTimeout(() => {
+        if (document.body.contains(message)) {
+          document.body.removeChild(message);
+        }
+      }, 300);
+    }, 3e3);
+  };
+  const showCopyError = () => {
+    alert("Unable to copy link to clipboard. Please copy the URL manually from your browser.");
+  };
+  const handleFavouriteClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      setAuthModalTab("login");
+      setShowAuthPrompt(true);
+      return;
+    }
+    const result = await toggleFavourite();
+    if (result?.requires_auth) {
+      setAuthModalTab("login");
+      setShowAuthPrompt(true);
+    }
+  };
+  const getTitle = () => {
+    if (type === "building") {
+      let address = data?.address || data?.name || "";
+      const streetTypes = ["St", "Ave", "Blvd", "Rd", "Dr", "Ln", "Ct", "Way", "Pl", "Cres", "Street", "Avenue", "Boulevard", "Road", "Drive", "Lane", "Court", "Place", "Crescent"];
+      const hasStreetType = streetTypes.some(
+        (type2) => address.toLowerCase().includes(type2.toLowerCase() + ",") || address.toLowerCase().includes(type2.toLowerCase() + " ") || address.toLowerCase().endsWith(type2.toLowerCase())
+      );
+      if (!hasStreetType && address && !address.includes(",")) {
+        address = address + " Street";
+      }
+      return address;
+    }
+    if (type === "property" && data) {
+      const unitNumber = data?.unitNumber || data?.UnitNumber || "";
+      const streetNumber = data?.streetNumber || data?.StreetNumber || "";
+      const streetName = data?.streetName || data?.StreetName || "";
+      let title = "";
+      if (unitNumber) {
+        title = unitNumber;
+      }
+      if (streetNumber && streetName) {
+        const streetTypes = ["St", "Ave", "Blvd", "Rd", "Dr", "Ln", "Ct", "Way", "Pl", "Cres", "Street", "Avenue", "Boulevard", "Road", "Drive", "Lane", "Court", "Place", "Crescent"];
+        const hasStreetType = streetTypes.some(
+          (type2) => streetName.toLowerCase().endsWith(type2.toLowerCase()) || streetName.toLowerCase().includes(type2.toLowerCase() + " ")
+        );
+        const formattedStreetName = hasStreetType ? streetName : `${streetName} Street`;
+        const streetPart = `${streetNumber} ${formattedStreetName}`;
+        if (title) {
+          title = `${title} - ${streetPart}`;
+        } else {
+          title = streetPart;
+        }
+      }
+      return title || data?.address;
+    }
+    return data?.address;
+  };
+  const getSubtitle = () => {
+    return data?.subtitle || "";
+  };
+  const getLocationBreadcrumb = () => {
+    const parts = [];
+    let locationSource = null;
+    if (type === "building") {
+      locationSource = data;
+    } else if (type === "property") {
+      if (buildingData && (buildingData.city || buildingData.neighbourhood || buildingData.sub_neighbourhood)) {
+        locationSource = buildingData;
+      } else {
+        const neighborhood = data?.neighborhood || data?.Neighborhood || "";
+        const area = data?.area || data?.Area || "";
+        const city = data?.city || data?.City || "";
+        const seen = /* @__PURE__ */ new Set();
+        const parts2 = [];
+        [
+          { label: neighborhood, type: "sub_neighbourhood" },
+          { label: area, type: "neighbourhood" },
+          { label: city, type: "city" }
+        ].forEach((part) => {
+          const label = (part.label || "").toString().trim();
+          const key = label.toLowerCase();
+          if (!label || seen.has(key)) return;
+          seen.add(key);
+          parts2.push({ label, type: part.type });
+        });
+        return parts2.length > 0 ? parts2 : null;
+      }
+    }
+    if (!locationSource) return null;
+    if (locationSource?.sub_neighbourhood) {
+      parts.push({
+        label: locationSource.sub_neighbourhood,
+        type: "sub_neighbourhood"
+      });
+    }
+    if (locationSource?.neighbourhood) {
+      parts.push({
+        label: locationSource.neighbourhood,
+        type: "neighbourhood"
+      });
+    }
+    if (locationSource?.city) {
+      parts.push({
+        label: locationSource.city,
+        type: "city"
+      });
+    }
+    return parts.length > 0 ? parts : null;
+  };
+  const getPriceDisplay = () => {
+    if (type === "building") {
+      return null;
+    }
+    return data?.soldFor || null;
+  };
+  const showMobilePricing = type === "property" && getPriceDisplay();
+  return /* @__PURE__ */ jsxs(Fragment, { children: [
+    /* @__PURE__ */ jsx("div", { className: "bg-white", children: /* @__PURE__ */ jsx("div", { className: `max-w-[1280px] mx-auto md:px-0 ${type === "building" ? "pt-8" : ""}`, children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col-reverse md:flex-row justify-between items-start gap-5", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex-1 pr-5 min-w-0 w-full md:w-auto", children: [
+        /* @__PURE__ */ jsx("h1", { className: "font-space-grotesk font-bold text-[26px] leading-[34px] md:text-[40px] md:leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0 truncate md:whitespace-normal md:overflow-visible max-w-full", children: getTitle() }),
+        (() => {
+          const breadcrumb = getLocationBreadcrumb();
+          const slugify = (s) => (s || "").toString().toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
+          const buildingCity = (type === "building" ? data?.city : buildingData?.city || data?.city || data?.City) || "Toronto";
+          const citySlug = slugify(buildingCity) || "toronto";
+          const isRent = data?.isRental === true || /rent|lease/i.test((data?.transactionType || data?.TransactionType || "").toString());
+          const linkType = isRent ? "rent" : "sale";
+          const buildAreaHref = (part) => {
+            const slug = slugify(part.label);
+            if (!slug) return "#";
+            if (part.type === "city") return `/${slug}/condos-for-${linkType}`;
+            return `/${citySlug}/${slug}/condos-for-${linkType}`;
+          };
+          let buildingHref = null;
+          let buildingDisplayName = null;
+          if (type === "property" && buildingData?.name) {
+            buildingDisplayName = buildingData.name.replace(
+              new RegExp(`\\s+${buildingCity}$`, "i"),
+              ""
+            ).trim();
+            const slugParts = [slugify(buildingData.name)];
+            if (buildingData.street_address_1) slugParts.push(slugify(buildingData.street_address_1));
+            if (buildingData.street_address_2) slugParts.push(slugify(buildingData.street_address_2));
+            if (slugParts.length === 1 && buildingData.address) {
+              buildingData.address.split(/\s*[,&]\s*/).filter(Boolean).forEach((p) => slugParts.push(slugify(p)));
+            }
+            buildingHref = `/${citySlug}/${slugParts.filter(Boolean).join("-")}`;
+          }
+          if (!buildingHref && !breadcrumb) return null;
+          return /* @__PURE__ */ jsx("h2", { className: "font-work-sans text-base md:text-lg text-[#293056] mb-2 truncate md:whitespace-normal md:overflow-visible max-w-full", children: /* @__PURE__ */ jsxs("span", { children: [
+            buildingHref && /* @__PURE__ */ jsxs(Fragment, { children: [
+              /* @__PURE__ */ jsx(
+                Link,
+                {
+                  href: buildingHref,
+                  className: "font-semibold underline hover:text-[#1f2441] transition-colors",
+                  children: buildingDisplayName || buildingData.name
+                }
+              ),
+              breadcrumb && breadcrumb.length > 0 && /* @__PURE__ */ jsx("span", { className: "text-gray-500", children: " in " })
+            ] }),
+            breadcrumb && breadcrumb.map((part, index) => /* @__PURE__ */ jsxs("span", { children: [
+              /* @__PURE__ */ jsx(
+                Link,
+                {
+                  href: buildAreaHref(part),
+                  className: "underline hover:text-[#1f2441] transition-colors",
+                  children: part.label
+                }
+              ),
+              index < breadcrumb.length - 1 && /* @__PURE__ */ jsx("span", { className: "text-gray-400", children: ", " })
+            ] }, part.type))
+          ] }) });
+        })(),
+        /* @__PURE__ */ jsx("div", { className: "font-work-sans font-medium text-lg leading-[27px] text-[#293056] tracking-tight underline", children: getSubtitle() })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "flex w-full md:w-auto justify-between md:justify-start items-center gap-3 flex-shrink-0", children: [
+        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+          /* @__PURE__ */ jsxs(
+            "button",
+            {
+              onClick: () => setShowShareDropdown(!showShareDropdown),
+              className: "flex justify-center items-center gap-2 px-6 h-[33px] min-w-[95px] bg-white border border-[#717680] rounded-[10px] font-work-sans font-medium text-sm text-[#252B37] hover:bg-gray-50 transition-colors",
+              children: [
+                /* @__PURE__ */ jsx(Share, { className: "w-4 h-4" }),
+                "Share"
+              ]
+            }
+          ),
+          showShareDropdown && /* @__PURE__ */ jsx("div", { className: "absolute top-full left-0 md:left-auto md:right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[200px] z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200", children: /* @__PURE__ */ jsxs("div", { className: "py-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide border-b border-gray-100", children: [
+              "Share this ",
+              type
+            ] }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: () => handleShare("Facebook"),
+                className: "flex items-center gap-3 px-4 py-3 hover:bg-blue-50 hover:text-[#1877F2] w-full text-left text-sm transition-all duration-200 font-medium",
+                children: [
+                  /* @__PURE__ */ jsx(FacebookIcon, { className: "w-5 h-5 text-[#1877F2]" }),
+                  "Facebook"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: () => handleShare("Twitter"),
+                className: "flex items-center gap-3 px-4 py-3 hover:bg-blue-50 hover:text-[#1DA1F2] w-full text-left text-sm transition-all duration-200 font-medium",
+                children: [
+                  /* @__PURE__ */ jsx(TwitterIcon, { className: "w-5 h-5 text-[#1DA1F2]" }),
+                  "Twitter"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: () => handleShare("Email"),
+                className: "flex items-center gap-3 px-4 py-3 hover:bg-red-50 hover:text-[#EA4335] w-full text-left text-sm transition-all duration-200 font-medium",
+                children: [
+                  /* @__PURE__ */ jsx(EmailIcon, { className: "w-5 h-5 text-[#EA4335]" }),
+                  "Email"
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsx("div", { className: "border-t border-gray-100 my-1" }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                onClick: () => handleShare("Copy Link"),
+                className: "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 hover:text-[#333333] w-full text-left text-sm transition-all duration-200 font-medium",
+                children: [
+                  /* @__PURE__ */ jsx(LinkIcon, { className: "w-5 h-5 text-[#666666]" }),
+                  "Copy Link"
+                ]
+              }
+            )
+          ] }) })
+        ] }),
+        /* @__PURE__ */ jsxs(
+          "button",
+          {
+            onClick: handleFavouriteClick,
+            disabled: favouriteLoading,
+            className: `flex justify-center items-center gap-2 px-6 h-[33px] min-w-[99px] border rounded-[10px] font-work-sans font-medium text-sm transition-all duration-200 ${isFavourited ? "bg-red-50 border-red-200 text-red-600 hover:bg-red-100" : "bg-white border-[#717680] text-[#252B37] hover:bg-gray-50"} ${favouriteLoading ? "opacity-50 cursor-not-allowed" : ""}`,
+            children: [
+              favouriteLoading ? /* @__PURE__ */ jsx("div", { className: "w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" }) : /* @__PURE__ */ jsx(Heart, { className: "w-[14px] h-4", filled: isFavourited }),
+              favouriteLoading ? "Saving..." : isFavourited ? "Favourited" : "Favourite"
+            ]
+          }
+        )
+      ] })
+    ] }) }) }),
+    showMobilePricing && /* @__PURE__ */ jsx("div", { className: "md:hidden bg-white px-4 py-6", children: /* @__PURE__ */ jsxs("div", { className: "flex justify-between items-start", children: [
+      /* @__PURE__ */ jsx("div", { className: "font-work-sans font-bold text-lg text-[#8B4513]", children: "SOLD FOR" }),
+      /* @__PURE__ */ jsx("div", { className: "font-space-grotesk font-bold text-2xl text-black", children: getPriceDisplay() })
+    ] }) }),
+    showShareDropdown && /* @__PURE__ */ jsx(
+      "div",
+      {
+        className: "fixed inset-0 z-40",
+        onClick: () => setShowShareDropdown(false)
+      }
+    ),
+    /* @__PURE__ */ jsx(
+      LoginModal,
+      {
+        isOpen: showAuthPrompt,
+        onClose: () => setShowAuthPrompt(false),
+        website: currentWebsite,
+        initialTab: authModalTab
+      }
+    )
+  ] });
+}
+export {
+  PropertyHeader as default
+};

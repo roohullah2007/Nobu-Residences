@@ -522,6 +522,10 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                 locationInputRef.current.blur();
             }
         }, 100);
+
+        // Apply the search immediately — no need to press the search button.
+        // Pass the fresh location since setSearchData hasn't committed yet.
+        handleSearch({ ...searchData, location: displayValue });
     };
 
     // Debounced fetch for predictions
@@ -548,50 +552,54 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
         setShowSuggestions(false);
     };
 
-    const handleSearch = () => {
+    const handleSearch = (dataOverride = null) => {
+        // Allow callers (e.g. suggestion select) to search with fresher data
+        // than the not-yet-committed searchData state
+        const data = dataOverride || searchData;
+
         // Check if Sold or Leased is selected in propertyType dropdown
-        const isSoldOrLeased = searchData.propertyType === 'Sold' || searchData.propertyType === 'Leased';
+        const isSoldOrLeased = data.propertyType === 'Sold' || data.propertyType === 'Leased';
 
         if (onSearch) {
             // If parent provided onSearch callback, use it
             // Pass property_status for Sold/Leased searches
             const searchPayload = {
-                ...searchData,
+                ...data,
                 searchType,
                 viewMode,
                 // If Sold/Leased selected, pass it as property_status
-                property_status: isSoldOrLeased ? searchData.propertyType : '',
+                property_status: isSoldOrLeased ? data.propertyType : '',
                 // Keep propertyType for active listings only
-                propertyType: isSoldOrLeased ? 'For Sale' : searchData.propertyType
+                propertyType: isSoldOrLeased ? 'For Sale' : data.propertyType
             };
             onSearch(searchPayload);
         } else {
             // Default behavior - navigate to search page with params
             const params = new URLSearchParams();
 
-            if (searchData.location) {
-                params.append('location', searchData.location);
+            if (data.location) {
+                params.append('location', data.location);
                 params.append('search_type', searchType);
             }
 
             // When Sold or Leased is selected from dropdown, pass as property_status
             if (isSoldOrLeased) {
-                params.append('property_status', searchData.propertyType);
+                params.append('property_status', data.propertyType);
                 // Set status based on Sold=For Sale, Leased=For Rent
-                params.append('status', searchData.propertyType === 'Sold' ? 'For Sale' : 'For Rent');
-            } else if (searchData.propertyStatus) {
+                params.append('status', data.propertyType === 'Sold' ? 'For Sale' : 'For Rent');
+            } else if (data.propertyStatus) {
                 // Legacy: propertyStatus field support
-                params.append('property_status', searchData.propertyStatus);
-            } else if (searchData.propertyType) {
+                params.append('property_status', data.propertyStatus);
+            } else if (data.propertyType) {
                 // Only include property_type when no status is selected
-                params.append('status', searchData.propertyType);
+                params.append('status', data.propertyType);
             }
 
-            if (searchData.propertySubType && searchData.propertySubType !== 'All') params.append('property_sub_type', searchData.propertySubType);
-            if (searchData.bedrooms && searchData.bedrooms !== '0') params.append('bedrooms', searchData.bedrooms);
-            if (searchData.bathrooms && searchData.bathrooms !== '0') params.append('bathrooms', searchData.bathrooms);
-            if (searchData.minPrice > 0) params.append('min_price', searchData.minPrice);
-            if (searchData.maxPrice < 10000000) params.append('max_price', searchData.maxPrice);
+            if (data.propertySubType && data.propertySubType !== 'All') params.append('property_sub_type', data.propertySubType);
+            if (data.bedrooms && data.bedrooms !== '0') params.append('bedrooms', data.bedrooms);
+            if (data.bathrooms && data.bathrooms !== '0') params.append('bathrooms', data.bathrooms);
+            if (data.minPrice > 0) params.append('min_price', data.minPrice);
+            if (data.maxPrice < 10000000) params.append('max_price', data.maxPrice);
             if (viewMode) params.append('view_mode', viewMode);
 
             router.get('/search?' + params.toString());
@@ -735,7 +743,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
 
                             {/* Search Button */}
                             <button
-                                onClick={handleSearch}
+                                onClick={() => handleSearch()}
                                 className="rounded-lg p-2.5 hover:opacity-90 transition-all flex items-center justify-center ml-2"
                                 style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
                             >

@@ -946,7 +946,7 @@ const MoreBuildings = ({
                 <PropertyCardV5
                   property={building}
                   size="default"
-                  className="w-[300px]"
+                  className="w-full"
                   onClick={() => {
                     if (building.source === 'building' && building.id) {
                       window.location.href = createBuildingUrl(building.name || building.address, building.id);
