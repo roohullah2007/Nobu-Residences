@@ -7,6 +7,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
+import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
 
 // Helper function to create building slug
 const createBuildingSlug = (name, id) => {
@@ -94,6 +95,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [developerOptions, setDeveloperOptions] = useState(developers);
     const [neighbourhoodOptions, setNeighbourhoodOptions] = useState(neighbourhoods);
     const [subNeighbourhoodOptions, setSubNeighbourhoodOptions] = useState(subNeighbourhoods);
+    const [amenityOptions, setAmenityOptions] = useState(amenities);
+    const [maintenanceAmenityOptions, setMaintenanceAmenityOptions] = useState(maintenanceFeeAmenities);
 
     // Initialize selected amenities immediately from props
     const initSelectedAmenities = () => {
@@ -473,9 +476,31 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         }
     };
 
-    const filteredAmenities = amenities.filter(amenity =>
+    const filteredAmenities = amenityOptions.filter(amenity =>
         amenity.name.toLowerCase().includes(amenitySearch.toLowerCase())
     );
+
+    const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+
+    // Inline quick-create handlers: append to the option list (if new) and
+    // auto-select the amenity so it lands on the building being edited.
+    const handleAmenityCreated = (item) => {
+        setAmenityOptions(prev =>
+            prev.some(a => a.id === item.id) ? prev : sortByName([...prev, item])
+        );
+        setSelectedAmenities(prev =>
+            prev.some(a => a.id === item.id) ? prev : [...prev, item]
+        );
+    };
+
+    const handleMaintenanceAmenityCreated = (item) => {
+        setMaintenanceAmenityOptions(prev =>
+            prev.some(a => a.id === item.id) ? prev : sortByName([...prev, item])
+        );
+        setSelectedMaintenanceFeeAmenities(prev =>
+            prev.some(a => a.id === item.id) ? prev : [...prev, item]
+        );
+    };
 
     // Parse the primary Address field into a list of street addresses
     // ready to drop into the Additional Street Addresses repeater.
@@ -1090,7 +1115,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                             {/* Amenity Selector */}
                             {showAmenitySelector && (
                                 <div className="mt-4 border rounded-lg p-4 bg-gray-50">
-                                    <div className="mb-4">
+                                    <div className="mb-4 flex items-start gap-3">
                                         <input
                                             type="text"
                                             placeholder="Search amenities..."
@@ -1098,6 +1123,14 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                             value={amenitySearch}
                                             onChange={(e) => setAmenitySearch(e.target.value)}
                                         />
+                                        <div className="pt-2 flex-shrink-0">
+                                            <QuickCreateInline
+                                                createUrl={route('admin.api.amenities.store')}
+                                                buttonLabel="+ New amenity"
+                                                placeholder="New amenity name..."
+                                                onCreated={handleAmenityCreated}
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1186,8 +1219,16 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 {/* Maintenance Amenity Selector */}
                                 {showMaintenanceAmenitySelector && (
                                     <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                                        <div className="mb-4 flex justify-end">
+                                            <QuickCreateInline
+                                                createUrl={route('admin.api.maintenance-fee-amenities.store')}
+                                                buttonLabel="+ New maintenance amenity"
+                                                placeholder="New maintenance amenity name..."
+                                                onCreated={handleMaintenanceAmenityCreated}
+                                            />
+                                        </div>
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                            {maintenanceFeeAmenities.map(amenity => {
+                                            {maintenanceAmenityOptions.map(amenity => {
                                                 const isIncluded = selectedMaintenanceFeeAmenities.some(a => a.id === amenity.id);
                                                 return (
                                                     <button

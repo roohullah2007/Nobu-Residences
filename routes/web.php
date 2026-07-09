@@ -423,12 +423,14 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('developers', \App\Http\Controllers\Admin\DeveloperController::class);
     
     // Amenity Management routes
+    Route::post('api/amenities', [\App\Http\Controllers\Admin\AmenityController::class, 'quickStore'])->name('api.amenities.store');
     Route::resource('amenities', \App\Http\Controllers\Admin\AmenityController::class);
 
     // Saved searches / email alert stats
     Route::get('saved-searches', [\App\Http\Controllers\Admin\SavedSearchAdminController::class, 'index'])->name('saved-searches.index');
 
     // Maintenance Fee Amenity Management routes
+    Route::post('api/maintenance-fee-amenities', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'quickStore'])->name('api.maintenance-fee-amenities.store');
     Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);
     Route::get('api/maintenance-fee-amenities/active', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'getAllActive']);
 

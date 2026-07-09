@@ -7,6 +7,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
+import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
 
 export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -62,6 +63,9 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const [developerOptions, setDeveloperOptions] = useState(developers);
     const [neighbourhoodOptions, setNeighbourhoodOptions] = useState(neighbourhoods);
     const [subNeighbourhoodOptions, setSubNeighbourhoodOptions] = useState(subNeighbourhoods);
+    // Local copies so inline quick-create can append without a page reload
+    const [amenityOptions, setAmenityOptions] = useState(amenities);
+    const [maintenanceAmenityOptions, setMaintenanceAmenityOptions] = useState(maintenanceFeeAmenities);
 
     // Filter sub-neighbourhoods based on selected neighbourhood.
     // String() both sides — the select value is a string, the DB id a number.
@@ -338,9 +342,31 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         }
     };
 
-    const filteredAmenities = amenities.filter(amenity =>
+    const filteredAmenities = amenityOptions.filter(amenity =>
         amenity.name.toLowerCase().includes(amenitySearch.toLowerCase())
     );
+
+    const sortByName = (list) => [...list].sort((a, b) => a.name.localeCompare(b.name));
+
+    // Inline quick-create handlers: append to the option list (if new) and
+    // auto-select the amenity so it lands on the building being edited.
+    const handleAmenityCreated = (item) => {
+        setAmenityOptions(prev =>
+            prev.some(a => a.id === item.id) ? prev : sortByName([...prev, item])
+        );
+        setSelectedAmenities(prev =>
+            prev.some(a => a.id === item.id) ? prev : [...prev, item]
+        );
+    };
+
+    const handleMaintenanceAmenityCreated = (item) => {
+        setMaintenanceAmenityOptions(prev =>
+            prev.some(a => a.id === item.id) ? prev : sortByName([...prev, item])
+        );
+        setSelectedMaintenanceFeeAmenities(prev =>
+            prev.some(a => a.id === item.id) ? prev : [...prev, item]
+        );
+    };
 
     // Parse the primary Address field into a list of street addresses
     // ready to drop into the Additional Street Addresses repeater.
@@ -914,7 +940,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                             {/* Amenity Selector */}
                             {showAmenitySelector && (
                                 <div className="mt-4 border rounded-lg p-4 bg-gray-50">
-                                    <div className="mb-4">
+                                    <div className="mb-4 flex items-start gap-3">
                                         <input
                                             type="text"
                                             placeholder="Search amenities..."
@@ -922,9 +948,17 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                             value={amenitySearch}
                                             onChange={(e) => setAmenitySearch(e.target.value)}
                                         />
+                                        <div className="pt-2 flex-shrink-0">
+                                            <QuickCreateInline
+                                                createUrl={route('admin.api.amenities.store')}
+                                                buttonLabel="+ New amenity"
+                                                placeholder="New amenity name..."
+                                                onCreated={handleAmenityCreated}
+                                            />
+                                        </div>
                                     </div>
 
-                                    {amenities.length > 0 ? (
+                                    {amenityOptions.length > 0 ? (
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                             {filteredAmenities.map(amenity => {
                                                 const isSelected = selectedAmenities.find(a => a.id === amenity.id);
@@ -1041,8 +1075,16 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 {/* Maintenance Amenity Selector */}
                                 {showMaintenanceAmenitySelector && (
                                     <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                                        <div className="mb-4 flex justify-end">
+                                            <QuickCreateInline
+                                                createUrl={route('admin.api.maintenance-fee-amenities.store')}
+                                                buttonLabel="+ New maintenance amenity"
+                                                placeholder="New maintenance amenity name..."
+                                                onCreated={handleMaintenanceAmenityCreated}
+                                            />
+                                        </div>
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                            {maintenanceFeeAmenities.map(amenity => {
+                                            {maintenanceAmenityOptions.map(amenity => {
                                                 const isIncluded = selectedMaintenanceFeeAmenities.some(a => a.id === amenity.id);
                                                 return (
                                                     <button

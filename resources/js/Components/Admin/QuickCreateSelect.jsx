@@ -6,10 +6,11 @@ const getCsrfToken = () =>
     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
 /**
- * A <select> with an inline "+ New" quick-create form so admins can add a
- * missing option (neighbourhood, sub-neighbourhood, developer, ...) without
- * leaving the page. POSTs { name, ...createPayload } to createUrl, then
- * calls onCreated(item) and onChange(item.id) with the JSON response.
+ * A searchable combobox with an inline "+ New" quick-create form so admins
+ * can find or add a missing option (neighbourhood, sub-neighbourhood,
+ * developer, ...) without leaving the page. Typing filters the option list;
+ * "+ New" POSTs { name, ...createPayload } to createUrl, then calls
+ * onCreated(item) and onChange(item.id) with the JSON response.
  */
 export default function QuickCreateSelect({
     id,
@@ -29,6 +30,14 @@ export default function QuickCreateSelect({
     const [newName, setNewName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [createError, setCreateError] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [query, setQuery] = useState('');
+
+    const selectedOption = options.find((option) => String(option.id) === String(value));
+    const filteredOptions = query.trim()
+        ? options.filter((option) =>
+              getOptionLabel(option).toLowerCase().includes(query.trim().toLowerCase()))
+        : options;
 
     const handleCreate = async () => {
         const name = newName.trim();
@@ -84,19 +93,77 @@ export default function QuickCreateSelect({
                     {isCreating ? 'Cancel' : '+ New'}
                 </button>
             </div>
-            <select
-                id={id}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                <option value="">{placeholder}</option>
-                {options.map((option) => (
-                    <option key={option.id} value={option.id}>
-                        {getOptionLabel(option)}
-                    </option>
-                ))}
-            </select>
+            {/* Searchable combobox: the input filters the list while open and
+                shows the selected label while closed. Options use onMouseDown
+                (fires before the input's blur) so clicks register before the
+                dropdown closes. */}
+            <div className="relative">
+                <input
+                    id={id}
+                    type="text"
+                    role="combobox"
+                    aria-expanded={isOpen}
+                    autoComplete="off"
+                    className="mt-1 block w-full rounded-md !border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 !bg-white !text-gray-900 pr-8"
+                    value={isOpen ? query : (selectedOption ? getOptionLabel(selectedOption) : '')}
+                    placeholder={selectedOption ? getOptionLabel(selectedOption) : placeholder}
+                    onFocus={() => { setIsOpen(true); setQuery(''); }}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onBlur={() => setTimeout(() => setIsOpen(false), 100)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setIsOpen(false); e.currentTarget.blur(); }
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (filteredOptions.length === 1) {
+                                onChange(String(filteredOptions[0].id));
+                                setIsOpen(false);
+                                e.currentTarget.blur();
+                            }
+                        }
+                    }}
+                />
+                <svg
+                    className="pointer-events-none absolute right-2.5 top-1/2 mt-0.5 h-4 w-4 -translate-y-1/2 text-gray-400"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                {isOpen && (
+                    <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+                        <li>
+                            <button
+                                type="button"
+                                className="block w-full px-3 py-1.5 text-left text-gray-500 hover:bg-gray-50"
+                                onMouseDown={(e) => { e.preventDefault(); onChange(''); setIsOpen(false); }}
+                            >
+                                {placeholder}
+                            </button>
+                        </li>
+                        {filteredOptions.map((option) => (
+                            <li key={option.id}>
+                                <button
+                                    type="button"
+                                    className={`block w-full px-3 py-1.5 text-left hover:bg-indigo-50 ${
+                                        String(option.id) === String(value)
+                                            ? 'bg-indigo-50 font-medium text-indigo-700'
+                                            : 'text-gray-900'
+                                    }`}
+                                    onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        onChange(String(option.id));
+                                        setIsOpen(false);
+                                    }}
+                                >
+                                    {getOptionLabel(option)}
+                                </button>
+                            </li>
+                        ))}
+                        {filteredOptions.length === 0 && (
+                            <li className="px-3 py-1.5 text-gray-400">No matches — use "+ New" to add it</li>
+                        )}
+                    </ul>
+                )}
+            </div>
             {isCreating && (
                 <div className="mt-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
                     <div className="flex gap-2">

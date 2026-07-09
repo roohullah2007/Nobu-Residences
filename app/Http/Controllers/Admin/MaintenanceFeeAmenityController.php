@@ -86,6 +86,29 @@ class MaintenanceFeeAmenityController extends Controller
     }
 
     /**
+     * JSON quick-create for the inline "+ New" on the building create/edit
+     * pages. Name-only; idempotent on the name so a duplicate submit
+     * returns the existing amenity instead of a unique-violation error.
+     */
+    public function quickStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $amenity = MaintenanceFeeAmenity::firstOrCreate(
+            ['name' => trim($validated['name'])],
+            ['is_active' => true, 'sort_order' => 0]
+        );
+
+        return response()->json([
+            'id' => $amenity->id,
+            'name' => $amenity->name,
+            'icon' => $amenity->icon,
+        ], $amenity->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
      * Display the specified resource.
      * Note: The Index page handles viewing via modal, so redirect there
      */
