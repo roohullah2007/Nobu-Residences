@@ -641,12 +641,12 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
     return (
         <>
             <div className="bg-gray-100 rounded-2xl px-4 py-3 overflow-visible" style={{ fontFamily: "'Helvetica', 'Arial', sans-serif" }}>
-                <div className="flex items-center gap-4 w-full flex-wrap lg:flex-nowrap min-w-fit">
+                <div className="flex items-center gap-4 w-full flex-wrap lg:flex-nowrap min-w-0">
 
                     {/* Left Group: Search, For Sale, Bed Type, Price */}
-                    <div className="flex items-center gap-3 w-full flex-wrap lg:flex-nowrap overflow-visible">
+                    <div className="flex items-center gap-3 w-full flex-wrap lg:flex-nowrap lg:min-w-0 lg:flex-1 overflow-visible">
                         {/* Search Input with Type Selector and Search Button - 400px width */}
-                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-[400px] h-[48px] relative">
+                        <div className="flex items-center bg-white rounded-lg px-2 w-full lg:w-auto lg:flex-1 lg:min-w-[220px] lg:max-w-[400px] h-[48px] relative">
                             {/* Search Type Dropdown Button */}
                             <div className="relative" ref={dropdownRef}>
                                 <button
@@ -690,7 +690,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                                 ref={locationInputRef}
                                 type="text"
                                 placeholder={currentSearchType.placeholder}
-                                className="flex-1 text-sm font-bold text-[#293056] focus:outline-none border-0 bg-transparent placeholder:text-[#293056] placeholder:font-bold placeholder:opacity-60 px-2"
+                                className="flex-1 min-w-0 text-sm font-bold text-[#293056] focus:outline-none border-0 bg-transparent placeholder:text-[#293056] placeholder:font-bold placeholder:opacity-60 px-2"
                                 value={searchData.location}
                                 onChange={handleLocationInputChange}
                                 onFocus={() => {
@@ -752,7 +752,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                         </div>
 
                         {/* For Sale Dropdown - 40px height, 103px width */}
-                        <div className="relative w-[103px]">
+                        <div className="relative w-[103px] flex-shrink-0">
                             <select
                                 className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
                                 value={searchData.propertyType}
@@ -775,7 +775,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                         </div>
 
                         {/* Bed Type Dropdown - 40px height, 135px width */}
-                        <div className="relative w-[135px]">
+                        <div className="relative w-[135px] flex-shrink-0">
                             <select
                                 className="appearance-none px-3 pr-8 bg-white rounded-lg transition-all cursor-pointer text-[#293056] font-bold text-sm whitespace-nowrap border-0 focus:ring-2 focus:ring-black h-[40px] w-full"
                                 value={searchData.bedrooms}
@@ -799,7 +799,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                         </div>
 
                         {/* Price Inputs and Slider Container - 286px width */}
-                        <div className="flex w-full lg:w-[286px] flex-col gap-2 items-center">
+                        <div className="flex w-full lg:w-auto lg:flex-1 lg:min-w-[180px] lg:max-w-[286px] flex-col gap-2 items-center">
                             <div className="flex items-center gap-2 w-full">
                                 {/* Min Price Input */}
                                 <div className="bg-white rounded-lg px-3 flex items-center justify-center border border-gray-200 flex-1 lg:w-[99px] h-[40px]">
@@ -931,7 +931,7 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
                     </div>
 
                     {/* Right Group: Filter and Save Search */}
-                    <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap lg:flex-nowrap">
+                    <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap lg:flex-nowrap lg:flex-shrink-0">
                         {/* Filter Button - styled like Save Search */}
                         <button
                             onClick={() => {

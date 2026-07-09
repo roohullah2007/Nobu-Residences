@@ -109,16 +109,25 @@ const MortgageCalculator = ({ property, hideHeading = false }) => {
             <label className="block text-xs font-normal text-gray-700 mb-1 font-work-sans">
               Amortization
             </label>
-            <select
-              value={amortization}
-              onChange={(e) => setAmortization(e.target.value)}
-              className="w-full px-2 py-2 md:px-3 md:py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm appearance-none bg-white"
-            >
-              <option value="15 Years">15 Years</option>
-              <option value="20 Years">20 Years</option>
-              <option value="25 Years">25 Years</option>
-              <option value="30 Years">30 Years</option>
-            </select>
+            <div className="relative">
+              <select
+                value={amortization}
+                onChange={(e) => setAmortization(e.target.value)}
+                className="w-full px-2 py-2 md:px-3 md:py-3 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs md:text-sm appearance-none bg-white"
+              >
+                <option value="15 Years">15 Years</option>
+                <option value="20 Years">20 Years</option>
+                <option value="25 Years">25 Years</option>
+                <option value="30 Years">30 Years</option>
+              </select>
+              <svg
+                className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
+                fill="none"
+                viewBox="0 0 20 20"
+              >
+                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m6 8 4 4 4-4" />
+              </svg>
+            </div>
           </div>
         </div>
         

@@ -122,21 +122,21 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
+      newErrors.password = 'At least 8 characters';
     }
 
     // Registration specific validations
     if (activeTab === 'register') {
       if (!formData.name || formData.name.trim().length < 2) {
-        newErrors.name = 'Full name must be at least 2 characters';
+        newErrors.name = 'At least 2 characters';
       }
 
       if (!formData.phone || formData.phone.trim().length < 10) {
-        newErrors.phone = 'Phone number must be at least 10 digits';
+        newErrors.phone = 'At least 10 digits';
       }
 
       if (!formData.confirmPassword) {
-        newErrors.confirmPassword = 'Please confirm your password';
+        newErrors.confirmPassword = 'Confirm your password';
       } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
@@ -276,11 +276,11 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
       className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
       onClick={handleModalClick}
     >
-      <div className="bg-white rounded-xl max-w-md w-full mx-4 relative shadow-2xl">
-        {/* Close Button */}
+      <div className="bg-white rounded-xl max-w-md w-full relative shadow-2xl max-h-[92vh] flex flex-col">
+        {/* Close Button — sits outside the scrollable area so it never scrolls away */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100"
+          className="absolute top-3 right-3 z-10 text-gray-400 hover:text-gray-600 transition-colors w-8 h-8 rounded-full flex items-center justify-center bg-white hover:bg-gray-100"
           aria-label="Close"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -289,13 +289,13 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
           </svg>
         </button>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6 overflow-y-auto">
           {/* Modal Header */}
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-space-grotesk font-bold mb-2" style={{ color: brandColors.primary }}>
+          <div className="text-center mb-4 sm:mb-6 px-6">
+            <h2 className="text-xl sm:text-2xl font-space-grotesk font-bold mb-1 sm:mb-2" style={{ color: brandColors.primary }}>
               {showForgotPassword ? 'Reset Password' : `Welcome to ${siteDisplayName}`}
             </h2>
-            <p className="text-gray-600 text-sm">
+            <p className="text-gray-600 text-xs sm:text-sm">
               {showForgotPassword
                 ? 'Enter your email address and we\'ll send you a link to reset your password'
                 : activeTab === 'login' 
@@ -307,10 +307,10 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
 
           {/* Tab Navigation */}
           {!showForgotPassword && (
-            <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+            <div className="flex mb-4 sm:mb-6 bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setActiveTab('login')}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 py-2 px-2 sm:px-4 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                   activeTab === 'login'
                     ? 'bg-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -320,7 +320,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
               </button>
               <button
                 onClick={() => setActiveTab('register')}
-                className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+                className={`flex-1 py-2 px-2 sm:px-4 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
                   activeTab === 'register'
                     ? 'bg-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700'
@@ -415,12 +415,12 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
             </form>
           ) : (
             /* Login/Register Form */
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             {/* Registration fields in grid layout */}
             {activeTab === 'register' && (
               <>
                 {/* First row: Name and Phone */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {/* Name Field */}
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -433,7 +433,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                       value={formData.name}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="Enter your full name"
+                      placeholder="Full name"
                     />
                     {errors.name && (
                       <p className="mt-1 text-xs text-red-600">{errors.name}</p>
@@ -452,7 +452,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                       value={formData.phone}
                       onChange={handleInputChange}
                       className={`w-full px-3 py-2 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
-                      placeholder="Enter your phone number"
+                      placeholder="Phone number"
                     />
                     {errors.phone && (
                       <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
@@ -480,7 +480,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                 </div>
 
                 {/* Second row: Password and Confirm Password */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   {/* Password Field */}
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
@@ -493,8 +493,8 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                         name="password"
                         value={formData.password}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 pr-10 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="Enter your password"
+                        className={`w-full px-3 py-2 pr-9 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Password"
                       />
                       <button
                         type="button"
@@ -523,8 +523,8 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2 pr-10 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
-                        placeholder="Confirm your password"
+                        className={`w-full px-3 py-2 pr-9 rounded-lg text-sm border-2 focus:border-gray-300 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
+                        placeholder="Confirm"
                       />
                       <button
                         type="button"
