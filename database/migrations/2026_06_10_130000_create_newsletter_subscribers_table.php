@@ -8,6 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Dump-imported DBs may already have this table without a migrations record
+        if (Schema::hasTable('newsletter_subscribers')) {
+            return;
+        }
+
         Schema::create('newsletter_subscribers', function (Blueprint $table) {
             $table->id();
             $table->string('email')->unique();

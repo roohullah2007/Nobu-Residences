@@ -11,6 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Dump-imported DBs may already have this table without a migrations record
+        if (Schema::hasTable('neighbourhoods')) {
+            return;
+        }
+
         Schema::create('neighbourhoods', function (Blueprint $table) {
             $table->id();
             $table->string('name');

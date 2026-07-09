@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('buildings', function (Blueprint $table) {
-            $table->string('neighbourhood')->nullable()->after('city');
-            $table->string('sub_neighbourhood')->nullable()->after('neighbourhood');
+            if (!Schema::hasColumn('buildings', 'neighbourhood')) {
+                $table->string('neighbourhood')->nullable()->after('city');
+            }
+            if (!Schema::hasColumn('buildings', 'sub_neighbourhood')) {
+                $table->string('sub_neighbourhood')->nullable()->after('neighbourhood');
+            }
         });
     }
 

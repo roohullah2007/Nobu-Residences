@@ -13,8 +13,12 @@ return new class extends Migration
     {
         Schema::table('buildings', function (Blueprint $table) {
             // Add foreign key columns for neighbourhood taxonomies
-            $table->foreignId('neighbourhood_id')->nullable()->after('neighbourhood')->constrained('neighbourhoods')->nullOnDelete();
-            $table->foreignId('sub_neighbourhood_id')->nullable()->after('sub_neighbourhood')->constrained('sub_neighbourhoods')->nullOnDelete();
+            if (!Schema::hasColumn('buildings', 'neighbourhood_id')) {
+                $table->foreignId('neighbourhood_id')->nullable()->after('neighbourhood')->constrained('neighbourhoods')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('buildings', 'sub_neighbourhood_id')) {
+                $table->foreignId('sub_neighbourhood_id')->nullable()->after('sub_neighbourhood')->constrained('sub_neighbourhoods')->nullOnDelete();
+            }
         });
     }
 
