@@ -1,7 +1,10 @@
 {
   "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
+  "resources/js/Components/Admin/QuickCreateInline.jsx": [
+    "/build/assets/QuickCreateInline-DRWQiRCk.js"
+  ],
   "resources/js/Components/Admin/QuickCreateSelect.jsx": [
-    "/build/assets/QuickCreateSelect-ITDJ5W80.js"
+    "/build/assets/QuickCreateInline-DRWQiRCk.js"
   ],
   "resources/js/Components/Dropdown.jsx": [
     "/build/assets/Navbar-BcUYeBAy.js"
@@ -64,10 +67,10 @@
     "/build/assets/Index-C46XCUkP.js"
   ],
   "resources/js/Pages/Admin/Buildings/Create.jsx": [
-    "/build/assets/Create-B85sWk__.js"
+    "/build/assets/Create-zvZJVqSD.js"
   ],
   "resources/js/Pages/Admin/Buildings/Edit.jsx": [
-    "/build/assets/Edit-Dmo9h3O-.js"
+    "/build/assets/Edit-D2HyL_0e.js"
   ],
   "resources/js/Pages/Admin/Buildings/Import.jsx": [
     "/build/assets/Import-DsYyOVvN.js"
