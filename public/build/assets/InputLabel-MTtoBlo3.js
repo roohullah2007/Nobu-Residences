@@ -1,0 +1,1 @@
+import{j as a}from"./app-CNGd_537.js";function n({value:t,className:e="",children:r,...s}){return a.jsx("label",{...s,className:"block text-sm font-medium text-gray-700 "+e,children:t||r})}export{n as default};
