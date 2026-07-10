@@ -73,6 +73,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         maintenance_fee_range: building.maintenance_fee_range || '',
         parking_maintenance_fee: building.parking_maintenance_fee || '',
         locker_maintenance_fee: building.locker_maintenance_fee || '',
+        sqft_range: building.sqft_range || '',
+        avg_price_per_sqft: building.avg_price_per_sqft || '',
         website_url: building.website_url || '',
         floor_plans: building.floor_plans || [],
         virtual_tour_url: building.virtual_tour_url || '',
@@ -337,8 +339,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         amenities: selectedAmenities.map(a => a.name),
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
                         price_range: building.price_range,
-                        sqft_range: building.sqft_range,
-                        avg_price_per_sqft: building.avg_price_per_sqft,
+                        sqft_range: data.sqft_range,
+                        avg_price_per_sqft: data.avg_price_per_sqft,
                         maintenance_fee_range: data.maintenance_fee_range,
                         corp_number: data.corp_number,
                         nearby_transit: data.nearby_transit,
@@ -1085,6 +1087,38 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         Leave blank to auto-fill from MLS when listings publish a monthly parking cost.
                                     </p>
                                     <InputError message={errors.parking_maintenance_fee} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="sqft_range" value="Unit Size Range (sqft)" />
+                                    <TextInput
+                                        id="sqft_range"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.sqft_range}
+                                        onChange={(e) => setData('sqft_range', e.target.value)}
+                                        placeholder="e.g., 700 - 1411 sqft"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Imported from CSV / refreshed from live MLS listings when left blank.
+                                    </p>
+                                    <InputError message={errors.sqft_range} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-3">
+                                    <InputLabel htmlFor="avg_price_per_sqft" value="Avg Price Per Sqft" />
+                                    <TextInput
+                                        id="avg_price_per_sqft"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.avg_price_per_sqft}
+                                        onChange={(e) => setData('avg_price_per_sqft', e.target.value)}
+                                        placeholder="e.g., $850"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Imported from CSV / refreshed from live MLS listings when left blank.
+                                    </p>
+                                    <InputError message={errors.avg_price_per_sqft} className="mt-2" />
                                 </div>
 
                                 <div className="sm:col-span-3">

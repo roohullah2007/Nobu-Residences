@@ -92,7 +92,12 @@ export default function BuildingsImport({ importableFields = {} }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [upload, setUpload] = useState(null); // { token, headers, preview, total_rows }
     const [mapping, setMapping] = useState({}); // column index -> field key
-    const [duplicateAction, setDuplicateAction] = useState('skip');
+    // Default to "update": re-importing the sheet backfills fields on rows
+    // that were imported before every column was mapped (update only writes
+    // mapped, non-empty values — it never clobbers existing data with
+    // blanks). "Skip" silently left those stale rows untouched, which showed
+    // up as "imported but the Edit page fields are empty".
+    const [duplicateAction, setDuplicateAction] = useState('update');
     const [result, setResult] = useState(null);
     const [progress, setProgress] = useState(null); // { status, total, processed, created, updated, skipped, errors }
     const pollTimerRef = useRef(null);

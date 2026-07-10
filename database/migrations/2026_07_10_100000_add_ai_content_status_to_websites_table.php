@@ -14,10 +14,18 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // No ->after('cloudflare_active_at'): that column is created by the
+        // 2026_07_10_150000 cloudflare migration, which runs after this one.
         Schema::table('websites', function (Blueprint $table) {
-            $table->string('ai_content_status')->nullable()->after('cloudflare_active_at'); // pending | completed | failed
-            $table->text('ai_content_error')->nullable()->after('ai_content_status');
-            $table->timestamp('ai_content_generated_at')->nullable()->after('ai_content_error');
+            if (!Schema::hasColumn('websites', 'ai_content_status')) {
+                $table->string('ai_content_status')->nullable(); // pending | completed | failed
+            }
+            if (!Schema::hasColumn('websites', 'ai_content_error')) {
+                $table->text('ai_content_error')->nullable();
+            }
+            if (!Schema::hasColumn('websites', 'ai_content_generated_at')) {
+                $table->timestamp('ai_content_generated_at')->nullable();
+            }
         });
     }
 

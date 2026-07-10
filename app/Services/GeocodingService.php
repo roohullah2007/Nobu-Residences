@@ -79,6 +79,73 @@ class GeocodingService
     }
 
     /**
+     * Geocode via the Google Geocoding API and return the postal code along
+     * with the coordinates. Used by the buildings:geocode command to enrich
+     * CSV-imported buildings (the import sheets carry no postal code).
+     *
+     * Google only, on purpose: the free fallbacks (Photon/Nominatim) return
+     * unreliable Canadian postal codes, and a wrong stored postal code is
+     * worse than none. Requires GOOGLE_MAPS_API_KEY; returns null without it.
+     *
+     * @return array{lat: float, lng: float, postal_code: ?string, formatted_address: string}|null
+     */
+    public function geocodeAddressDetails(string $address): ?array
+    {
+        $address = trim($address);
+        if ($address === '' || empty($this->apiKey)) {
+            return null;
+        }
+
+        if (!$this->checkRateLimit('google', $this->rateLimitGoogle)) {
+            Log::warning('Google Maps API rate limit exceeded (details lookup)');
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(10)->get('https://maps.googleapis.com/maps/api/geocode/json', [
+                'address' => $this->cleanAddressForGeocoding($address),
+                'key' => $this->apiKey,
+                'region' => 'ca',
+            ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $data = $response->json();
+            if (($data['status'] ?? null) !== 'OK' || empty($data['results'])) {
+                Log::info('Google Geocoding (details) returned no result', [
+                    'address' => $address,
+                    'status' => $data['status'] ?? 'unknown',
+                    'error_message' => $data['error_message'] ?? null,
+                ]);
+                return null;
+            }
+
+            $this->recordRateLimit('google');
+
+            $result = $data['results'][0];
+            $postalCode = null;
+            foreach ($result['address_components'] ?? [] as $component) {
+                if (in_array('postal_code', $component['types'] ?? [], true)) {
+                    $postalCode = $component['long_name'] ?? null;
+                    break;
+                }
+            }
+
+            return [
+                'lat' => (float) $result['geometry']['location']['lat'],
+                'lng' => (float) $result['geometry']['location']['lng'],
+                'postal_code' => $postalCode,
+                'formatted_address' => $result['formatted_address'] ?? $address,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Google Geocoding (details) error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Geocode using Google Maps API
      */
     private function geocodeWithGoogle(string $address): ?array

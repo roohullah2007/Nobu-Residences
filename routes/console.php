@@ -59,6 +59,17 @@ Schedule::command('buildings:download-images --limit=20')
     ->appendOutputTo(storage_path('logs/building-image-downloads.log'))
     ->description('Download pending CSV-imported building images to local storage');
 
+// The import sheets carry no postal code column, so imported buildings land
+// with postal_code = NULL. This drains that backlog in batches of 50 via the
+// Google Geocoding API — postal code always, latitude/longitude only when the
+// building has none. A building that fails 3 runs is given up on
+// (geocode_attempts) so dead addresses are never re-queried forever.
+Schedule::command('buildings:geocode --limit=50')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/building-geocode.log'))
+    ->description('Fill missing building postal codes/coordinates via Google Geocoding');
+
 // ============================================================================
 // Saved Search Alerts
 // ============================================================================
