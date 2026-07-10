@@ -421,6 +421,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Developer Management routes
     Route::post('api/developers', [\App\Http\Controllers\Admin\DeveloperController::class, 'quickStore'])->name('api.developers.store');
     Route::resource('developers', \App\Http\Controllers\Admin\DeveloperController::class);
+
+    // Condos.ca Developers API proxy (search / auto-match / import) — see
+    // DEVELOPERS-API-DOCS.md. Keeps the API key server-side.
+    Route::get('api/developers-api/search', [\App\Http\Controllers\Admin\DeveloperApiController::class, 'search'])->name('api.developers-api.search');
+    Route::post('api/developers-api/match-building', [\App\Http\Controllers\Admin\DeveloperApiController::class, 'matchBuilding'])->name('api.developers-api.match-building');
+    Route::post('api/developers-api/import', [\App\Http\Controllers\Admin\DeveloperApiController::class, 'import'])->name('api.developers-api.import');
     
     // Amenity Management routes
     Route::post('api/amenities', [\App\Http\Controllers\Admin\AmenityController::class, 'quickStore'])->name('api.amenities.store');
@@ -470,10 +476,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::prefix('websites')->name('websites.')->group(function () {
         Route::get('/', [WebsiteManagementController::class, 'index'])->name('index');
         Route::get('/create', [WebsiteManagementController::class, 'create'])->name('create');
-        Route::post('/ai-generate-seo', [WebsiteManagementController::class, 'aiGenerateSeo'])->name('ai-generate-seo');
         Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
         Route::get('/{website}/created', [WebsiteManagementController::class, 'created'])->name('created');
         Route::post('/{website}/retry-hostname', [WebsiteManagementController::class, 'retryHostname'])->name('retry-hostname');
+        Route::post('/{website}/retry-ai-content', [WebsiteManagementController::class, 'retryAiContent'])->name('retry-ai-content');
         Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
         Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');

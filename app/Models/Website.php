@@ -11,9 +11,28 @@ class Website extends Model
     use HasFactory;
 
     /**
+     * Cloudflare provisioning bookkeeping columns — changes to these never
+     * affect what visitors see, so they must not trigger an edge-cache purge
+     * (the status sync job rewrites them every few minutes).
+     */
+    protected const CACHE_IRRELEVANT_FIELDS = [
+        'updated_at',
+        'cloudflare_hostname_id',
+        'cloudflare_status',
+        'cloudflare_ssl_status',
+        'cloudflare_last_error',
+        'cloudflare_active_at',
+        'ai_content_status',
+        'ai_content_error',
+        'ai_content_generated_at',
+    ];
+
+    /**
      * Keep the TenantResolver's cross-request domain cache honest: whenever a
      * website is saved or deleted, drop the cached lookup for both its old
      * and new domain so Host-header resolution reflects the change at once.
+     * Visitor-visible changes additionally purge the Cloudflare edge cache so
+     * the live custom domain updates in real time.
      */
     protected static function booted(): void
     {
@@ -24,6 +43,26 @@ class Website extends Model
 
         static::saved($flushDomainCache);
         static::deleted($flushDomainCache);
+
+        static::saved(function (self $website): void {
+            $visitorVisible = array_diff(array_keys($website->getChanges()), self::CACHE_IRRELEVANT_FIELDS);
+            if (!empty($visitorVisible)) {
+                $website->purgeEdgeCache();
+            }
+        });
+        static::deleted(fn (self $website) => $website->purgeEdgeCache());
+    }
+
+    /**
+     * Queue a Cloudflare edge-cache purge for this website's domain(s) so
+     * the live site reflects the change immediately.
+     */
+    public function purgeEdgeCache(): void
+    {
+        $domains = array_unique(array_filter([$this->domain, $this->getOriginal('domain')]));
+        foreach ($domains as $domain) {
+            \App\Jobs\PurgeCloudflareCacheJob::dispatchAfterResponse($domain);
+        }
     }
 
     protected $fillable = [
@@ -54,6 +93,9 @@ class Website extends Model
         'cloudflare_ssl_status',
         'cloudflare_last_error',
         'cloudflare_active_at',
+        'ai_content_status',
+        'ai_content_error',
+        'ai_content_generated_at',
         'tracking_scripts',
     ];
 
@@ -67,6 +109,7 @@ class Website extends Model
         'social_media' => 'array',
         'business_hours' => 'array',
         'cloudflare_active_at' => 'datetime',
+        'ai_content_generated_at' => 'datetime',
     ];
 
     /**

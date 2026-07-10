@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\Building;
 use App\Models\PropertyAiDescription;
 use App\Models\PropertyFaq;
 
@@ -324,13 +325,17 @@ class GeminiAIService
     /**
      * Call Gemini API to generate content
      */
-    private function generateContent(string $prompt): string
+    private function generateContent(string $prompt, int $maxOutputTokens = 200): string
     {
         try {
             // Debug log the API URL being used
             Log::info('Gemini API URL: ' . $this->apiUrl . '?key=***');
 
-            $response = Http::timeout(10)->withHeaders([
+            // Larger generations (full homepage copy) need more wall time
+            // than the 10s that suffices for short snippets.
+            $timeout = $maxOutputTokens > 1000 ? 60 : 10;
+
+            $response = Http::timeout($timeout)->withHeaders([
                 'Content-Type' => 'application/json',
             ])->post($this->apiUrl . '?key=' . $this->apiKey, [
                 'contents' => [
@@ -344,7 +349,7 @@ class GeminiAIService
                     'temperature' => 0.7,
                     'topK' => 20,
                     'topP' => 0.8,
-                    'maxOutputTokens' => 200,
+                    'maxOutputTokens' => $maxOutputTokens,
                 ]
             ]);
 
@@ -992,5 +997,180 @@ class GeminiAIService
         $description .= " This building represents the perfect blend of luxury, convenience, and modern design, offering an unparalleled living experience in one of the area's most desirable locations.";
 
         return $description;
+    }
+
+    /**
+     * Build the SEO-optimized building-description prompt straight from a
+     * Building model (same instructions as the admin "Generate with AI"
+     * button in Api\BuildingController::buildAiDescriptionPrompt(), which
+     * receives the facts as request payload instead of a model).
+     */
+    public function buildBuildingDescriptionPromptFromModel(Building $building): string
+    {
+        $name = $building->name ?: 'Building';
+        $city = $building->city ?: 'Toronto';
+        $neighbourhood = (string) $building->neighbourhood;
+        $buildingType = str_replace('_', ' ', (string) ($building->building_type ?: 'condominium'));
+
+        $amenities = $building->relationLoaded('amenities')
+            ? $building->amenities->pluck('name')->all()
+            : $building->amenities()->pluck('name')->all();
+        $feeAmenities = $building->relationLoaded('maintenanceFeeAmenities')
+            ? $building->maintenanceFeeAmenities->pluck('name')->all()
+            : $building->maintenanceFeeAmenities()->pluck('name')->all();
+
+        $facts = array_filter([
+            'Building Name' => $name,
+            'Address' => implode(', ', array_filter([
+                $building->address,
+                $city,
+                $building->province,
+            ])),
+            'Neighbourhood' => implode(' / ', array_filter([$building->sub_neighbourhood, $neighbourhood])),
+            'Type' => ucfirst($buildingType),
+            'Construction Status' => str_replace('_', ' ', (string) $building->development_status),
+            'Total Units' => $building->total_units,
+            'Number of Floors' => $building->floors,
+            'Year Built' => $building->year_built,
+            'Parking Spots' => $building->parking_spots,
+            'Locker Spots' => $building->locker_spots,
+            'Price Range' => $building->price_range,
+            'Maintenance Fee Range' => $building->maintenance_fee_range,
+            'Developer' => $building->developer_name,
+            'Management' => $building->management_name,
+            'Building Amenities' => implode(', ', $amenities),
+            'Amenities Included in Maintenance Fees' => implode(', ', $feeAmenities),
+        ], fn ($value) => $value !== '' && $value !== null);
+
+        $prompt = "You are an expert real estate copywriter and SEO specialist. Write a building profile description for this {$buildingType}:\n\n";
+        foreach ($facts as $label => $value) {
+            $prompt .= "{$label}: {$value}\n";
+        }
+
+        $locationPhrase = $neighbourhood ? "{$neighbourhood}, {$city}" : $city;
+
+        $prompt .= "\nSEO requirements:\n";
+        $prompt .= "- Open the first sentence with the building name and its address/location — this is the page's primary keyword.\n";
+        $prompt .= "- Naturally work in search phrases buyers use, such as \"{$name} condos\", \"condos for sale in {$locationPhrase}\" and \"{$name} {$city}\" — at most once each, never stuffed or repeated.\n";
+        $prompt .= "- Mention the neighbourhood and its lifestyle/transit context so the copy ranks for local searches.\n";
+        $prompt .= "- Use only the facts provided above. Never invent details, distances, prices or dates.\n\n";
+        $prompt .= "Writing requirements:\n";
+        $prompt .= "- 150-220 words in 2-3 short paragraphs of flowing prose (no headings, no bullet points, no markdown).\n";
+        $prompt .= "- Confident, professional tone aimed at buyers, renters and investors.\n";
+        $prompt .= "- Weave the strongest amenities into a lifestyle picture instead of listing them all.\n";
+        $prompt .= "- Avoid filler cliches such as \"nestled\", \"boasts\", \"stunning\", \"epitome of luxury\" and \"perfect blend\".\n";
+        $prompt .= "- End with a sentence that motivates the reader to explore current listings in the building.\n\n";
+        $prompt .= "Return only the description text, no additional formatting or explanations.";
+
+        return $prompt;
+    }
+
+    /**
+     * Generate the homepage copy for a building website in one call:
+     * hero (welcome_text / main_heading / subheading), the About-tab
+     * overview paragraph, and 6 building-specific FAQs.
+     *
+     * Returns null on hard failure (API down, unparseable JSON) so the
+     * caller keeps the template content. Partial results are allowed —
+     * every key is validated independently and missing/empty ones are
+     * dropped from the returned array.
+     */
+    public function generateWebsiteHomeContent(array $context): ?array
+    {
+        $name = trim((string) ($context['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+
+        // List facts may arrive as plain strings, arrays of strings, or
+        // arrays of structured entries (e.g. nearby_transit rows of
+        // {name, type, distance}) — flatten every shape to one line.
+        $flattenList = function ($value): string {
+            if (!is_array($value)) {
+                return trim((string) $value);
+            }
+            $parts = array_map(function ($item) {
+                if (is_array($item)) {
+                    return implode(' ', array_filter(array_map(
+                        fn ($v) => is_scalar($v) ? trim((string) $v) : '',
+                        $item
+                    )));
+                }
+                return is_scalar($item) ? trim((string) $item) : '';
+            }, $value);
+            return implode(', ', array_filter($parts));
+        };
+
+        $facts = array_filter([
+            'Building Name' => $name,
+            'Address' => $context['address'] ?? '',
+            'City' => $context['city'] ?? '',
+            'Neighbourhood' => $context['neighbourhood'] ?? '',
+            'Type' => $context['building_type'] ?? '',
+            'Floors' => $context['floors'] ?? '',
+            'Total Units' => $context['total_units'] ?? '',
+            'Year Built' => $context['year_built'] ?? '',
+            'Unit Size Range' => $context['sqft_range'] ?? '',
+            'Amenities' => $flattenList($context['amenities'] ?? ''),
+            'Nearby Transit' => $flattenList($context['nearby_transit'] ?? ''),
+            'Description' => $context['description'] ?? '',
+        ], fn ($value) => $value !== '' && $value !== null);
+
+        $prompt = "You are a real estate copywriter for a luxury condo building website. "
+            . "Write the homepage copy for this building using ONLY the facts below — never invent prices, distances or dates.\n\n";
+        foreach ($facts as $label => $value) {
+            $prompt .= "{$label}: {$value}\n";
+        }
+        $prompt .= "\nReturn ONLY a strict JSON object (no markdown, no commentary) with exactly these keys:\n"
+            . "- welcome_text: short all-caps welcome line, e.g. \"WELCOME TO {$name}\" (max 60 characters)\n"
+            . "- main_heading: engaging hero headline about living at this building (max 70 characters)\n"
+            . "- subheading: one supporting sentence for the hero (max 160 characters)\n"
+            . "- overview: 2-3 paragraph building overview for the About section (150-250 words, plain text, paragraphs separated by \\n\\n)\n"
+            . "- faqs: array of exactly 6 objects, each {\"question\": \"...\", \"answer\": \"...\"} — practical questions buyers/renters ask about this building "
+            . "(amenities, neighbourhood, transit, pets, viewings, what makes it special). Answers 2-3 sentences, grounded in the facts; "
+            . "where a fact is unknown, direct the reader to contact the leasing team instead of inventing it.\n";
+
+        try {
+            $raw = $this->generateContent($prompt, 3000);
+            $clean = trim($raw);
+            $clean = preg_replace('/^```(?:json)?\s*/i', '', $clean);
+            $clean = preg_replace('/```\s*$/', '', $clean);
+            $clean = trim($clean);
+
+            $parsed = json_decode($clean, true);
+            if (!is_array($parsed) && preg_match('/\{[\s\S]*\}/', $clean, $m)) {
+                $parsed = json_decode($m[0], true);
+            }
+
+            if (!is_array($parsed)) {
+                Log::warning('Gemini website home content did not return valid JSON', ['raw' => $raw]);
+                return null;
+            }
+
+            $result = [];
+            foreach (['welcome_text', 'main_heading', 'subheading', 'overview'] as $key) {
+                $value = $parsed[$key] ?? null;
+                if (is_string($value) && trim($value) !== '') {
+                    $result[$key] = trim($value);
+                }
+            }
+
+            $faqs = [];
+            foreach ((array) ($parsed['faqs'] ?? []) as $item) {
+                $question = is_array($item) ? trim((string) ($item['question'] ?? '')) : '';
+                $answer = is_array($item) ? trim((string) ($item['answer'] ?? '')) : '';
+                if ($question !== '' && $answer !== '') {
+                    $faqs[] = ['question' => $question, 'answer' => $answer];
+                }
+            }
+            if (!empty($faqs)) {
+                $result['faqs'] = $faqs;
+            }
+
+            return !empty($result) ? $result : null;
+        } catch (\Exception $e) {
+            Log::error('Gemini website home content error: ' . $e->getMessage());
+            return null;
+        }
     }
 }

@@ -47,6 +47,14 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
     ],
 
+    // Condos.ca Developers API — powers the developer auto-match, search
+    // and import on the building/developer admin forms
+    // (see DEVELOPERS-API-DOCS.md).
+    'developers_api' => [
+        'base_url' => env('DEVELOPERS_API_URL', 'https://developers-api.royal-scene-c64e.workers.dev'),
+        'key' => env('DEVELOPERS_API_KEY'),
+    ],
+
     // Cloudflare for SaaS (Custom Hostnames): customer domains CNAME to
     // cname_target and Cloudflare terminates SSL — no server-side certbot.
     'cloudflare' => [

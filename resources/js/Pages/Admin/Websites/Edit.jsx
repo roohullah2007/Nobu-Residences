@@ -382,6 +382,39 @@ export default function Edit({ auth }) {
                             </div>
 
                             <div className="space-y-4">
+                                {/* Building Selection — always available so the linked
+                                    building can be changed after the site is created. */}
+                                <div>
+                                    <label htmlFor="homepage_building_id" className="block text-sm font-medium text-gray-700 mb-1">
+                                        Building
+                                    </label>
+                                    <select
+                                        id="homepage_building_id"
+                                        value={data.homepage_building_id || ''}
+                                        onChange={(e) => setData('homepage_building_id', e.target.value || null)}
+                                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                    >
+                                        <option value="">-- Select a Building --</option>
+                                        {buildings?.map((building) => (
+                                            <option key={building.id} value={building.id}>
+                                                {building.name} {building.address && `- ${building.address}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.homepage_building_id && (
+                                        <p className="mt-2 text-sm text-red-600">{errors.homepage_building_id}</p>
+                                    )}
+                                    <p className="mt-2 text-sm text-gray-500">
+                                        This building's data powers the website.
+                                        {String(data.homepage_building_id || '') !== String(website?.homepage_building_id || '') && (
+                                            <span className="block mt-1 font-medium text-amber-600">
+                                                Saving will rebuild the homepage content (hero, key facts, FAQ, footer) from the
+                                                selected building's data, replacing any manual homepage edits.
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+
                                 {/* Use Building as Homepage Toggle */}
                                 <div className="flex items-start">
                                     <div className="flex items-center h-5">
@@ -398,40 +431,10 @@ export default function Edit({ auth }) {
                                             Use Building Page as Homepage
                                         </label>
                                         <p className="text-gray-500">
-                                            Display a building details page as the homepage instead of the default homepage
+                                            Display the selected building's details page as the homepage instead of the default homepage
                                         </p>
                                     </div>
                                 </div>
-
-                                {/* Building Selection */}
-                                {data.use_building_as_homepage && (
-                                    <div className="ml-7">
-                                        <label htmlFor="homepage_building_id" className="block text-sm font-medium text-gray-700 mb-1">
-                                            Select Building
-                                        </label>
-                                        <select
-                                            id="homepage_building_id"
-                                            value={data.homepage_building_id || ''}
-                                            onChange={(e) => setData('homepage_building_id', e.target.value || null)}
-                                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                                        >
-                                            <option value="">-- Select a Building --</option>
-                                            {buildings?.map((building) => (
-                                                <option key={building.id} value={building.id}>
-                                                    {building.name} {building.address && `- ${building.address}`}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.homepage_building_id && (
-                                            <p className="mt-2 text-sm text-red-600">{errors.homepage_building_id}</p>
-                                        )}
-                                        {data.homepage_building_id && (
-                                            <p className="mt-2 text-sm text-gray-500">
-                                                When users visit your homepage, they will see the details page for the selected building.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>

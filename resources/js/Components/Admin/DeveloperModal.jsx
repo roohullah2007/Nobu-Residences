@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { csrfHeaders } from '@/utils/csrf';
+import DeveloperApiSearch from '@/Components/Admin/DeveloperApiSearch';
+import { importDeveloperFromApi } from '@/utils/developersApi';
 
 const EMPTY_FORM = {
     name: '',
@@ -53,6 +55,24 @@ export default function DeveloperModal({ open, onClose, onCreated }) {
         onClose();
     };
 
+    // Picking a directory result imports the developer straight into our
+    // database (existing rows are reused, only missing fields fill) and
+    // hands it back to the caller — no manual form entry needed.
+    const handleApiSelect = async (apiDeveloper) => {
+        if (isSaving) return;
+        setIsSaving(true);
+        setError('');
+        try {
+            const developer = await importDeveloperFromApi(apiDeveloper.slug);
+            onCreated?.(developer);
+            handleClose();
+        } catch (err) {
+            setError(err.message ?? 'Failed to load developer from the directory.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!form.name.trim() || isSaving) return;
@@ -94,6 +114,20 @@ export default function DeveloperModal({ open, onClose, onCreated }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                 <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Add Developer</h2>
+
+                {/* Directory-first: searching condos.ca and picking a result
+                    imports the developer into our database in one click. */}
+                <div className="mb-4 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                    <DeveloperApiSearch
+                        label="Search the developer directory (condos.ca)"
+                        onSelect={handleApiSelect}
+                    />
+                    <p className="mt-2 text-xs text-[#64748b]">
+                        Picking a result loads the developer (name, website, logo) into the database instantly
+                        — or enter the details manually below.
+                    </p>
+                </div>
+
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

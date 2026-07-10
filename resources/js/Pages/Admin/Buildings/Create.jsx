@@ -9,8 +9,10 @@ import InputError from '@/Components/InputError';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
 import DeveloperModal from '@/Components/Admin/DeveloperModal';
+import DeveloperApiSearch from '@/Components/Admin/DeveloperApiSearch';
 import useGooglePlacesAutocomplete from '@/hooks/useGooglePlacesAutocomplete';
 import { csrfHeaders } from '@/utils/csrf';
+import { importDeveloperFromApi, matchDeveloperByBuildingName } from '@/utils/developersApi';
 
 export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -90,6 +92,8 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const [generatingAiDescription, setGeneratingAiDescription] = useState(false);
     const [aiDescriptionError, setAiDescriptionError] = useState('');
     const [showDeveloperModal, setShowDeveloperModal] = useState(false);
+    const [developerApiMessage, setDeveloperApiMessage] = useState('');
+    const [developerApiError, setDeveloperApiError] = useState('');
 
     // Full Add Developer modal (logo upload etc.) instead of the old
     // name-only inline quick-add. Appends and selects the new developer.
@@ -98,6 +102,38 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
             prev.some((d) => d.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
         );
         setData('developer_id', String(item.id));
+    };
+
+    // Auto-select the developer from the condos.ca developer directory when
+    // the building name matches one of its records. Best effort, and never
+    // overrides a developer the admin already picked.
+    const handleBuildingNameBlur = async () => {
+        const name = data.name.trim();
+        if (name.length < 2 || data.developer_id) return;
+        try {
+            const developer = await matchDeveloperByBuildingName(name);
+            if (developer) {
+                handleDeveloperCreated(developer);
+                setDeveloperApiError('');
+                setDeveloperApiMessage(`Developer "${developer.name}" auto-selected from the developer directory.`);
+            }
+        } catch {
+            // Silent — the manual directory search below still works.
+        }
+    };
+
+    // A directory pick is imported server-side (existing developers are
+    // reused, only missing fields fill) and then selected in the dropdown.
+    const handleApiDeveloperSelect = async (apiDeveloper) => {
+        try {
+            const developer = await importDeveloperFromApi(apiDeveloper.slug);
+            handleDeveloperCreated(developer);
+            setDeveloperApiError('');
+            setDeveloperApiMessage(`Developer "${developer.name}" loaded from the developer directory.`);
+        } catch (err) {
+            setDeveloperApiMessage('');
+            setDeveloperApiError(err.message ?? 'Failed to load developer from the directory.');
+        }
     };
 
     // Google Places autofill: picking an address suggestion fills postal
@@ -483,6 +519,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         className="mt-1 block w-full"
                                         value={data.name}
                                         onChange={(e) => setData('name', e.target.value)}
+                                        onBlur={handleBuildingNameBlur}
                                         placeholder="e.g., The Well"
                                         required
                                     />
@@ -746,6 +783,15 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         error={errors.developer_id}
                                         onRequestCreate={() => setShowDeveloperModal(true)}
                                     />
+                                    <div className="mt-2">
+                                        <DeveloperApiSearch onSelect={handleApiDeveloperSelect} />
+                                    </div>
+                                    {developerApiMessage && (
+                                        <p className="mt-1 text-xs text-green-600">{developerApiMessage}</p>
+                                    )}
+                                    {developerApiError && (
+                                        <p className="mt-1 text-xs text-red-600">{developerApiError}</p>
+                                    )}
                                 </div>
 
                                 <div className="sm:col-span-2">

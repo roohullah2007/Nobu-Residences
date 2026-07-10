@@ -78,15 +78,19 @@ const Row = ({ icon, title, status, message }) => (
 );
 
 export default function WebsiteCreated({ website, report, liveStatus, persisted = {}, cloudflare = {} }) {
-    // Auto-refresh while the hostname/SSL is still pending so the user sees
-    // activation without manually reloading.
+    // Auto-refresh while the hostname/SSL or the background AI content
+    // generation is still pending so the user sees completion without
+    // manually reloading.
     const [autoPoll, setAutoPoll] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const isPending = Boolean(website.domain) && persisted?.status !== 'active';
+    const [pollCount, setPollCount] = useState(0);
+    const aiPending = website.ai_content_status === 'pending';
+    const isPending = (Boolean(website.domain) && persisted?.status !== 'active') || aiPending;
 
     const refreshNow = () => {
         if (refreshing) return;
         setRefreshing(true);
+        setPollCount((n) => n + 1);
         router.reload({
             preserveScroll: true,
             onFinish: () => setRefreshing(false),
@@ -107,6 +111,16 @@ export default function WebsiteCreated({ website, report, liveStatus, persisted 
         router.post(route('admin.websites.retry-hostname', website.id), {}, {
             preserveScroll: true,
             onFinish: () => setRetrying(false),
+        });
+    };
+
+    const [retryingAi, setRetryingAi] = useState(false);
+    const retryAiContent = () => {
+        if (retryingAi) return;
+        setRetryingAi(true);
+        router.post(route('admin.websites.retry-ai-content', website.id), {}, {
+            preserveScroll: true,
+            onFinish: () => setRetryingAi(false),
         });
     };
 
@@ -205,8 +219,24 @@ export default function WebsiteCreated({ website, report, liveStatus, persisted 
                         status={report?.ssl?.ok ?? null}
                         message={report?.ssl?.message}
                     />
+                    {liveStatus?.ai && (
+                        <Row
+                            icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>}
+                            title="AI content (SEO + homepage copy)"
+                            status={liveStatus.ai.ok}
+                            message={liveStatus.ai.message}
+                        />
+                    )}
 
-                    {website.domain && (
+                    {aiPending && pollCount >= 4 && (
+                        <div className="mt-3 text-xs p-3 bg-amber-50 border border-amber-200 rounded text-amber-800">
+                            AI content is still pending — make sure the queue worker is running:
+                            {' '}<code className="font-mono">php artisan queue:work</code>.
+                            The site is already live with the template content meanwhile.
+                        </div>
+                    )}
+
+                    {(website.domain || website.ai_content_status === 'failed' || aiPending) && (
                         <div className="mt-4 flex flex-wrap items-center gap-3">
                             <button
                                 type="button"

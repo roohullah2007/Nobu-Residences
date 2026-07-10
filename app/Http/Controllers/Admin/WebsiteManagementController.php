@@ -10,7 +10,6 @@ use App\Models\Icon;
 use App\Models\AgentInfo;
 use App\Services\CloudflareService;
 use App\Services\HealthCheckService;
-use App\Services\GeminiAIService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -61,49 +60,16 @@ class WebsiteManagementController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Default branding + agent from the default website (typically Nobu).
-        // Looking up the agent by name was returning the FIRST "Jatin Gill"
-        // row by ID, which was a stale row from the older "Broker /
-        // Property.ca" setup rather than the current "Agent / RE/MAX" one
-        // saved against the default website. Source-of-truth is the
-        // is_default site's agentInfo relation.
-        $nobu = Website::where('is_default', true)->with('agentInfo')->first();
-        $defaultAgent = $nobu?->agentInfo;
-
-        $defaultAgentPayload = $defaultAgent
-            ? [
-                'agent_name' => $defaultAgent->agent_name,
-                'agent_title' => $defaultAgent->agent_title,
-                'agent_phone' => $defaultAgent->agent_phone,
-                'brokerage' => $defaultAgent->brokerage,
-                'profile_image' => $defaultAgent->profile_image,
-            ]
-            : [
-                'agent_name' => null,
-                'agent_title' => null,
-                'agent_phone' => null,
-                'brokerage' => null,
-                'profile_image' => null,
-            ];
-
-        $defaultBranding = [
-            'logo_url' => $nobu?->logo_url ?: $nobu?->logo ?: '/assets/logo.png',
-            'favicon_url' => $nobu?->favicon_url ?: '/favicon.ico',
-        ];
-
-        // Default contact_info / social_media inherited from the default
-        // site so new sites pre-fill with Nobu's phone/email/address +
-        // social handles rather than starting blank.
-        $defaultContactInfo = is_array($nobu?->contact_info) ? $nobu->contact_info : [];
-        $defaultSocialMedia = is_array($nobu?->social_media) ? $nobu->social_media : [];
-
+        // Branding/contact/agent inheritance now happens server-side in
+        // store(), so the create screen only needs the building list plus
+        // the Cloudflare bits for the optional-domain field. The badge data
+        // lets the UI flag buildings that already have a website (duplicates
+        // are allowed — the slug auto-suffixes).
         return Inertia::render('Admin/Websites/Create', [
             'title' => 'Create New Website',
             'buildings' => $buildings,
-            'defaultAgent' => $defaultAgentPayload,
-            'defaultBranding' => $defaultBranding,
-            'defaultContactInfo' => $defaultContactInfo,
-            'defaultSocialMedia' => $defaultSocialMedia,
+            'buildingIdsWithWebsite' => Website::whereNotNull('homepage_building_id')
+                ->pluck('homepage_building_id'),
             'cloudflareEnabled' => app(CloudflareService::class)->isConfigured(),
             // The hostname customers point their single CNAME record at.
             'cnameTarget' => app(CloudflareService::class)->cnameTarget(),
@@ -113,41 +79,18 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Generate SEO metadata (title/description/keywords) for the Create form.
-     */
-    public function aiGenerateSeo(Request $request, GeminiAIService $ai)
-    {
-        $request->validate([
-            'name' => 'nullable|string|max:255',
-            'building_id' => 'nullable|exists:buildings,id',
-        ]);
-
-        $context = [
-            'name' => $request->input('name') ?: 'New Website',
-        ];
-
-        if ($buildingId = $request->input('building_id')) {
-            $building = Building::find($buildingId);
-            if ($building) {
-                $context['building_name'] = $building->name;
-                $context['address'] = $building->address;
-                $context['city'] = $building->city;
-                $context['description'] = $building->description;
-            }
-        }
-
-        $seo = $ai->generateSeoMeta($context);
-
-        return response()->json($seo);
-    }
-
-    /**
      * Store new website
      */
     public function store(Request $request, CloudflareService $cloudflare): RedirectResponse
     {
         // Parse nested keys from FormData (e.g., 'brand_colors.primary')
         $data = $request->all();
+
+        // One-click flow: the website name defaults to the selected
+        // building's name when the admin didn't type one.
+        if (empty($data['name']) && !empty($data['building_id'])) {
+            $data['name'] = Building::find($data['building_id'])?->name;
+        }
 
         // Auto-generate slug from name if missing (we no longer expose the slug field in the UI)
         if (empty($data['slug']) && !empty($data['name'])) {
@@ -272,12 +215,35 @@ class WebsiteManagementController extends Controller
         if (empty($validated['is_default'])) {
             $defaultSite = Website::where('is_default', true)->first();
             if ($defaultSite) {
-                foreach (['brand_colors', 'fonts'] as $field) {
+                // These used to arrive prefilled from the Create form; the
+                // one-click flow submits none of them, so the same
+                // inheritance now happens here.
+                foreach (['brand_colors', 'fonts', 'contact_info', 'social_media', 'logo', 'logo_url', 'favicon_url', 'timezone'] as $field) {
                     if (empty($validated[$field]) && !empty($defaultSite->{$field})) {
                         $validated[$field] = $defaultSite->{$field};
                     }
                 }
             }
+        }
+        if (empty($validated['timezone'])) {
+            $validated['timezone'] = 'America/Toronto';
+        }
+
+        // Instant SEO fallback (same shape as GeminiAIService's fallback) so
+        // the site has usable meta immediately — the queued AI job replaces
+        // these with generated copy within a minute when a worker is running.
+        $linkedBuilding = !empty($validated['homepage_building_id'])
+            ? Building::find($validated['homepage_building_id'])
+            : null;
+        if (empty($validated['meta_title'])) {
+            $loc = $linkedBuilding?->city ?: 'Toronto';
+            $siteName = $validated['name'];
+            $validated['meta_title'] = trim($siteName . ' - Luxury Condos in ' . $loc);
+            $validated['meta_description'] = "Discover {$siteName} - premium condos in {$loc}. Explore floor plans, amenities, and current listings.";
+            $validated['meta_keywords'] = strtolower($siteName) . ", {$loc} condos, luxury real estate, toronto condos, condos for sale, real estate {$loc}";
+        }
+        if (empty($validated['description']) && $linkedBuilding && trim((string) $linkedBuilding->description) !== '') {
+            $validated['description'] = $linkedBuilding->description;
         }
 
         // Handle logo file upload
@@ -322,6 +288,33 @@ class WebsiteManagementController extends Controller
         ];
         unset($validated['agent_name'], $validated['agent_title'], $validated['agent_phone'],
               $validated['brokerage'], $validated['agent_profile_image']);
+
+        // One-click flow submits no agent fields: prefer the linked
+        // building's agent, then fall back to the default website's
+        // agentInfo row (same precedence the old Create form prefill used).
+        if (!array_filter($agentData) && !$request->hasFile('agent_profile_image')) {
+            if ($linkedBuilding && ($linkedBuilding->agent_name || $linkedBuilding->agent_phone)) {
+                $agentData = [
+                    'agent_name' => $linkedBuilding->agent_name,
+                    'agent_title' => $linkedBuilding->agent_title,
+                    'agent_phone' => $linkedBuilding->agent_phone,
+                    'brokerage' => $linkedBuilding->agent_brokerage,
+                ];
+                if ($linkedBuilding->agent_image) {
+                    $agentData['profile_image'] = $linkedBuilding->agent_image;
+                }
+            } elseif ($defaultAgent = Website::where('is_default', true)->first()?->agentInfo) {
+                $agentData = [
+                    'agent_name' => $defaultAgent->agent_name,
+                    'agent_title' => $defaultAgent->agent_title,
+                    'agent_phone' => $defaultAgent->agent_phone,
+                    'brokerage' => $defaultAgent->brokerage,
+                ];
+                if ($defaultAgent->profile_image) {
+                    $agentData['profile_image'] = $defaultAgent->profile_image;
+                }
+            }
+        }
 
         $website = Website::create($validated);
 
@@ -369,6 +362,15 @@ class WebsiteManagementController extends Controller
             'is_active' => true,
             'sort_order' => 0,
         ]);
+
+        // Auto-provision the content with AI in the background: SEO meta,
+        // building description (if missing) and homepage copy. The site is
+        // fully usable with the personalized template meanwhile; the Created
+        // status page polls ai_content_status until this lands.
+        if ($website->homepage_building_id) {
+            $website->update(['ai_content_status' => 'pending']);
+            \App\Jobs\GenerateWebsiteAiContentJob::dispatch($website->id);
+        }
 
         $this->provisionCustomHostname($website, $cloudflare);
 
@@ -530,6 +532,12 @@ class WebsiteManagementController extends Controller
                     : ($check['hostname_exists'] === true
                         ? ['ok' => null, 'message' => "SSL status: " . ($check['ssl_status'] ?: 'pending') . ". Waiting for the CNAME record ({$domain} -> {$cnameTarget}); activation is automatic once it exists."]
                         : ['ok' => null, 'message' => 'SSL activates automatically after the hostname is registered and the CNAME exists.'])),
+            'ai' => match ($website->ai_content_status) {
+                'completed' => ['ok' => true, 'message' => 'AI content is live: SEO metadata, hero copy, About text and building-specific FAQs.'],
+                'failed' => ['ok' => false, 'message' => 'AI content generation failed — the template content stays live. ' . ($website->ai_content_error ?: '')],
+                'pending' => ['ok' => null, 'message' => 'AI is writing the SEO metadata, hero copy, About text and FAQs — template content is live meanwhile.'],
+                default => null,
+            },
         ];
 
         // Persistent provisioning state from the DB — survives reloads and
@@ -551,6 +559,8 @@ class WebsiteManagementController extends Controller
                 'domain' => $website->domain,
                 'is_active' => $website->is_active,
                 'created_at' => optional($website->created_at)->toDateTimeString(),
+                'ai_content_status' => $website->ai_content_status,
+                'ai_content_error' => $website->ai_content_error,
             ],
             // The most recent action (if any) plus the live current state.
             'report' => $report ?: $liveStatus,
@@ -575,6 +585,23 @@ class WebsiteManagementController extends Controller
         }
 
         $this->provisionCustomHostname($website, $cloudflare);
+
+        return redirect()->route('admin.websites.created', $website);
+    }
+
+    /**
+     * Re-run the AI content auto-provisioning (SEO meta + homepage copy)
+     * for a building-linked website. force=true bypasses the job's
+     * completed-guard so an explicit regenerate always regenerates.
+     */
+    public function retryAiContent(Website $website): RedirectResponse
+    {
+        if (empty($website->homepage_building_id)) {
+            return back()->withErrors(['ai' => 'This website has no linked building — nothing to generate from.']);
+        }
+
+        $website->update(['ai_content_status' => 'pending', 'ai_content_error' => null]);
+        \App\Jobs\GenerateWebsiteAiContentJob::dispatch($website->id, force: true);
 
         return redirect()->route('admin.websites.created', $website);
     }
@@ -867,6 +894,7 @@ class WebsiteManagementController extends Controller
         // any other tenant.
         $oldDomain = $website->domain;
         $newDomain = $validated['domain'] ?? null;
+        $oldBuildingId = $website->homepage_building_id;
         $cfMessages = [];
 
         if ($oldDomain && $oldDomain !== $newDomain && $cloudflare->isConfigured()) {
@@ -894,6 +922,12 @@ class WebsiteManagementController extends Controller
         // Update the website
         $website->update($validated);
 
+        // Changing the linked building must refresh the homepage content:
+        // the stored home-page JSON embeds the building's name, facts,
+        // images and FAQ copy, so without regeneration the site keeps
+        // showing the previous building's data.
+        $buildingMessage = $this->regenerateHomePageForBuildingChange($website, $oldBuildingId);
+
         // Register the NEW domain right away — the customer only has to
         // create their CNAME; activation is then fully automatic.
         if ($newDomain && $oldDomain !== $newDomain && $cloudflare->isConfigured()) {
@@ -916,6 +950,9 @@ class WebsiteManagementController extends Controller
         }
 
         $success = 'Website updated successfully!';
+        if ($buildingMessage !== null) {
+            $success .= ' ' . $buildingMessage;
+        }
         if (!empty($cfMessages)) {
             $success .= ' Cloudflare: ' . implode(' | ', $cfMessages);
         }
@@ -926,6 +963,39 @@ class WebsiteManagementController extends Controller
         // Return Inertia redirect to edit page to stay on same page
         return redirect()->route('admin.websites.edit', $website->id)
             ->with('success', $success);
+    }
+
+    /**
+     * When the website's linked building changed, rebuild the home page
+     * content from the NEW building (same generator the create flow uses)
+     * so its name, facts, images and FAQ copy replace the old building's.
+     * Returns a status message for the redirect, or null when unchanged.
+     */
+    protected function regenerateHomePageForBuildingChange(Website $website, ?string $oldBuildingId): ?string
+    {
+        $newBuildingId = $website->homepage_building_id;
+        if (!$newBuildingId || (string) $newBuildingId === (string) $oldBuildingId) {
+            return null;
+        }
+
+        $building = Building::find($newBuildingId);
+        $homePage = $website->homePage();
+        if (!$building || !$homePage) {
+            return null;
+        }
+
+        $homePage->update([
+            'title' => "Home - {$website->name}",
+            'content' => WebsitePage::getDefaultHomeContentForBuilding($building),
+        ]);
+
+        Log::info('Website homepage regenerated for building change', [
+            'website_id' => $website->id,
+            'old_building_id' => $oldBuildingId,
+            'new_building_id' => $newBuildingId,
+        ]);
+
+        return "Homepage content was refreshed with the data of \"{$building->name}\".";
     }
 
     /**

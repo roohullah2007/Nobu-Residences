@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
+import DeveloperApiSearch from '@/Components/Admin/DeveloperApiSearch';
+import { importDeveloperFromApi } from '@/utils/developersApi';
 
 // Logo thumbnail with a fallback: broken/missing images swap to the
 // initial-letter avatar instead of showing raw alt text.
@@ -46,8 +48,30 @@ export default function DevelopersIndex({ developers }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [logoPreview, setLogoPreview] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
+    const [apiImportError, setApiImportError] = useState('');
+    const [isImportingFromApi, setIsImportingFromApi] = useState(false);
 
     const { data, setData, processing, errors, reset } = useForm({ ...emptyForm });
+
+    // Picking a directory result imports the developer straight into our
+    // database (existing rows are reused, only missing fields fill), then
+    // refreshes the list — no manual form entry needed.
+    const handleApiSelect = async (apiDeveloper) => {
+        if (isImportingFromApi) return;
+        setIsImportingFromApi(true);
+        setApiImportError('');
+        try {
+            await importDeveloperFromApi(apiDeveloper.slug);
+            setShowCreateModal(false);
+            reset();
+            setLogoPreview(null);
+            router.reload({ only: ['developers'] });
+        } catch (err) {
+            setApiImportError(err.message ?? 'Failed to load developer from the directory.');
+        } finally {
+            setIsImportingFromApi(false);
+        }
+    };
 
     const handleLogoChange = (e) => {
         const file = e.target.files[0];
@@ -487,6 +511,22 @@ export default function DevelopersIndex({ developers }) {
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
                         <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Add Developer</h2>
+
+                        {/* Directory-first: searching condos.ca and picking a
+                            result imports the developer in one click. */}
+                        <div className="mb-4 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                            <DeveloperApiSearch
+                                label="Search the developer directory (condos.ca)"
+                                onSelect={handleApiSelect}
+                            />
+                            <p className="mt-2 text-xs text-[#64748b]">
+                                {isImportingFromApi
+                                    ? 'Importing developer...'
+                                    : 'Picking a result loads the developer (name, website, logo) into the database instantly — or enter the details manually below.'}
+                            </p>
+                            {apiImportError && <p className="mt-1 text-xs text-[#dc2626]">{apiImportError}</p>}
+                        </div>
+
                         <form onSubmit={handleCreate}>
                             {renderFormFields()}
 

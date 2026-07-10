@@ -26,6 +26,21 @@ class WebsitePage extends Model
     ];
 
     /**
+     * Published pages are cached at Cloudflare's edge — purge the parent
+     * website's domain whenever page content changes so publishes show on
+     * the live custom domain in real time.
+     */
+    protected static function booted(): void
+    {
+        $purge = function (self $page): void {
+            $page->website?->purgeEdgeCache();
+        };
+
+        static::saved($purge);
+        static::deleted($purge);
+    }
+
+    /**
      * Get the website that owns this page
      */
     public function website(): BelongsTo

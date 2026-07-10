@@ -222,6 +222,55 @@ class CloudflareService
     }
 
     /**
+     * Purge Cloudflare's edge cache for one customer domain so content and
+     * settings changes show on the live site immediately. Tries the
+     * hosts-based purge first (one call covers every URL on the domain);
+     * plans without it fall back to purging the domain's root URLs by file.
+     */
+    public function purgeDomainCache(string $domain): array
+    {
+        $domain = TenantResolver::normalizeHost($domain);
+        if ($domain === '') {
+            return [false, 'No domain provided.'];
+        }
+        if (!$this->isConfigured()) {
+            return [false, 'Cloudflare is not configured.'];
+        }
+
+        $hosts = array_values(array_unique([$domain, 'www.' . $domain]));
+
+        try {
+            if ($this->requestPurge(['hosts' => $hosts])) {
+                Log::info('Cloudflare cache purged by host', ['hosts' => $hosts]);
+                return [true, "Cloudflare cache purged for {$domain}."];
+            }
+
+            $files = [];
+            foreach ($hosts as $host) {
+                $files[] = "https://{$host}/";
+                $files[] = "http://{$host}/";
+            }
+            if ($this->requestPurge(['files' => $files])) {
+                Log::info('Cloudflare cache purged by URL', ['files' => $files]);
+                return [true, "Cloudflare cache purged for {$domain}."];
+            }
+
+            Log::warning('Cloudflare cache purge failed', ['domain' => $domain]);
+            return [false, "Cloudflare cache purge failed for {$domain}."];
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare cache purge exception', ['domain' => $domain, 'error' => $e->getMessage()]);
+            return [false, 'Cloudflare request failed: ' . $e->getMessage()];
+        }
+    }
+
+    protected function requestPurge(array $payload): bool
+    {
+        $response = $this->client()->post("{$this->baseUrl}/zones/{$this->zoneId}/purge_cache", $payload);
+
+        return $response->successful() && ($response->json()['success'] ?? false);
+    }
+
+    /**
      * Normalize Cloudflare's hostname payload to the fields the app uses.
      */
     protected function mapHostname(array $row): array

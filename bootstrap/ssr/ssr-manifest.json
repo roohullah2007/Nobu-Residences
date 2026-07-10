@@ -3,14 +3,17 @@
   "resources/js/Components/Admin/ConfirmDialog.jsx": [
     "/build/assets/ConfirmDialog-CoY5VzLe.js"
   ],
+  "resources/js/Components/Admin/DeveloperApiSearch.jsx": [
+    "/build/assets/DeveloperApiSearch-CdxwE2Dz.js"
+  ],
   "resources/js/Components/Admin/DeveloperModal.jsx": [
-    "/build/assets/useGooglePlacesAutocomplete-DUJYWIPt.js"
+    "/build/assets/useGooglePlacesAutocomplete-yjVv2mel.js"
   ],
   "resources/js/Components/Admin/QuickCreateInline.jsx": [
-    "/build/assets/useGooglePlacesAutocomplete-DUJYWIPt.js"
+    "/build/assets/useGooglePlacesAutocomplete-yjVv2mel.js"
   ],
   "resources/js/Components/Admin/QuickCreateSelect.jsx": [
-    "/build/assets/useGooglePlacesAutocomplete-DUJYWIPt.js"
+    "/build/assets/useGooglePlacesAutocomplete-yjVv2mel.js"
   ],
   "resources/js/Components/Dropdown.jsx": [
     "/build/assets/Navbar-BcUYeBAy.js"
@@ -70,10 +73,10 @@
     "/build/assets/Index-C8HC5O4y.js"
   ],
   "resources/js/Pages/Admin/Buildings/Create.jsx": [
-    "/build/assets/Create-DXU-CWuf.js"
+    "/build/assets/Create-D8e8yjjp.js"
   ],
   "resources/js/Pages/Admin/Buildings/Edit.jsx": [
-    "/build/assets/Edit-CQvrNg9u.js"
+    "/build/assets/Edit-B7VR2bVv.js"
   ],
   "resources/js/Pages/Admin/Buildings/Import.jsx": [
     "/build/assets/Import-BMFquEln.js"
@@ -94,7 +97,7 @@
     "/build/assets/Dashboard-D-4g6cjm.js"
   ],
   "resources/js/Pages/Admin/Developers/Index.jsx": [
-    "/build/assets/Index-BLO9piuM.js"
+    "/build/assets/Index-t8U9Selm.js"
   ],
   "resources/js/Pages/Admin/Icons/Index.jsx": [
     "/build/assets/Index-B3XWcPWM.js"
@@ -139,13 +142,13 @@
     "/build/assets/Websites-DSHgsq3e.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-CdsmwtHx.js"
+    "/build/assets/Create-DcdgY5yp.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
-    "/build/assets/Created-HZF983dO.js"
+    "/build/assets/Created-DqX83Jo7.js"
   ],
   "resources/js/Pages/Admin/Websites/Edit.jsx": [
-    "/build/assets/Edit-DUtGmQa9.js"
+    "/build/assets/Edit-DKi7y-C6.js"
   ],
   "resources/js/Pages/Admin/Websites/EditHomePage.jsx": [
     "/build/assets/EditHomePage-DhQMkE-c.js"
@@ -712,7 +715,7 @@
     "/build/assets/PropertyCard-BWgqbSLf.js"
   ],
   "resources/js/hooks/useGooglePlacesAutocomplete.js": [
-    "/build/assets/useGooglePlacesAutocomplete-DUJYWIPt.js"
+    "/build/assets/useGooglePlacesAutocomplete-yjVv2mel.js"
   ],
   "resources/js/hooks/usePropertyAiDescription.js": [
     "/build/assets/usePropertyAiDescription-C5QLpmY7.js"
@@ -734,7 +737,10 @@
     "/build/assets/contactFormValidation-CEuKRxjY.js"
   ],
   "resources/js/utils/csrf.js": [
-    "/build/assets/csrf-Rc-HMXbg.js"
+    "/build/assets/DeveloperApiSearch-CdxwE2Dz.js"
+  ],
+  "resources/js/utils/developersApi.js": [
+    "/build/assets/DeveloperApiSearch-CdxwE2Dz.js"
   ],
   "resources/js/utils/imageUrl.js": [
     "/build/assets/imageUrl-B-Y_O6wE.js"
