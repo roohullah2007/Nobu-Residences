@@ -709,6 +709,18 @@ class Building extends Model
     public static function mlsFactsForAddress(?string $address, ?string $city = null): ?array
     {
         $parsed = self::parseStreetAddress($address);
+
+        // Address ranges like "8-30 Widmer St, Toronto": match every street
+        // number inside the range instead of one exact number.
+        $rangeHigh = null;
+        if (!$parsed && preg_match('/^(\d+)\s*-\s*(\d+)\s+(.+)$/u', trim((string) $address), $m)) {
+            $parsed = self::parseStreetAddress($m[1] . ' ' . $m[3]);
+            if ($parsed) {
+                $rangeHigh = max((int) $m[1], (int) $m[2]);
+                $parsed['number'] = (string) min((int) $m[1], (int) $m[2]);
+            }
+        }
+
         if (!$parsed) {
             return null;
         }
@@ -734,7 +746,11 @@ class Building extends Model
 
         foreach ($listings as $listing) {
             $num = (string) ($listing['address']['streetNumber'] ?? '');
-            if ($num !== $parsed['number']) {
+            if ($rangeHigh !== null) {
+                if (!ctype_digit($num) || (int) $num < (int) $parsed['number'] || (int) $num > $rangeHigh) {
+                    continue;
+                }
+            } elseif ($num !== $parsed['number']) {
                 continue;
             }
             $matched++;

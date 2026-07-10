@@ -940,63 +940,76 @@ class GeminiAIService
     }
 
     /**
-     * Generate fallback building description when AI fails
+     * Fallback building description when the AI call fails. Written to the
+     * same standard the prompt asks the AI for: professional tone, only the
+     * facts provided (nothing invented), natural search phrases, no filler
+     * cliches, listings call-to-action at the end.
      */
     private function getFallbackBuildingDescription(array $buildingData): string
     {
-        $name = $buildingData['name'] ?? 'This exceptional building';
-        $address = $buildingData['address'] ?? '';
-        $city = $buildingData['city'] ?? '';
-        $buildingType = $buildingData['building_type'] ?? 'residential building';
+        $name = $buildingData['name'] ?? 'This building';
+        $address = trim((string) ($buildingData['address'] ?? ''));
+        $city = trim((string) ($buildingData['city'] ?? '')) ?: 'Toronto';
+        $neighbourhood = trim((string) ($buildingData['neighbourhood'] ?? ''));
+        $buildingType = str_replace('_', ' ', (string) ($buildingData['building_type'] ?? 'condominium'));
         $totalUnits = $buildingData['total_units'] ?? null;
         $floors = $buildingData['floors'] ?? null;
         $yearBuilt = $buildingData['year_built'] ?? null;
-        $developer = $buildingData['developer'] ?? '';
-        $amenities = $buildingData['amenities'] ?? [];
-        $maintenanceFeeAmenities = $buildingData['maintenance_fee_amenities'] ?? [];
+        $developer = trim((string) ($buildingData['developer'] ?? $buildingData['developer_name'] ?? ''));
+        $management = trim((string) ($buildingData['management_name'] ?? ''));
+        $corp = trim((string) ($buildingData['corp_number'] ?? ''));
+        $priceRange = trim((string) ($buildingData['price_range'] ?? ''));
+        $monthlyFee = trim((string) ($buildingData['typical_monthly_fee'] ?? ''));
+        $amenities = array_merge(
+            (array) ($buildingData['amenities'] ?? []),
+            (array) ($buildingData['maintenance_fee_amenities'] ?? [])
+        );
 
-        $description = "Welcome to {$name}";
+        $locationPhrase = $neighbourhood ? "{$neighbourhood}, {$city}" : $city;
 
-        if ($address) {
-            $description .= ", located at {$address}";
-            if ($city) {
-                $description .= " in {$city}";
-            }
-        }
-
-        $description .= ". This premium {$buildingType} offers modern living in a sought-after location";
-
-        if ($yearBuilt) {
-            $description .= ", built in {$yearBuilt}";
-        }
-
+        // Paragraph 1 — what and where (primary keyword up front).
+        $p1 = "{$name} is a {$buildingType}" . ($address ? " at {$address}" : '') . " in {$locationPhrase}.";
         if ($developer) {
-            $description .= " by renowned developer {$developer}";
+            $p1 .= " The building was developed by {$developer}.";
         }
+        $p1 .= " Buyers and renters searching for {$name} condos will find the building's key facts, amenities and current listings on this page.";
 
-        $description .= ".";
-
-        if ($totalUnits) {
-            $description .= " The building features {$totalUnits} thoughtfully designed units";
-            if ($floors) {
-                $description .= " across {$floors} floors";
-            }
-            $description .= ".";
+        // Paragraph 2 — living there, built only from provided facts.
+        $p2Parts = [];
+        $scale = array_filter([
+            $floors ? "{$floors} storeys" : null,
+            $totalUnits ? "{$totalUnits} units" : null,
+        ]);
+        if (!empty($scale)) {
+            $p2Parts[] = "The building offers " . implode(' with ', $scale)
+                . ($yearBuilt ? ", completed in {$yearBuilt}" : '') . '.';
+        } elseif ($yearBuilt) {
+            $p2Parts[] = "The building was completed in {$yearBuilt}.";
         }
-
-        // Add amenities
-        $allAmenities = array_merge($amenities, $maintenanceFeeAmenities);
-        if (!empty($allAmenities)) {
-            $description .= " Residents enjoy world-class amenities including " . implode(', ', array_slice($allAmenities, 0, 5));
-            if (count($allAmenities) > 5) {
-                $description .= " and many more premium features";
-            }
-            $description .= ".";
+        if (!empty($amenities)) {
+            $shortList = implode(', ', array_slice(array_unique($amenities), 0, 6));
+            $p2Parts[] = "Residents have access to {$shortList}" . (count($amenities) > 6 ? ' among other amenities' : '') . '.';
         }
+        if ($management || $corp) {
+            $p2Parts[] = trim(
+                ($management ? "The building is managed by {$management}" : "The condo corporation is {$corp}")
+                . ($management && $corp ? " ({$corp})" : '')
+            ) . '.';
+        }
+        $p2 = implode(' ', $p2Parts);
 
-        $description .= " This building represents the perfect blend of luxury, convenience, and modern design, offering an unparalleled living experience in one of the area's most desirable locations.";
+        // Paragraph 3 — the numbers and the call to action.
+        $p3Parts = [];
+        if ($priceRange) {
+            $p3Parts[] = "Current listings at {$name} range around {$priceRange}.";
+        }
+        if ($monthlyFee) {
+            $p3Parts[] = "Typical maintenance fees are about {$monthlyFee}.";
+        }
+        $p3Parts[] = "Explore {$name} condos for sale and for rent below, compare floor plans and prices, and contact our team to arrange a viewing.";
+        $p3 = implode(' ', $p3Parts);
 
-        return $description;
+        return implode("\n\n", array_filter([$p1, $p2, $p3]));
     }
 
     /**
