@@ -308,16 +308,33 @@ class PloiService
 
         // Union with every domain already covered by an existing cert on the
         // site so the resulting SAN cert is a superset and we don't take
-        // existing aliases offline. BUT — and this is the bit that wasn't
-        // here before — only include a covered domain if it currently
-        // resolves to the Ploi server IP. Let's Encrypt's HTTP-01 challenge
-        // is all-or-nothing: if any single domain in the batch fails DNS
-        // validation (e.g. it now points back at Cloudflare's proxy), the
-        // entire issuance fails. Excluding stale domains is safer than
-        // letting them poison every retry.
+        // existing aliases offline. Two filters keep the batch healthy:
+        //   1. Only KNOWN domains (admin host or a current website domain,
+        //      apex/www) — a domain that was removed from its website must
+        //      not ride along into future certificates forever.
+        //   2. Only domains that currently resolve to the Ploi server IP.
+        //      Let's Encrypt's HTTP-01 challenge is all-or-nothing: one
+        //      stale domain fails the entire issuance on every retry.
+        $known = [\App\Services\Tenancy\TenantResolver::normalizeHost((string) config('tenancy.admin_host'))];
+        foreach (\App\Models\Website::whereNotNull('domain')->pluck('domain') as $d) {
+            $bareKnown = preg_replace('/^www\./i', '', self::canonicalDomain($d));
+            if ($bareKnown !== '') {
+                $known[] = $bareKnown;
+            }
+        }
+
+        $isKnown = function (string $candidate) use ($known): bool {
+            $bare = preg_replace('/^www\./i', '', self::canonicalDomain($candidate));
+            return in_array($bare, $known, true);
+        };
+
         foreach ($certificates as $cert) {
             foreach (($cert['domains'] ?? []) as $existing) {
                 if ($hasDomain($existing, $domains) || $hasDomain($existing, $skipped)) {
+                    continue;
+                }
+                if (!$isKnown($existing)) {
+                    $skipped[] = $existing;
                     continue;
                 }
                 if ($serverIp && !$this->domainResolvesTo($existing, $serverIp)) {
@@ -581,6 +598,102 @@ class PloiService
         }
 
         return $removed;
+    }
+
+    /**
+     * Delete a certificate by its Ploi ID.
+     */
+    public function deleteCertificate(int $certificateId, ?string $siteId = null): bool
+    {
+        $targetSite = $siteId ?: $this->siteId;
+        if (!$this->isConfigured() || empty($targetSite)) {
+            return false;
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates/{$certificateId}";
+
+        try {
+            $response = $this->client()->delete($endpoint);
+            Log::info('Ploi certificate delete', [
+                'certificate_id' => $certificateId,
+                'status' => $response->status(),
+            ]);
+            return $response->successful() || $response->status() === 204;
+        } catch (\Throwable $e) {
+            Log::error('Ploi certificate delete exception', ['certificate_id' => $certificateId, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Fully detach a domain from the Ploi site: removes EVERY alias row for
+     * the apex and www variant (covers duplicates), and deletes certificates
+     * that are DEDICATED to this domain (their SAN set is a subset of
+     * {apex, www}). Shared SAN certificates are intentionally left alone —
+     * deleting one would take unrelated domains offline; the removed domain
+     * simply stops being served and is excluded from future issuances.
+     *
+     * The reserved admin host is refused outright: it is the site's primary
+     * domain and must never be detached.
+     *
+     * Returns human-readable messages describing what was done.
+     */
+    public function removeDomainFromPloi(string $domain, ?string $siteId = null): array
+    {
+        $domain = $this->normalizeDomain($domain);
+        if ($domain === '') {
+            return ['No domain to remove.'];
+        }
+
+        $adminHost = \App\Services\Tenancy\TenantResolver::normalizeHost((string) config('tenancy.admin_host'));
+        if ($adminHost !== '' && \App\Services\Tenancy\TenantResolver::normalizeHost($domain) === $adminHost) {
+            return ["Refused: \"{$domain}\" is the reserved admin/primary domain and cannot be detached."];
+        }
+
+        if (!$this->isConfigured()) {
+            return ['Ploi is not configured — nothing removed.'];
+        }
+
+        // Apex + www variant, canonicalized.
+        $bare = preg_replace('/^www\./i', '', $domain);
+        $variants = [self::canonicalDomain($bare), self::canonicalDomain('www.' . $bare)];
+
+        $messages = [];
+
+        // 1. Remove every alias row matching either variant (handles dupes).
+        $rows = $this->listAliasesWithIds($siteId);
+        if (!$this->aliasListFetchOk) {
+            $messages[] = "Couldn't fetch the alias list from Ploi — aliases NOT removed; try again.";
+        } else {
+            $removed = 0;
+            foreach ($rows as $row) {
+                if (in_array(self::canonicalDomain($row['domain'] ?? ''), $variants, true) && !empty($row['id'])) {
+                    if ($this->deleteAliasById((int) $row['id'], $siteId)) {
+                        $removed++;
+                    }
+                }
+            }
+            $messages[] = $removed > 0
+                ? "Removed {$removed} alias row(s) for {$bare} from nginx."
+                : "No alias rows for {$bare} were on Ploi.";
+        }
+
+        // 2. Delete certificates dedicated to this domain only.
+        foreach ($this->listCertificates($siteId) as $cert) {
+            $certDomains = array_map([self::class, 'canonicalDomain'], $cert['domains'] ?? []);
+            $certDomains = array_filter($certDomains);
+            if (empty($certDomains) || empty($cert['id'])) {
+                continue;
+            }
+            if (empty(array_diff($certDomains, $variants))) {
+                $ok = $this->deleteCertificate((int) $cert['id'], $siteId);
+                $messages[] = $ok
+                    ? "Deleted dedicated SSL certificate #{$cert['id']} (" . implode(', ', $certDomains) . ').'
+                    : "Failed to delete SSL certificate #{$cert['id']}.";
+            }
+        }
+
+        return $messages;
     }
 
     /**

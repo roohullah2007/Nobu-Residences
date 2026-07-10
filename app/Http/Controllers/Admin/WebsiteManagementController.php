@@ -836,7 +836,7 @@ class WebsiteManagementController extends Controller
     /**
      * Update website
      */
-    public function update(Request $request, Website $website)
+    public function update(Request $request, Website $website, PloiService $ploi)
     {
         // Parse JSON strings for nested objects if they come from FormData
         $data = $request->all();
@@ -1091,24 +1091,57 @@ class WebsiteManagementController extends Controller
                 ->update(['is_default' => false]);
         }
 
+        // Domain lifecycle: when the custom domain changes (or is removed),
+        // detach the OLD domain from Ploi — its alias rows leave nginx's
+        // server_name and any certificate dedicated to it is deleted (shared
+        // SAN certs are left alone). Without this, replaced domains would
+        // keep being served forever. The reserved admin host is refused by
+        // removeDomainFromPloi() itself.
+        $oldDomain = $website->domain;
+        $newDomain = $validated['domain'] ?? null;
+        $ploiMessages = [];
+
+        if ($oldDomain && $oldDomain !== $newDomain && $ploi->isConfigured()) {
+            $ploiMessages = $ploi->removeDomainFromPloi($oldDomain);
+            Log::info('Website update: detached old domain from Ploi', [
+                'website_id' => $website->id,
+                'old_domain' => $oldDomain,
+                'new_domain' => $newDomain,
+                'messages' => $ploiMessages,
+            ]);
+        }
+
+        // Reset provisioning state when the domain changed so the status page
+        // reflects reality: a new domain needs "Connect domain to Ploi" again;
+        // no domain means nothing to provision.
+        if ($oldDomain !== $newDomain) {
+            $validated['ploi_alias_status'] = $newDomain ? 'pending' : 'not_required';
+            $validated['ploi_ssl_status'] = $newDomain ? 'pending' : 'not_required';
+            $validated['ploi_last_error'] = null;
+        }
+
         // Update the website
         $website->update($validated);
 
+        $success = 'Website updated successfully!';
+        if (!empty($ploiMessages)) {
+            $success .= ' Old domain cleanup — ' . implode(' | ', $ploiMessages);
+        }
+        if ($oldDomain !== $newDomain && $newDomain) {
+            $success .= " Use \"Connect domain to Ploi\" to provision {$newDomain}.";
+        }
+
         // Return Inertia redirect to edit page to stay on same page
         return redirect()->route('admin.websites.edit', $website->id)
-            ->with('success', 'Website updated successfully!');
+            ->with('success', $success);
     }
 
     /**
-     * Delete website. Also removes the domain alias from the Ploi site so the
-     * server stops answering for it — otherwise the alias would stay in
-     * nginx's server_name list forever. Certs are intentionally left alone:
-     * Ploi reuses one cert file across multiple alias names, so deleting a
-     * cert here could take unrelated domains offline.
-     *
-     * Cleanup covers both the apex and the www variant so a website saved
-     * with domain "foo.com" also clears "www.foo.com" (and vice versa) —
-     * those variants are commonly added via Ploi's SSL request side effect.
+     * Delete website. Fully detaches its custom domain from the Ploi site:
+     * every alias row for the apex and www variant is removed from nginx's
+     * server_name, and certificates DEDICATED to this domain are deleted.
+     * Shared SAN certificates are left alone — deleting one would take
+     * unrelated domains offline.
      */
     public function destroy(Website $website, PloiService $ploi): RedirectResponse
     {
@@ -1119,18 +1152,12 @@ class WebsiteManagementController extends Controller
 
         $ploiMessages = [];
         if (!empty($website->domain) && $ploi->isConfigured()) {
-            $candidates = $this->aliasVariants($website->domain);
-            foreach ($candidates as $variant) {
-                [$ok, $msg] = $ploi->deleteAlias($variant);
-                $ploiMessages[] = $msg;
-                if (!$ok) {
-                    Log::warning('Website delete: Ploi alias cleanup failed', [
-                        'website_id' => $website->id,
-                        'variant' => $variant,
-                        'message' => $msg,
-                    ]);
-                }
-            }
+            $ploiMessages = $ploi->removeDomainFromPloi($website->domain);
+            Log::info('Website delete: detached domain from Ploi', [
+                'website_id' => $website->id,
+                'domain' => $website->domain,
+                'messages' => $ploiMessages,
+            ]);
         }
 
         $name = $website->name;
@@ -1143,27 +1170,6 @@ class WebsiteManagementController extends Controller
 
         return redirect()->route('admin.websites.index')
             ->with('success', $success);
-    }
-
-    /**
-     * Given a saved domain, return the list of alias variants we should try
-     * to clean up on delete. For "foo.com" returns ["foo.com", "www.foo.com"].
-     * For "www.foo.com" returns ["www.foo.com", "foo.com"]. For anything else
-     * (e.g. "blog.foo.com") returns just the original.
-     */
-    protected function aliasVariants(string $domain): array
-    {
-        $domain = strtolower(trim($domain));
-        if ($domain === '') {
-            return [];
-        }
-        if (str_starts_with($domain, 'www.')) {
-            return [$domain, substr($domain, 4)];
-        }
-        if (substr_count($domain, '.') === 1) {
-            return [$domain, 'www.' . $domain];
-        }
-        return [$domain];
     }
 
     /**
