@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -183,6 +183,52 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     // Google Places autofill: picking an address suggestion fills postal
     // code, city, province, country and coordinates in one go.
+    // Live MLS auto-fill on address change — fills only fields that are
+    // still empty; the after-save MLS refresh remains the safety net.
+    const [mlsFactsNotice, setMlsFactsNotice] = useState('');
+    const lastMlsAddressRef = useRef(String(building.address || '').trim());
+    const fetchMlsFactsForAddress = async (address, city) => {
+        const trimmed = String(address || '').trim();
+        if (trimmed.length < 5 || trimmed === lastMlsAddressRef.current) return;
+        lastMlsAddressRef.current = trimmed;
+        try {
+            const response = await fetch('/api/buildings/mls-facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...csrfHeaders(),
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ address: trimmed, city: city || '' }),
+            });
+            const result = await response.json();
+            const facts = result?.facts;
+            if (!facts) {
+                setMlsFactsNotice('');
+                return;
+            }
+            setData((prev) => {
+                const next = { ...prev };
+                const fill = (key, value) => {
+                    if (value !== null && value !== undefined && value !== '' && !String(next[key] ?? '').trim()) {
+                        next[key] = String(value);
+                    }
+                };
+                fill('corp_number', facts.corp_number);
+                fill('management_name', facts.management_name);
+                fill('year_built', facts.year_built);
+                fill('parking_maintenance_fee', facts.parking_maintenance_fee);
+                fill('maintenance_fee_range', facts.maintenance_fee_range);
+                return next;
+            });
+            setMlsFactsNotice(
+                `MLS match: ${facts.active_listing_count} active listing${facts.active_listing_count === 1 ? '' : 's'} at this address — empty fields (corp, management, year built, fees) were auto-filled.`
+            );
+        } catch {
+            // Silent — the after-save MLS refresh still fills these.
+        }
+    };
+
     useGooglePlacesAutocomplete('address', (parsed) => {
         setData((prev) => ({
             ...prev,
@@ -194,6 +240,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             latitude: parsed.latitude !== '' ? String(parsed.latitude) : prev.latitude,
             longitude: parsed.longitude !== '' ? String(parsed.longitude) : prev.longitude,
         }));
+        fetchMlsFactsForAddress(parsed.streetAddress || '', parsed.city || '');
     });
 
     const buildingTypes = [
@@ -690,9 +737,13 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         className="mt-1 block w-full"
                                         value={data.address}
                                         onChange={(e) => setData('address', e.target.value)}
+                                        onBlur={() => fetchMlsFactsForAddress(data.address, data.city)}
                                         placeholder="e.g., 10 Capreol Crt — or a range like '8-30 Widmer St, Toronto'"
                                         required
                                     />
+                                    {mlsFactsNotice && (
+                                        <p className="mt-1 text-xs text-green-700">{mlsFactsNotice}</p>
+                                    )}
                                     <InputError message={errors.address} className="mt-2" />
                                     {addressRange && (
                                         <div className="mt-2 flex items-center gap-2 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md px-3 py-2">

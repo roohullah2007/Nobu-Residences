@@ -777,80 +777,50 @@ class BuildingController extends Controller
     private function enrichBuildingDataFromMls(array $buildingData): array
     {
         try {
-            $parsed = Building::parseStreetAddress($buildingData['address'] ?? null);
-            if (!$parsed) {
+            $facts = Building::mlsFactsForAddress(
+                $buildingData['address'] ?? null,
+                $buildingData['city'] ?? null
+            );
+            if (!$facts) {
                 return $buildingData;
             }
 
-            $params = [
-                'class' => 'condoProperty',
-                'status' => 'A',
-                'type' => 'sale',
-                'streetName' => $parsed['name'],
-                'pageNum' => 1,
-                'resultsPerPage' => 200,
-            ];
-            if (!empty($buildingData['city'])) {
-                $params['city'] = $buildingData['city'];
-            }
-
-            $listings = app(\App\Services\RepliersApiService::class)->searchListings($params)['listings'] ?? [];
-
-            $candidates = ['corp' => [], 'mgmt' => [], 'park_cost' => [], 'year' => []];
-            $monthlyFees = [];
-            $matched = 0;
-            foreach ($listings as $listing) {
-                $num = (string) ($listing['address']['streetNumber'] ?? '');
-                if ($num !== $parsed['number']) {
-                    continue;
-                }
-                $matched++;
-                foreach (Building::extractCondoFactsFromListing($listing) as $key => $value) {
-                    if ($value !== null) {
-                        $candidates[$key][] = $value;
-                    }
-                }
-                $rawFee = $listing['details']['maintenanceFee']
-                    ?? ($listing['condominium']['fees']['maintenance'] ?? '');
-                $fee = (float) preg_replace('/[^\d.]/', '', (string) $rawFee);
-                if ($fee > 0) {
-                    $monthlyFees[] = $fee;
+            foreach (['corp_number', 'management_name', 'year_built', 'typical_monthly_fee', 'active_listing_count'] as $key) {
+                if (!empty($facts[$key]) && empty($buildingData[$key])) {
+                    $buildingData[$key] = $facts[$key];
                 }
             }
-
-            if ($matched === 0) {
-                return $buildingData;
-            }
-
-            $mode = function (array $values) {
-                if (empty($values)) {
-                    return null;
-                }
-                $counts = [];
-                foreach ($values as $v) {
-                    $counts[(string) $v] = ($counts[(string) $v] ?? 0) + 1;
-                }
-                arsort($counts);
-                return (string) array_key_first($counts);
-            };
-
-            $fill = function (string $key, $value) use (&$buildingData) {
-                if ($value !== null && $value !== '' && empty($buildingData[$key])) {
-                    $buildingData[$key] = $value;
-                }
-            };
-
-            $fill('corp_number', $mode($candidates['corp']));
-            $fill('management_name', $mode($candidates['mgmt']));
-            $fill('year_built', $mode($candidates['year']));
-            if (!empty($monthlyFees)) {
-                $fill('typical_monthly_fee', '$' . number_format(array_sum($monthlyFees) / count($monthlyFees)) . '/month');
-            }
-            $fill('active_listing_count', $matched);
         } catch (\Throwable $e) {
             \Log::warning('AI description MLS enrichment failed', ['error' => $e->getMessage()]);
         }
 
         return $buildingData;
+    }
+
+    /**
+     * Live MLS condo facts for the admin building form — called the moment
+     * an address is selected/typed so corp number, management, year built
+     * and fees fill BEFORE saving. The after-save MLS refresh remains the
+     * safety net for multi-address buildings and MLS dry spells.
+     */
+    public function mlsFacts(Request $request): JsonResponse
+    {
+        $request->validate([
+            'address' => 'required|string|max:255',
+            'city' => 'nullable|string|max:100',
+        ]);
+
+        try {
+            $facts = Building::mlsFactsForAddress(
+                $request->input('address'),
+                $request->input('city') ?: null
+            );
+
+            return response()->json(['success' => true, 'facts' => $facts]);
+        } catch (\Throwable $e) {
+            \Log::warning('MLS facts lookup failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'facts' => null]);
+        }
     }
 }

@@ -701,6 +701,88 @@ class Building extends Model
     }
 
     /**
+     * Live MLS condo facts for ONE street address — used by the admin
+     * building form's on-address-select auto-fill and by the AI description
+     * enrichment. Returns null when the address can't be parsed or no active
+     * listing matches the exact street number. One cached Repliers query.
+     */
+    public static function mlsFactsForAddress(?string $address, ?string $city = null): ?array
+    {
+        $parsed = self::parseStreetAddress($address);
+        if (!$parsed) {
+            return null;
+        }
+
+        $params = [
+            'class' => 'condoProperty',
+            'status' => 'A',
+            'type' => 'sale',
+            'streetName' => $parsed['name'],
+            'pageNum' => 1,
+            'resultsPerPage' => 200,
+        ];
+        if (!empty($city)) {
+            $params['city'] = $city;
+        }
+
+        $listings = app(\App\Services\RepliersApiService::class)->searchListings($params)['listings'] ?? [];
+
+        $candidates = ['corp' => [], 'mgmt' => [], 'park_cost' => [], 'year' => []];
+        $monthlyFees = [];
+        $feePsfSamples = [];
+        $matched = 0;
+
+        foreach ($listings as $listing) {
+            $num = (string) ($listing['address']['streetNumber'] ?? '');
+            if ($num !== $parsed['number']) {
+                continue;
+            }
+            $matched++;
+            foreach (self::extractCondoFactsFromListing($listing) as $key => $value) {
+                if ($value !== null) {
+                    $candidates[$key][] = $value;
+                }
+            }
+            $rawFee = $listing['details']['maintenanceFee']
+                ?? ($listing['condominium']['fees']['maintenance'] ?? '');
+            $fee = (float) preg_replace('/[^\d.]/', '', (string) $rawFee);
+            if ($fee > 0) {
+                $monthlyFees[] = $fee;
+                $sqft = self::parseSqftBounds($listing['details']['sqft'] ?? null);
+                if ($sqft !== null && $sqft['mid'] > 0) {
+                    $feePsfSamples[] = $fee / $sqft['mid'];
+                }
+            }
+        }
+
+        if ($matched === 0) {
+            return null;
+        }
+
+        $feeRange = null;
+        if (!empty($feePsfSamples)) {
+            $low = number_format(min($feePsfSamples), 2);
+            $high = number_format(max($feePsfSamples), 2);
+            $feeRange = $low === $high ? "\${$low} per sq ft" : "\${$low} - \${$high} per sq ft";
+        }
+
+        $year = self::modeOf($candidates['year']);
+        $parkCost = self::modeOf($candidates['park_cost']);
+
+        return [
+            'corp_number' => self::modeOf($candidates['corp']),
+            'management_name' => self::modeOf($candidates['mgmt']),
+            'year_built' => $year !== null ? (int) $year : null,
+            'parking_maintenance_fee' => $parkCost !== null ? (float) $parkCost : null,
+            'maintenance_fee_range' => $feeRange,
+            'typical_monthly_fee' => !empty($monthlyFees)
+                ? '$' . number_format(array_sum($monthlyFees) / count($monthlyFees)) . '/month'
+                : null,
+            'active_listing_count' => $matched,
+        ];
+    }
+
+    /**
      * Most frequent value in a list (ties break toward first-seen).
      */
     private static function modeOf(array $values): ?string
