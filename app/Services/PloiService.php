@@ -206,7 +206,7 @@ class PloiService
      * Ploi's API: POST /servers/{server}/sites/{site}/certificates
      * Body: { "type": "letsencrypt", "certificate": "domain.com,www.domain.com" }
      */
-    public function requestSsl(string $domain, ?string $siteId = null): array
+    public function requestSsl(string $domain, ?string $siteId = null, bool $force = false): array
     {
         $targetSite = $siteId ?: $this->siteId;
 
@@ -286,7 +286,8 @@ class PloiService
         // Let's Encrypt request — every issuance makes Ploi auto-create an
         // alias row per SAN subject (duplicating existing aliases in
         // server_name) and leaves an extra certificate entry on the site.
-        foreach ($certificates as $cert) {
+        // $force (ploi:reissue) bypasses this to restore a broken cert file.
+        foreach ($force ? [] : $certificates as $cert) {
             if (($cert['status'] ?? null) !== 'active') {
                 continue;
             }
@@ -640,38 +641,21 @@ class PloiService
         return false;
     }
 
-    /**
-     * Delete a certificate by its Ploi ID.
-     */
-    public function deleteCertificate(int $certificateId, ?string $siteId = null): bool
-    {
-        $targetSite = $siteId ?: $this->siteId;
-        if (!$this->isConfigured() || empty($targetSite)) {
-            return false;
-        }
-
-        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/certificates/{$certificateId}";
-
-        try {
-            $response = $this->client()->delete($endpoint);
-            Log::info('Ploi certificate delete', [
-                'certificate_id' => $certificateId,
-                'status' => $response->status(),
-            ]);
-            return $response->successful() || $response->status() === 204;
-        } catch (\Throwable $e) {
-            Log::error('Ploi certificate delete exception', ['certificate_id' => $certificateId, 'error' => $e->getMessage()]);
-            return false;
-        }
-    }
+    // NOTE: there is intentionally NO deleteCertificate() method. Every cert
+    // on the site shares one live file (cert-name = site primary), so deleting
+    // any certificate entry takes the primary domain and all aliases offline.
 
     /**
-     * Fully detach a domain from the Ploi site: removes EVERY alias row for
-     * the apex and www variant (covers duplicates), and deletes certificates
-     * that are DEDICATED to this domain (their SAN set is a subset of
-     * {apex, www}). Shared SAN certificates are intentionally left alone —
-     * deleting one would take unrelated domains offline; the removed domain
-     * simply stops being served and is excluded from future issuances.
+     * Detach a domain from the Ploi site: removes EVERY alias row for the
+     * apex and www variant (covers duplicates).
+     *
+     * CERTIFICATES ARE NEVER DELETED HERE. Ploi issues every cert under the
+     * site primary's cert-name, so ALL domains on the site are served from
+     * ONE live cert file — deleting ANY certificate entry removes that file
+     * and takes the primary domain and every alias offline (this happened in
+     * production). A removed domain simply stops being served (alias gone)
+     * and drops out of the next issuance via requestSsl()'s known-domains
+     * filter. Use `php artisan ploi:reissue` to force a fresh cert.
      *
      * The reserved admin host is refused outright: it is the site's primary
      * domain and must never be detached.
@@ -718,20 +702,9 @@ class PloiService
                 : "No alias rows for {$bare} were on Ploi.";
         }
 
-        // 2. Delete certificates dedicated to this domain only.
-        foreach ($this->listCertificates($siteId) as $cert) {
-            $certDomains = array_map([self::class, 'canonicalDomain'], $cert['domains'] ?? []);
-            $certDomains = array_filter($certDomains);
-            if (empty($certDomains) || empty($cert['id'])) {
-                continue;
-            }
-            if (empty(array_diff($certDomains, $variants))) {
-                $ok = $this->deleteCertificate((int) $cert['id'], $siteId);
-                $messages[] = $ok
-                    ? "Deleted dedicated SSL certificate #{$cert['id']} (" . implode(', ', $certDomains) . ').'
-                    : "Failed to delete SSL certificate #{$cert['id']}.";
-            }
-        }
+        // Certificates are deliberately NOT touched — see the docblock. The
+        // removed domain is excluded from all future issuances automatically.
+        $messages[] = 'Certificates left untouched (shared cert file); the domain drops out of the next SSL issuance automatically.';
 
         return $messages;
     }
