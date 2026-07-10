@@ -390,6 +390,15 @@ export default function BuildingsImport({ importableFields = {} }) {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {Object.values(mapping).includes('street_address_2') && (
+                                <p className="mt-3 text-xs text-gray-500">
+                                    <span className="font-medium text-gray-700">Address handling:</span> the secondary street column is merged into
+                                    the main Address ("Street 1 &amp; Street 2, City" — never duplicated when Street 1 already contains it), and numbered
+                                    ranges like "1-208 Cerberus Trail" expand automatically into the building's Additional Street Addresses — exactly like
+                                    the Create Building page. Pick a different "Import As" target to override this.
+                                </p>
+                            )}
                         </div>
 
                         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6">

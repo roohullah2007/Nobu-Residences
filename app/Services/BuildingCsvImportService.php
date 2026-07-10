@@ -27,7 +27,7 @@ class BuildingCsvImportService
     public const IMPORTABLE_FIELDS = [
         'name' => 'Building Name (required)',
         'address' => 'Address (required)',
-        'street_address_2' => 'Street Address 2 (secondary)',
+        'street_address_2' => 'Combine into Address (& secondary street)',
         'city' => 'City',
         'province' => 'Province',
         'postal_code' => 'Postal Code',
@@ -234,8 +234,12 @@ class BuildingCsvImportService
 
         // Compose the full address the way the Create page's Address field is
         // typed (Street_1 [& Street_2], City), then auto-expand hyphen ranges
-        // ("455-480 Front St W …") into the structured address columns exactly
-        // like the Create page's "Expand" button.
+        // ("455-480 Front St W …") and "&"-joined street lists into the
+        // structured address columns exactly like the Create page's "Expand"
+        // button + save pipeline. Keep the raw street cell around so rows
+        // imported BEFORE address composition existed (address stored as the
+        // bare Street_1) are still recognized as the same building.
+        $rawAddress = $attributes['address'] ?? null;
         $this->composeAddress($attributes);
         $this->expandAddressRange($attributes);
 
@@ -254,9 +258,24 @@ class BuildingCsvImportService
         $this->resolveDeveloper($attributes);
         $this->resolveNeighbourhoods($attributes);
 
-        $existing = Building::where('name', $name)
-            ->when(!empty($attributes['address']), fn ($q) => $q->where('address', $attributes['address']))
-            ->first();
+        // Match on the composed address first, then fall back to the raw
+        // Street_1 cell — buildings imported before address composition was
+        // added stored the bare street, and re-importing must update/skip
+        // them rather than create a duplicate.
+        $addressCandidates = array_values(array_unique(array_filter([
+            $attributes['address'] ?? null,
+            $rawAddress,
+        ])));
+        $existing = null;
+        foreach ($addressCandidates as $candidate) {
+            $existing = Building::where('name', $name)->where('address', $candidate)->first();
+            if ($existing) {
+                break;
+            }
+        }
+        if (!$existing && empty($addressCandidates)) {
+            $existing = Building::where('name', $name)->first();
+        }
 
         if ($existing) {
             if ($duplicateAction !== self::DUPLICATE_UPDATE) {
@@ -392,59 +411,93 @@ class BuildingCsvImportService
 
     /**
      * Server-side port of the Create page's "Detected range — expand?" button
-     * (Create.jsx detectAddressRange + handleExpandRange).
-     *
-     * When the composed address starts with a numeric hyphen range —
-     * "455-480 Front St W & 455 Wellington St W, Toronto" — every number in
-     * the range (step 1, odd AND even) is expanded against the street part up
-     * to the first comma, keeping any "& …" suffix:
-     *   "455 Front St W & 455 Wellington St W", "456 Front St W & …", …
-     *
-     * The JS regex is matched faithfully (^digits [-–—] digits space rest$),
-     * so hyphenated street names and unit prefixes like "1408-123 Main St"
-     * (end <= start) never expand. The Create page stops pushing once the
-     * list exceeds 50 entries; the same cap (ADDRESS_EXPANSION_CAP = 51)
-     * applies here, with a log line when a range is truncated.
-     *
-     * The expanded list is persisted the way the Create flow ends up storing
-     * it (Admin\BuildingController::distributeAdditionalAddresses): first →
+     * (Create.jsx detectAddressRange + handleExpandRange). Runs automatically
+     * on import — no button to click — and persists the expanded list the way
+     * the Create flow ends up storing it after Save
+     * (Admin\BuildingController::distributeAdditionalAddresses): first →
      * street_address_1, second → street_address_2, rest → additional_addresses.
+     *
+     * When it applies, the distribution REPLACES any directly-mapped
+     * street_address_2 cell — the secondary street already participates in
+     * the combined address, so writing it verbatim as well would diverge from
+     * what the Create page stores.
      */
     private function expandAddressRange(array &$attributes): void
     {
         $address = trim((string) ($attributes['address'] ?? ''));
-        if ($address === '' || !preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $address, $m)) {
-            return;
-        }
-        $start = (int) $m[1];
-        $end = (int) $m[2];
-        // Street part up to the first comma: keeps "& 24 Mews Crt", drops ", City".
-        $rest = trim(preg_split('/\s*,/', $m[3])[0] ?? '');
-        if ($end <= $start || $rest === '') {
+        if ($address === '') {
             return;
         }
 
-        $expanded = [];
-        for ($n = $start; $n <= $end; $n++) {
-            $expanded[] = $n . ' ' . $rest;
-            if (count($expanded) >= self::ADDRESS_EXPANSION_CAP) {
-                if ($n < $end) {
-                    Log::info('Building CSV import: address range truncated at expansion cap', [
-                        'address' => $address,
-                        'cap' => self::ADDRESS_EXPANSION_CAP,
-                        'range' => "{$start}-{$end}",
-                    ]);
-                }
-                break;
-            }
+        $expanded = $this->detectAddressRange($address);
+        if ($expanded === null) {
+            return;
         }
 
         $attributes['street_address_1'] = $expanded[0];
         $attributes['street_address_2'] = $expanded[1] ?? null;
         $remaining = array_values(array_slice($expanded, 2));
-        if (!empty($remaining)) {
-            $attributes['additional_addresses'] = $remaining;
+        $attributes['additional_addresses'] = !empty($remaining) ? $remaining : null;
+    }
+
+    /**
+     * Faithful PHP port of Create.jsx detectAddressRange. Two shapes:
+     *
+     * Shape 1 — numeric hyphen range: "455-480 Front St W & 455 Wellington
+     * St W, Toronto" → every number in the range (step 1, odd AND even)
+     * against the street part up to the first comma (keeps "& …", drops
+     * ", City"): "455 Front St W & 455 Wellington St W", "456 Front St W &
+     * …", … The JS regex is matched faithfully (^digits [-–—] digits space
+     * rest$), so hyphenated street names and unit prefixes like "1408-123
+     * Main St" (end <= start) never expand. The Create page stops pushing
+     * once the list exceeds 50 entries; the same cap (ADDRESS_EXPANSION_CAP
+     * = 51) applies here, with a log line when a range is truncated.
+     *
+     * Shape 2 — comma / & list of distinct numbered addresses: "229
+     * Sutherland St S & 255 Warden St, Clearview" → ["229 Sutherland St S",
+     * "255 Warden St"]. Parts not starting with a digit (the ", City"
+     * suffix) are dropped, exactly like the JS filter.
+     *
+     * @return string[]|null The expanded address list, or null when the
+     *                       address is a single plain address.
+     */
+    private function detectAddressRange(string $address): ?array
+    {
+        // Shape 1: hyphen range.
+        if (preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $address, $m)) {
+            $start = (int) $m[1];
+            $end = (int) $m[2];
+            // Street part up to the first comma: keeps "& 24 Mews Crt", drops ", City".
+            $rest = trim(preg_split('/\s*,/', $m[3])[0] ?? '');
+            if ($end > $start && $rest !== '') {
+                $expanded = [];
+                for ($n = $start; $n <= $end; $n++) {
+                    $expanded[] = $n . ' ' . $rest;
+                    if (count($expanded) >= self::ADDRESS_EXPANSION_CAP) {
+                        if ($n < $end) {
+                            Log::info('Building CSV import: address range truncated at expansion cap', [
+                                'address' => $address,
+                                'cap' => self::ADDRESS_EXPANSION_CAP,
+                                'range' => "{$start}-{$end}",
+                            ]);
+                        }
+                        break;
+                    }
+                }
+                return $expanded;
+            }
         }
+
+        // Shape 2: comma / & list of distinct numbered addresses.
+        $parts = array_values(array_filter(
+            array_map(fn ($p) => trim((string) $p), preg_split('/\s*[,&]\s*/u', $address)),
+            fn ($p) => preg_match('/^\d/', $p) === 1
+        ));
+        if (count($parts) >= 2) {
+            return $parts;
+        }
+
+        return null;
     }
 
     /** Attach amenities by name, creating missing ones (case-insensitive match). */
