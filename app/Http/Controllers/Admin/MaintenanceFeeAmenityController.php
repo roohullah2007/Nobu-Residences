@@ -60,7 +60,7 @@ class MaintenanceFeeAmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:maintenance_fee_amenities',
-            'icon' => 'nullable|file|mimes:svg|max:2048',
+            'icon' => ['nullable', 'file', new \App\Rules\SvgOrImage(), 'max:2048'],
             'category' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer',
             'is_active' => 'boolean'
@@ -143,7 +143,7 @@ class MaintenanceFeeAmenityController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:maintenance_fee_amenities,name,' . $maintenanceFeeAmenity->id,
-            'icon' => 'nullable|file|mimes:svg|max:2048',
+            'icon' => ['nullable', 'file', new \App\Rules\SvgOrImage(), 'max:2048'],
             'category' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer',
             'is_active' => 'boolean'

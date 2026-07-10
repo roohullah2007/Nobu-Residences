@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
+
+const SEARCH_DEBOUNCE_MS = 300;
+const ICON_ACCEPT = 'image/svg+xml,image/png,image/jpeg,image/jpg,image/webp,.svg';
 
 export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categories, filters = {} }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -13,8 +12,9 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
     const [editingAmenity, setEditingAmenity] = useState(null);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [iconPreview, setIconPreview] = useState(null);
+    const isFirstRender = useRef(true);
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         name: '',
         icon: null,
         category: '',
@@ -22,50 +22,64 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
         is_active: true
     });
 
+    // Instant search: debounce and reload from the server so all pages are
+    // searched, matching the live-search feel of the other admin modules.
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const t = setTimeout(() => {
+            router.get(
+                route('admin.maintenance-fee-amenities.index'),
+                searchTerm ? { search: searchTerm } : {},
+                { preserveState: true, preserveScroll: true, replace: true }
+            );
+        }, SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    const clearIconPreview = () => {
+        if (iconPreview) {
+            URL.revokeObjectURL(iconPreview);
+            setIconPreview(null);
+        }
+    };
+
     const handleIconChange = (e) => {
         const file = e.target.files[0];
         if (file) {
             setData('icon', file);
-            // Create preview URL
-            const previewUrl = URL.createObjectURL(file);
-            setIconPreview(previewUrl);
+            clearIconPreview();
+            setIconPreview(URL.createObjectURL(file));
         }
     };
 
     const handleCreate = (e) => {
         e.preventDefault();
-
+        transform((formData) => formData);
         post(route('admin.maintenance-fee-amenities.store'), {
             forceFormData: true,
             onSuccess: () => {
                 reset();
                 setShowCreateModal(false);
-                // Clean up preview URL
-                if (iconPreview) {
-                    URL.revokeObjectURL(iconPreview);
-                    setIconPreview(null);
-                }
+                clearIconPreview();
             }
         });
     };
 
     const handleEdit = (e) => {
         e.preventDefault();
-
-        router.post(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
-            ...data,
-            _method: 'PUT'
-        }, {
+        // POST with method spoofing so the icon upload works with the PUT
+        // route; useForm's post() keeps validation errors rendering inline.
+        transform((formData) => ({ ...formData, _method: 'PUT' }));
+        post(route('admin.maintenance-fee-amenities.update', editingAmenity.id), {
             forceFormData: true,
             onSuccess: () => {
                 reset();
                 setShowEditModal(false);
                 setEditingAmenity(null);
-                // Clean up preview URL
-                if (iconPreview) {
-                    URL.revokeObjectURL(iconPreview);
-                    setIconPreview(null);
-                }
+                clearIconPreview();
             }
         });
     };
@@ -74,14 +88,6 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
         if (confirm(`Are you sure you want to delete "${name}"?`)) {
             router.delete(route('admin.maintenance-fee-amenities.destroy', id));
         }
-    };
-
-    const handleSearch = (e) => {
-        e.preventDefault();
-        router.get(route('admin.maintenance-fee-amenities.index'),
-            { search: searchTerm },
-            { preserveState: true, preserveScroll: true }
-        );
     };
 
     const openEditModal = (amenity) => {
@@ -93,251 +99,336 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
             sort_order: amenity.sort_order || 0,
             is_active: amenity.is_active
         });
-        setIconPreview(null);
+        clearIconPreview();
         setShowEditModal(true);
     };
 
     const openCreateModal = () => {
         reset();
-        setIconPreview(null);
+        clearIconPreview();
         setShowCreateModal(true);
     };
 
+    const rows = amenities.data || [];
+    const totalCount = amenities.total ?? rows.length;
+    const activeCount = rows.filter((a) => a.is_active).length;
+
+    const categoryOptions = ['Utilities', 'Services', 'Facilities', ...(categories || []).filter(
+        (cat) => !['Utilities', 'Services', 'Facilities'].includes(cat)
+    )];
+
+    const formFields = (
+        <div className="space-y-4">
+            <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                    Name <span className="text-[#dc2626]">*</span>
+                </label>
+                <input
+                    type="text"
+                    className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                    placeholder="e.g., Water, Heat, Building Insurance"
+                    required
+                />
+                <InputError message={errors.name} className="mt-1" />
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-1.5">Category</label>
+                <select
+                    className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                    value={data.category}
+                    onChange={(e) => setData('category', e.target.value)}
+                >
+                    <option value="">Select Category</option>
+                    {categoryOptions.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                </select>
+                <InputError message={errors.category} className="mt-1" />
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-1.5">
+                    Icon (SVG, PNG, JPG, WebP)
+                </label>
+                <input
+                    type="file"
+                    className="w-full text-sm text-[#64748b] border border-[#e2e8f0] rounded-lg cursor-pointer file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-[#f1f5f9] file:text-[#0f172a] file:font-medium hover:file:bg-[#e2e8f0]"
+                    accept={ICON_ACCEPT}
+                    onChange={handleIconChange}
+                />
+                {(iconPreview || editingAmenity?.icon) && (
+                    <div className="mt-3 p-3 bg-[#f8fafc] rounded-lg">
+                        <p className="text-xs text-[#64748b] mb-2">
+                            {iconPreview ? 'Preview:' : 'Current icon (upload to replace):'}
+                        </p>
+                        <img
+                            src={iconPreview || editingAmenity?.icon}
+                            alt="Icon preview"
+                            className="w-12 h-12 object-contain"
+                        />
+                    </div>
+                )}
+                <InputError message={errors.icon} className="mt-1" />
+            </div>
+
+            <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-1.5">Sort Order</label>
+                <input
+                    type="number"
+                    className="w-full px-3 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                    value={data.sort_order}
+                    onChange={(e) => setData('sort_order', parseInt(e.target.value) || 0)}
+                />
+                <InputError message={errors.sort_order} className="mt-1" />
+            </div>
+
+            <label className="flex items-center gap-2">
+                <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-[#e2e8f0] text-[#0f172a] focus:ring-[#3b82f6]"
+                    checked={data.is_active}
+                    onChange={(e) => setData('is_active', e.target.checked)}
+                />
+                <span className="text-sm text-[#0f172a]">Active</span>
+            </label>
+        </div>
+    );
+
     return (
-        <AdminLayout
-            user={auth.user}
-            header={
-                <div className="flex justify-between items-center">
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                        Maintenance Fee Amenities
-                    </h2>
-                    <PrimaryButton onClick={() => setShowCreateModal(true)}>
-                        Add New Amenity
-                    </PrimaryButton>
+        <AdminLayout title="Maintenance Fees">
+            <Head title="Maintenance Fees" />
+
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-semibold text-[#0f172a]">Maintenance Fees</h1>
+                        <p className="text-sm text-[#64748b] mt-1">
+                            Manage what building maintenance fees can include (water, heat, insurance, ...)
+                        </p>
+                    </div>
+                    <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center px-4 py-2.5 bg-[#0f172a] text-white text-sm font-medium rounded-lg hover:bg-[#1e293b] transition-colors"
+                    >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Add Maintenance Fee
+                    </button>
                 </div>
-            }
-        >
-            <Head title="Maintenance Fee Amenities" />
 
-            <div className="py-12">
-                <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                        <div className="p-6 text-gray-900">
-                            {/* Header with Create Button */}
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800">Manage Amenities</h3>
-                                <PrimaryButton onClick={() => setShowCreateModal(true)}>
-                                    + Create New Amenity
-                                </PrimaryButton>
+                {/* Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3l-3-3m0 0l-3 3m3-3V15" />
+                                </svg>
                             </div>
+                            <div>
+                                <p className="text-2xl font-semibold text-[#0f172a]">{totalCount}</p>
+                                <p className="text-sm text-[#64748b]">
+                                    {filters.search ? `Matching "${filters.search}"` : 'Total Maintenance Fees'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-[#f0fdf4] flex items-center justify-center text-[#16a34a]">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="text-2xl font-semibold text-[#0f172a]">{activeCount}</p>
+                                <p className="text-sm text-[#64748b]">Active (this page)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            {/* Search Bar */}
-                            <form onSubmit={handleSearch} className="mb-6">
-                                <div className="flex gap-4">
-                                    <TextInput
-                                        type="text"
-                                        className="flex-1"
-                                        placeholder="Search amenities..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                    <PrimaryButton type="submit">Search</PrimaryButton>
-                                </div>
-                            </form>
+                {/* Main Content */}
+                <div className="bg-white rounded-lg border border-[#e2e8f0]">
+                    {/* Search */}
+                    <div className="p-4 border-b border-[#e2e8f0]">
+                        <div className="relative max-w-md">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="h-4 w-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Search maintenance fees..."
+                                aria-label="Search maintenance fees"
+                                className="w-full pl-9 pr-4 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
-                            {/* Amenities Table */}
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Name
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Category
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Icon
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Sort Order
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Status
-                                            </th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {amenities.data && amenities.data.map((amenity) => (
-                                            <tr key={amenity.id}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {amenity.name}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {amenity.category || '-'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-[#e2e8f0]">
+                            <thead className="bg-[#f8fafc]">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                        Name
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider hidden md:table-cell">
+                                        Category
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider hidden md:table-cell">
+                                        Sort Order
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-[#e2e8f0]">
+                                {rows.length > 0 ? (
+                                    rows.map((amenity) => (
+                                        <tr key={amenity.id} className="hover:bg-[#f8fafc] transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
                                                     {amenity.icon ? (
-                                                        <img src={amenity.icon} alt={amenity.name} className="h-6 w-6" />
+                                                        <img
+                                                            src={amenity.icon}
+                                                            alt=""
+                                                            aria-hidden="true"
+                                                            className="w-8 h-8 object-contain"
+                                                        />
                                                     ) : (
-                                                        '-'
+                                                        <div className="w-8 h-8 bg-[#f1f5f9] rounded flex items-center justify-center">
+                                                            <svg className="w-4 h-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15" />
+                                                            </svg>
+                                                        </div>
                                                     )}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                    {amenity.sort_order}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                        amenity.is_active
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : 'bg-red-100 text-red-800'
-                                                    }`}>
-                                                        {amenity.is_active ? 'Active' : 'Inactive'}
+                                                    <span className="text-sm font-medium text-[#0f172a]">{amenity.name}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                                                {amenity.category ? (
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#f1f5f9] text-[#475569]">
+                                                        {amenity.category}
                                                     </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                ) : (
+                                                    <span className="text-[#cbd5e1]">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-[#64748b] hidden md:table-cell">
+                                                {amenity.sort_order}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${
+                                                    amenity.is_active
+                                                        ? 'bg-[#f0fdf4] text-[#16a34a]'
+                                                        : 'bg-[#f1f5f9] text-[#64748b]'
+                                                }`}>
+                                                    {amenity.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <div className="inline-flex gap-2">
                                                     <button
                                                         onClick={() => openEditModal(amenity)}
-                                                        className="text-indigo-600 hover:text-indigo-900 mr-3"
+                                                        className="px-3 py-1.5 text-xs font-medium text-[#64748b] bg-[#f1f5f9] rounded-md hover:bg-[#e2e8f0] transition-colors"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(amenity.id, amenity.name)}
-                                                        className="text-red-600 hover:text-red-900"
+                                                        className="px-3 py-1.5 text-xs font-medium text-[#dc2626] bg-[#fef2f2] rounded-md hover:bg-[#fee2e2] transition-colors"
                                                     >
                                                         Delete
                                                     </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Pagination */}
-                            {amenities.links && amenities.links.length > 3 && (
-                                <div className="mt-4 flex justify-center">
-                                    {amenities.links.map((link, index) => (
-                                        <Link
-                                            key={index}
-                                            href={link.url || '#'}
-                                            className={`px-3 py-1 mx-1 rounded ${
-                                                link.active
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            dangerouslySetInnerHTML={{ __html: link.label }}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-12 h-12 rounded-lg bg-[#f1f5f9] flex items-center justify-center mb-3">
+                                                    <svg className="w-6 h-6 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15" />
+                                                    </svg>
+                                                </div>
+                                                <p className="text-sm font-medium text-[#0f172a]">No maintenance fees found</p>
+                                                <p className="text-xs text-[#94a3b8] mt-1">
+                                                    {filters.search ? 'Try a different search term' : 'Add your first maintenance fee to get started'}
+                                                </p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
+
+                    {/* Pagination */}
+                    {amenities.links && amenities.links.length > 3 && (
+                        <div className="px-6 py-4 border-t border-[#e2e8f0] flex items-center justify-between">
+                            <p className="text-sm text-[#64748b]">
+                                Showing {amenities.from || 0} to {amenities.to || 0} of {amenities.total || 0} results
+                            </p>
+                            <nav className="flex items-center gap-1">
+                                {amenities.links.map((link, index) => (
+                                    <Link
+                                        key={index}
+                                        href={link.url || '#'}
+                                        className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                            link.active
+                                                ? 'bg-[#0f172a] text-white'
+                                                : link.url
+                                                ? 'text-[#64748b] hover:bg-[#f1f5f9]'
+                                                : 'text-[#cbd5e1] cursor-not-allowed'
+                                        }`}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                        preserveScroll
+                                    />
+                                ))}
+                            </nav>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Create Modal */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 overflow-y-auto h-full w-full z-50">
-                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Add New Maintenance Fee Amenity</h3>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Add Maintenance Fee</h2>
                         <form onSubmit={handleCreate}>
-                            <div className="mb-4">
-                                <InputLabel htmlFor="name" value="Name" />
-                                <TextInput
-                                    id="name"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    value={data.name}
-                                    onChange={e => setData('name', e.target.value)}
-                                    required
-                                />
-                                <InputError message={errors.name} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="category" value="Category" />
-                                <select
-                                    id="category"
-                                    className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                    value={data.category}
-                                    onChange={e => setData('category', e.target.value)}
+                            {formFields}
+                            <div className="mt-6 flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowCreateModal(false); clearIconPreview(); reset(); }}
+                                    className="px-4 py-2 text-sm font-medium text-[#64748b] bg-[#f1f5f9] rounded-lg hover:bg-[#e2e8f0] transition-colors"
                                 >
-                                    <option value="">Select Category</option>
-                                    <option value="Utilities">Utilities</option>
-                                    <option value="Services">Services</option>
-                                    <option value="Facilities">Facilities</option>
-                                    {categories && categories.filter(cat => !['Utilities', 'Services', 'Facilities'].includes(cat)).map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.category} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="icon" value="Icon (SVG file)" />
-                                {iconPreview && (
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <img src={iconPreview} alt="Preview" className="h-8 w-8" />
-                                        <span className="text-sm text-gray-600">Preview</span>
-                                    </div>
-                                )}
-                                <input
-                                    id="icon"
-                                    type="file"
-                                    accept=".svg"
-                                    className="mt-1 block w-full text-sm text-gray-500
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-md file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-indigo-50 file:text-indigo-700
-                                        hover:file:bg-indigo-100"
-                                    onChange={handleIconChange}
-                                />
-                                <InputError message={errors.icon} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="sort_order" value="Sort Order" />
-                                <TextInput
-                                    id="sort_order"
-                                    type="number"
-                                    className="mt-1 block w-full"
-                                    value={data.sort_order}
-                                    onChange={e => setData('sort_order', parseInt(e.target.value) || 0)}
-                                />
-                                <InputError message={errors.sort_order} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                                        checked={data.is_active}
-                                        onChange={e => setData('is_active', e.target.checked)}
-                                    />
-                                    <span className="ml-2 text-sm text-gray-600">Active</span>
-                                </label>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <PrimaryButton type="submit" disabled={processing}>
-                                    Create
-                                </PrimaryButton>
-                                <SecondaryButton type="button" onClick={() => {
-                                    setShowCreateModal(false);
-                                    if (iconPreview) {
-                                        URL.revokeObjectURL(iconPreview);
-                                        setIconPreview(null);
-                                    }
-                                }}>
                                     Cancel
-                                </SecondaryButton>
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+                                >
+                                    {processing ? 'Creating...' : 'Create'}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -346,108 +437,26 @@ export default function MaintenanceFeeAmenitiesIndex({ auth, amenities, categori
 
             {/* Edit Modal */}
             {showEditModal && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 overflow-y-auto h-full w-full z-50">
-                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Edit Maintenance Fee Amenity</h3>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Edit Maintenance Fee</h2>
                         <form onSubmit={handleEdit}>
-                            <div className="mb-4">
-                                <InputLabel htmlFor="edit-name" value="Name" />
-                                <TextInput
-                                    id="edit-name"
-                                    type="text"
-                                    className="mt-1 block w-full"
-                                    value={data.name}
-                                    onChange={e => setData('name', e.target.value)}
-                                    required
-                                />
-                                <InputError message={errors.name} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="edit-category" value="Category" />
-                                <select
-                                    id="edit-category"
-                                    className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
-                                    value={data.category}
-                                    onChange={e => setData('category', e.target.value)}
+                            {formFields}
+                            <div className="mt-6 flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowEditModal(false); setEditingAmenity(null); clearIconPreview(); reset(); }}
+                                    className="px-4 py-2 text-sm font-medium text-[#64748b] bg-[#f1f5f9] rounded-lg hover:bg-[#e2e8f0] transition-colors"
                                 >
-                                    <option value="">Select Category</option>
-                                    <option value="Utilities">Utilities</option>
-                                    <option value="Services">Services</option>
-                                    <option value="Facilities">Facilities</option>
-                                    {categories && categories.filter(cat => !['Utilities', 'Services', 'Facilities'].includes(cat)).map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.category} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="edit-icon" value="Icon (SVG file)" />
-                                {iconPreview ? (
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <img src={iconPreview} alt="New icon preview" className="h-8 w-8" />
-                                        <span className="text-sm text-gray-600">New icon preview</span>
-                                    </div>
-                                ) : editingAmenity?.icon && (
-                                    <div className="mb-2 flex items-center gap-2">
-                                        <img src={editingAmenity.icon} alt="Current icon" className="h-8 w-8" />
-                                        <span className="text-sm text-gray-600">Current icon</span>
-                                    </div>
-                                )}
-                                <input
-                                    id="edit-icon"
-                                    type="file"
-                                    accept=".svg"
-                                    className="mt-1 block w-full text-sm text-gray-500
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded-md file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-indigo-50 file:text-indigo-700
-                                        hover:file:bg-indigo-100"
-                                    onChange={handleIconChange}
-                                />
-                                <p className="mt-1 text-xs text-gray-500">Leave empty to keep current icon</p>
-                                <InputError message={errors.icon} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <InputLabel htmlFor="edit-sort_order" value="Sort Order" />
-                                <TextInput
-                                    id="edit-sort_order"
-                                    type="number"
-                                    className="mt-1 block w-full"
-                                    value={data.sort_order}
-                                    onChange={e => setData('sort_order', parseInt(e.target.value) || 0)}
-                                />
-                                <InputError message={errors.sort_order} className="mt-2" />
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
-                                        checked={data.is_active}
-                                        onChange={e => setData('is_active', e.target.checked)}
-                                    />
-                                    <span className="ml-2 text-sm text-gray-600">Active</span>
-                                </label>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <PrimaryButton type="submit" disabled={processing}>
-                                    Update
-                                </PrimaryButton>
-                                <SecondaryButton type="button" onClick={() => {
-                                    setShowEditModal(false);
-                                    if (iconPreview) {
-                                        URL.revokeObjectURL(iconPreview);
-                                        setIconPreview(null);
-                                    }
-                                }}>
                                     Cancel
-                                </SecondaryButton>
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors disabled:opacity-50"
+                                >
+                                    {processing ? 'Saving...' : 'Save'}
+                                </button>
                             </div>
                         </form>
                     </div>

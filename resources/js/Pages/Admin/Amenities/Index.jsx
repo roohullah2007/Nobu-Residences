@@ -135,8 +135,12 @@ export default function AmenitiesIndex({ auth, amenities }) {
                             </svg>
                         </div>
                         <div>
-                            <p className="text-2xl font-semibold text-[#0f172a]">{totalAmenities}</p>
-                            <p className="text-sm text-[#64748b]">Total Amenities</p>
+                            <p className="text-2xl font-semibold text-[#0f172a]">
+                                {searchTerm ? filteredAmenities.length : totalAmenities}
+                            </p>
+                            <p className="text-sm text-[#64748b]">
+                                {searchTerm ? `Matching Amenities (of ${totalAmenities} total)` : 'Total Amenities'}
+                            </p>
                         </div>
                     </div>
                 </div>
