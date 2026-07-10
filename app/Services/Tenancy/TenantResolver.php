@@ -66,14 +66,21 @@ class TenantResolver
      * list so the panel keeps working on both the old and new domain while
      * a move (e.g. nobu.wpbun.xyz -> building.wpbun.xyz) is in progress.
      *
-     * @return string[] Normalized, empty entries removed.
+     * APP_URL's host is always included as well: the app's own canonical URL
+     * can never be a tenant, and this keeps the main site reachable after a
+     * domain move even when ADMIN_HOST in the server .env is stale.
+     *
+     * @return string[] Normalized, deduplicated, empty entries removed.
      */
     public static function adminHosts(): array
     {
-        return array_values(array_filter(array_map(
+        $hosts = explode(',', (string) config('tenancy.admin_host'));
+        $hosts[] = (string) config('app.url');
+
+        return array_values(array_unique(array_filter(array_map(
             fn (string $host) => self::normalizeHost($host),
-            explode(',', (string) config('tenancy.admin_host'))
-        )));
+            $hosts
+        ))));
     }
 
     protected function resolveUncached(string $host, string $previewSlug): ?Website

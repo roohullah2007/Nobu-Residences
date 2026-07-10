@@ -14,9 +14,12 @@ return [
     |
     | Accepts a comma-separated list for domain moves, e.g.
     |   ADMIN_HOST=building.wpbun.xyz,nobu.wpbun.xyz
-    | keeps the panel reachable on both the new and old domain.
+    | keeps the panel reachable on both the new and old domain. APP_URL's
+    | host is always treated as an admin host too (see
+    | TenantResolver::adminHosts()), so a stale ADMIN_HOST can't 404 the
+    | main site after a move.
     */
-    'admin_host' => env('ADMIN_HOST', 'nobu.wpbun.xyz'),
+    'admin_host' => env('ADMIN_HOST', 'building.wpbun.xyz,nobu.wpbun.xyz'),
 
     /*
     |--------------------------------------------------------------------------

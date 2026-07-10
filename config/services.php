@@ -54,7 +54,7 @@ return [
         'zone_id' => env('CLOUDFLARE_ZONE_ID'),
         // The hostname customers point their CNAME at (the SaaS zone's
         // fallback origin entry).
-        'cname_target' => env('CLOUDFLARE_CNAME_TARGET', 'nobu.wpbun.xyz'),
+        'cname_target' => env('CLOUDFLARE_CNAME_TARGET', 'building.wpbun.xyz'),
         'base_url' => env('CLOUDFLARE_BASE_URL', 'https://api.cloudflare.com/client/v4'),
     ],
 
