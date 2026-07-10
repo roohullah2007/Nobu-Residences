@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import DangerButton from '@/Components/DangerButton';
@@ -8,6 +9,9 @@ import DangerButton from '@/Components/DangerButton';
 export default function Schools({ auth, schools: initialSchools = [], pagination = null }) {
   const [schools, setSchools] = useState(initialSchools);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null); // { type: 'success'|'error', text }
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [showGeocodeConfirm, setShowGeocodeConfirm] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     school_type: '',
@@ -25,15 +29,15 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
       Object.entries(newFilters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
-      
+
       const response = await fetch(`/api/schools?${params.toString()}`);
       const result = await response.json();
-      
+
       if (result.success) {
         setSchools(result.data);
       }
     } catch (error) {
-      console.error('Error fetching schools:', error);
+      setStatusMessage({ type: 'error', text: 'Failed to load schools. Please refresh and try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -46,51 +50,48 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
     fetchSchools(newFilters);
   };
 
-  // Handle school deletion
-  const handleDeleteSchool = (schoolId, schoolName) => {
-    if (confirm(`Are you sure you want to delete "${schoolName}"? This action cannot be undone.`)) {
-      deleteSchool(`/admin/schools/${schoolId}`, {
-        onSuccess: () => {
-          setSchools(schools.filter(s => s.id !== schoolId));
-        }
-      });
-    }
+  const confirmDeleteSchool = () => {
+    if (!pendingDelete) return;
+    const school = pendingDelete;
+    deleteSchool(`/admin/schools/${school.id}`, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setSchools(schools.filter(s => s.id !== school.id));
+      },
+      onFinish: () => setPendingDelete(null),
+    });
   };
 
   // Handle batch geocoding
-  const handleBatchGeocode = async () => {
-    if (confirm('This will geocode schools that don\'t have coordinates. Continue?')) {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/schools/batch-geocode', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-          }
-        });
-        const result = await response.json();
-        
-        if (result.success) {
-          alert(result.message);
-          fetchSchools(); // Refresh the list
-        } else {
-          alert('Error: ' + result.message);
+  const runBatchGeocode = async () => {
+    setShowGeocodeConfirm(false);
+    setStatusMessage(null);
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/schools/batch-geocode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
         }
-      } catch (error) {
-        console.error('Error in batch geocoding:', error);
-        alert('Error during batch geocoding');
-      } finally {
-        setIsLoading(false);
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        setStatusMessage({ type: 'success', text: result.message });
+        fetchSchools(); // Refresh the list
+      } else {
+        setStatusMessage({ type: 'error', text: result.message || 'Batch geocoding failed.' });
       }
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: 'Batch geocoding failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <AdminLayout
-      user={auth.user}
-      header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">School Management</h2>}
-    >
+    <AdminLayout title="Schools">
       <Head title="Schools - Admin" />
 
       <div className="py-12">
@@ -98,12 +99,29 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
           <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
             <div className="p-6 text-gray-900">
               
+              {statusMessage && (
+                <div className={`mb-4 flex items-center justify-between rounded-md border px-4 py-3 text-sm ${
+                  statusMessage.type === 'success'
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
+                  <span>{statusMessage.text}</span>
+                  <button
+                    type="button"
+                    onClick={() => setStatusMessage(null)}
+                    className="font-medium hover:underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
               {/* Header Actions */}
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Schools</h3>
                 <div className="flex gap-3">
                   <SecondaryButton
-                    onClick={handleBatchGeocode}
+                    onClick={() => setShowGeocodeConfirm(true)}
                     disabled={isLoading}
                   >
                     Batch Geocode
@@ -254,7 +272,7 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
                                   Edit
                                 </Link>
                                 <button
-                                  onClick={() => handleDeleteSchool(school.id, school.name)}
+                                  onClick={() => setPendingDelete(school)}
                                   className="text-red-600 hover:text-red-900"
                                 >
                                   Delete
@@ -299,6 +317,25 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete school?"
+        message={pendingDelete ? `"${pendingDelete.name}" will be permanently deleted. This can't be undone.` : ''}
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteSchool}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={showGeocodeConfirm}
+        title="Run batch geocoding?"
+        message="Schools without coordinates will be geocoded via the geocoding API. This may take a moment."
+        confirmLabel="Run"
+        variant="neutral"
+        onConfirm={runBatchGeocode}
+        onCancel={() => setShowGeocodeConfirm(false)}
+      />
     </AdminLayout>
   );
 }

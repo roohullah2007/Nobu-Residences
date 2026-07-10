@@ -514,10 +514,8 @@ export default function Edit({ auth }) {
                                                                     className="sr-only"
                                                                     onChange={(e) => {
                                                                         const file = e.target.files[0];
-                                                                        console.log('Logo file selected:', file);
                                                                         if (file) {
                                                                             setData('logo_file', file);
-                                                                            console.log('Logo file set in data');
                                                                             const reader = new FileReader();
                                                                             reader.onload = (e) => {
                                                                                 setLogoPreview(e.target.result);

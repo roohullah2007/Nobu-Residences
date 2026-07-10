@@ -1,10 +1,13 @@
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import { useState } from 'react';
 
 export default function EditHomePage({ auth }) {
     const { website, homePage, availableIcons, title } = usePage().props;
     const [activeTab, setActiveTab] = useState('hero');
+    const [pendingIconDelete, setPendingIconDelete] = useState(null);
+    const [iconActionError, setIconActionError] = useState('');
     const [showIconModal, setShowIconModal] = useState(false);
     const [showEditIconModal, setShowEditIconModal] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('key_facts');
@@ -219,13 +222,9 @@ export default function EditHomePage({ auth }) {
             router.post(route('admin.websites.update-home-page', website.id), formData, {
                 forceFormData: true,
                 preserveScroll: true,
-                onSuccess: (response) => {
-                    console.log('Success response:', response);
+                onSuccess: () => {
                     setShowSuccess(true);
                     setTimeout(() => setShowSuccess(false), 4000);
-                },
-                onError: (errors) => {
-                    console.error('Form submission errors:', errors);
                 }
             });
         }
@@ -438,10 +437,6 @@ export default function EditHomePage({ auth }) {
                 setShowIconModal(false);
                 resetIcon();
             },
-            onError: (errors) => {
-                // Handle validation errors without showing SVG content
-                console.error('Icon upload failed:', errors);
-            },
             preserveScroll: true,
             preserveState: false
         });
@@ -470,10 +465,9 @@ export default function EditHomePage({ auth }) {
                     updateAboutTabItem(tabName, inlineIconIndex, 'icon', iconData.name);
                 }
             },
-            onError: (errors) => {
-                // Handle validation errors without showing SVG content
-                console.error('Icon upload failed:', errors);
-                // Restore the active tab even on error
+            onError: () => {
+                // Validation errors render in the modal; restore the active
+                // tab even on error
                 setActiveTab(currentTab);
             },
             preserveScroll: true,
@@ -499,7 +493,7 @@ export default function EditHomePage({ auth }) {
                 setShowEditIconModal(false);
                 setSelectedIcon(null);
                 resetEditIcon();
-                window.location.reload();
+                router.reload();
             }
         });
     };
@@ -519,29 +513,27 @@ export default function EditHomePage({ auth }) {
         setShowEditIconModal(true);
     };
 
-    const handleDeleteIcon = async (icon) => {
-        if (confirm(`Are you sure you want to delete the "${icon.name}" icon?`)) {
-            try {
-                const response = await fetch(route('admin.icons.destroy', icon.id), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    },
-                    body: JSON.stringify({
-                        _method: 'DELETE'
-                    })
-                });
-                
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Failed to delete icon');
-                }
-            } catch (error) {
-                console.error('Error deleting icon:', error);
-                alert('Error deleting icon');
+    const performIconDelete = async (icon) => {
+        setIconActionError('');
+        try {
+            const response = await fetch(route('admin.icons.destroy', icon.id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    _method: 'DELETE'
+                })
+            });
+
+            if (response.ok) {
+                router.reload();
+            } else {
+                setIconActionError(`Failed to delete the "${icon.name}" icon. Please try again.`);
             }
+        } catch (error) {
+            setIconActionError(`Failed to delete the "${icon.name}" icon. Please try again.`);
         }
     };
 
@@ -629,7 +621,7 @@ export default function EditHomePage({ auth }) {
                                 Edit
                             </button>
                             <button
-                                onClick={() => handleDeleteIcon(icon)}
+                                onClick={() => setPendingIconDelete(icon)}
                                 className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
                                 title="Delete icon"
                             >
@@ -2268,6 +2260,32 @@ export default function EditHomePage({ auth }) {
                     </div>
                 </div>
             )}
+
+            {iconActionError && (
+                <div className="fixed top-4 right-4 z-50 flex items-center gap-3 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 shadow-lg">
+                    <span>{iconActionError}</span>
+                    <button
+                        type="button"
+                        onClick={() => setIconActionError('')}
+                        className="font-medium text-red-800 hover:text-red-900"
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+
+            <ConfirmDialog
+                open={Boolean(pendingIconDelete)}
+                title="Delete icon?"
+                message={pendingIconDelete ? `The "${pendingIconDelete.name}" icon will be permanently deleted. This can't be undone.` : ''}
+                confirmLabel="Delete"
+                onConfirm={() => {
+                    const icon = pendingIconDelete;
+                    setPendingIconDelete(null);
+                    if (icon) performIconDelete(icon);
+                }}
+                onCancel={() => setPendingIconDelete(null)}
+            />
         </AdminLayout>
     );
 }

@@ -81,6 +81,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const [galleryImages, setGalleryImages] = useState([]);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+    const [imageUploadError, setImageUploadError] = useState('');
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
@@ -204,16 +205,20 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
 
+        setImageUploadError('');
+
         const filesToUpload = imageType === 'main' ? [files[0]] : files;
 
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         for (const file of filesToUpload) {
             if (!validTypes.includes(file.type)) {
-                alert(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                setImageUploadError(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                e.target.value = null;
                 return;
             }
             if (file.size > 5 * 1024 * 1024) {
-                alert(`File too large: ${file.name}. Images must be less than 5MB.`);
+                setImageUploadError(`File too large: ${file.name}. Images must be less than 5MB.`);
+                e.target.value = null;
                 return;
             }
         }
@@ -250,12 +255,9 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
 
                 if (result.success && result.url) {
                     return result.url;
-                } else {
-                    console.error('Upload failed:', result.message);
-                    return null;
                 }
+                return null;
             } catch (error) {
-                console.error(`Error uploading ${file.name}:`, error);
                 return null;
             }
         });
@@ -275,14 +277,13 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                 }
 
                 if (successfulUploads.length < filesToUpload.length) {
-                    alert(`${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully.`);
+                    setImageUploadError(`Only ${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully. Try re-uploading the rest.`);
                 }
             } else {
-                alert('Failed to upload images. Please try again.');
+                setImageUploadError('Failed to upload images. Please try again.');
             }
         } catch (error) {
-            console.error('Image upload error:', error);
-            alert('Failed to upload images. Please try again.');
+            setImageUploadError('Failed to upload images. Please try again.');
         } finally {
             if (imageType === 'main') {
                 setUploadingImage(false);
@@ -1113,6 +1114,12 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Media & Links</h2>
+
+                            {imageUploadError && (
+                                <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                                    {imageUploadError}
+                                </div>
+                            )}
 
                             {/* Main Image Section */}
                             <div className="mb-8">

@@ -60,13 +60,6 @@ export default function Pages({ auth }) {
         }
     };
 
-    const handleDelete = (page) => {
-        if (confirm(`Are you sure you want to delete the "${page.title}" page? This action cannot be undone.`)) {
-            // Handle delete logic here
-            console.log('Delete page:', page.id);
-        }
-    };
-
     return (
         <AdminLayout title={title}>
             <Head title={title} />
@@ -91,14 +84,6 @@ export default function Pages({ auth }) {
                                 Manage pages for <span className="font-medium">{website.name}</span>
                             </p>
                         </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                        <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                            Add Page
-                        </button>
                     </div>
                 </div>
 
@@ -166,8 +151,9 @@ export default function Pages({ auth }) {
                                                     <button
                                                         onClick={() => toggleDropdown(page.id)}
                                                         className="inline-flex items-center p-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                                        aria-expanded="true"
-                                                        aria-haspopup="true"
+                                                        aria-label={`Actions for ${page.title || page.page_type} page`}
+                                                        aria-expanded={openDropdownId === page.id}
+                                                        aria-haspopup="menu"
                                                     >
                                                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -212,11 +198,7 @@ export default function Pages({ auth }) {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                 </svg>
                                                 <p className="mt-2 text-sm text-gray-500">No pages found.</p>
-                                                <p className="text-sm text-gray-500">
-                                                    <button className="text-indigo-600 hover:text-indigo-800 font-medium">
-                                                        Create your first page
-                                                    </button>
-                                                </p>
+                                                <p className="text-sm text-gray-500">Pages are created automatically when the website is set up.</p>
                                             </div>
                                         </td>
                                     </tr>

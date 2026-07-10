@@ -24,14 +24,7 @@ export default function SavedSearchesIndex({ auth, savedSearches, stats, filters
     };
 
     return (
-        <AdminLayout
-            user={auth.user}
-            header={
-                <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                    Saved Searches & Email Alerts
-                </h2>
-            }
-        >
+        <AdminLayout title="Saved Searches">
             <Head title="Saved Searches" />
 
             <div className="py-8">

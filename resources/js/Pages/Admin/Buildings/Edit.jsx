@@ -6,6 +6,7 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
 import { csrfHeaders } from '@/utils/csrf';
@@ -22,13 +23,6 @@ const createBuildingSlug = (name, id) => {
 };
 
 export default function BuildingsEdit({ auth, building, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [], linkedWebsite = null }) {
-    // Debug logging
-    console.log('=== BuildingsEdit Component Loaded ===');
-    console.log('Building prop:', building);
-    console.log('Building amenity_ids:', building.amenity_ids);
-    console.log('Available amenities:', amenities);
-    console.log('Amenities count:', amenities.length);
-
     // Old data model had street_address_1 + street_address_2 as separate
     // fields. The admin form now only shows a single "Additional Street
     // Addresses" repeater, so merge those two values in at the top of
@@ -102,34 +96,16 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     // Initialize selected amenities immediately from props
     const initSelectedAmenities = () => {
-        console.log('=== Initializing Selected Amenities ===');
-        console.log('Building object:', building);
-        console.log('Checking conditions:');
-        console.log('- building.amenity_ids exists?', !!building.amenity_ids);
-        console.log('- building.amenity_ids type:', typeof building.amenity_ids);
-        console.log('- building.amenity_ids value:', building.amenity_ids);
-        console.log('- building.amenity_ids length?', building.amenity_ids ? building.amenity_ids.length : 0);
-        console.log('- amenities length?', amenities.length);
-        console.log('- amenities sample:', amenities.slice(0, 2));
-
         // Ensure amenity_ids is an array
         const amenityIds = Array.isArray(building.amenity_ids) ? building.amenity_ids : [];
-        
+
         if (amenityIds.length > 0 && amenities.length > 0) {
-            const selected = amenities.filter(a => {
-                const isIncluded = amenityIds.includes(a.id);
-                console.log(`Checking amenity ${a.name} (${a.id}): ${isIncluded}`);
-                return isIncluded;
-            });
-            console.log('Selected amenities found:', selected);
-            return selected;
+            return amenities.filter((a) => amenityIds.includes(a.id));
         }
-        console.log('No amenities selected (conditions not met)');
         return [];
     };
 
     const [selectedAmenities, setSelectedAmenities] = useState(initSelectedAmenities());
-    console.log('State initialized with selectedAmenities:', selectedAmenities);
 
     // Initialize selected maintenance fee amenities
     const initMaintenanceFeeAmenities = () => {
@@ -151,6 +127,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+    const [imageUploadError, setImageUploadError] = useState('');
+    const [pendingImageDelete, setPendingImageDelete] = useState(null);
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
     const [generatingAiDescription, setGeneratingAiDescription] = useState(false);
     const [aiDescriptionError, setAiDescriptionError] = useState('');
@@ -267,23 +245,13 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
-        console.log('=== Form Submission ===');
-        console.log('Current selectedAmenities:', selectedAmenities);
-        console.log('Current data.amenity_ids:', data.amenity_ids);
-        
-        const amenityIds = selectedAmenities.map(a => a.id);
-        console.log('Mapped amenity IDs:', amenityIds);
-        
+
         const formData = {
             ...data,
-            amenity_ids: amenityIds,
+            amenity_ids: selectedAmenities.map(a => a.id),
             maintenance_fee_amenity_ids: selectedMaintenanceFeeAmenities.map(a => a.id)
         };
-        
-        console.log('Final form data being sent:', formData);
-        console.log('Amenities in form data:', formData.amenity_ids);
-        
+
         put(route('admin.buildings.update', createBuildingSlug(building.name, building.id)), formData);
     };
 
@@ -301,13 +269,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         
         // Also update the form data to keep it in sync
         setData('amenity_ids', newSelectedAmenities.map(a => a.id));
-        
-        console.log('Amenity toggled:', {
-            amenity: amenity.name,
-            action: exists ? 'removed' : 'added',
-            newSelectedCount: newSelectedAmenities.length,
-            newSelectedIds: newSelectedAmenities.map(a => a.id)
-        });
     };
 
     const toggleMaintenanceFeeAmenity = (amenity) => {
@@ -324,18 +285,13 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
         // Also update the form data to keep it in sync
         setData('maintenance_fee_amenity_ids', newSelectedMaintenanceFeeAmenities.map(a => a.id));
-
-        console.log('Maintenance Fee Amenity toggled:', {
-            amenity: amenity.name,
-            action: exists ? 'removed' : 'added',
-            newSelectedCount: newSelectedMaintenanceFeeAmenities.length,
-            newSelectedIds: newSelectedMaintenanceFeeAmenities.map(a => a.id)
-        });
     };
 
     const handleImageUpload = async (e, imageType = 'main') => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
+
+        setImageUploadError('');
 
         // For main image, only take the first file
         const filesToUpload = imageType === 'main' ? [files[0]] : files;
@@ -344,11 +300,13 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         for (const file of filesToUpload) {
             if (!validTypes.includes(file.type)) {
-                alert(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                setImageUploadError(`Invalid file type: ${file.name}. Please upload valid image files (JPEG, PNG, GIF, or WebP).`);
+                e.target.value = null;
                 return;
             }
             if (file.size > 5 * 1024 * 1024) {
-                alert(`File too large: ${file.name}. Images must be less than 5MB.`);
+                setImageUploadError(`File too large: ${file.name}. Images must be less than 5MB.`);
+                e.target.value = null;
                 return;
             }
         }
@@ -387,12 +345,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
                 if (result.success && result.url) {
                     return result.url;
-                } else {
-                    console.error('Upload failed:', result.message);
-                    return null;
                 }
+                return null;
             } catch (error) {
-                console.error(`Error uploading ${file.name}:`, error);
                 return null;
             }
         });
@@ -412,14 +367,13 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                 }
 
                 if (successfulUploads.length < filesToUpload.length) {
-                    alert(`${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully.`);
+                    setImageUploadError(`Only ${successfulUploads.length} of ${filesToUpload.length} images uploaded successfully. Try re-uploading the rest.`);
                 }
             } else {
-                alert('Failed to upload images. Please try again.');
+                setImageUploadError('Failed to upload images. Please try again.');
             }
         } catch (error) {
-            console.error('Image upload error:', error);
-            alert('Failed to upload images. Please try again.');
+            setImageUploadError('Failed to upload images. Please try again.');
         } finally {
             if (imageType === 'main') {
                 setUploadingImage(false);
@@ -432,8 +386,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     };
 
     const handleDeleteImage = async (imageUrl, isMainImage = false) => {
-        if (!confirm('Are you sure you want to delete this image?')) return;
-
+        setImageUploadError('');
         try {
             // Get CSRF token from meta tag
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -464,11 +417,10 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     setData('images', updatedImages);
                 }
             } else {
-                alert('Failed to delete image. Please try again.');
+                setImageUploadError('Failed to delete image. Please try again.');
             }
         } catch (error) {
-            console.error('Image delete error:', error);
-            alert('Failed to delete image. Please try again.');
+            setImageUploadError('Failed to delete image. Please try again.');
         }
     };
 
@@ -1258,6 +1210,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         <div className="px-4 py-6 sm:p-8">
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Media & Links</h2>
 
+                            {imageUploadError && (
+                                <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                                    {imageUploadError}
+                                </div>
+                            )}
+
                             {/* Main Image Section */}
                             <div className="mb-8">
                                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Main Building Image</h3>
@@ -1281,7 +1239,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                 {imagePreview && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleDeleteImage(imagePreview, true)}
+                                                        onClick={() => setPendingImageDelete({ imageUrl: imagePreview, isMainImage: true })}
                                                         className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
                                                     >
                                                         Remove Main Image
@@ -1350,7 +1308,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                     />
                                                     <button
                                                         type="button"
-                                                        onClick={() => handleDeleteImage(image)}
+                                                        onClick={() => setPendingImageDelete({ imageUrl: image, isMainImage: false })}
                                                         className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                                                         title="Delete image"
                                                     >
@@ -1452,6 +1410,19 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     </div>
                 </form>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(pendingImageDelete)}
+                title="Delete image?"
+                message="This image will be permanently deleted from the building. This can't be undone."
+                confirmLabel="Delete"
+                onConfirm={() => {
+                    const target = pendingImageDelete;
+                    setPendingImageDelete(null);
+                    if (target) handleDeleteImage(target.imageUrl, target.isMainImage);
+                }}
+                onCancel={() => setPendingImageDelete(null)}
+            />
         </AdminLayout>
     );
 }
