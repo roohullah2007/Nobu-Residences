@@ -92,9 +92,8 @@ export default function Index({ auth }) {
                     <button
                         type="button"
                         onClick={() => setStatusFilter('all')}
-                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
-                            statusFilter === 'all' ? 'border-[#0f172a] ring-1 ring-[#0f172a]' : 'border-[#e2e8f0]'
-                        }`}
+                        aria-label={`${totalWebsites} total websites — show all`}
+                        className="bg-white rounded-lg border border-[#e2e8f0] p-4 text-left transition-colors hover:border-[#cbd5e1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6] focus-visible:ring-offset-2"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
@@ -111,8 +110,9 @@ export default function Index({ auth }) {
                     <button
                         type="button"
                         onClick={() => setStatusFilter('active')}
-                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
-                            statusFilter === 'active' ? 'border-[#16a34a] ring-1 ring-[#16a34a]' : 'border-[#e2e8f0]'
+                        aria-label={`${activeWebsites} active websites — filter to active`}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6] focus-visible:ring-offset-2 ${
+                            statusFilter === 'active' ? 'border-[#16a34a]' : 'border-[#e2e8f0]'
                         }`}
                     >
                         <div className="flex items-center gap-3">

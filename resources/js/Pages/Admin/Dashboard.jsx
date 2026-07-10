@@ -112,7 +112,8 @@ export default function Dashboard({ title, stats, websites, activity = [] }) {
                         <Link
                             key={stat.title}
                             href={stat.href}
-                            className="bg-white rounded-lg border border-[#e2e8f0] p-5 hover:border-[#cbd5e1] hover:shadow-sm transition-all"
+                            aria-label={`${(stat.value ?? 0).toLocaleString()} ${stat.title}`}
+                            className="bg-white rounded-lg border border-[#e2e8f0] p-5 hover:border-[#cbd5e1] hover:shadow-sm transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6] focus-visible:ring-offset-2"
                         >
                             <div className="flex items-center justify-between">
                                 <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
@@ -132,10 +133,33 @@ export default function Dashboard({ title, stats, websites, activity = [] }) {
                     ))}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Websites List */}
-                        <div className="bg-white rounded-lg border border-[#e2e8f0]">
+                {/* Quick Actions — horizontal strip so the two columns below stay balanced */}
+                <div className="bg-white rounded-lg border border-[#e2e8f0]">
+                    <div className="px-5 py-4 border-b border-[#e2e8f0]">
+                        <h2 className="text-base font-semibold text-[#0f172a]">Quick Actions</h2>
+                    </div>
+                    <div className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-1">
+                        {quickActions.map((action) => (
+                            <Link
+                                key={action.name}
+                                href={action.href}
+                                className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#f8fafc] transition-colors group"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] group-hover:bg-[#e2e8f0] flex items-center justify-center text-[#64748b] transition-colors">
+                                    {action.icon}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-[#0f172a]">{action.name}</p>
+                                    <p className="text-xs text-[#64748b]">{action.description}</p>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    {/* Websites List */}
+                    <div className="bg-white rounded-lg border border-[#e2e8f0]">
                             <div className="px-5 py-4 border-b border-[#e2e8f0] flex items-center justify-between">
                                 <div>
                                     <h2 className="text-base font-semibold text-[#0f172a]">Websites</h2>
@@ -192,59 +216,30 @@ export default function Dashboard({ title, stats, websites, activity = [] }) {
                                     </Link>
                                 ))}
                             </div>
-                        </div>
-
-                        {/* Recent Activity */}
-                        <div className="bg-white rounded-lg border border-[#e2e8f0]">
-                            <div className="px-5 py-4 border-b border-[#e2e8f0]">
-                                <h2 className="text-base font-semibold text-[#0f172a]">Recent Activity</h2>
-                            </div>
-                            {activity.length === 0 ? (
-                                <p className="px-5 py-6 text-sm text-[#64748b]">
-                                    No activity yet. New buildings and contact inquiries will appear here.
-                                </p>
-                            ) : (
-                                <div className="divide-y divide-[#f1f5f9]">
-                                    {activity.map((item, index) => (
-                                        <div key={`${item.type}-${index}`} className="flex items-start gap-3 px-5 py-3.5">
-                                            <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${ACTIVITY_DOT_COLORS[item.type] ?? 'bg-[#94a3b8]'}`}></div>
-                                            <div>
-                                                <p className="text-sm text-[#0f172a]">{item.label}</p>
-                                                <p className="text-xs text-[#64748b] mt-0.5">{item.time}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
                     </div>
 
-                    {/* Quick Actions */}
-                    <div>
-                        <div className="bg-white rounded-lg border border-[#e2e8f0]">
-                            <div className="px-5 py-4 border-b border-[#e2e8f0]">
-                                <h2 className="text-base font-semibold text-[#0f172a]">Quick Actions</h2>
-                            </div>
-                            <div className="p-3">
-                                <div className="space-y-1">
-                                    {quickActions.map((action) => (
-                                        <Link
-                                            key={action.name}
-                                            href={action.href}
-                                            className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-[#f8fafc] transition-colors group"
-                                        >
-                                            <div className="w-9 h-9 rounded-lg bg-[#f1f5f9] group-hover:bg-[#e2e8f0] flex items-center justify-center text-[#64748b] transition-colors">
-                                                {action.icon}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-[#0f172a]">{action.name}</p>
-                                                <p className="text-xs text-[#64748b]">{action.description}</p>
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
+                    {/* Recent Activity */}
+                    <div className="bg-white rounded-lg border border-[#e2e8f0]">
+                        <div className="px-5 py-4 border-b border-[#e2e8f0]">
+                            <h2 className="text-base font-semibold text-[#0f172a]">Recent Activity</h2>
                         </div>
+                        {activity.length === 0 ? (
+                            <p className="px-5 py-6 text-sm text-[#64748b]">
+                                No activity yet. New buildings and contact inquiries will appear here.
+                            </p>
+                        ) : (
+                            <div className="divide-y divide-[#f1f5f9]">
+                                {activity.map((item, index) => (
+                                    <div key={`${item.type}-${index}`} className="flex items-start gap-3 px-5 py-3.5">
+                                        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${ACTIVITY_DOT_COLORS[item.type] ?? 'bg-[#94a3b8]'}`}></div>
+                                        <div>
+                                            <p className="text-sm text-[#0f172a]">{item.label}</p>
+                                            <p className="text-xs text-[#64748b] mt-0.5">{item.time}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

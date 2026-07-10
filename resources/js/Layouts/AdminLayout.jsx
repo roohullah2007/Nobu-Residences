@@ -1,10 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Head, usePage } from '@inertiajs/react';
 
 export default function AdminLayout({ children, title = 'Admin' }) {
     const { auth } = usePage().props;
     const { url } = usePage();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    // Close the mobile drawer on Escape
+    useEffect(() => {
+        if (!sidebarOpen) return;
+        const onKey = (e) => {
+            if (e.key === 'Escape') setSidebarOpen(false);
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [sidebarOpen]);
     const [realEstateOpen, setRealEstateOpen] = useState(url?.startsWith('/admin/real-estate') || url?.startsWith('/admin/buildings') || url?.startsWith('/admin/amenities') || url?.startsWith('/admin/maintenance-fee-amenities') || url?.startsWith('/admin/neighbourhoods') || url?.startsWith('/admin/sub-neighbourhoods') || url?.startsWith('/admin/developers') || false);
 
     const navigation = [
@@ -219,34 +229,40 @@ export default function AdminLayout({ children, title = 'Admin' }) {
         <div className="min-h-screen bg-[#f8fafc]">
             <Head title={title} />
 
-            {/* Mobile sidebar overlay */}
-            {sidebarOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
-                    <div
-                        className="fixed inset-0 bg-black/50"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                    <div className="fixed inset-y-0 left-0 w-[85vw] max-w-72 bg-[#0f172a] overflow-y-auto">
-                        <div className="flex items-center justify-between h-16 px-6 border-b border-[#1e293b]">
-                            <span className="text-lg font-semibold text-white">Nobu Admin</span>
-                            <button
-                                onClick={() => setSidebarOpen(false)}
-                                aria-label="Close navigation menu"
-                                className="p-1 text-[#94a3b8] hover:text-white"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <nav className="px-4 py-6 space-y-1">
-                            {navigation.map((item) => (
-                                <NavItem key={item.name} item={item} mobile />
-                            ))}
-                        </nav>
+            {/* Mobile sidebar drawer — always mounted so it can slide in/out
+                with a transition; visibility is driven by translate/opacity
+                instead of conditional rendering. */}
+            <div
+                className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? '' : 'pointer-events-none'}`}
+                aria-hidden={!sidebarOpen}
+            >
+                <div
+                    className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}
+                    onClick={() => setSidebarOpen(false)}
+                />
+                <div
+                    id="mobile-navigation-drawer"
+                    className={`fixed inset-y-0 left-0 w-[85vw] max-w-72 bg-[#0f172a] overflow-y-auto transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                >
+                    <div className="flex items-center justify-between h-16 px-6 border-b border-[#1e293b]">
+                        <span className="text-lg font-semibold text-white">Nobu Admin</span>
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            aria-label="Close navigation menu"
+                            className="p-1 text-[#94a3b8] hover:text-white"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
+                    <nav className="px-4 py-6 space-y-1">
+                        {navigation.map((item) => (
+                            <NavItem key={item.name} item={item} mobile />
+                        ))}
+                    </nav>
                 </div>
-            )}
+            </div>
 
             {/* Desktop sidebar */}
             <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 bg-[#0f172a] lg:block">
@@ -267,9 +283,10 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                     <div className="flex items-center justify-between h-full px-4 sm:px-6">
                         <div className="flex items-center gap-4">
                             <button
-                                onClick={() => setSidebarOpen(true)}
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
                                 aria-label="Open navigation menu"
                                 aria-expanded={sidebarOpen}
+                                aria-controls="mobile-navigation-drawer"
                                 className="p-2 -ml-2 text-[#64748b] hover:text-[#0f172a] lg:hidden"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

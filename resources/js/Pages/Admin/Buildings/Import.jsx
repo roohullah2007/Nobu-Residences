@@ -40,6 +40,35 @@ const guessField = (header) => {
     return HEADER_ALIASES[normalized] ?? '';
 };
 
+// Sample template: canonical headings (auto-mapped on upload) + one example row.
+const SAMPLE_CSV_HEADERS = [
+    'name', 'address', 'city', 'province', 'postal_code', 'country', 'building_type',
+    'status', 'listing_type', 'developer', 'neighbourhood', 'sub_neighbourhood',
+    'management', 'corp_number', 'date_registered', 'total_units', 'floors', 'year_built',
+    'parking_spots', 'locker_spots', 'maintenance_fee_range', 'description',
+    'website_url', 'virtual_tour_url', 'latitude', 'longitude',
+];
+const SAMPLE_CSV_ROW = [
+    'Example Tower', '123 King St W, Toronto', 'Toronto', 'ON', 'M5V 1J2', 'Canada', 'condominium',
+    'active', 'For Sale', 'Example Developments Inc', 'Entertainment District', 'King West',
+    'Example Property Management', 'TSCC 1234', '2020-06-15', '350', '45', '2020',
+    '200', '300', '$450 - $900', 'A sample building row - replace with real data.',
+    'https://example.com', 'https://example.com/tour', '43.6452', '-79.3897',
+];
+
+const downloadSampleCsv = () => {
+    const csv = `${SAMPLE_CSV_HEADERS.join(',')}\n${SAMPLE_CSV_ROW.map((v) => `"${v}"`).join(',')}\n`;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'buildings-import-template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
 export default function BuildingsImport({ importableFields = {} }) {
     // step: 'upload' → 'map' → 'done'
     const [step, setStep] = useState('upload');
@@ -195,6 +224,19 @@ export default function BuildingsImport({ importableFields = {} }) {
                                 {isBusy ? 'Reading file...' : 'Choose CSV File'}
                             </label>
                             <p className="mt-2 text-xs text-gray-500">CSV up to 10MB. The first row must be column headings.</p>
+                            <button
+                                type="button"
+                                onClick={downloadSampleCsv}
+                                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download sample CSV template
+                            </button>
+                            <p className="mt-2 text-xs text-gray-400 max-w-lg mx-auto">
+                                Recognized columns: {SAMPLE_CSV_HEADERS.join(', ')}. Only name and address are required — headings are auto-mapped and you can adjust the mapping in the next step.
+                            </p>
                         </div>
                     </div>
                 )}

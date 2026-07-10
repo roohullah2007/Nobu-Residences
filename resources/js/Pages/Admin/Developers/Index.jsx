@@ -2,6 +2,31 @@ import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
+// Logo thumbnail with a fallback: broken/missing images swap to the
+// initial-letter avatar instead of showing raw alt text.
+function DeveloperLogo({ logo, name }) {
+    const [hasFailed, setHasFailed] = useState(false);
+
+    if (!logo || hasFailed) {
+        return (
+            <div className="w-10 h-10 rounded-lg bg-[#0f172a] flex items-center justify-center">
+                <span className="text-sm font-semibold text-white">
+                    {name.charAt(0).toUpperCase()}
+                </span>
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={`/storage/${logo}`}
+            alt={name}
+            onError={() => setHasFailed(true)}
+            className="w-10 h-10 rounded-lg object-cover"
+        />
+    );
+}
+
 const emptyForm = {
     name: '',
     type: 'developer',
@@ -504,19 +529,7 @@ export default function DevelopersIndex({ developers }) {
                                         <tr key={developer.id} className="hover:bg-[#f8fafc] transition-colors">
                                             <td className="px-4 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    {developer.logo ? (
-                                                        <img
-                                                            src={`/storage/${developer.logo}`}
-                                                            alt={developer.name}
-                                                            className="w-10 h-10 rounded-lg object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-lg bg-[#0f172a] flex items-center justify-center">
-                                                            <span className="text-sm font-semibold text-white">
-                                                                {developer.name.charAt(0).toUpperCase()}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                    <DeveloperLogo logo={developer.logo} name={developer.name} />
                                                     <div>
                                                         <span className="text-sm font-medium text-[#0f172a] block">
                                                             {developer.name}

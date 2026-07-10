@@ -639,7 +639,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     field so the existing DB value is preserved; public
                                     pages/API still read it. */}
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="development_status" value="Development Status" />
+                                    <InputLabel htmlFor="development_status" value="Construction Stage" />
                                     <select
                                         id="development_status"
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -652,7 +652,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         <option value="completed">Completed</option>
                                         <option value="sold_out">Sold Out</option>
                                     </select>
-                                    <p className="mt-1 text-xs text-gray-500">Construction phase — visibility is controlled by Status under Status &amp; Settings.</p>
+                                    <p className="mt-1 text-xs text-gray-500">Construction phase only — whether the building is published is controlled by Visibility Status under Status &amp; Settings.</p>
                                     <InputError message={errors.development_status} className="mt-2" />
                                 </div>
 
@@ -1407,7 +1407,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                             <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Status & Settings</h2>
                             <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="status" value="Status" />
+                                    <InputLabel htmlFor="status" value="Visibility Status" />
                                     <select
                                         id="status"
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
