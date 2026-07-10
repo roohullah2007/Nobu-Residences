@@ -65,6 +65,14 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
+        // Tell the admins — guarded inside notifyAdmins(); never breaks signup.
+        \App\Notifications\NewUserRegistered::notifyAdmins(
+            $user,
+            $request->getHost(),
+            \App\Models\Website::where('domain', $request->getHost())->value('name'),
+            'email registration'
+        );
+
         Auth::login($user);
 
         // If the user registered via the modal on a public page, send them

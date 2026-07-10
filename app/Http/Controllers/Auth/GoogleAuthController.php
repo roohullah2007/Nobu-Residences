@@ -84,6 +84,14 @@ class GoogleAuthController extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
+
+                // Tell the admins — guarded inside notifyAdmins(); never breaks login.
+                \App\Notifications\NewUserRegistered::notifyAdmins(
+                    $user,
+                    request()->getHost(),
+                    \App\Models\Website::where('domain', request()->getHost())->value('name'),
+                    'Google sign-in'
+                );
             }
 
             Auth::login($user, true);
@@ -182,6 +190,14 @@ class GoogleAuthController extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
+
+                // Tell the admins — guarded inside notifyAdmins(); never breaks login.
+                \App\Notifications\NewUserRegistered::notifyAdmins(
+                    $user,
+                    request()->getHost(),
+                    \App\Models\Website::where('domain', request()->getHost())->value('name'),
+                    'Google sign-in'
+                );
             }
 
             Auth::login($user, true);

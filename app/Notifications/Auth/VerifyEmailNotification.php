@@ -8,12 +8,16 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
- * Queued, site-branded email verification. Extends the framework notification
- * so the signed verification URL / throttling behaviour stays stock — only the
- * copy and the delivery (queued) change. Provider-agnostic: goes through the
- * mail channel, so switching MAIL_MAILER from `log` to SMTP is an .env change.
+ * Site-branded email verification. Extends the framework notification so the
+ * signed verification URL / throttling behaviour stays stock — only the copy
+ * changes. Provider-agnostic: goes through the mail channel and the default
+ * mailer (Resend when its key is configured).
+ *
+ * Sent SYNCHRONOUSLY on purpose (no ShouldQueue): QUEUE_CONNECTION=database
+ * and production runs no queue worker, so a queued notification would sit in
+ * the jobs table forever — same rationale as SavedSearchAlertNotification.
  */
-class VerifyEmailNotification extends VerifyEmail implements ShouldQueue
+class VerifyEmailNotification extends VerifyEmail
 {
     use Queueable;
 
