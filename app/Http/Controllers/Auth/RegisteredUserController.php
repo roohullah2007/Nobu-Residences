@@ -65,13 +65,18 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
+        $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve($request)?->name;
+
         // Tell the admins — guarded inside notifyAdmins(); never breaks signup.
         \App\Notifications\NewUserRegistered::notifyAdmins(
             $user,
             $request->getHost(),
-            app(\App\Services\Tenancy\TenantResolver::class)->resolve($request)?->name,
+            $websiteName,
             'email registration'
         );
+
+        // Registration confirmation to the registrant — guarded inside send().
+        \App\Notifications\WelcomeNewUser::send($user, $request->getHost(), $websiteName);
 
         Auth::login($user);
 

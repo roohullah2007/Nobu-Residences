@@ -85,13 +85,18 @@ class GoogleAuthController extends Controller
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
 
+                $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name;
+
                 // Tell the admins — guarded inside notifyAdmins(); never breaks login.
                 \App\Notifications\NewUserRegistered::notifyAdmins(
                     $user,
                     request()->getHost(),
-                    app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name,
+                    $websiteName,
                     'Google sign-in'
                 );
+
+                // Registration confirmation to the registrant — guarded inside send().
+                \App\Notifications\WelcomeNewUser::send($user, request()->getHost(), $websiteName);
             }
 
             Auth::login($user, true);
@@ -191,13 +196,18 @@ class GoogleAuthController extends Controller
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
 
+                $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name;
+
                 // Tell the admins — guarded inside notifyAdmins(); never breaks login.
                 \App\Notifications\NewUserRegistered::notifyAdmins(
                     $user,
                     request()->getHost(),
-                    app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name,
+                    $websiteName,
                     'Google sign-in'
                 );
+
+                // Registration confirmation to the registrant — guarded inside send().
+                \App\Notifications\WelcomeNewUser::send($user, request()->getHost(), $websiteName);
             }
 
             Auth::login($user, true);
