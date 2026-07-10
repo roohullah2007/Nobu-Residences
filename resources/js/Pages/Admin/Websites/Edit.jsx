@@ -1,5 +1,6 @@
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import PhoneInput from '@/Components/PhoneInput';
 import React, { useState, useEffect } from 'react';
 
@@ -7,6 +8,7 @@ export default function Edit({ auth }) {
     const { website, title, buildings, flash } = usePage().props;
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const [showConnectDomainConfirm, setShowConnectDomainConfirm] = useState(false);
 
     // Auto-hide toast after 3 seconds
     useEffect(() => {
@@ -211,11 +213,7 @@ export default function Edit({ auth }) {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (confirm('Add this domain to Ploi as a site alias and request SSL?')) {
-                                            router.post(route('admin.websites.retry-ploi', website.id));
-                                        }
-                                    }}
+                                    onClick={() => setShowConnectDomainConfirm(true)}
                                     className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
                                 >
                                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1167,6 +1165,19 @@ export default function Edit({ auth }) {
                     </div>
                 </form>
             </div>
+
+            <ConfirmDialog
+                open={showConnectDomainConfirm}
+                title="Connect domain to Ploi?"
+                message={`"${website?.domain}" will be added to Ploi as a site alias and a Let's Encrypt SSL certificate will be requested. Make sure the DNS A record already points to the server.`}
+                confirmLabel="Connect"
+                variant="neutral"
+                onConfirm={() => {
+                    setShowConnectDomainConfirm(false);
+                    router.post(route('admin.websites.retry-ploi', website.id));
+                }}
+                onCancel={() => setShowConnectDomainConfirm(false)}
+            />
         </AdminLayout>
     );
 }
