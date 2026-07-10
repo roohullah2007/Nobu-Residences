@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { csrfHeaders } from '@/utils/csrf';
 
-const PROGRESS_POLL_MS = 2500;
-
-const getCsrfToken = () =>
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+// Upload the CSV in parts small enough to always clear php.ini's
+// upload_max_filesize / post_max_size defaults (2M / 8M) — a single 9 MB
+// multipart POST would be silently discarded by PHP.
+const UPLOAD_CHUNK_BYTES = 1.5 * 1024 * 1024;
+const PROCESS_RETRY_MS = 2000;
+const MAX_PROCESS_RETRIES = 3;
 
 // Header names commonly seen in spreadsheets, normalized → target field.
 const HEADER_ALIASES = {
     name: 'name', building: 'name', building_name: 'name', title: 'name',
-    address: 'address', street_address: 'address', full_address: 'address',
+    address: 'address', street_address: 'address', full_address: 'address', street_1: 'address', street1: 'address',
+    street_2: 'street_address_2', street2: 'street_address_2', street_address_2: 'street_address_2',
     city: 'city', town: 'city',
     province: 'province', state: 'province',
     postal_code: 'postal_code', postcode: 'postal_code', zip: 'postal_code', zip_code: 'postal_code',
@@ -20,17 +24,24 @@ const HEADER_ALIASES = {
     listing_type: 'listing_type',
     developer: 'developer_name', developer_name: 'developer_name', builder: 'developer_name',
     neighbourhood: 'neighbourhood_name', neighborhood: 'neighbourhood_name',
+    neighbourhood_1: 'neighbourhood_name', neighborhood_1: 'neighbourhood_name',
     sub_neighbourhood: 'sub_neighbourhood_name', sub_neighborhood: 'sub_neighbourhood_name',
+    neighbourhood_2: 'sub_neighbourhood_name', neighborhood_2: 'sub_neighbourhood_name',
     management: 'management_name', management_name: 'management_name', management_company: 'management_name',
     corp_number: 'corp_number', corp: 'corp_number',
     date_registered: 'date_registered', registered: 'date_registered',
     total_units: 'total_units', units: 'total_units',
     floors: 'floors', storeys: 'floors', stories: 'floors',
-    year_built: 'year_built', built: 'year_built', year: 'year_built',
+    year_built: 'year_built', built: 'year_built', year: 'year_built', built_year: 'year_built',
     parking_spots: 'parking_spots', parking: 'parking_spots',
     locker_spots: 'locker_spots', lockers: 'locker_spots',
     maintenance_fee_range: 'maintenance_fee_range', maintenance_fees: 'maintenance_fee_range',
-    description: 'description', notes: 'description',
+    included_in_maintenance: 'maintenance_fee_amenities', maintenance_includes: 'maintenance_fee_amenities',
+    amenities: 'amenities',
+    sqft_range: 'sqft_range', avg_unit_size: 'sqft_range', unit_size: 'sqft_range',
+    avg_price_per_sqft: 'avg_price_per_sqft', price_per_sqft: 'avg_price_per_sqft',
+    images: 'images', image_links: 'images', image_urls: 'images', photos: 'images',
+    description: 'description', notes: 'description', overview: 'description',
     website_url: 'website_url', website: 'website_url', url: 'website_url',
     virtual_tour_url: 'virtual_tour_url', virtual_tour: 'virtual_tour_url',
     latitude: 'latitude', lat: 'latitude',
@@ -83,11 +94,11 @@ export default function BuildingsImport({ importableFields = {} }) {
     const [progress, setProgress] = useState(null); // { status, total, processed, created, updated, skipped, errors }
     const pollTimerRef = useRef(null);
 
-    const postJson = async (url, options) => {
+    const postJson = async (url, options = {}) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': getCsrfToken(),
+                ...csrfHeaders(),
                 'X-Requested-With': 'XMLHttpRequest',
                 Accept: 'application/json',
                 ...options.headers,
@@ -96,9 +107,34 @@ export default function BuildingsImport({ importableFields = {} }) {
         });
         const json = await response.json().catch(() => ({}));
         if (!response.ok) {
+            if (response.status === 419) {
+                throw new Error('Your session has expired — please refresh the page and try again.');
+            }
             throw new Error(json?.message ?? `Server returned ${response.status}`);
         }
         return json;
+    };
+
+    // Send the file in ~1.5MB parts so no single request can trip the
+    // server's post_max_size / upload_max_filesize limits. The last part
+    // returns the parsed headers + preview.
+    const uploadFileInChunks = async (file) => {
+        let token = null;
+        let offset = 0;
+        do {
+            const blob = file.slice(offset, offset + UPLOAD_CHUNK_BYTES);
+            const isLast = offset + blob.size >= file.size;
+            const formData = new FormData();
+            formData.append('chunk', blob, file.name);
+            formData.append('offset', String(offset));
+            formData.append('last', isLast ? '1' : '0');
+            if (token) formData.append('token', token);
+            const json = await postJson(route('admin.buildings.import.upload'), { body: formData });
+            token = json.token;
+            offset += blob.size;
+            if (isLast) return json;
+        } while (offset < file.size);
+        throw new Error('The upload ended unexpectedly — please try again.');
     };
 
     const handleFileChange = async (e) => {
@@ -107,9 +143,10 @@ export default function BuildingsImport({ importableFields = {} }) {
         setIsBusy(true);
         setErrorMessage('');
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            const parsed = await postJson(route('admin.buildings.import.upload'), { body: formData });
+            if (!file.size) {
+                throw new Error('The selected file is empty.');
+            }
+            const parsed = await uploadFileInChunks(file);
             setUpload(parsed);
             const guessed = {};
             parsed.headers.forEach((header, index) => {
@@ -176,21 +213,22 @@ export default function BuildingsImport({ importableFields = {} }) {
         }
     };
 
-    // Poll the queued import until it finishes or fails. The backend
-    // processes the CSV in background chunks, so this page can even be
-    // closed and revisited — the import keeps running on the server.
+    // Drive the import: each request to the process endpoint synchronously
+    // imports the next batch of rows and returns updated progress, so the
+    // import advances without needing a queue worker on the server. Keep
+    // this page open until it finishes.
     useEffect(() => {
         if (step !== 'importing' || !upload?.token) return undefined;
 
-        const poll = async () => {
+        let cancelled = false;
+        let retries = 0;
+
+        const processNextChunk = async () => {
+            if (cancelled) return;
             try {
-                const response = await fetch(route('admin.buildings.import.progress', upload.token), {
-                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                });
-                const json = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(json?.message ?? `Server returned ${response.status}`);
-                }
+                const json = await postJson(route('admin.buildings.import.process', upload.token));
+                if (cancelled) return;
+                retries = 0;
                 setProgress(json);
                 if (json.status === 'finished') {
                     setResult(json);
@@ -202,15 +240,25 @@ export default function BuildingsImport({ importableFields = {} }) {
                     setStep('map');
                     return;
                 }
-                pollTimerRef.current = setTimeout(poll, PROGRESS_POLL_MS);
+                pollTimerRef.current = setTimeout(processNextChunk, 250);
             } catch (err) {
-                setErrorMessage(err.message);
-                setStep('map');
+                if (cancelled) return;
+                // Ride out transient network blips before giving up.
+                retries += 1;
+                if (retries >= MAX_PROCESS_RETRIES) {
+                    setErrorMessage(err.message);
+                    setStep('map');
+                    return;
+                }
+                pollTimerRef.current = setTimeout(processNextChunk, PROCESS_RETRY_MS);
             }
         };
 
-        pollTimerRef.current = setTimeout(poll, PROGRESS_POLL_MS);
-        return () => clearTimeout(pollTimerRef.current);
+        processNextChunk();
+        return () => {
+            cancelled = true;
+            clearTimeout(pollTimerRef.current);
+        };
     }, [step, upload?.token]);
 
     const resetWizard = () => {
@@ -232,7 +280,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                     <div>
                         <h1 className="text-base font-semibold leading-6 text-gray-900">Import Buildings from CSV</h1>
                         <p className="mt-2 text-sm text-gray-700">
-                            Upload a CSV, map its columns to building fields, and the rows import gradually in the background.
+                            Upload a CSV, map its columns to building fields, and the rows import gradually in batches.
                             Developers, neighbourhoods, and sub-neighbourhoods are matched by name and created automatically.
                         </p>
                     </div>
@@ -275,7 +323,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                                 <input type="file" className="sr-only" accept=".csv,text/csv" onChange={handleFileChange} disabled={isBusy} />
                                 {isBusy ? 'Reading file...' : 'Choose CSV File'}
                             </label>
-                            <p className="mt-2 text-xs text-gray-500">CSV up to 10MB. The first row must be column headings.</p>
+                            <p className="mt-2 text-xs text-gray-500">CSV up to 25MB — large files are uploaded in small parts automatically. The first row must be column headings.</p>
                             <button
                                 type="button"
                                 onClick={downloadSampleCsv}
@@ -394,9 +442,9 @@ export default function BuildingsImport({ importableFields = {} }) {
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                             </svg>
                             <div>
-                                <h2 className="text-sm font-semibold text-gray-900">Importing in the background</h2>
+                                <h2 className="text-sm font-semibold text-gray-900">Importing</h2>
                                 <p className="text-xs text-gray-500">
-                                    Buildings are processed gradually in batches. You can leave this page — the import keeps running on the server.
+                                    Buildings are processed gradually in batches. Keep this page open — it drives the import and shows live progress.
                                 </p>
                             </div>
                         </div>

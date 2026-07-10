@@ -325,7 +325,7 @@ class GeminiAIService
     /**
      * Call Gemini API to generate content
      */
-    private function generateContent(string $prompt, int $maxOutputTokens = 200): string
+    private function generateContent(string $prompt, int $maxOutputTokens = 2048): string
     {
         try {
             // Debug log the API URL being used
@@ -355,13 +355,54 @@ class GeminiAIService
 
             if ($response->successful()) {
                 $result = $response->json();
-                if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
-                    return trim($result['candidates'][0]['content']['parts'][0]['text']);
+                $candidate = $result['candidates'][0] ?? [];
+
+                // Concatenate every text part — thinking models (e.g. Gemini
+                // 2.5 Flash behind the "-latest" alias) can split the answer
+                // across parts, and reading only parts[0] silently returns a
+                // fragment of the output.
+                $text = '';
+                foreach ($candidate['content']['parts'] ?? [] as $part) {
+                    if (!empty($part['thought'])) {
+                        continue; // internal reasoning, not the answer
+                    }
+                    $text .= $part['text'] ?? '';
                 }
+                $text = trim($text);
+
+                // MAX_TOKENS means the budget ran out mid-answer (thinking
+                // tokens count against it too) — a truncated fragment must
+                // not be treated as a successful generation.
+                $finishReason = $candidate['finishReason'] ?? '';
+                if ($finishReason === 'MAX_TOKENS') {
+                    Log::error('Gemini response truncated at MAX_TOKENS', [
+                        'maxOutputTokens' => $maxOutputTokens,
+                        'text_length' => strlen($text),
+                    ]);
+                    throw new \Exception("Gemini response was cut off (MAX_TOKENS at {$maxOutputTokens} tokens)");
+                }
+
+                if ($text !== '') {
+                    return $text;
+                }
+
+                $blockReason = $result['promptFeedback']['blockReason'] ?? '';
+                Log::error('Gemini API returned no text', [
+                    'finishReason' => $finishReason,
+                    'blockReason' => $blockReason,
+                ]);
+                throw new \Exception(
+                    'Gemini returned no text'
+                    . ($finishReason ? " (finishReason: {$finishReason})" : '')
+                    . ($blockReason ? " (blocked: {$blockReason})" : '')
+                );
             }
 
+            // Surface the real API error (invalid/revoked key, quota, bad
+            // model id) instead of a generic failure message.
+            $apiError = $response->json('error.message') ?: $response->body();
             Log::error('Gemini API response error: ' . $response->body());
-            throw new \Exception('Failed to generate content from Gemini API');
+            throw new \Exception("Gemini API request failed (HTTP {$response->status()}): {$apiError}");
 
         } catch (\Exception $e) {
             Log::error('Gemini API error: ' . $e->getMessage());
@@ -914,7 +955,7 @@ class GeminiAIService
         return $fallback;
     }
 
-    public function generateBuildingDescription(string $prompt, array $buildingData): string
+    public function generateBuildingDescription(string $prompt, array $buildingData, bool $throwOnFailure = false): string
     {
         try {
             Log::info("Generating building description with Gemini AI", [
@@ -922,8 +963,10 @@ class GeminiAIService
                 'prompt_length' => strlen($prompt)
             ]);
 
-            // Use the existing generateContent method with the building prompt
-            $description = $this->generateContent($prompt);
+            // Full multi-paragraph SEO copy needs far more than the default
+            // snippet budget — thinking tokens count against it too, so a
+            // small budget truncates the answer to its opening words.
+            $description = $this->generateContent($prompt, 3000);
 
             Log::info("Building description generated successfully", [
                 'description_length' => strlen($description)
@@ -933,6 +976,13 @@ class GeminiAIService
 
         } catch (\Exception $e) {
             Log::error("Error generating building description with Gemini AI: " . $e->getMessage());
+
+            // Interactive callers (the admin "Generate with AI" button) want
+            // the real error so the admin can fix the cause; background jobs
+            // and imports keep the silent deterministic fallback.
+            if ($throwOnFailure) {
+                throw $e;
+            }
 
             // Return a fallback description based on building data
             return $this->getFallbackBuildingDescription($buildingData);
@@ -945,7 +995,7 @@ class GeminiAIService
      * facts provided (nothing invented), natural search phrases, no filler
      * cliches, listings call-to-action at the end.
      */
-    private function getFallbackBuildingDescription(array $buildingData): string
+    public function getFallbackBuildingDescription(array $buildingData): string
     {
         $name = $buildingData['name'] ?? 'This building';
         $address = trim((string) ($buildingData['address'] ?? ''));

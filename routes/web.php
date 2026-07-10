@@ -411,6 +411,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/import', [\App\Http\Controllers\Admin\BuildingImportController::class, 'show'])->name('import');
         Route::post('/import/upload', [\App\Http\Controllers\Admin\BuildingImportController::class, 'upload'])->name('import.upload');
         Route::post('/import/run', [\App\Http\Controllers\Admin\BuildingImportController::class, 'run'])->name('import.run');
+        Route::post('/import/process/{token}', [\App\Http\Controllers\Admin\BuildingImportController::class, 'process'])->name('import.process');
         Route::get('/import/progress/{token}', [\App\Http\Controllers\Admin\BuildingImportController::class, 'progress'])->name('import.progress');
         Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
         Route::post('/bulk-delete', [\App\Http\Controllers\Admin\BuildingController::class, 'bulkDestroy'])->name('bulk-delete');

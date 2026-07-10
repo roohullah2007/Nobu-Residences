@@ -1,0 +1,1 @@
+function o(){const t=document.cookie.split("; ").find(n=>n.startsWith("XSRF-TOKEN="));if(t)return{"X-XSRF-TOKEN":decodeURIComponent(t.slice(11))};const e=document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");return e?{"X-CSRF-TOKEN":e}:{}}export{o as c};

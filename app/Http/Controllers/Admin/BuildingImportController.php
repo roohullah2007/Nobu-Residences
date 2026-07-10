@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessBuildingImportChunkJob;
 use App\Services\BuildingCsvImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,16 +17,31 @@ use Inertia\Response;
 /**
  * CSV import for buildings: upload → column-to-field mapping → run.
  *
- * The uploaded file is parked in storage/app/building-imports under a random
- * token; the mapping step references it by token so nothing sensitive rides
- * in the client payload.
+ * The CSV is uploaded in small parts (~1.5 MB each) so the request body
+ * always fits within php.ini's post_max_size / upload_max_filesize, then
+ * parked in storage/app/building-imports under a random token; the mapping
+ * step references it by token so nothing sensitive rides in the client
+ * payload.
+ *
+ * Rows are imported by the wizard calling process() repeatedly — each call
+ * synchronously imports one chunk of rows — so the import needs no queue
+ * worker to make progress. Progress lives in the cache under the token.
  */
 class BuildingImportController extends Controller
 {
     private const STORAGE_DIR = 'building-imports';
+    private const MAX_CSV_BYTES = 25 * 1024 * 1024;
+    private const ROWS_PER_CHUNK = 200;
+    private const PROGRESS_TTL_HOURS = 12;
+    private const MAX_STORED_ERRORS = 200;
 
     public function __construct(private readonly BuildingCsvImportService $importer)
     {
+    }
+
+    public static function progressKey(string $token): string
+    {
+        return "building-import:{$token}";
     }
 
     /**
@@ -40,23 +55,69 @@ class BuildingImportController extends Controller
     }
 
     /**
-     * Step 1: receive the CSV, park it, return headers + preview + token.
+     * Step 1: receive one part of the CSV and append it to the parked file.
+     * The final part ("last") triggers parsing and returns headers + preview
+     * + token for the mapping step; earlier parts just return the token.
      */
     public function upload(Request $request): JsonResponse
     {
+        // When a request body exceeds post_max_size PHP silently discards
+        // the ENTIRE body ($_POST and $_FILES come up empty) and Laravel
+        // surfaces a misleading "CSRF token mismatch". Catch that case and
+        // say what actually happened. (The wizard now uploads in ~1.5 MB
+        // parts, so this only fires for clients bypassing the wizard.)
+        if (empty($_POST) && empty($_FILES) && (int) $request->server('CONTENT_LENGTH') > 0) {
+            return response()->json([
+                'message' => sprintf(
+                    'The upload was larger than this server accepts in one request (post_max_size = %s). Please refresh the page and try again.',
+                    ini_get('post_max_size') ?: 'unknown'
+                ),
+            ], 413);
+        }
+
         // Extension-based check instead of mimes: — Excel-exported CSVs are
         // often sniffed as application/vnd.ms-excel and would fail mimes:csv.
         $request->validate([
-            'file' => 'required|file|max:10240',
+            'chunk' => 'required|file|max:4096',
+            'token' => 'nullable|uuid',
+            'offset' => 'required|integer|min:0',
+            'last' => 'required|boolean',
         ]);
 
-        $extension = strtolower($request->file('file')->getClientOriginalExtension());
+        $chunk = $request->file('chunk');
+        $extension = strtolower($chunk->getClientOriginalExtension());
         if (!in_array($extension, ['csv', 'txt'], true)) {
             return response()->json(['message' => 'Please upload a .csv file.'], 422);
         }
 
-        $token = Str::uuid()->toString();
-        $path = $request->file('file')->storeAs(self::STORAGE_DIR, $token . '.csv');
+        $token = $request->input('token') ?: Str::uuid()->toString();
+        $partRelative = self::STORAGE_DIR . '/' . $token . '.csv.part';
+
+        Storage::makeDirectory(self::STORAGE_DIR);
+        $partPath = Storage::path($partRelative);
+
+        // Parts are sent sequentially; the offset must line up with what has
+        // been written so far, otherwise the assembled file would be corrupt.
+        $currentSize = is_file($partPath) ? filesize($partPath) : 0;
+        $offset = (int) $request->input('offset');
+        if ($offset !== $currentSize) {
+            Storage::delete($partRelative);
+            return response()->json(['message' => 'The upload got out of sync — please try again.'], 409);
+        }
+
+        file_put_contents($partPath, file_get_contents($chunk->getRealPath()), $offset > 0 ? FILE_APPEND : 0);
+
+        if (filesize($partPath) > self::MAX_CSV_BYTES) {
+            Storage::delete($partRelative);
+            return response()->json(['message' => 'The CSV is larger than the 25MB import limit.'], 422);
+        }
+
+        if (!$request->boolean('last')) {
+            return response()->json(['token' => $token, 'received' => filesize($partPath)]);
+        }
+
+        $path = self::STORAGE_DIR . '/' . $token . '.csv';
+        Storage::move($partRelative, $path);
 
         try {
             $parsed = $this->importer->parse(Storage::path($path));
@@ -74,9 +135,9 @@ class BuildingImportController extends Controller
     }
 
     /**
-     * Step 2: queue the import with the admin's column mapping. Rows are
-     * processed gradually in background chunks (see
-     * ProcessBuildingImportChunkJob); the wizard polls progress().
+     * Step 2: validate the admin's column mapping and seed the progress
+     * state. Rows are then imported chunk by chunk via process(), driven by
+     * the wizard — no queue worker required.
      */
     public function run(Request $request): JsonResponse
     {
@@ -93,7 +154,7 @@ class BuildingImportController extends Controller
         }
 
         try {
-            $this->importer->validateMapping($validated['mapping']);
+            $mapping = $this->importer->validateMapping($validated['mapping']);
             $parsed = $this->importer->parse(Storage::path($path));
         } catch (\Throwable $e) {
             Storage::delete($path);
@@ -101,25 +162,18 @@ class BuildingImportController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        Cache::put(
-            ProcessBuildingImportChunkJob::progressKey($validated['token']),
-            [
-                'status' => 'queued',
-                'total' => $parsed['total_rows'],
-                'processed' => 0,
-                'created' => 0,
-                'updated' => 0,
-                'skipped' => 0,
-                'errors' => [],
-            ],
-            now()->addHours(ProcessBuildingImportChunkJob::PROGRESS_TTL_HOURS)
-        );
-
-        ProcessBuildingImportChunkJob::dispatch(
-            $validated['token'],
-            $validated['mapping'],
-            $validated['duplicate_action']
-        );
+        $this->storeProgress($validated['token'], [
+            'status' => 'queued',
+            'total' => $parsed['total_rows'],
+            'processed' => 0,
+            'created' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors' => [],
+            // Internal state for process(); stripped from responses.
+            'mapping' => $mapping,
+            'duplicate_action' => $validated['duplicate_action'],
+        ]);
 
         return response()->json([
             'queued' => true,
@@ -129,7 +183,95 @@ class BuildingImportController extends Controller
     }
 
     /**
-     * Progress of a queued import, polled by the wizard.
+     * Step 3: import the next chunk of rows. The wizard calls this endpoint
+     * repeatedly until the returned status is finished/failed, so a 13k-row
+     * file is worked through in ~200-row synchronous slices without relying
+     * on a queue worker.
+     */
+    public function process(string $token): JsonResponse
+    {
+        if (!preg_match('/^[0-9a-f-]{36}$/i', $token)) {
+            return response()->json(['message' => 'Invalid import token.'], 422);
+        }
+
+        $progress = Cache::get(self::progressKey($token));
+        if (!$progress) {
+            return response()->json(['message' => 'Import not found or expired.'], 404);
+        }
+        if (in_array($progress['status'], ['finished', 'failed'], true)) {
+            return response()->json($this->publicProgress($progress));
+        }
+
+        // One chunk at a time per import — a second concurrent call (double
+        // click, second tab) just gets the current progress back.
+        $lock = Cache::lock('building-import-lock:' . $token, 120);
+        if (!$lock->get()) {
+            return response()->json($this->publicProgress($progress));
+        }
+
+        try {
+            // Re-read inside the lock so we continue from the real offset.
+            $progress = Cache::get(self::progressKey($token)) ?? $progress;
+            $relativePath = self::STORAGE_DIR . '/' . $token . '.csv';
+
+            if (!Storage::exists($relativePath)) {
+                $progress['status'] = 'failed';
+                $progress['message'] = 'Upload expired before the import finished.';
+                $this->storeProgress($token, $progress);
+                return response()->json($this->publicProgress($progress));
+            }
+
+            $result = $this->importer->importChunk(
+                Storage::path($relativePath),
+                $progress['mapping'],
+                $progress['duplicate_action'],
+                $progress['processed'],
+                self::ROWS_PER_CHUNK
+            );
+
+            $progress['processed'] += $result['processed'];
+            $progress['created'] += $result['created'];
+            $progress['updated'] += $result['updated'];
+            $progress['skipped'] += $result['skipped'];
+            $progress['errors'] = array_slice(
+                ($progress['errors'] ?? []) + $result['errors'],
+                0,
+                self::MAX_STORED_ERRORS,
+                true
+            );
+            $progress['status'] = $result['done'] ? 'finished' : 'processing';
+
+            if ($result['done']) {
+                Storage::delete($relativePath);
+                Log::info('Building CSV import finished', [
+                    'token' => $token,
+                    'created' => $progress['created'],
+                    'updated' => $progress['updated'],
+                    'skipped' => $progress['skipped'],
+                    'error_count' => count($progress['errors']),
+                ]);
+            }
+
+            $this->storeProgress($token, $progress);
+        } catch (\Throwable $e) {
+            Log::error('Building CSV import chunk failed', [
+                'token' => $token,
+                'offset' => $progress['processed'] ?? 0,
+                'error' => $e->getMessage(),
+            ]);
+            $progress['status'] = 'failed';
+            $progress['message'] = $e->getMessage();
+            $this->storeProgress($token, $progress);
+            Storage::delete(self::STORAGE_DIR . '/' . $token . '.csv');
+        } finally {
+            $lock->release();
+        }
+
+        return response()->json($this->publicProgress($progress));
+    }
+
+    /**
+     * Progress of a running import, polled by the wizard.
      */
     public function progress(string $token): JsonResponse
     {
@@ -137,11 +279,22 @@ class BuildingImportController extends Controller
             return response()->json(['message' => 'Invalid import token.'], 422);
         }
 
-        $progress = Cache::get(ProcessBuildingImportChunkJob::progressKey($token));
+        $progress = Cache::get(self::progressKey($token));
         if (!$progress) {
             return response()->json(['message' => 'Import not found or expired.'], 404);
         }
 
-        return response()->json($progress);
+        return response()->json($this->publicProgress($progress));
+    }
+
+    private function storeProgress(string $token, array $progress): void
+    {
+        Cache::put(self::progressKey($token), $progress, now()->addHours(self::PROGRESS_TTL_HOURS));
+    }
+
+    /** Progress payload without the internal mapping/duplicate-action state. */
+    private function publicProgress(array $progress): array
+    {
+        return Arr::except($progress, ['mapping', 'duplicate_action']);
     }
 }

@@ -27,6 +27,7 @@ class BuildingCsvImportService
     public const IMPORTABLE_FIELDS = [
         'name' => 'Building Name (required)',
         'address' => 'Address (required)',
+        'street_address_2' => 'Street Address 2 (secondary)',
         'city' => 'City',
         'province' => 'Province',
         'postal_code' => 'Postal Code',
@@ -46,7 +47,11 @@ class BuildingCsvImportService
         'parking_spots' => 'Parking Spots',
         'locker_spots' => 'Locker Spots',
         'maintenance_fee_range' => 'Maintenance Fee Range',
+        'maintenance_fee_amenities' => 'Included in Maintenance (comma-separated, auto-created)',
+        'sqft_range' => 'Sqft Range',
+        'avg_price_per_sqft' => 'Avg Price Per Sqft',
         'amenities' => 'Amenities (comma-separated, auto-created)',
+        'images' => 'Image URLs (first becomes main image)',
         'description' => 'Description',
         'website_url' => 'Website URL',
         'virtual_tour_url' => 'Virtual Tour URL',
@@ -56,6 +61,23 @@ class BuildingCsvImportService
 
     private const INTEGER_FIELDS = ['total_units', 'floors', 'year_built', 'parking_spots', 'locker_spots'];
     private const FLOAT_FIELDS = ['latitude', 'longitude'];
+
+    /**
+     * Sane [min, max] per integer field — spreadsheets routinely carry
+     * placeholder zeros ("Built_Year: 0") or corrupted values (a floors
+     * column of 871 for a 1-storey building); out-of-range values are
+     * dropped rather than imported.
+     */
+    private const INTEGER_BOUNDS = [
+        'total_units' => [1, 20000],
+        'floors' => [1, 130],
+        'year_built' => [1600, 2100],
+        'parking_spots' => [0, 100000],
+        'locker_spots' => [0, 100000],
+    ];
+
+    /** Cell values spreadsheets use to mean "no data". */
+    private const NULL_PLACEHOLDERS = ['-', '--', 'n/a', 'na', 'null', 'none'];
 
     private const VALID_STATUSES = ['active', 'inactive', 'pending', 'pre_construction', 'under_construction', 'completed', 'sold_out'];
     private const VALID_LISTING_TYPES = ['For Sale', 'For Rent', 'Both'];
@@ -186,7 +208,7 @@ class BuildingCsvImportService
         $attributes = [];
         foreach ($mapping as $columnIndex => $field) {
             $value = trim((string) ($row[(int) $columnIndex] ?? ''));
-            if ($value === '') {
+            if ($value === '' || in_array(strtolower($value), self::NULL_PLACEHOLDERS, true)) {
                 continue;
             }
             $attributes[$field] = $value;
@@ -200,9 +222,14 @@ class BuildingCsvImportService
         $attributes = $this->castScalars($attributes);
         $attributes = $this->normalizeEnums($attributes);
 
-        // Amenities are relational (belongsToMany) — pull them out of the
-        // column attributes and sync them after the building is saved.
-        $amenityNames = $this->extractAmenityNames($attributes);
+        // Amenities and maintenance-fee inclusions are relational
+        // (belongsToMany) — pull them out of the column attributes and sync
+        // them after the building is saved.
+        $amenityNames = $this->extractDelimitedNames($attributes, 'amenities');
+        $maintenanceAmenityNames = $this->extractDelimitedNames($attributes, 'maintenance_fee_amenities');
+
+        // Image links become main_image (first) + the images JSON array.
+        $this->extractImages($attributes);
 
         // Resolve name-based relations, creating them on the fly.
         $this->resolveDeveloper($attributes);
@@ -218,9 +245,10 @@ class BuildingCsvImportService
             }
             // Only the mapped, non-empty values — never clobber existing data
             // with create-time defaults.
-            DB::transaction(function () use ($existing, $attributes, $amenityNames) {
+            DB::transaction(function () use ($existing, $attributes, $amenityNames, $maintenanceAmenityNames) {
                 $existing->update($attributes);
                 $this->syncAmenities($existing, $amenityNames);
+                $this->syncMaintenanceFeeAmenities($existing, $maintenanceAmenityNames);
             });
             return 'updated';
         }
@@ -232,18 +260,19 @@ class BuildingCsvImportService
         // Defaults apply to NEW buildings only.
         $attributes += ['city' => 'Toronto', 'province' => 'ON', 'country' => 'Canada', 'status' => 'active'];
 
-        DB::transaction(function () use ($attributes, $amenityNames) {
+        DB::transaction(function () use ($attributes, $amenityNames, $maintenanceAmenityNames) {
             $building = Building::create($attributes);
             $this->syncAmenities($building, $amenityNames);
+            $this->syncMaintenanceFeeAmenities($building, $maintenanceAmenityNames);
         });
         return 'created';
     }
 
-    /** Split the mapped amenities cell into clean names (comma/semicolon/pipe). */
-    private function extractAmenityNames(array &$attributes): array
+    /** Split a mapped multi-value cell into clean names (comma/semicolon/pipe). */
+    private function extractDelimitedNames(array &$attributes, string $field): array
     {
-        $raw = $attributes['amenities'] ?? '';
-        unset($attributes['amenities']);
+        $raw = $attributes[$field] ?? '';
+        unset($attributes[$field]);
         if ($raw === '') {
             return [];
         }
@@ -253,6 +282,30 @@ class BuildingCsvImportService
             ->unique(fn ($n) => strtolower($n))
             ->values()
             ->all();
+    }
+
+    /**
+     * Turn the mapped image-links cell into main_image + the images array.
+     * URLs never contain commas, so splitting on comma/semicolon/pipe/
+     * whitespace covers every export style seen so far.
+     */
+    private function extractImages(array &$attributes): void
+    {
+        $raw = $attributes['images'] ?? '';
+        unset($attributes['images']);
+        if ($raw === '') {
+            return;
+        }
+        $urls = collect(preg_split('/[,;|\s]+/', $raw))
+            ->map(fn ($u) => trim($u))
+            ->filter(fn ($u) => str_starts_with($u, 'http://') || str_starts_with($u, 'https://'))
+            ->values()
+            ->all();
+        if (empty($urls)) {
+            return;
+        }
+        $attributes['main_image'] = $urls[0];
+        $attributes['images'] = $urls;
     }
 
     /** Attach amenities by name, creating missing ones (case-insensitive match). */
@@ -269,6 +322,21 @@ class BuildingCsvImportService
         }
         // Additive: keep amenities the building already has.
         $building->amenities()->syncWithoutDetaching($ids);
+    }
+
+    /** Attach maintenance-fee inclusions by name, creating missing ones. */
+    private function syncMaintenanceFeeAmenities(Building $building, array $names): void
+    {
+        if (empty($names)) {
+            return;
+        }
+        $ids = [];
+        foreach ($names as $n) {
+            $amenity = \App\Models\MaintenanceFeeAmenity::whereRaw('LOWER(name) = ?', [strtolower($n)])->first()
+                ?? \App\Models\MaintenanceFeeAmenity::create(['name' => $n, 'is_active' => true, 'sort_order' => 0]);
+            $ids[] = $amenity->id;
+        }
+        $building->maintenanceFeeAmenities()->syncWithoutDetaching($ids);
     }
 
     /**
@@ -358,7 +426,15 @@ class BuildingCsvImportService
         foreach (self::INTEGER_FIELDS as $field) {
             if (isset($attributes[$field])) {
                 $clean = preg_replace('/[^\d\-]/', '', $attributes[$field]);
-                $attributes[$field] = $clean === '' ? null : (int) $clean;
+                $value = $clean === '' ? null : (int) $clean;
+                // Drop implausible values (placeholder 0s, corrupted cells)
+                // instead of clobbering existing data with garbage.
+                [$min, $max] = self::INTEGER_BOUNDS[$field] ?? [PHP_INT_MIN, PHP_INT_MAX];
+                if ($value === null || $value < $min || $value > $max) {
+                    unset($attributes[$field]);
+                } else {
+                    $attributes[$field] = $value;
+                }
             }
         }
         foreach (self::FLOAT_FIELDS as $field) {
@@ -393,9 +469,28 @@ class BuildingCsvImportService
             }
         }
         if (isset($attributes['building_type'])) {
-            $attributes['building_type'] = strtolower(str_replace([' ', '-'], '_', $attributes['building_type']));
+            $attributes['building_type'] = $this->normalizeBuildingType($attributes['building_type']);
         }
         return $attributes;
+    }
+
+    /**
+     * Snap free-form spreadsheet types ("Low-Rise condo", "High-Rise",
+     * "Townhouse") onto the values the admin UI uses: condominium,
+     * apartment, townhouse, commercial, mixed_use.
+     */
+    private function normalizeBuildingType(string $raw): string
+    {
+        $type = strtolower(str_replace([' ', '-'], '_', trim($raw)));
+
+        return match (true) {
+            str_contains($type, 'condo') || str_contains($type, 'rise') => 'condominium',
+            str_contains($type, 'town') => 'townhouse',
+            str_contains($type, 'apartment') => 'apartment',
+            str_contains($type, 'mixed') => 'mixed_use',
+            str_contains($type, 'commercial') => 'commercial',
+            default => $type,
+        };
     }
 
     private function openCsv(string $path)

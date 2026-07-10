@@ -353,6 +353,11 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
             if (result.success && result.description) {
                 setData('description', result.description);
+            } else if (result.fallback_description) {
+                // AI failed but the server built a professional description
+                // from the building facts — use it, and tell the admin why.
+                setData('description', result.fallback_description);
+                setAiDescriptionError(`${result.error || 'AI generation failed'} — a fallback description was generated from the building facts instead.`);
             } else {
                 setAiDescriptionError(result.error || 'Failed to generate AI description');
             }

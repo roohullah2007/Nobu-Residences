@@ -651,9 +651,22 @@ class BuildingController extends Controller
             // Create a comprehensive building description prompt
             $prompt = $this->buildAiDescriptionPrompt($buildingData);
 
-            // Use Gemini AI to generate description
+            // Use Gemini AI to generate description. Failures must reach the
+            // admin (revoked key, quota, truncation) instead of silently
+            // filling the field with a stub, so ask the service to throw and
+            // hand the professional fact-based fallback to the frontend as an
+            // explicit, clearly-labelled alternative.
             $geminiService = app(\App\Services\GeminiAIService::class);
-            $description = $geminiService->generateBuildingDescription($prompt, $buildingData);
+            try {
+                $description = $geminiService->generateBuildingDescription($prompt, $buildingData, true);
+            } catch (\Exception $aiError) {
+                \Log::error('Building AI description generation failed: ' . $aiError->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'error' => 'AI generation failed: ' . $aiError->getMessage(),
+                    'fallback_description' => $geminiService->getFallbackBuildingDescription($buildingData),
+                ], 422);
+            }
 
             if ($description) {
                 // If building_id is provided, save the description to the building
