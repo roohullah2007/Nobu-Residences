@@ -5,7 +5,8 @@ import PhoneInput from '@/Components/PhoneInput';
 import React, { useState, useEffect } from 'react';
 
 export default function Edit({ auth }) {
-    const { website, title, buildings, flash } = usePage().props;
+    const { website, title, buildings, flash, serverIp } = usePage().props;
+    const dnsServerIp = serverIp || '157.180.26.95';
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [showConnectDomainConfirm, setShowConnectDomainConfirm] = useState(false);
@@ -200,7 +201,9 @@ export default function Edit({ auth }) {
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-lg font-medium text-gray-900">Domain & Hosting</h3>
                                 <p className="text-sm text-gray-500">
-                                    Add the custom domain to Ploi as a site alias and request a Let's Encrypt SSL certificate. The DNS A record must point to your Ploi server first.
+                                    Add the custom domain to Ploi as a site alias and request a Let's Encrypt SSL certificate.
+                                    The DNS A record must point to the server IP{' '}
+                                    <code className="font-mono font-semibold text-gray-700">{dnsServerIp}</code> first.
                                 </p>
                             </div>
                         </div>
@@ -1169,7 +1172,7 @@ export default function Edit({ auth }) {
             <ConfirmDialog
                 open={showConnectDomainConfirm}
                 title="Connect domain to Ploi?"
-                message={`"${website?.domain}" will be added to Ploi as a site alias and a Let's Encrypt SSL certificate will be requested. Make sure the DNS A record already points to the server.`}
+                message={`"${website?.domain}" will be added to Ploi as a site alias and a Let's Encrypt SSL certificate will be requested.\n\nMake sure the domain's DNS A record already points to the server IP ${dnsServerIp} (apex "@" and "www" both), otherwise SSL issuance will fail.`}
                 confirmLabel="Connect"
                 variant="neutral"
                 onConfirm={() => {

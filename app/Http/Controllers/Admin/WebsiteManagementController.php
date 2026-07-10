@@ -776,7 +776,10 @@ class WebsiteManagementController extends Controller
         return Inertia::render('Admin/Websites/Edit', [
             'title' => "Edit Website: {$website->name}",
             'website' => $website,
-            'buildings' => $buildings
+            'buildings' => $buildings,
+            // Shown in the Domain & Hosting section and the connect-domain
+            // dialog so admins know exactly which IP the A record needs.
+            'serverIp' => app(PloiService::class)->getServerIp(),
         ]);
     }
 
