@@ -382,6 +382,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/api-keys', [AdminController::class, 'apiKeys'])->name('api-keys');
     Route::post('/api-keys', [AdminController::class, 'updateApiKeys'])->name('api-keys.update');
     Route::post('/api-keys/test', [AdminController::class, 'testApiConnection'])->name('api-keys.test');
+    Route::post('/api-keys/test-email', [AdminController::class, 'sendTestEmail'])->name('api-keys.test-email');
 
     // User Management routes
     Route::prefix('users')->name('users.')->group(function () {

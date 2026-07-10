@@ -89,6 +89,7 @@ class AdminController extends Controller
         $repliersApiKey = $apiSettings->get('repliers_api_key')?->value ?? config('repliers.api_key');
         $googleMapsKey = $apiSettings->get('google_maps_api_key')?->value ?? config('services.google_maps.key');
         $walkscoreKey = $apiSettings->get('walkscore_api_key')?->value ?? config('services.walkscore.key');
+        $resendKey = $apiSettings->get('resend_api_key')?->value ?? config('services.resend.key');
 
         return Inertia::render('Admin/ApiKeys', [
             'title' => 'MLS API Configuration',
@@ -97,7 +98,10 @@ class AdminController extends Controller
                 'repliers_api_key' => $this->maskApiKey($repliersApiKey),
                 'google_maps_api_key' => $this->maskApiKey($googleMapsKey),
                 'walkscore_api_key' => $this->maskApiKey($walkscoreKey),
+                'resend_api_key' => $this->maskApiKey($resendKey),
             ],
+            // Raw snippet (not a secret): rendered into every public site's <head>.
+            'global_tracking_scripts' => Setting::get('global_tracking_scripts', ''),
             'mls_settings' => [
                 'default_building_address' => $apiSettings->get('default_building_address')?->value ?? '55 Mercer Street',
                 'cache_ttl' => $apiSettings->get('cache_ttl')?->value ?? 300,
@@ -152,15 +156,26 @@ class AdminController extends Controller
             'repliers_api_key' => $validated['repliers_api_key'] ?? '',
             'google_maps_api_key' => $validated['google_maps_api_key'] ?? '',
             'walkscore_api_key' => $validated['walkscore_api_key'] ?? '',
+            'resend_api_key' => $validated['resend_api_key'] ?? '',
         ];
 
         foreach ($apiSettings as $key => $value) {
             if (!empty($value)) {
                 Setting::set($key, $value, [
                     'group' => 'api',
-                    'is_encrypted' => in_array($key, ['repliers_api_key', 'google_maps_api_key', 'walkscore_api_key'])
+                    'is_encrypted' => in_array($key, ['repliers_api_key', 'google_maps_api_key', 'walkscore_api_key', 'resend_api_key'])
                 ]);
             }
+        }
+
+        // Global tracking pixel (e.g. Follow Up Boss): raw snippet injected on
+        // ALL public sites. Unlike the API keys we write it even when empty so
+        // the admin can clear it.
+        if ($request->has('global_tracking_scripts')) {
+            Setting::set('global_tracking_scripts', (string) ($validated['global_tracking_scripts'] ?? ''), [
+                'group' => 'tracking',
+                'description' => 'Global tracking pixel rendered in the <head> of every public website.',
+            ]);
         }
 
         // Update MLS settings if provided
@@ -186,6 +201,33 @@ class AdminController extends Controller
         ]);
 
         return redirect()->route('admin.api-keys')->with('status', 'MLS API configuration updated successfully!');
+    }
+
+    /**
+     * Send a test email to the logged-in admin via the Resend transport so
+     * the pasted API key can be verified without leaving the ApiKeys page.
+     */
+    public function sendTestEmail(): RedirectResponse
+    {
+        $user = auth()->user();
+
+        try {
+            \Illuminate\Support\Facades\Mail::mailer('resend')->raw(
+                'This is a test email from ' . config('app.name') . " sent through Resend.\n\n"
+                . 'If you received it, the Resend API key configured on Admin > API Keys works and '
+                . 'saved-search alert / system emails will be delivered through Resend.',
+                function ($message) use ($user) {
+                    $message->to($user->email)
+                        ->subject('Resend test email — ' . config('app.name'));
+                }
+            );
+
+            return redirect()->route('admin.api-keys')
+                ->with('status', "Test email sent to {$user->email} via Resend — check the inbox.");
+        } catch (\Throwable $e) {
+            return redirect()->route('admin.api-keys')
+                ->withErrors(['test_email' => 'Resend test failed: ' . $e->getMessage()]);
+        }
     }
 
     /**

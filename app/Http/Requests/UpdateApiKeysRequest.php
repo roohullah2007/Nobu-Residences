@@ -25,6 +25,12 @@ class UpdateApiKeysRequest extends FormRequest
             'repliers_api_key' => 'nullable|string|max:500',
             'google_maps_api_key' => 'nullable|string|max:500',
             'walkscore_api_key' => 'nullable|string|max:255',
+            'resend_api_key' => 'nullable|string|max:255',
+
+            // Global tracking pixel (FUB) — raw snippet, admin-only write,
+            // rendered unescaped on every public site (same convention as the
+            // per-website tracking_scripts field).
+            'global_tracking_scripts' => 'nullable|string|max:20000',
 
             // MLS Settings
             'default_building_address' => 'nullable|string|max:255',

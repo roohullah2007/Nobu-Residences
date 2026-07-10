@@ -85,6 +85,13 @@
         @endauth
         @endif
 
+        {{-- GLOBAL tracking pixel (admin-managed via Admin > API Keys,
+             settings.global_tracking_scripts): rendered raw on EVERY public
+             site, in addition to the per-website snippet above. --}}
+        @if(!request()->is('admin*') && !empty($globalTrackingScripts))
+        {!! $globalTrackingScripts !!}
+        @endif
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=work-sans:400,500,600,700&family=space-grotesk:700&family=playfair-display:400,500,600,700&display=swap" rel="stylesheet" />

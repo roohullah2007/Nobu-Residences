@@ -8,19 +8,24 @@ import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import axios from 'axios';
 
-export default function ApiKeys({ title, api_keys, mls_settings, connection_status, status }) {
+export default function ApiKeys({ title, api_keys, mls_settings, connection_status, status, global_tracking_scripts = '' }) {
     const [showValues, setShowValues] = useState({});
     const [testResults, setTestResults] = useState({});
     const [testing, setTesting] = useState({});
     const [activeTab, setActiveTab] = useState('api_keys');
-    
+    const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         // API Keys
         repliers_api_url: api_keys.repliers_api_url || '',
         repliers_api_key: '',
         google_maps_api_key: '',
         walkscore_api_key: '',
-        
+        resend_api_key: '',
+
+        // Global tracking pixel (Follow Up Boss) — rendered on ALL sites
+        global_tracking_scripts: global_tracking_scripts || '',
+
         // MLS Settings
         default_building_address: mls_settings?.default_building_address ?? '55 Mercer Street',
         cache_ttl: mls_settings?.cache_ttl ?? 300,
@@ -37,8 +42,19 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
         e.preventDefault();
         post(route('admin.api-keys.update'), {
             onSuccess: () => {
-                reset('repliers_api_key', 'google_maps_api_key', 'walkscore_api_key');
+                reset('repliers_api_key', 'google_maps_api_key', 'walkscore_api_key', 'resend_api_key');
             }
+        });
+    };
+
+    // Sends a test email via the Resend transport to the logged-in admin.
+    // Result (success flash / error) renders inline on redirect back.
+    const sendTestEmail = () => {
+        if (sendingTestEmail) return;
+        setSendingTestEmail(true);
+        post(route('admin.api-keys.test-email'), {
+            preserveScroll: true,
+            onFinish: () => setSendingTestEmail(false),
         });
     };
 
@@ -121,6 +137,16 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
             required: false,
             showToggle: true,
             currentValue: api_keys.walkscore_api_key
+        },
+        {
+            id: 'resend_api_key',
+            label: 'Resend API Key',
+            type: 'password',
+            description: 'API key for Resend (resend.com) — system emails (saved-search alerts, notifications) are sent through Resend when this is set.',
+            placeholder: 're_...',
+            required: false,
+            showToggle: true,
+            currentValue: api_keys.resend_api_key
         }
     ];
 
@@ -282,8 +308,47 @@ export default function ApiKeys({ title, api_keys, mls_settings, connection_stat
                                         </div>
                                         
                                         <InputError message={errors[config.id]} className="mt-2" />
+
+                                        {/* Send test email — verifies the Resend key inline */}
+                                        {config.id === 'resend_api_key' && (
+                                            <div className="mt-3">
+                                                <SecondaryButton
+                                                    type="button"
+                                                    onClick={sendTestEmail}
+                                                    disabled={sendingTestEmail}
+                                                >
+                                                    {sendingTestEmail ? 'Sending…' : 'Send test email'}
+                                                </SecondaryButton>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Sends a test email through Resend to your admin address. Save the key first.
+                                                    The "from" address is MAIL_FROM_ADDRESS — it must belong to a domain verified in Resend.
+                                                </p>
+                                                <InputError message={errors.test_email} className="mt-2" />
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
+                            </div>
+
+                            {/* Global tracking pixel (Follow Up Boss) */}
+                            <div className="pt-6 border-t border-gray-200">
+                                <InputLabel htmlFor="global_tracking_scripts" value="Global Tracking Pixel (Follow Up Boss)" />
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Raw HTML/JS snippet rendered in the <code className="font-mono">&lt;head&gt;</code> of{' '}
+                                    <strong>every</strong> public website (all sites, all pages) — in addition to each
+                                    website's own Tracking Scripts field. Use it for the Follow Up Boss pixel so leads and
+                                    form activity across all sites are captured into FUB. Leave empty to disable.
+                                </p>
+                                <textarea
+                                    id="global_tracking_scripts"
+                                    value={data.global_tracking_scripts}
+                                    onChange={(e) => setData('global_tracking_scripts', e.target.value)}
+                                    rows={6}
+                                    spellCheck={false}
+                                    className="mt-2 block w-full font-mono text-xs border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                    placeholder={'<script>\n  (function (w,i,d,g,e,t) { ... })(window, ...);\n  widgetTracker("create", "WT-XXXXXXXX");\n  widgetTracker("send", "pageview");\n</script>'}
+                                />
+                                <InputError message={errors.global_tracking_scripts} className="mt-2" />
                             </div>
 
                             <div className="flex items-center justify-end pt-6 border-t border-gray-200">

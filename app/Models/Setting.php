@@ -109,12 +109,15 @@ class Setting extends Model
      */
     public static function set(string $key, $value, array $attributes = []): self
     {
+        // Assign 'value' LAST: its mutator encrypts based on $this->is_encrypted,
+        // so on a brand-new row is_encrypted must be set before the value is —
+        // otherwise the first write stores plaintext that later fails to decrypt
+        // (reads came back null until the key was saved a second time).
         return static::updateOrCreate(
             ['key' => $key],
-            array_merge([
-                'value' => $value,
+            array_merge($attributes, [
                 'type' => static::guessType($value),
-            ], $attributes)
+            ], ['value' => $value])
         );
     }
 
