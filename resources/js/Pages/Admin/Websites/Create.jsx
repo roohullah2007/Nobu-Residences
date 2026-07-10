@@ -7,11 +7,14 @@ import TextInput from '@/Components/TextInput';
 import PhoneInput from '@/Components/PhoneInput';
 import { useEffect, useMemo, useState } from 'react';
 
-// Force white backgrounds on all form controls (override TextInput's dark: classes)
+// Force white backgrounds AND one consistent border + font size on all form
+// controls. TextInput bakes in dark: classes, so without the border override
+// text inputs get darker borders than the inline-styled selects/textareas in
+// a dark-mode browser; text-sm matches PhoneInput and the Edit page.
 const lightFormClass =
-    '[&_input]:!bg-white [&_input]:!text-gray-900 ' +
-    '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 ' +
-    '[&_select]:!bg-white [&_select]:!text-gray-900';
+    '[&_input]:!bg-white [&_input]:!text-gray-900 [&_input]:!border-gray-300 [&_input]:!text-sm ' +
+    '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:!border-gray-300 [&_textarea]:!text-sm ' +
+    '[&_select]:!bg-white [&_select]:!text-gray-900 [&_select]:!border-gray-300 [&_select]:!text-sm';
 
 // Small clipboard button used in the DNS instruction block. Shows a brief
 // "copied" check after clicking.
@@ -55,6 +58,10 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
     const [selectedBuildingId, setSelectedBuildingId] = useState('');
     const [aiSeoLoading, setAiSeoLoading] = useState(false);
     const [aiSeoError, setAiSeoError] = useState('');
+    // The essential flow is: pick building → name + optional domain → create.
+    // Branding/contact/social/SEO inherit sensible defaults and live behind
+    // this collapsed "Advanced settings" toggle (all editable later in Edit).
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     const { data, setData, processing, errors } = useForm({
         building_id: '',
@@ -564,7 +571,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 name="timezone"
                                                 value={data.timezone}
                                                 onChange={(e) => setData('timezone', e.target.value)}
-                                                className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg shadow-sm"
+                                                className="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
                                             >
                                                 <option value="America/Toronto">America/Toronto</option>
                                                 <option value="America/New_York">America/New_York</option>
@@ -597,6 +604,27 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
 
                                 </div>
 
+                                {/* Advanced settings — optional. Everything below is
+                                    prefilled from the default site and editable later via
+                                    Edit Settings; collapsed so the essential flow stays
+                                    "pick building → domain → create". */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdvanced((v) => !v)}
+                                    className="w-full flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+                                >
+                                    <span>
+                                        <span className="text-sm font-semibold text-gray-900">Advanced settings (optional)</span>
+                                        <span className="block text-xs text-gray-500 mt-0.5">
+                                            Logo, brand colors, contact info, social links and SEO — prefilled from the default site; editable any time after creation.
+                                        </span>
+                                    </span>
+                                    <svg className={`h-5 w-5 text-gray-400 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div className={showAdvanced ? 'space-y-6' : 'hidden'}>
                                 {/* Logo & Branding */}
                                 <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-5 sm:p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Logo & Branding</h3>
@@ -1148,6 +1176,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                         </div>
                                     </div>
                                 </div>
+                                </div>{/* /Advanced settings */}
 
                                 {/* Submit Buttons */}
                                 <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-gray-100 pt-6">
