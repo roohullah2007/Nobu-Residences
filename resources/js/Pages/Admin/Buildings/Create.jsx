@@ -440,7 +440,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                 {/* !border-gray-300 on all fields: TextInput bakes in dark:border-gray-700,
                     so in a dark-mode browser text inputs got darker borders than the
                     inline-styled selects/textareas. Force one border for everything. */}
-                <form onSubmit={handleSubmit} className="mt-8 space-y-8 [&_input]:!bg-white [&_input]:!text-gray-900 [&_input]:!border-gray-300 [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:!border-gray-300 [&_select]:!bg-white [&_select]:!text-gray-900 [&_select]:!border-gray-300">
+                <form onSubmit={handleSubmit} className="mt-6 space-y-6 [&_input]:!bg-white [&_input]:!text-gray-900 [&_input]:!border-gray-300 [&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:!border-gray-300 [&_select]:!bg-white [&_select]:!text-gray-900 [&_select]:!border-gray-300 [&_input]:!py-2 [&_input]:!text-sm [&_select]:!py-2 [&_select]:!text-sm [&_textarea]:!text-sm">
                     {/* Basic Information */}
                     <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
                         <div className="px-4 py-6 sm:p-8">
@@ -1296,8 +1296,8 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                         </div>
                     </div>
 
-                    {/* Form Actions */}
-                    <div className="flex items-center justify-end gap-x-6">
+                    {/* Form Actions — sticky so Save is always reachable on the long form */}
+                    <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 flex items-center justify-end gap-x-4 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-3 sm:rounded-t-lg">
                         <Link href={route('admin.buildings.index')}>
                             <SecondaryButton type="button">
                                 Cancel

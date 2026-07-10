@@ -46,6 +46,7 @@ class BuildingCsvImportService
         'parking_spots' => 'Parking Spots',
         'locker_spots' => 'Locker Spots',
         'maintenance_fee_range' => 'Maintenance Fee Range',
+        'amenities' => 'Amenities (comma-separated, auto-created)',
         'description' => 'Description',
         'website_url' => 'Website URL',
         'virtual_tour_url' => 'Virtual Tour URL',
@@ -179,6 +180,10 @@ class BuildingCsvImportService
         $attributes = $this->castScalars($attributes);
         $attributes = $this->normalizeEnums($attributes);
 
+        // Amenities are relational (belongsToMany) — pull them out of the
+        // column attributes and sync them after the building is saved.
+        $amenityNames = $this->extractAmenityNames($attributes);
+
         // Resolve name-based relations, creating them on the fly.
         $this->resolveDeveloper($attributes);
         $this->resolveNeighbourhoods($attributes);
@@ -193,7 +198,10 @@ class BuildingCsvImportService
             }
             // Only the mapped, non-empty values — never clobber existing data
             // with create-time defaults.
-            DB::transaction(fn () => $existing->update($attributes));
+            DB::transaction(function () use ($existing, $attributes, $amenityNames) {
+                $existing->update($attributes);
+                $this->syncAmenities($existing, $amenityNames);
+            });
             return 'updated';
         }
 
@@ -204,19 +212,97 @@ class BuildingCsvImportService
         // Defaults apply to NEW buildings only.
         $attributes += ['city' => 'Toronto', 'province' => 'ON', 'country' => 'Canada', 'status' => 'active'];
 
-        DB::transaction(fn () => Building::create($attributes));
+        DB::transaction(function () use ($attributes, $amenityNames) {
+            $building = Building::create($attributes);
+            $this->syncAmenities($building, $amenityNames);
+        });
         return 'created';
     }
 
-    /** Convert developer_name → developer_id (firstOrCreate by name). */
+    /** Split the mapped amenities cell into clean names (comma/semicolon/pipe). */
+    private function extractAmenityNames(array &$attributes): array
+    {
+        $raw = $attributes['amenities'] ?? '';
+        unset($attributes['amenities']);
+        if ($raw === '') {
+            return [];
+        }
+        return collect(preg_split('/[,;|]/', $raw))
+            ->map(fn ($n) => trim($n))
+            ->filter()
+            ->unique(fn ($n) => strtolower($n))
+            ->values()
+            ->all();
+    }
+
+    /** Attach amenities by name, creating missing ones (case-insensitive match). */
+    private function syncAmenities(Building $building, array $names): void
+    {
+        if (empty($names)) {
+            return;
+        }
+        $ids = [];
+        foreach ($names as $n) {
+            $amenity = \App\Models\Amenity::whereRaw('LOWER(name) = ?', [strtolower($n)])->first()
+                ?? \App\Models\Amenity::create(['name' => $n]);
+            $ids[] = $amenity->id;
+        }
+        // Additive: keep amenities the building already has.
+        $building->amenities()->syncWithoutDetaching($ids);
+    }
+
+    /**
+     * Convert developer_name → developer_id.
+     *
+     * Lookup is case-insensitive; a missing developer is created (name +
+     * auto-generated slug via the Developer model's boot hook). When the
+     * Gemini AI key is configured, a short profile description is generated
+     * for NEWLY created developers — failures are swallowed so the import
+     * never depends on the AI being reachable.
+     */
     private function resolveDeveloper(array &$attributes): void
     {
         $name = $attributes['developer_name'] ?? null;
         if (!$name) {
             return;
         }
-        $developer = Developer::firstOrCreate(['name' => $name], ['type' => 'developer']);
+
+        $developer = Developer::whereRaw('LOWER(name) = ?', [strtolower($name)])->first();
+
+        if (!$developer) {
+            $developer = Developer::create(['name' => $name, 'type' => 'developer']);
+            $this->generateDeveloperDescription($developer);
+        }
+
         $attributes['developer_id'] = $developer->id;
+    }
+
+    /** Best-effort AI description for a newly imported developer. */
+    private function generateDeveloperDescription(Developer $developer): void
+    {
+        // Same guard as the rest of the AI features: no key, no call.
+        if (empty(config('services.gemini.api_key'))) {
+            return;
+        }
+
+        try {
+            $prompt = "Write a professional 2-3 sentence profile description for the real estate developer \"{$developer->name}\" "
+                . 'operating in the Greater Toronto Area. Focus on residential condominium development. '
+                . 'Do not invent specific project names, awards or founding dates. Return plain text only.';
+
+            $description = app(GeminiAIService::class)->generateBuildingDescription($prompt, ['name' => $developer->name]);
+
+            // Only persist a real answer — the service returns a generic
+            // building-flavoured fallback string on API failure.
+            if (is_string($description) && strlen(trim($description)) > 60 && stripos($description, 'this building') === false) {
+                $developer->update(['description' => trim($description)]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Developer AI description skipped during CSV import', [
+                'developer' => $developer->name,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /** Convert neighbourhood_name / sub_neighbourhood_name → taxonomy IDs. */
