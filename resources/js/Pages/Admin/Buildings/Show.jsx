@@ -234,19 +234,27 @@ export default function BuildingsShow({ auth, building }) {
                         <div className="p-6 space-y-4">
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Maintenance Fee Range</dt>
+                                <dd className="mt-1 text-sm text-gray-900">{building.maintenance_fee_range || 'N/A'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Parking Maintenance</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {building.maintenance_fee_range_min && building.maintenance_fee_range_max
-                                        ? `$${Number(building.maintenance_fee_range_min).toLocaleString()} - $${Number(building.maintenance_fee_range_max).toLocaleString()}`
+                                    {building.parking_maintenance_fee
+                                        ? `$${Number(building.parking_maintenance_fee).toLocaleString()}/month`
                                         : 'N/A'}
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">Property Tax Range</dt>
+                                <dt className="text-sm font-medium text-gray-500">Locker Maintenance</dt>
                                 <dd className="mt-1 text-sm text-gray-900">
-                                    {building.property_tax_range_min && building.property_tax_range_max
-                                        ? `$${Number(building.property_tax_range_min).toLocaleString()} - $${Number(building.property_tax_range_max).toLocaleString()}`
+                                    {building.locker_maintenance_fee
+                                        ? `$${Number(building.locker_maintenance_fee).toLocaleString()}/month`
                                         : 'N/A'}
                                 </dd>
+                            </div>
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500">Avg Price Per Sqft</dt>
+                                <dd className="mt-1 text-sm text-gray-900">{building.avg_price_per_sqft || 'N/A'}</dd>
                             </div>
                             <div>
                                 <dt className="text-sm font-medium text-gray-500">Price Range (Available Units)</dt>
