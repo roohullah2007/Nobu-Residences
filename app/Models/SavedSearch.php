@@ -16,7 +16,10 @@ class SavedSearch extends Model
         'email_alerts',
         'frequency',
         'last_alert_sent',
-        'results_count'
+        'results_count',
+        // Repliers mirror: their saved-search ID + last sync outcome
+        'repliers_saved_search_id',
+        'repliers_sync_status'
     ];
 
     protected $casts = [

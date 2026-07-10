@@ -60,30 +60,79 @@ class SavedSearchController extends Controller
             'results_count' => 0
         ]);
 
-        // Also save to Repliers API
-        $user = Auth::user();
-        if ($user->repliers_client_id) {
-            try {
-                $repliersApi = app(\App\Services\RepliersApiService::class);
-                $repliersResult = $repliersApi->createSavedSearch(
-                    $user->repliers_client_id,
-                    $validated['search_params'],
-                    $validated['name']
-                );
-
-                if ($repliersResult && !empty($repliersResult['savedSearchId'])) {
-                    $savedSearch->update(['repliers_saved_search_id' => $repliersResult['savedSearchId']]);
-                }
-            } catch (\Exception $e) {
-                \Log::warning('Failed to create Repliers saved search', ['error' => $e->getMessage()]);
-            }
-        }
+        // Mirror to Repliers so their own alert engine also notifies the user.
+        // Best-effort: never blocks/fails the local save.
+        $this->syncToRepliers($savedSearch);
 
         return response()->json([
             'success' => true,
             'message' => 'Search saved successfully',
-            'data' => $savedSearch
+            'data' => $savedSearch->fresh()
         ]);
+    }
+
+    /**
+     * Push a saved search to Repliers (create, or delete+recreate when it
+     * already exists there — the API has no update endpoint). Ensures the
+     * user has a Repliers client first, creating one when missing.
+     *
+     * Guarded behind the Repliers API key; every failure is logged and
+     * recorded in repliers_sync_status without ever throwing, so local
+     * saved searches keep working when Repliers is down/unconfigured.
+     */
+    private function syncToRepliers(SavedSearch $savedSearch): void
+    {
+        if (empty(config('repliers.api_key'))) {
+            return; // Repliers not configured — nothing to sync.
+        }
+
+        try {
+            $repliersApi = app(\App\Services\RepliersApiService::class);
+            $user = $savedSearch->user ?: Auth::user();
+
+            // Ensure the user exists as a Repliers client.
+            if (empty($user->repliers_client_id)) {
+                $client = $repliersApi->createClient([
+                    'email' => $user->email,
+                    'name' => $user->name,
+                ]);
+                if (!empty($client['clientId'])) {
+                    $user->update(['repliers_client_id' => $client['clientId']]);
+                }
+            }
+
+            if (empty($user->repliers_client_id)) {
+                $savedSearch->update(['repliers_sync_status' => 'failed']);
+                return;
+            }
+
+            // No update endpoint on Repliers — replace on change.
+            if (!empty($savedSearch->repliers_saved_search_id)) {
+                $repliersApi->deleteSavedSearch($savedSearch->repliers_saved_search_id);
+            }
+
+            $result = $repliersApi->createSavedSearch(
+                $user->repliers_client_id,
+                $savedSearch->search_params ?? [],
+                $savedSearch->name
+            );
+
+            $repliersId = $result['savedSearchId'] ?? $result['id'] ?? null;
+            $savedSearch->update([
+                'repliers_saved_search_id' => $repliersId,
+                'repliers_sync_status' => $repliersId ? 'synced' : 'failed',
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Repliers saved-search sync failed', [
+                'saved_search_id' => $savedSearch->id,
+                'error' => $e->getMessage(),
+            ]);
+            try {
+                $savedSearch->update(['repliers_sync_status' => 'failed']);
+            } catch (\Throwable) {
+                // Column may not exist yet pre-migration — never fail the request.
+            }
+        }
     }
 
     /**
@@ -103,10 +152,16 @@ class SavedSearchController extends Controller
 
         $savedSearch->update($validated);
 
+        // Keep the Repliers copy in step when the search itself changed
+        // (name/params). Best-effort — see syncToRepliers().
+        if (array_intersect_key($validated, array_flip(['name', 'search_params']))) {
+            $this->syncToRepliers($savedSearch);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Search updated successfully',
-            'data' => $savedSearch
+            'data' => $savedSearch->fresh()
         ]);
     }
 
