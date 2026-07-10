@@ -8,6 +8,7 @@ const PersistedRow = ({ title, status, timestamp, timestampLabel, pendingMessage
         issued:       { label: 'Issued',    cls: 'bg-green-100 text-green-800',     icon: '✓' },
         queued:       { label: 'Queued',    cls: 'bg-indigo-100 text-indigo-800',   icon: '⌛' },
         pending:      { label: 'Pending',   cls: 'bg-yellow-100 text-yellow-800',   icon: '◐' },
+        waiting_dns:  { label: 'Waiting for DNS', cls: 'bg-amber-100 text-amber-800', icon: '◌' },
         failed:       { label: 'Failed',    cls: 'bg-red-100 text-red-800',         icon: '✕' },
         not_required: { label: 'Not needed',cls: 'bg-gray-100 text-gray-700',       icon: '—' },
     };
@@ -25,6 +26,11 @@ const PersistedRow = ({ title, status, timestamp, timestampLabel, pendingMessage
             )}
             {(status === 'queued' || status === 'pending') && (
                 <div className="text-xs text-gray-500 mt-1">{pendingMessage}</div>
+            )}
+            {status === 'waiting_dns' && (
+                <div className="text-xs text-gray-500 mt-1">
+                    The domain does not point to the server yet. DNS is checked every 5 minutes — the alias and SSL certificate will be provisioned automatically as soon as the A record points here. Nothing to do besides updating DNS.
+                </div>
             )}
         </div>
     );
@@ -77,7 +83,7 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
     const [autoPoll, setAutoPoll] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
-    const sslPending = persisted?.ssl_status === 'queued' || persisted?.ssl_status === 'pending';
+    const sslPending = ['queued', 'pending', 'waiting_dns'].includes(persisted?.ssl_status);
 
     // Full reload so every prop (incl. report/persisted) is recomputed on the
     // server. Partial reload via `only:` worked at the API level but produced

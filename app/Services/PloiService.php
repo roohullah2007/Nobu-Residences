@@ -601,6 +601,46 @@ class PloiService
     }
 
     /**
+     * Does this domain's DNS currently point at the Ploi server?
+     * Returns true/false, or NULL when the server IP is unknown (can't tell).
+     */
+    public function domainPointsToServer(string $domain): ?bool
+    {
+        $domain = $this->normalizeDomain($domain);
+        if ($domain === '') {
+            return null;
+        }
+
+        $serverIp = $this->getServerIp();
+        if (!$serverIp) {
+            return null;
+        }
+
+        return $this->domainResolvesTo($domain, $serverIp);
+    }
+
+    /**
+     * Detect "domain doesn't resolve to this server" failures across every
+     * wording we produce or Ploi/Let's Encrypt returns, so callers can park
+     * the website in waiting_dns instead of failing it permanently.
+     */
+    public static function isDnsMismatchMessage(string $message): bool
+    {
+        $needles = [
+            'Pre-flight DNS check failed',
+            'unable to match one of these domains',
+            'point your domain DNS to your server',
+            'should resolve to',
+        ];
+        foreach ($needles as $n) {
+            if (stripos($message, $n) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Delete a certificate by its Ploi ID.
      */
     public function deleteCertificate(int $certificateId, ?string $siteId = null): bool

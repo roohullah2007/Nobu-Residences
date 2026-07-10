@@ -766,6 +766,15 @@ class WebsiteManagementController extends Controller
                 'ploi_last_error' => null,
             ]);
             $sslReport = ['ok' => true, 'message' => $message];
+        } elseif (PloiService::isDnsMismatchMessage($message)) {
+            // DNS not pointing yet: park in waiting_dns — the ploi:watch-dns
+            // scheduler requests the certificate automatically once the A
+            // record points at the server. No manual retry needed.
+            $website->update([
+                'ploi_ssl_status' => 'waiting_dns',
+                'ploi_last_error' => $message . ' SSL will be requested automatically once DNS points to the server (checked every 5 minutes).',
+            ]);
+            $sslReport = ['ok' => false, 'message' => $message . ' Waiting for DNS — will retry automatically.'];
         } else {
             $website->update([
                 'ploi_ssl_status' => 'failed',

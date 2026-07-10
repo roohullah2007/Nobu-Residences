@@ -50,6 +50,20 @@ class RequestPloiSslJob implements ShouldQueue
             return;
         }
 
+        // Don't even attempt issuance while the domain's DNS doesn't point at
+        // this server — Let's Encrypt would fail anyway and burn rate-limit
+        // budget. Park the website in waiting_dns; the ploi:watch-dns
+        // scheduler picks it up automatically once DNS starts pointing.
+        if ($ploi->domainPointsToServer($website->domain) === false) {
+            $website->update([
+                'ploi_ssl_status' => 'waiting_dns',
+                'ploi_last_error' => "Waiting for DNS: \"{$website->domain}\" does not point to the server yet. "
+                    . 'SSL will be requested automatically once the A record points here (checked every 5 minutes).',
+            ]);
+            $this->delete();
+            return;
+        }
+
         // If the cert is already issued for this domain, mark issued and stop.
         $certs = $ploi->listCertificates();
         foreach ($certs as $c) {
@@ -78,13 +92,13 @@ class RequestPloiSslJob implements ShouldQueue
 
         // DNS-mismatch failures (Let's Encrypt can't reach the origin because
         // the A record points somewhere else — usually Cloudflare proxy IPs)
-        // are not going to resolve on their own. Retrying every minute just
-        // burns the Let's Encrypt rate-limit budget, so stop here and let the
-        // user fix DNS before clicking Retry SSL again.
-        if ($this->isDnsMismatch($message)) {
+        // won't resolve on their own within this job's retry window. Park in
+        // waiting_dns instead of failed: the ploi:watch-dns scheduler retries
+        // automatically once the domain points here — no manual Retry needed.
+        if (PloiService::isDnsMismatchMessage($message)) {
             $website->update([
-                'ploi_ssl_status' => 'failed',
-                'ploi_last_error' => $message,
+                'ploi_ssl_status' => 'waiting_dns',
+                'ploi_last_error' => $message . ' SSL will be requested automatically once DNS points to the server (checked every 5 minutes).',
             ]);
             $this->delete();
             return;
@@ -96,26 +110,6 @@ class RequestPloiSslJob implements ShouldQueue
             'ploi_last_error' => $message,
         ]);
         throw new \RuntimeException($message);
-    }
-
-    /**
-     * Detect the Ploi/Let's Encrypt "domain does not resolve to this server"
-     * error so we can stop retrying. The message comes back HTML-escaped from
-     * Ploi, so match on phrases that are stable across renderings.
-     */
-    protected function isDnsMismatch(string $message): bool
-    {
-        $needles = [
-            'unable to match one of these domains',
-            'point your domain DNS to your server',
-            'should resolve to',
-        ];
-        foreach ($needles as $n) {
-            if (stripos($message, $n) !== false) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
