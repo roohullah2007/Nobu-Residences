@@ -134,6 +134,12 @@ class PloiService
             return [false, 'No domain provided.', null];
         }
 
+        // Heal any duplicate rows Ploi's own cert issuance created earlier
+        // (Ploi auto-adds an alias per SAN subject without checking for an
+        // existing row), so re-running "Connect domain to Ploi" cleans up
+        // instead of compounding.
+        $this->dedupeAliases($targetSite);
+
         // Verify against Ploi's live alias list BEFORE posting. Ploi accepts
         // a repeat POST with HTTP 200 and creates a duplicate alias row, so a
         // blind re-add is never safe. If the list can't be fetched, refuse to
@@ -263,15 +269,6 @@ class PloiService
             }
         }
 
-        // Union with every domain already covered by an existing cert on the
-        // site so the resulting SAN cert is a superset and we don't take
-        // existing aliases offline. BUT — and this is the bit that wasn't
-        // here before — only include a covered domain if it currently
-        // resolves to the Ploi server IP. Let's Encrypt's HTTP-01 challenge
-        // is all-or-nothing: if any single domain in the batch fails DNS
-        // validation (e.g. it now points back at Cloudflare's proxy), the
-        // entire issuance fails. Excluding stale domains is safer than
-        // letting them poison every retry.
         // Case-insensitive contains: Ploi sometimes returns "Foo.com" where
         // we already have "foo.com" in $domains. A strict in_array would let
         // both into the cert request and we'd be POSTing a duplicate.
@@ -282,7 +279,43 @@ class PloiService
             return false;
         };
 
-        foreach ($this->listCertificates($targetSite) as $cert) {
+        $certificates = $this->listCertificates($targetSite);
+
+        // Idempotency: if an ACTIVE certificate already covers everything we
+        // were about to request, do nothing. Re-issuing wouldn't just waste a
+        // Let's Encrypt request — every issuance makes Ploi auto-create an
+        // alias row per SAN subject (duplicating existing aliases in
+        // server_name) and leaves an extra certificate entry on the site.
+        foreach ($certificates as $cert) {
+            if (($cert['status'] ?? null) !== 'active') {
+                continue;
+            }
+            $covered = true;
+            foreach ($domains as $d) {
+                if (!$hasDomain($d, $cert['domains'] ?? [])) {
+                    $covered = false;
+                    break;
+                }
+            }
+            if ($covered) {
+                $this->dedupeAliases($targetSite);
+                return [true,
+                    'SSL already covered: active certificate #' . ($cert['id'] ?? '?')
+                    . ' already includes ' . implode(', ', $domains) . ' — no new certificate requested.',
+                    null];
+            }
+        }
+
+        // Union with every domain already covered by an existing cert on the
+        // site so the resulting SAN cert is a superset and we don't take
+        // existing aliases offline. BUT — and this is the bit that wasn't
+        // here before — only include a covered domain if it currently
+        // resolves to the Ploi server IP. Let's Encrypt's HTTP-01 challenge
+        // is all-or-nothing: if any single domain in the batch fails DNS
+        // validation (e.g. it now points back at Cloudflare's proxy), the
+        // entire issuance fails. Excluding stale domains is safer than
+        // letting them poison every retry.
+        foreach ($certificates as $cert) {
             foreach (($cert['domains'] ?? []) as $existing) {
                 if ($hasDomain($existing, $domains) || $hasDomain($existing, $skipped)) {
                     continue;
@@ -484,6 +517,70 @@ class PloiService
             Log::error('Ploi alias delete exception', ['domain' => $domain, 'error' => $e->getMessage()]);
             return [false, 'Ploi request failed: ' . $e->getMessage(), null];
         }
+    }
+
+    /**
+     * Delete one specific alias row by its Ploi ID. Needed for dedupe, where
+     * several rows share the same domain and deleteAlias()'s first-match
+     * lookup can't target a particular copy.
+     */
+    public function deleteAliasById(int $aliasId, ?string $siteId = null): bool
+    {
+        $targetSite = $siteId ?: $this->siteId;
+        if (!$this->isConfigured() || empty($targetSite)) {
+            return false;
+        }
+
+        $endpoint = "{$this->baseUrl}/servers/{$this->serverId}/sites/{$targetSite}/aliases/{$aliasId}";
+
+        try {
+            $response = $this->client()->delete($endpoint);
+            Log::info('Ploi alias delete by id', [
+                'alias_id' => $aliasId,
+                'status' => $response->status(),
+            ]);
+            return $response->successful() || $response->status() === 204;
+        } catch (\Throwable $e) {
+            Log::error('Ploi alias delete by id exception', ['alias_id' => $aliasId, 'error' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    /**
+     * Remove duplicate alias rows (same domain, multiple rows), keeping the
+     * oldest row per domain. Ploi creates these itself: every successful
+     * certificate issuance auto-adds an alias per SAN subject without
+     * checking for an existing row, which duplicates the domain in nginx's
+     * server_name. Returns the number of rows removed.
+     */
+    public function dedupeAliases(?string $siteId = null): int
+    {
+        $rows = $this->listAliasesWithIds($siteId);
+        if (!$this->aliasListFetchOk || count($rows) < 2) {
+            return 0;
+        }
+
+        $seen = [];
+        $removed = 0;
+
+        // Rows arrive in creation order; keep the first occurrence.
+        foreach ($rows as $row) {
+            $domain = self::canonicalDomain($row['domain'] ?? '');
+            $id = $row['id'] ?? null;
+            if ($domain === '' || $id === null) {
+                continue;
+            }
+            if (isset($seen[$domain])) {
+                if ($this->deleteAliasById((int) $id, $siteId)) {
+                    $removed++;
+                    Log::warning('Removed duplicate Ploi alias row', ['domain' => $domain, 'alias_id' => $id]);
+                }
+                continue;
+            }
+            $seen[$domain] = true;
+        }
+
+        return $removed;
     }
 
     /**

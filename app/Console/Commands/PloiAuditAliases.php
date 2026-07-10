@@ -46,9 +46,9 @@ class PloiAuditAliases extends Command
                 $this->warn("DUPLICATE: \"{$domain}\" has " . count($rows) . ' alias rows (ids: ' . implode(', ', $ids) . ')');
 
                 if ($this->option('fix')) {
-                    for ($i = 1; $i < count($rows); $i++) {
-                        [$ok, $msg] = $ploi->deleteAlias($domain);
-                        $this->line(($ok ? '  fixed: ' : '  FAILED: ') . $msg);
+                    foreach (array_slice($rows, 1) as $extra) {
+                        $ok = $ploi->deleteAliasById((int) $extra['id']);
+                        $this->line(($ok ? '  fixed: removed alias row #' : '  FAILED: could not remove alias row #') . $extra['id']);
                     }
                 }
             }

@@ -508,6 +508,13 @@ class WebsiteManagementController extends Controller
         $ploiConfigured = (bool) (config('services.ploi.token') && config('services.ploi.server_id') && config('services.ploi.site_id'));
 
         if ($ploiConfigured) {
+            // Heal duplicate alias rows on every status view: Ploi auto-adds
+            // an alias per SAN subject after each cert issuance (which happens
+            // asynchronously, after our request returns), duplicating domains
+            // in nginx's server_name. This page polls while SSL is pending,
+            // so the cleanup lands right after issuance completes.
+            $ploi->dedupeAliases();
+
             $aliases = $ploi->listAliases();
             $certificates = $ploi->listCertificates();
         }
