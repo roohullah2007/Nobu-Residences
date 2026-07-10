@@ -643,6 +643,11 @@ class BuildingController extends Controller
             $buildingData = $request->input('building_data', []);
             $buildingId = $request->input('building_id');
 
+            // Ground the copy in live MLS facts for this address (corp,
+            // management, build year, typical fee, active listing count) —
+            // typed values always win; failures fall back to typed data only.
+            $buildingData = $this->enrichBuildingDataFromMls($buildingData);
+
             // Create a comprehensive building description prompt
             $prompt = $this->buildAiDescriptionPrompt($buildingData);
 
@@ -695,6 +700,19 @@ class BuildingController extends Controller
         $neighbourhood = $buildingData['neighbourhood'] ?? '';
         $buildingType = str_replace('_', ' ', (string) ($buildingData['building_type'] ?? 'condominium'));
 
+        $transit = $buildingData['nearby_transit'] ?? '';
+        if (is_array($transit)) {
+            $transit = implode(', ', array_filter(array_map(function ($item) {
+                if (is_array($item)) {
+                    return implode(' ', array_filter(array_map(
+                        fn ($v) => is_scalar($v) ? trim((string) $v) : '',
+                        $item
+                    )));
+                }
+                return is_scalar($item) ? trim((string) $item) : '';
+            }, $transit)));
+        }
+
         $facts = array_filter([
             'Building Name' => $name,
             'Address' => implode(', ', array_filter([
@@ -711,9 +729,15 @@ class BuildingController extends Controller
             'Parking Spots' => $buildingData['parking_spots'] ?? '',
             'Locker Spots' => $buildingData['locker_spots'] ?? '',
             'Price Range' => $buildingData['price_range'] ?? '',
+            'Unit Size Range' => $buildingData['sqft_range'] ?? '',
+            'Average Price Per Sqft' => $buildingData['avg_price_per_sqft'] ?? '',
             'Maintenance Fee Range' => $buildingData['maintenance_fee_range'] ?? '',
+            'Typical Monthly Maintenance Fee' => $buildingData['typical_monthly_fee'] ?? '',
+            'Condo Corporation' => $buildingData['corp_number'] ?? '',
+            'Active Listings For Sale Right Now' => $buildingData['active_listing_count'] ?? '',
             'Developer' => $buildingData['developer_name'] ?? '',
             'Management' => $buildingData['management_name'] ?? '',
+            'Nearby Transit' => $transit,
             'Building Amenities' => implode(', ', $buildingData['amenities'] ?? []),
             'Amenities Included in Maintenance Fees' => implode(', ', $buildingData['maintenance_fee_amenities'] ?? []),
         ], fn ($value) => $value !== '' && $value !== null);
@@ -727,11 +751,13 @@ class BuildingController extends Controller
 
         $prompt .= "\nSEO requirements:\n";
         $prompt .= "- Open the first sentence with the building name and its address/location — this is the page's primary keyword.\n";
-        $prompt .= "- Naturally work in search phrases buyers use, such as \"{$name} condos\", \"condos for sale in {$locationPhrase}\" and \"{$name} {$city}\" — at most once each, never stuffed or repeated.\n";
-        $prompt .= "- Mention the neighbourhood and its lifestyle/transit context so the copy ranks for local searches.\n";
+        $prompt .= "- Naturally work in the search phrases buyers type, at most once each and only where they read naturally (never stuffed): \"{$name} condos\", \"condos for sale in {$locationPhrase}\", \"{$name} for sale\", \"{$name} floor plans and prices\", \"{$name} maintenance fees\", \"condos for rent in {$locationPhrase}\".\n";
+        $prompt .= "- Include one sentence of neighbourhood lifestyle + transit context (use the Nearby Transit facts when given) so the copy ranks for local searches.\n";
+        $prompt .= "- Include one concrete-facts sentence combining the hard numbers provided (year built, floors/units, condo corporation, management company, maintenance fees) — factual specificity builds search trust; skip any number not provided.\n";
         $prompt .= "- Use only the facts provided above. Never invent details, distances, prices or dates.\n\n";
         $prompt .= "Writing requirements:\n";
-        $prompt .= "- 150-220 words in 2-3 short paragraphs of flowing prose (no headings, no bullet points, no markdown).\n";
+        $prompt .= "- 200-260 words in 3 short paragraphs of flowing prose (no headings, no bullet points, no markdown). Short, scannable sentences.\n";
+        $prompt .= "- Paragraph 1: what/where — the building, its address and its position in the neighbourhood. Paragraph 2: living there — units, amenities, lifestyle, transit. Paragraph 3: the numbers — pricing, fees, management — ending with the call to action.\n";
         $prompt .= "- Confident, professional tone aimed at buyers, renters and investors.\n";
         $prompt .= "- Weave the strongest amenities into a lifestyle picture instead of listing them all.\n";
         $prompt .= "- Avoid filler cliches such as \"nestled\", \"boasts\", \"stunning\", \"epitome of luxury\" and \"perfect blend\".\n";
@@ -739,5 +765,92 @@ class BuildingController extends Controller
         $prompt .= "Return only the description text, no additional formatting or explanations.";
 
         return $prompt;
+    }
+
+    /**
+     * Merge live MLS condo facts into the AI-description payload so the
+     * generated copy is grounded in real data even before the building is
+     * saved. Typed/admin values always win — only missing keys are filled.
+     * One cached Repliers query per street name; any failure returns the
+     * payload unchanged.
+     */
+    private function enrichBuildingDataFromMls(array $buildingData): array
+    {
+        try {
+            $parsed = Building::parseStreetAddress($buildingData['address'] ?? null);
+            if (!$parsed) {
+                return $buildingData;
+            }
+
+            $params = [
+                'class' => 'condoProperty',
+                'status' => 'A',
+                'type' => 'sale',
+                'streetName' => $parsed['name'],
+                'pageNum' => 1,
+                'resultsPerPage' => 200,
+            ];
+            if (!empty($buildingData['city'])) {
+                $params['city'] = $buildingData['city'];
+            }
+
+            $listings = app(\App\Services\RepliersApiService::class)->searchListings($params)['listings'] ?? [];
+
+            $candidates = ['corp' => [], 'mgmt' => [], 'park_cost' => [], 'year' => []];
+            $monthlyFees = [];
+            $matched = 0;
+            foreach ($listings as $listing) {
+                $num = (string) ($listing['address']['streetNumber'] ?? '');
+                if ($num !== $parsed['number']) {
+                    continue;
+                }
+                $matched++;
+                foreach (Building::extractCondoFactsFromListing($listing) as $key => $value) {
+                    if ($value !== null) {
+                        $candidates[$key][] = $value;
+                    }
+                }
+                $rawFee = $listing['details']['maintenanceFee']
+                    ?? ($listing['condominium']['fees']['maintenance'] ?? '');
+                $fee = (float) preg_replace('/[^\d.]/', '', (string) $rawFee);
+                if ($fee > 0) {
+                    $monthlyFees[] = $fee;
+                }
+            }
+
+            if ($matched === 0) {
+                return $buildingData;
+            }
+
+            $mode = function (array $values) {
+                if (empty($values)) {
+                    return null;
+                }
+                $counts = [];
+                foreach ($values as $v) {
+                    $counts[(string) $v] = ($counts[(string) $v] ?? 0) + 1;
+                }
+                arsort($counts);
+                return (string) array_key_first($counts);
+            };
+
+            $fill = function (string $key, $value) use (&$buildingData) {
+                if ($value !== null && $value !== '' && empty($buildingData[$key])) {
+                    $buildingData[$key] = $value;
+                }
+            };
+
+            $fill('corp_number', $mode($candidates['corp']));
+            $fill('management_name', $mode($candidates['mgmt']));
+            $fill('year_built', $mode($candidates['year']));
+            if (!empty($monthlyFees)) {
+                $fill('typical_monthly_fee', '$' . number_format(array_sum($monthlyFees) / count($monthlyFees)) . '/month');
+            }
+            $fill('active_listing_count', $matched);
+        } catch (\Throwable $e) {
+            \Log::warning('AI description MLS enrichment failed', ['error' => $e->getMessage()]);
+        }
+
+        return $buildingData;
     }
 }

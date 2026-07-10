@@ -290,7 +290,11 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                         amenities: selectedAmenities.map(a => a.name),
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
                         price_range: building.price_range,
+                        sqft_range: building.sqft_range,
+                        avg_price_per_sqft: building.avg_price_per_sqft,
                         maintenance_fee_range: data.maintenance_fee_range,
+                        corp_number: data.corp_number,
+                        nearby_transit: data.nearby_transit,
                         developer_name: developerOptions.find(d => String(d.id) === String(data.developer_id))?.name || '',
                         management_name: data.management_name,
                         existing_description: data.description
@@ -914,6 +918,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         min="1900"
                                         max={new Date().getFullYear() + 10}
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Leave blank to auto-fill from live MLS listings for this address after saving.
+                                    </p>
                                     <InputError message={errors.year_built} className="mt-2" />
                                 </div>
 
@@ -973,6 +980,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         onChange={(e) => setData('management_name', e.target.value)}
                                         placeholder="Management company name"
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Leave blank to auto-fill from live MLS listings for this address after saving.
+                                    </p>
                                     <InputError message={errors.management_name} className="mt-2" />
                                 </div>
 
@@ -986,6 +996,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         onChange={(e) => setData('corp_number', e.target.value)}
                                         placeholder="e.g., TSCC 2500"
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Leave blank to auto-fill from live MLS listings for this address after saving.
+                                    </p>
                                     <InputError message={errors.corp_number} className="mt-2" />
                                 </div>
 
@@ -1036,6 +1049,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         onChange={(e) => setData('parking_maintenance_fee', e.target.value)}
                                         placeholder="e.g., 65.00"
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Leave blank to auto-fill from MLS when listings publish a monthly parking cost.
+                                    </p>
                                     <InputError message={errors.parking_maintenance_fee} className="mt-2" />
                                 </div>
 

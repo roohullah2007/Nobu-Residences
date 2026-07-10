@@ -498,6 +498,10 @@ class Building extends Model
      *
      * maintenance_fee_range is also derived (listing maintenanceFee / sqft),
      * but only when the field is blank — an admin-entered range always wins.
+     * The same blank-only rule fills the condo facts MLS carries: corp_number,
+     * management_name, parking_maintenance_fee and year_built (see
+     * extractCondoFactsFromListing()). Fields MLS doesn't carry (locker fees,
+     * building parking/locker totals, date registered) are left untouched.
      *
      * Only overwrites when at least one priced listing is found, so an
      * existing (e.g. CSV-imported) value survives an MLS dry spell.
@@ -528,6 +532,10 @@ class Building extends Model
         $ppsfSamples = [];
         // maintenance-fee-per-sqft samples: [monthly fee / midpoint sqft, ...]
         $feePsfSamples = [];
+        // Condo facts collected across matched listings (corp number,
+        // management company, monthly parking cost, build year) — filled
+        // into blank building columns after the loop.
+        $factCandidates = ['corp' => [], 'mgmt' => [], 'park_cost' => [], 'year' => []];
 
         try {
             $api = app(\App\Services\RepliersApiService::class);
@@ -555,6 +563,12 @@ class Building extends Model
                         $max = ($max === null) ? $price : max($max, $price);
                     }
 
+                    foreach (self::extractCondoFactsFromListing($L) as $factKey => $factValue) {
+                        if ($factValue !== null) {
+                            $factCandidates[$factKey][] = $factValue;
+                        }
+                    }
+
                     $sqft = self::parseSqftBounds($L['details']['sqft'] ?? null);
                     if ($sqft !== null) {
                         $sqftMin = ($sqftMin === null) ? $sqft['low'] : min($sqftMin, $sqft['low']);
@@ -563,7 +577,11 @@ class Building extends Model
                             $ppsfSamples[] = $price / $sqft['mid'];
                         }
 
-                        $fee = (float) preg_replace('/[^\d.]/', '', (string) ($L['details']['maintenanceFee'] ?? ''));
+                        // Fee lives at details.maintenanceFee on most boards,
+                        // but some populate only condominium.fees.maintenance.
+                        $rawFee = $L['details']['maintenanceFee']
+                            ?? ($L['condominium']['fees']['maintenance'] ?? '');
+                        $fee = (float) preg_replace('/[^\d.]/', '', (string) $rawFee);
                         if ($fee > 0 && $sqft['mid'] > 0) {
                             $feePsfSamples[] = $fee / $sqft['mid'];
                         }
@@ -578,7 +596,7 @@ class Building extends Model
             return false;
         }
 
-        if ($min === null && $sqftMin === null) {
+        if ($min === null && $sqftMin === null && !array_filter($factCandidates)) {
             return false;
         }
 
@@ -611,9 +629,92 @@ class Building extends Model
                 : "\${$feeLow} - \${$feeHigh} per sq ft";
         }
 
-        $this->forceFill($updates)->saveQuietly();
+        // Condo facts — same blank-only rule; the most frequent value across
+        // the building's listings wins (listings occasionally carry typos or
+        // a neighbouring corp, so a single outlier never decides).
+        if (!empty($factCandidates['corp']) && trim((string) $this->corp_number) === '') {
+            $updates['corp_number'] = self::modeOf($factCandidates['corp']);
+        }
+        if (!empty($factCandidates['mgmt']) && trim((string) $this->management_name) === '') {
+            $updates['management_name'] = self::modeOf($factCandidates['mgmt']);
+        }
+        if (!empty($factCandidates['park_cost']) && (float) $this->parking_maintenance_fee <= 0) {
+            $updates['parking_maintenance_fee'] = (float) self::modeOf($factCandidates['park_cost']);
+        }
+        if (!empty($factCandidates['year']) && empty($this->year_built)) {
+            $updates['year_built'] = (int) self::modeOf($factCandidates['year']);
+        }
+
+        if (!empty($updates)) {
+            $this->forceFill($updates)->saveQuietly();
+        }
 
         return true;
+    }
+
+    /**
+     * Pull the condo facts a building can inherit from one MLS listing.
+     * Returns null per key when the listing doesn't carry the fact:
+     * - corp:      "TSCC 3043" from condominium.condoCorp + condoCorpNum
+     * - mgmt:      condominium.propertyMgr
+     * - park_cost: details.parkCostMonthly as a float (sparsely populated)
+     * - year:      details.yearBuilt ONLY when it is a real 4-digit year —
+     *              TRREB usually sends age bands ("11-15", "New") instead.
+     *
+     * Shared by refreshPriceRangeFromMls() and the AI description
+     * enrichment in Api\BuildingController.
+     */
+    public static function extractCondoFactsFromListing(array $listing): array
+    {
+        $condo = $listing['condominium'] ?? [];
+        $details = $listing['details'] ?? [];
+
+        $corp = null;
+        $corpNum = trim((string) ($condo['condoCorpNum'] ?? ''));
+        if ($corpNum !== '') {
+            $corp = trim(trim((string) ($condo['condoCorp'] ?? '')) . ' ' . $corpNum);
+        }
+
+        $mgmt = trim((string) ($condo['propertyMgr'] ?? ''));
+
+        $parkCost = null;
+        $rawPark = $details['parkCostMonthly'] ?? null;
+        if ($rawPark !== null && $rawPark !== '') {
+            $value = (float) preg_replace('/[^\d.]/', '', (string) $rawPark);
+            if ($value > 0) {
+                $parkCost = $value;
+            }
+        }
+
+        $year = null;
+        $rawYear = trim((string) ($details['yearBuilt'] ?? ''));
+        if (preg_match('/^(18|19|20)\d{2}$/', $rawYear) && (int) $rawYear <= (int) date('Y') + 1) {
+            $year = (int) $rawYear;
+        }
+
+        return [
+            'corp' => $corp,
+            'mgmt' => $mgmt !== '' ? $mgmt : null,
+            'park_cost' => $parkCost,
+            'year' => $year,
+        ];
+    }
+
+    /**
+     * Most frequent value in a list (ties break toward first-seen).
+     */
+    private static function modeOf(array $values): ?string
+    {
+        if (empty($values)) {
+            return null;
+        }
+        $counts = [];
+        foreach ($values as $value) {
+            $key = (string) $value;
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+        arsort($counts);
+        return (string) array_key_first($counts);
     }
 
     /**
