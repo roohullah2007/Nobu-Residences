@@ -342,9 +342,15 @@ class WebsiteManagementController extends Controller
         }
 
         // No photo from the upload, the building or the default site's
-        // agent: every new website still gets the standard agent profile
-        // photo (stored locally in public/assets, editable later).
-        if (empty($agentData['profile_image'])) {
+        // agent — or the inherited local path points at a file that no
+        // longer exists: every new website still gets the standard agent
+        // profile photo (stored locally in public/assets, editable later).
+        $resolvedImage = $agentData['profile_image'] ?? null;
+        $isLocalPath = is_string($resolvedImage) && str_starts_with($resolvedImage, '/');
+        if (
+            empty($resolvedImage)
+            || ($isLocalPath && !file_exists(public_path(ltrim($resolvedImage, '/'))))
+        ) {
             $agentData['profile_image'] = '/assets/default-agent-profile.png';
         }
 
