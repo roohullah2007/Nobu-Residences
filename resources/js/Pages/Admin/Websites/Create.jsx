@@ -407,8 +407,8 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                         >
                                             <BuildingThumb src={b.main_image} alt={b.name} />
                                             <div className="min-w-0">
-                                                <div className="font-medium text-gray-900 truncate">{b.name}</div>
-                                                <div className="text-sm text-gray-500 truncate">{b.address || b.city || '—'}</div>
+                                                <div className="font-medium text-gray-900 truncate" title={b.name}>{b.name}</div>
+                                                <div className="text-sm text-gray-500 truncate" title={b.address || b.city || ''}>{b.address || b.city || '—'}</div>
                                             </div>
                                         </button>
                                     ))}
@@ -439,8 +439,8 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 Locked
                                             </span>
                                         </div>
-                                        <div className="font-medium text-gray-900 truncate">{chosenBuilding.name}</div>
-                                        <div className="text-sm text-gray-500 truncate">{chosenBuilding.address || chosenBuilding.city || '—'}</div>
+                                        <div className="font-medium text-gray-900 truncate" title={chosenBuilding.name}>{chosenBuilding.name}</div>
+                                        <div className="text-sm text-gray-500 truncate" title={chosenBuilding.address || chosenBuilding.city || ''}>{chosenBuilding.address || chosenBuilding.city || '—'}</div>
                                     </div>
                                     <button
                                         type="button"

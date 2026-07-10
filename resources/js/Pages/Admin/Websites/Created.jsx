@@ -102,6 +102,9 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoPoll, sslPending]);
     const allOk = report.db?.ok && report.ploi?.ok !== false && report.ssl?.ok !== false;
+    // Ploi/SSL report `ok: null`/absent when skipped (no custom domain) —
+    // don't claim they "ran cleanly" in that case.
+    const domainStepsSkipped = report.ploi?.ok !== true && report.ssl?.ok !== true;
 
     const ipWhitelistMatch = (msg) =>
         typeof msg === 'string' && msg.match(/IP address.*not allowed.*\(Used:\s*([0-9a-f.:]+)\)/i);
@@ -230,9 +233,9 @@ export default function WebsiteCreated({ website, report, ploi, liveStatus = nul
                                 {allOk ? 'Website created successfully!' : 'Website created — but some steps need attention'}
                             </h2>
                             <p className="text-sm text-gray-700 mt-1">
-                                {allOk
-                                    ? 'Everything ran cleanly: database, Ploi alias, and SSL.'
-                                    : 'The website was saved, but Ploi alias or SSL provisioning didn\'t fully succeed. See details below.'}
+                                {!allOk && 'The website was saved, but Ploi alias or SSL provisioning didn\'t fully succeed. See details below.'}
+                                {allOk && domainStepsSkipped && 'Website created — domain steps skipped (no custom domain).'}
+                                {allOk && !domainStepsSkipped && 'Everything ran cleanly: database, Ploi alias, and SSL.'}
                             </p>
                         </div>
                     </div>

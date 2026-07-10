@@ -30,12 +30,19 @@ export default function QuickCreateSelect({
     const [createError, setCreateError] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const [highlightIndex, setHighlightIndex] = useState(-1);
 
     const selectedOption = options.find((option) => String(option.id) === String(value));
     const filteredOptions = query.trim()
         ? options.filter((option) =>
               getOptionLabel(option).toLowerCase().includes(query.trim().toLowerCase()))
         : options;
+
+    const selectOption = (option) => {
+        onChange(String(option.id));
+        setIsOpen(false);
+        setHighlightIndex(-1);
+    };
 
     const handleCreate = async () => {
         const name = newName.trim();
@@ -105,16 +112,26 @@ export default function QuickCreateSelect({
                     className="mt-1 block w-full rounded-md !border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 !bg-white !text-gray-900 pr-8"
                     value={isOpen ? query : (selectedOption ? getOptionLabel(selectedOption) : '')}
                     placeholder={selectedOption ? getOptionLabel(selectedOption) : placeholder}
-                    onFocus={() => { setIsOpen(true); setQuery(''); }}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => { setIsOpen(true); setQuery(''); setHighlightIndex(-1); }}
+                    onChange={(e) => { setQuery(e.target.value); setHighlightIndex(-1); }}
                     onBlur={() => setTimeout(() => setIsOpen(false), 100)}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') { setIsOpen(false); e.currentTarget.blur(); }
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setIsOpen(true);
+                            setHighlightIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
+                        }
+                        if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setHighlightIndex((prev) => Math.max(prev - 1, 0));
+                        }
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            if (filteredOptions.length === 1) {
-                                onChange(String(filteredOptions[0].id));
-                                setIsOpen(false);
+                            const target = filteredOptions[highlightIndex]
+                                ?? (filteredOptions.length === 1 ? filteredOptions[0] : null);
+                            if (target) {
+                                selectOption(target);
                                 e.currentTarget.blur();
                             }
                         }
@@ -137,19 +154,20 @@ export default function QuickCreateSelect({
                                 {placeholder}
                             </button>
                         </li>
-                        {filteredOptions.map((option) => (
+                        {filteredOptions.map((option, index) => (
                             <li key={option.id}>
                                 <button
                                     type="button"
                                     className={`block w-full px-3 py-1.5 text-left hover:bg-indigo-50 ${
-                                        String(option.id) === String(value)
+                                        index === highlightIndex
+                                            ? 'bg-indigo-100 text-indigo-900'
+                                            : String(option.id) === String(value)
                                             ? 'bg-indigo-50 font-medium text-indigo-700'
                                             : 'text-gray-900'
                                     }`}
                                     onMouseDown={(e) => {
                                         e.preventDefault();
-                                        onChange(String(option.id));
-                                        setIsOpen(false);
+                                        selectOption(option);
                                     }}
                                 >
                                     {getOptionLabel(option)}
