@@ -14,6 +14,10 @@ class SettingsController extends Controller
     /**
      * Settings each section manages. The structure declares which keys live
      * in which group and how each should be persisted (encrypted, type).
+     *
+     * API keys are NOT managed here — they come from .env only
+     * (REPLIERS_API_KEY, GOOGLE_MAPS_API_KEY, GEMINI_API_KEY,
+     * WALKSCORE_API_KEY, RESEND_API_KEY, PLOI_API_TOKEN, ...).
      */
     private function schema(): array
     {
@@ -29,14 +33,9 @@ class SettingsController extends Controller
                 ['key' => 'instagram_url',  'type' => 'string',  'is_public' => true],
                 ['key' => 'twitter_url',    'type' => 'string',  'is_public' => true],
                 ['key' => 'linkedin_url',   'type' => 'string',  'is_public' => true],
-            ],
-            'api' => [
-                ['key' => 'repliers_api_key',  'type' => 'string', 'is_encrypted' => true, 'sensitive' => true],
-                ['key' => 'gemini_api_key',    'type' => 'string', 'is_encrypted' => true, 'sensitive' => true],
-                ['key' => 'google_maps_api_key','type' => 'string','is_encrypted' => true, 'sensitive' => true],
-                ['key' => 'ploi_api_token',    'type' => 'string', 'is_encrypted' => true, 'sensitive' => true],
-                ['key' => 'ploi_server_id',    'type' => 'string'],
-                ['key' => 'ploi_site_id',      'type' => 'string'],
+                // Raw snippet (e.g. Follow Up Boss pixel) rendered in the
+                // <head> of every public website.
+                ['key' => 'global_tracking_scripts', 'type' => 'string'],
             ],
             'email' => [
                 ['key' => 'mail_from_address',     'type' => 'string'],

@@ -14,7 +14,7 @@ class GeminiDescriptionService
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.api_key', env('GEMINI_API_KEY', 'AIzaSyAQiazBsYhcKBAcvcOLKoOuixJJMF8N95Q'));
+        $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
     }
 
     public function generatePropertyDescription($property)

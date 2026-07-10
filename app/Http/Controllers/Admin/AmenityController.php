@@ -61,16 +61,28 @@ class AmenityController extends Controller
 
     /**
      * JSON quick-create for the inline "+ New" on the building create/edit
-     * pages. Name-only (no icon upload); idempotent on the name so a
-     * duplicate submit returns the existing amenity instead of erroring.
+     * pages. Idempotent on the name so a duplicate submit returns the
+     * existing amenity instead of erroring; an optional icon_file is stored
+     * the same way as the full store()/update() so the amenity shows up
+     * complete on /admin/amenities.
      */
     public function quickStore(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'icon_file' => ['nullable', new SvgOrImage(), 'max:2048'],
         ]);
 
         $amenity = Amenity::firstOrCreate(['name' => trim($validated['name'])]);
+
+        if ($request->hasFile('icon_file')) {
+            $iconFile = $request->file('icon_file');
+            $iconFileName = strtolower(str_replace(' ', '-', $amenity->name)) . '.' . $iconFile->getClientOriginalExtension();
+            // Relative /storage/ URL on purpose — Storage::url() bakes
+            // APP_URL into the DB and breaks the icon across hosts.
+            $iconPath = $iconFile->storeAs('amenity-icons', $iconFileName, 'public');
+            $amenity->update(['icon' => '/storage/' . $iconPath]);
+        }
 
         return response()->json([
             'id' => $amenity->id,

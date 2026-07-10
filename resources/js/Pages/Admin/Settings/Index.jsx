@@ -17,7 +17,6 @@ const labelFor = (key) =>
 
 const TABS = [
     { id: 'general', label: 'General' },
-    { id: 'api', label: 'API Keys' },
     { id: 'email', label: 'Email & Notifications' },
 ];
 
@@ -32,7 +31,7 @@ export default function SettingsIndex({ schema, values, timezones = [], mail_dri
             <div className={`space-y-6 ${lightFormClass}`}>
                 <div className="bg-white shadow-sm sm:rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
-                    <p className="text-sm text-gray-500 mt-1">Configure general site info, API integrations, and email notifications.</p>
+                    <p className="text-sm text-gray-500 mt-1">Configure general site info and email notifications. API keys are managed in the server .env file.</p>
                 </div>
 
                 {/* Tabs */}
@@ -63,9 +62,6 @@ export default function SettingsIndex({ schema, values, timezones = [], mail_dri
                     <div className="p-6">
                         {tab === 'general' && (
                             <GeneralTab schema={schema.general} values={values.general} timezones={timezones} />
-                        )}
-                        {tab === 'api' && (
-                            <ApiKeysTab schema={schema.api} values={values.api} />
                         )}
                         {tab === 'email' && (
                             <EmailTab schema={schema.email} values={values.email} mailDrivers={mail_drivers} />
@@ -115,18 +111,25 @@ function GeneralTab({ schema, values, timezones }) {
                             </div>
                         );
                     }
-                    if (f.key === 'contact_address') {
+                    if (f.key === 'contact_address' || f.key === 'global_tracking_scripts') {
+                        const isTracking = f.key === 'global_tracking_scripts';
                         return (
                             <div key={f.key} className="md:col-span-2">
                                 <InputLabel htmlFor={f.key} value={labelFor(f.key)} />
                                 <textarea
                                     id={f.key}
-                                    rows={2}
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    rows={isTracking ? 5 : 2}
+                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${isTracking ? 'font-mono text-xs' : ''}`}
                                     value={data[f.key] || ''}
                                     onChange={(e) => setData(f.key, e.target.value)}
+                                    placeholder={isTracking ? '<script>…</script> — tracking pixel injected into the <head> of every public website' : undefined}
                                 />
                                 <InputError message={errors[f.key]} className="mt-2" />
+                                {isTracking && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Raw HTML snippet (e.g. Follow Up Boss pixel) rendered on every public website. Leave empty to disable.
+                                    </p>
+                                )}
                             </div>
                         );
                     }
@@ -148,68 +151,6 @@ function GeneralTab({ schema, values, timezones }) {
             </div>
             <div className="flex justify-end">
                 <PrimaryButton disabled={processing}>{processing ? 'Saving…' : 'Save general settings'}</PrimaryButton>
-            </div>
-        </form>
-    );
-}
-
-/* -------- API Keys -------- */
-function ApiKeysTab({ schema, values }) {
-    const initial = useMemo(() => {
-        const o = { group: 'api' };
-        for (const f of schema) {
-            // Sensitive keys start empty (we never round-trip the real value)
-            const isSensitive = !!f.is_encrypted || !!f.sensitive;
-            const v = values[f.key];
-            o[f.key] = isSensitive ? '' : (v ?? '');
-        }
-        return o;
-    }, [schema, values]);
-
-    const { data, setData, put, processing, errors } = useForm(initial);
-
-    const submit = (e) => {
-        e.preventDefault();
-        put(route('admin.settings.update'), { preserveScroll: true });
-    };
-
-    return (
-        <form onSubmit={submit} className="space-y-6">
-            <div className="space-y-6">
-                {schema.map((f) => {
-                    const isSensitive = !!f.is_encrypted;
-                    const v = values[f.key];
-                    const hasValue = isSensitive ? !!v?.has_value : !!v;
-                    const masked = isSensitive ? (v?.masked || '') : '';
-                    return (
-                        <div key={f.key}>
-                            <div className="flex items-center justify-between">
-                                <InputLabel htmlFor={f.key} value={labelFor(f.key)} />
-                                {isSensitive && hasValue && (
-                                    <span className="text-xs text-gray-500 font-mono">Current: {masked}</span>
-                                )}
-                            </div>
-                            <TextInput
-                                id={f.key}
-                                type={isSensitive ? 'password' : 'text'}
-                                className="mt-1 block w-full"
-                                value={data[f.key] || ''}
-                                onChange={(e) => setData(f.key, e.target.value)}
-                                placeholder={isSensitive ? (hasValue ? 'Enter a new value to replace…' : 'Paste the API key/token') : placeholderFor(f.key)}
-                                autoComplete="new-password"
-                            />
-                            <InputError message={errors[f.key]} className="mt-2" />
-                            {isSensitive && (
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Leave blank to keep the current value. New values are encrypted at rest.
-                                </p>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="flex justify-end">
-                <PrimaryButton disabled={processing}>{processing ? 'Saving…' : 'Save API settings'}</PrimaryButton>
             </div>
         </form>
     );

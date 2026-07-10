@@ -14,8 +14,7 @@ use Illuminate\Support\Facades\Http;
  * package is not installed (and composer may not be runnable offline), so
  * this transport talks to Resend's HTTP API directly. It is registered via
  * Mail::extend('resend', ...) in AppServiceProvider; the API key comes from
- * the admin-managed settings table (resend_api_key) with RESEND_API_KEY as
- * the .env fallback.
+ * RESEND_API_KEY in the .env.
  */
 class ResendTransport extends AbstractTransport
 {

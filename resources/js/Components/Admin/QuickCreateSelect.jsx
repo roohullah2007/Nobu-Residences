@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import InputLabel from '@/Components/InputLabel';
 import InputError from '@/Components/InputError';
-
-const getCsrfToken = () =>
-    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * A searchable combobox with an inline "+ New" quick-create form so admins
@@ -49,7 +47,7 @@ export default function QuickCreateSelect({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    ...csrfHeaders(),
                     'X-Requested-With': 'XMLHttpRequest',
                     Accept: 'application/json',
                 },

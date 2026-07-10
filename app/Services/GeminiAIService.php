@@ -15,8 +15,8 @@ class GeminiAIService
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.api_key', env('GEMINI_API_KEY', 'AIzaSyAQiazBsYhcKBAcvcOLKoOuixJJMF8N95Q'));
-        $this->model = env('GEMINI_MODEL', 'gemini-flash-latest');
+        $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+        $this->model = config('services.gemini.model') ?: env('GEMINI_MODEL', 'gemini-flash-latest');
         $this->apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent";
     }
 

@@ -87,19 +87,29 @@ class MaintenanceFeeAmenityController extends Controller
 
     /**
      * JSON quick-create for the inline "+ New" on the building create/edit
-     * pages. Name-only; idempotent on the name so a duplicate submit
-     * returns the existing amenity instead of a unique-violation error.
+     * pages. Idempotent on the name so a duplicate submit returns the
+     * existing amenity instead of a unique-violation error; an optional
+     * icon_file is stored under public/svgs like the full store() so the
+     * amenity shows up complete on /admin/maintenance-fee-amenities.
      */
     public function quickStore(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'icon_file' => ['nullable', new \App\Rules\SvgOrImage(), 'max:2048'],
         ]);
 
         $amenity = MaintenanceFeeAmenity::firstOrCreate(
             ['name' => trim($validated['name'])],
             ['is_active' => true, 'sort_order' => 0]
         );
+
+        if ($request->hasFile('icon_file')) {
+            $file = $request->file('icon_file');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('svgs'), $filename);
+            $amenity->update(['icon' => '/svgs/' . $filename]);
+        }
 
         return response()->json([
             'id' => $amenity->id,

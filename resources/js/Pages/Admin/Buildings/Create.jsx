@@ -8,6 +8,7 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -156,14 +157,11 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         setAiDescriptionError('');
 
         try {
-            // Get CSRF token from meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
             const response = await fetch('/api/buildings/generate-ai-description', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '',
+                    ...csrfHeaders(),
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 },
@@ -940,7 +938,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                             {/* Amenity Selector */}
                             {showAmenitySelector && (
                                 <div className="mt-4 border rounded-lg p-4 bg-gray-50">
-                                    <div className="mb-4 flex items-start gap-3">
+                                    <div className="mb-4 space-y-3">
                                         <input
                                             type="text"
                                             placeholder="Search amenities..."
@@ -948,14 +946,13 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                             value={amenitySearch}
                                             onChange={(e) => setAmenitySearch(e.target.value)}
                                         />
-                                        <div className="pt-2 flex-shrink-0">
-                                            <QuickCreateInline
-                                                createUrl={route('admin.api.amenities.store')}
-                                                buttonLabel="+ New amenity"
-                                                placeholder="New amenity name..."
-                                                onCreated={handleAmenityCreated}
-                                            />
-                                        </div>
+                                        <QuickCreateInline
+                                            createUrl={route('admin.api.amenities.store')}
+                                            buttonLabel="+ New amenity"
+                                            placeholder="New amenity name..."
+                                            onCreated={handleAmenityCreated}
+                                            withImage
+                                        />
                                     </div>
 
                                     {amenityOptions.length > 0 ? (
@@ -1075,12 +1072,13 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 {/* Maintenance Amenity Selector */}
                                 {showMaintenanceAmenitySelector && (
                                     <div className="mt-4 border rounded-lg p-4 bg-gray-50">
-                                        <div className="mb-4 flex justify-end">
+                                        <div className="mb-4">
                                             <QuickCreateInline
                                                 createUrl={route('admin.api.maintenance-fee-amenities.store')}
                                                 buttonLabel="+ New maintenance amenity"
                                                 placeholder="New maintenance amenity name..."
                                                 onCreated={handleMaintenanceAmenityCreated}
+                                                withImage
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">

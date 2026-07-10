@@ -165,7 +165,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'globalWebsite' => $globalWebsite,
             'currentWebsiteSlug' => $website?->slug,
-            'googleMapsApiKey' => env('GOOGLE_MAPS_API_KEY', ''),
+            'googleMapsApiKey' => (string) config('repliers.google_maps_api_key', ''),
             'googleOAuthEnabled' => $googleOAuthEnabled,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

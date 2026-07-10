@@ -5,6 +5,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 import { useEffect, useMemo, useState } from 'react';
 
 // Force white backgrounds AND one consistent border + font size on all form
@@ -188,12 +189,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         setAiSeoLoading(true);
         setAiSeoError('');
         try {
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const res = await fetch(route('admin.websites.ai-generate-seo'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrf,
+                    ...csrfHeaders(),
                     'Accept': 'application/json',
                 },
                 credentials: 'same-origin',
