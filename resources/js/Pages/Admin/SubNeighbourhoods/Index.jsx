@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoods, filters }) {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingSubNeighbourhood, setEditingSubNeighbourhood] = useState(null);
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+    const [pendingDelete, setPendingDelete] = useState(null);
+    const isFirstRender = useRef(true);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: '',
@@ -16,13 +21,22 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
         sort_order: 0
     });
 
-    const handleSearch = (value) => {
-        setSearchTerm(value);
-        router.get(route('admin.sub-neighbourhoods.index'), { search: value }, {
-            preserveState: true,
-            replace: true
-        });
-    };
+    // Debounced server-side search so typing stays responsive while all
+    // pages are still searched.
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
+        }
+        const t = setTimeout(() => {
+            router.get(
+                route('admin.sub-neighbourhoods.index'),
+                searchTerm ? { search: searchTerm } : {},
+                { preserveState: true, preserveScroll: true, replace: true }
+            );
+        }, SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
 
     const handleCreate = (e) => {
         e.preventDefault();
@@ -45,10 +59,12 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
         });
     };
 
-    const handleDelete = (id, name) => {
-        if (confirm(`Are you sure you want to delete "${name}"?`)) {
-            router.delete(route('admin.sub-neighbourhoods.destroy', id));
-        }
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        router.delete(route('admin.sub-neighbourhoods.destroy', pendingDelete.id), {
+            preserveScroll: true,
+            onFinish: () => setPendingDelete(null),
+        });
     };
 
     const openEditModal = (subNeighbourhood) => {
@@ -123,7 +139,7 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
                             placeholder="Search sub-neighbourhoods..."
                             className="w-full pl-9 pr-4 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all"
                             value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                 </div>
@@ -169,7 +185,7 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
                                                 Edit
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(subNeighbourhood.id, subNeighbourhood.name)}
+                                                onClick={() => setPendingDelete(subNeighbourhood)}
                                                 className="text-[#dc2626] hover:text-[#b91c1c] text-sm font-medium"
                                             >
                                                 Delete
@@ -180,7 +196,9 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
                                 {(!subNeighbourhoods.data || subNeighbourhoods.data.length === 0) && (
                                     <tr>
                                         <td colSpan="5" className="px-4 py-8 text-center text-sm text-[#64748b]">
-                                            No sub-neighbourhoods found. Create your first one!
+                                            {filters?.search
+                                                ? `No results for "${filters.search}"`
+                                                : 'No sub-neighbourhoods found. Create your first one!'}
                                         </td>
                                     </tr>
                                 )}
@@ -212,6 +230,15 @@ export default function SubNeighbourhoodsIndex({ subNeighbourhoods, neighbourhoo
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete sub-neighbourhood?"
+                message={pendingDelete ? `"${pendingDelete.name}" will be permanently deleted. This can't be undone.` : ''}
+                confirmLabel="Delete"
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
 
             {/* Create Modal */}
             {showCreateModal && (

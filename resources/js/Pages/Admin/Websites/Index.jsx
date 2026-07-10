@@ -1,5 +1,6 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import { useMemo, useState } from 'react';
 
 export default function Index({ auth }) {
@@ -7,6 +8,8 @@ export default function Index({ auth }) {
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [pendingDelete, setPendingDelete] = useState(null);
+    const [pendingDuplicate, setPendingDuplicate] = useState(null);
 
     const filteredWebsites = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -26,23 +29,27 @@ export default function Index({ auth }) {
         setOpenDropdownId(openDropdownId === websiteId ? null : websiteId);
     };
 
-    const handleDelete = (website) => {
-        const ploiNote = website.domain
-            ? `\n\nThis will also remove the domain alias "${website.domain}" from the Ploi site (the SSL certificate will be left alone to avoid breaking other domains).`
-            : '';
-        if (confirm(`Are you sure you want to delete "${website.name}"? This action cannot be undone.${ploiNote}`)) {
-            router.delete(route('admin.websites.destroy', website.id), {
-                preserveScroll: true,
-            });
-        }
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        router.delete(route('admin.websites.destroy', pendingDelete.id), {
+            preserveScroll: true,
+            onFinish: () => setPendingDelete(null),
+        });
     };
 
-    const handleDuplicate = (website) => {
-        if (confirm(`Create a duplicate of "${website.name}"?`)) {
-            router.post(route('admin.websites.duplicate', website.id), {}, {
-                preserveScroll: true,
-            });
-        }
+    const confirmDuplicate = () => {
+        if (!pendingDuplicate) return;
+        router.post(route('admin.websites.duplicate', pendingDuplicate.id), {}, {
+            preserveScroll: true,
+            onFinish: () => setPendingDuplicate(null),
+        });
+    };
+
+    const deleteMessage = (website) => {
+        const ploiNote = website.domain
+            ? ` This will also remove the domain alias "${website.domain}" from the Ploi site (the SSL certificate is left alone to avoid breaking other domains).`
+            : '';
+        return `"${website.name}" will be permanently deleted. This can't be undone.${ploiNote}`;
     };
 
     // Get preview URL using ?website={slug} query parameter
@@ -319,7 +326,7 @@ export default function Index({ auth }) {
                                                                     <button
                                                                         onClick={() => {
                                                                             setOpenDropdownId(null);
-                                                                            handleDuplicate(website);
+                                                                            setPendingDuplicate(website);
                                                                         }}
                                                                         className="flex items-center w-full px-4 py-2 text-sm text-[#0f172a] hover:bg-[#f8fafc] transition-colors"
                                                                     >
@@ -343,7 +350,7 @@ export default function Index({ auth }) {
                                                                             <button
                                                                                 onClick={() => {
                                                                                     setOpenDropdownId(null);
-                                                                                    handleDelete(website);
+                                                                                    setPendingDelete(website);
                                                                                 }}
                                                                                 className="flex items-center w-full px-4 py-2 text-sm text-[#dc2626] hover:bg-[#fef2f2] transition-colors"
                                                                             >
@@ -407,6 +414,25 @@ export default function Index({ auth }) {
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete website?"
+                message={pendingDelete ? deleteMessage(pendingDelete) : ''}
+                confirmLabel="Delete"
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
+
+            <ConfirmDialog
+                open={Boolean(pendingDuplicate)}
+                title="Duplicate website?"
+                message={pendingDuplicate ? `A copy of "${pendingDuplicate.name}" will be created with all its pages and settings.` : ''}
+                confirmLabel="Duplicate"
+                variant="neutral"
+                onConfirm={confirmDuplicate}
+                onCancel={() => setPendingDuplicate(null)}
+            />
         </AdminLayout>
     );
 }

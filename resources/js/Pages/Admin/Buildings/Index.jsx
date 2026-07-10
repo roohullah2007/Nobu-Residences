@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 const NO_IMAGE_PLACEHOLDER = '/images/no-image-placeholder.jpg';
 
@@ -37,6 +38,7 @@ export default function BuildingsIndex({ auth, buildings }) {
     // Which row's actions menu is open. Null = all closed. Only one row's
     // menu can be open at a time.
     const [openMenuId, setOpenMenuId] = useState(null);
+    const [pendingDelete, setPendingDelete] = useState(null);
     const menuRef = useRef(null);
 
     // Close the actions menu on outside-click / Esc so the dropdown
@@ -70,11 +72,13 @@ export default function BuildingsIndex({ auth, buildings }) {
         return `${slug}-${id}`;
     };
 
-    const handleDelete = (building) => {
-        if (confirm(`Are you sure you want to delete "${building.name}"?`)) {
-            const slug = createBuildingSlug(building.name, building.id);
-            router.delete(route('admin.buildings.destroy', slug));
-        }
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        const slug = createBuildingSlug(pendingDelete.name, pendingDelete.id);
+        router.delete(route('admin.buildings.destroy', slug), {
+            preserveScroll: true,
+            onFinish: () => setPendingDelete(null),
+        });
     };
 
     const filteredBuildings = buildings.data.filter((building) => {
@@ -395,7 +399,7 @@ export default function BuildingsIndex({ auth, buildings }) {
                                                             </Link>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => { setOpenMenuId(null); handleDelete(building); }}
+                                                                onClick={() => { setOpenMenuId(null); setPendingDelete(building); }}
                                                                 className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#dc2626] hover:bg-[#fef2f2]"
                                                                 role="menuitem"
                                                             >
@@ -456,6 +460,15 @@ export default function BuildingsIndex({ auth, buildings }) {
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete building?"
+                message={pendingDelete ? `"${pendingDelete.name}" will be permanently deleted. This can't be undone.` : ''}
+                confirmLabel="Delete"
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
         </AdminLayout>
     );
 }

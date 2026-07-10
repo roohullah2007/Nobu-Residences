@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 // Logo thumbnail with a fallback: broken/missing images swap to the
 // initial-letter avatar instead of showing raw alt text.
@@ -109,6 +110,7 @@ export default function DevelopersIndex({ developers }) {
     const [editingDeveloper, setEditingDeveloper] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [logoPreview, setLogoPreview] = useState(null);
+    const [pendingDelete, setPendingDelete] = useState(null);
 
     const { data, setData, processing, errors, reset } = useForm({ ...emptyForm });
 
@@ -174,10 +176,12 @@ export default function DevelopersIndex({ developers }) {
         });
     };
 
-    const handleDelete = (id, name) => {
-        if (confirm(`Are you sure you want to delete "${name}"?`)) {
-            router.delete(route('admin.developers.destroy', id));
-        }
+    const confirmDelete = () => {
+        if (!pendingDelete) return;
+        router.delete(route('admin.developers.destroy', pendingDelete.id), {
+            preserveScroll: true,
+            onFinish: () => setPendingDelete(null),
+        });
     };
 
     const openEditModal = (developer) => {
@@ -570,7 +574,7 @@ export default function DevelopersIndex({ developers }) {
                                                         Edit
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDelete(developer.id, developer.name)}
+                                                        onClick={() => setPendingDelete(developer)}
                                                         className="px-3 py-1.5 text-xs font-medium text-[#dc2626] bg-[#fef2f2] rounded-md hover:bg-[#fee2e2] transition-colors"
                                                     >
                                                         Delete
@@ -620,6 +624,15 @@ export default function DevelopersIndex({ developers }) {
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={Boolean(pendingDelete)}
+                title="Delete developer?"
+                message={pendingDelete ? `"${pendingDelete.name}" will be permanently deleted. This can't be undone.` : ''}
+                confirmLabel="Delete"
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDelete(null)}
+            />
 
             {/* Create Modal */}
             {showCreateModal && (
