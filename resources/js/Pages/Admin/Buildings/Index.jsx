@@ -2,8 +2,38 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
+const NO_IMAGE_PLACEHOLDER = '/images/no-image-placeholder.jpg';
+
+// Row thumbnail with a graceful fallback: broken/missing images swap to the
+// building-icon placeholder instead of showing raw alt text.
+function BuildingRowThumb({ src, alt }) {
+    const [hasFailed, setHasFailed] = useState(false);
+
+    if (!src || src === NO_IMAGE_PLACEHOLDER || hasFailed) {
+        return (
+            <div className="h-10 w-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center">
+                <svg className="w-5 h-5 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+            </div>
+        );
+    }
+
+    return (
+        <img
+            className="h-10 w-10 rounded-lg object-cover"
+            src={src}
+            alt={alt}
+            onError={() => setHasFailed(true)}
+        />
+    );
+}
+
 export default function BuildingsIndex({ auth, buildings }) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
+    const [featuredFilter, setFeaturedFilter] = useState('all');
     // Which row's actions menu is open. Null = all closed. Only one row's
     // menu can be open at a time.
     const [openMenuId, setOpenMenuId] = useState(null);
@@ -47,11 +77,18 @@ export default function BuildingsIndex({ auth, buildings }) {
         }
     };
 
-    const filteredBuildings = buildings.data.filter(building =>
-        building.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        building.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        building.city.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredBuildings = buildings.data.filter((building) => {
+        if (statusFilter !== 'all' && (building.status || 'pending') !== statusFilter) return false;
+        if (typeFilter !== 'all' && building.building_type !== typeFilter) return false;
+        if (featuredFilter === 'featured' && !building.is_featured) return false;
+        const q = searchTerm.toLowerCase();
+        if (!q) return true;
+        return (
+            building.name.toLowerCase().includes(q) ||
+            building.address.toLowerCase().includes(q) ||
+            building.city.toLowerCase().includes(q)
+        );
+    });
 
     const getBuildingTypeLabel = (type) => {
         const types = {
@@ -118,12 +155,18 @@ export default function BuildingsIndex({ auth, buildings }) {
                     </div>
                 </div>
 
-                {/* Stats */}
+                {/* Stats — clicking a card filters the table below */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    <button
+                        type="button"
+                        onClick={() => { setStatusFilter('all'); setFeaturedFilter('all'); }}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
+                            statusFilter === 'all' && featuredFilter === 'all' ? 'border-[#0f172a] ring-1 ring-[#0f172a]' : 'border-[#e2e8f0]'
+                        }`}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                             </div>
@@ -132,11 +175,17 @@ export default function BuildingsIndex({ auth, buildings }) {
                                 <p className="text-sm text-[#64748b]">Total Buildings</p>
                             </div>
                         </div>
-                    </div>
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setStatusFilter('active'); setFeaturedFilter('all'); }}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
+                            statusFilter === 'active' ? 'border-[#16a34a] ring-1 ring-[#16a34a]' : 'border-[#e2e8f0]'
+                        }`}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#f0fdf4] flex items-center justify-center text-[#16a34a]">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
@@ -145,11 +194,17 @@ export default function BuildingsIndex({ auth, buildings }) {
                                 <p className="text-sm text-[#64748b]">Active</p>
                             </div>
                         </div>
-                    </div>
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setFeaturedFilter('featured'); setStatusFilter('all'); }}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
+                            featuredFilter === 'featured' ? 'border-[#ca8a04] ring-1 ring-[#ca8a04]' : 'border-[#e2e8f0]'
+                        }`}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#fefce8] flex items-center justify-center text-[#ca8a04]">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                                 </svg>
                             </div>
@@ -158,26 +213,62 @@ export default function BuildingsIndex({ auth, buildings }) {
                                 <p className="text-sm text-[#64748b]">Featured</p>
                             </div>
                         </div>
-                    </div>
+                    </button>
                 </div>
 
                 {/* Main Content */}
                 <div className="bg-white rounded-lg border border-[#e2e8f0]">
-                    {/* Search */}
-                    <div className="p-4 border-b border-[#e2e8f0]">
-                        <div className="relative max-w-md">
+                    {/* Search + filters */}
+                    <div className="p-4 border-b border-[#e2e8f0] flex flex-col lg:flex-row gap-3">
+                        <div className="relative flex-1 max-w-md">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg className="h-4 w-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="h-4 w-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </div>
                             <input
                                 type="text"
                                 placeholder="Search buildings..."
+                                aria-label="Search buildings"
                                 className="w-full pl-9 pr-4 py-2 text-sm border border-[#e2e8f0] rounded-lg focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                aria-label="Filter by status"
+                                className="text-sm border-[#e2e8f0] rounded-lg focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                            >
+                                <option value="all">All statuses</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                            <select
+                                value={typeFilter}
+                                onChange={(e) => setTypeFilter(e.target.value)}
+                                aria-label="Filter by building type"
+                                className="text-sm border-[#e2e8f0] rounded-lg focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                            >
+                                <option value="all">All types</option>
+                                <option value="condominium">Condominium</option>
+                                <option value="apartment">Apartment</option>
+                                <option value="townhouse">Townhouse</option>
+                                <option value="commercial">Commercial</option>
+                                <option value="mixed_use">Mixed Use</option>
+                            </select>
+                            <select
+                                value={featuredFilter}
+                                onChange={(e) => setFeaturedFilter(e.target.value)}
+                                aria-label="Filter by featured"
+                                className="text-sm border-[#e2e8f0] rounded-lg focus:ring-[#3b82f6] focus:border-[#3b82f6]"
+                            >
+                                <option value="all">Featured + not featured</option>
+                                <option value="featured">Featured only</option>
+                            </select>
                         </div>
                     </div>
 
@@ -189,16 +280,16 @@ export default function BuildingsIndex({ auth, buildings }) {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
                                         Building
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider hidden md:table-cell">
                                         Location
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider hidden xl:table-cell">
                                         Type
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
                                         Status
                                     </th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-[#64748b] uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-[#64748b] uppercase tracking-wider hidden xl:table-cell">
                                         Featured
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-[#64748b] uppercase tracking-wider">
@@ -210,34 +301,25 @@ export default function BuildingsIndex({ auth, buildings }) {
                                 {filteredBuildings.length > 0 ? (
                                     filteredBuildings.map((building) => (
                                         <tr key={building.id} className="hover:bg-[#f8fafc] transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
+                                            <td className="px-6 py-4">
+                                                <Link
+                                                    href={route('admin.buildings.show', createBuildingSlug(building.name, building.id))}
+                                                    className="flex items-center group"
+                                                >
                                                     <div className="flex-shrink-0 h-10 w-10">
-                                                        {building.main_image && building.main_image !== '/images/no-image-placeholder.jpg' ? (
-                                                            <img
-                                                                className="h-10 w-10 rounded-lg object-cover"
-                                                                src={building.main_image}
-                                                                alt={building.name}
-                                                            />
-                                                        ) : (
-                                                            <div className="h-10 w-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center">
-                                                                <svg className="w-5 h-5 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                                </svg>
-                                                            </div>
-                                                        )}
+                                                        <BuildingRowThumb src={building.main_image} alt={building.name} />
                                                     </div>
-                                                    <div className="ml-3">
-                                                        <div className="text-sm font-medium text-[#0f172a]">
+                                                    <div className="ml-3 min-w-0 max-w-[220px]">
+                                                        <div className="text-sm font-medium text-[#0f172a] truncate group-hover:text-[#3b82f6] transition-colors" title={building.name}>
                                                             {building.name}
                                                         </div>
                                                         <div className="text-xs text-[#94a3b8]">
                                                             {building.created_at}
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </Link>
                                             </td>
-                                            <td className="px-6 py-4 max-w-[280px]">
+                                            <td className="px-6 py-4 max-w-[280px] hidden md:table-cell">
                                                 <div className="text-sm text-[#0f172a] truncate" title={building.address}>
                                                     {building.address}
                                                 </div>
@@ -245,7 +327,7 @@ export default function BuildingsIndex({ auth, buildings }) {
                                                     {building.city}, {building.province}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
+                                            <td className="px-6 py-4 whitespace-nowrap hidden xl:table-cell">
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-[#f1f5f9] text-[#475569]">
                                                     {getBuildingTypeLabel(building.building_type)}
                                                 </span>
@@ -253,7 +335,7 @@ export default function BuildingsIndex({ auth, buildings }) {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {getStatusBadge(building.status)}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                            <td className="px-6 py-4 whitespace-nowrap text-center hidden xl:table-cell">
                                                 {building.is_featured ? (
                                                     <svg className="w-5 h-5 text-[#eab308] mx-auto" fill="currentColor" viewBox="0 0 20 20">
                                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />

@@ -69,6 +69,7 @@ class Building extends Model
         'corp_number',
         'date_registered',
         'status',
+        'development_status',
         'listing_type',
         'is_featured',
         'latitude',

@@ -31,7 +31,7 @@ export default function Edit({ auth }) {
     const [faviconPreview, setFaviconPreview] = React.useState(website?.favicon_url || '');
     const [agentImagePreview, setAgentImagePreview] = React.useState(initialAgentImage);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         name: website?.name || '',
         slug: website?.slug || '',
         domain: website?.domain || '',
@@ -92,14 +92,15 @@ export default function Edit({ auth }) {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        // Transform data for submission
-        const transformedData = {
-            ...data,
-            _method: 'PUT' // Add method spoofing for Laravel
-        };
+        // POST with method spoofing so file uploads work with the PUT route.
+        // useForm's post() (not router.post) so validation errors populate
+        // `errors` and render inline instead of being swallowed.
+        transform((formData) => ({
+            ...formData,
+            _method: 'PUT',
+        }));
 
-        // Use router.post for file uploads with PUT method
-        router.post(route('admin.websites.update', website.id), transformedData, {
+        post(route('admin.websites.update', website.id), {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
@@ -111,9 +112,6 @@ export default function Edit({ auth }) {
                 setSuccessMessage('Website settings saved successfully!');
                 setShowSuccessToast(true);
             },
-            onError: (errors) => {
-                console.error('Form errors:', errors);
-            }
         });
     };
 

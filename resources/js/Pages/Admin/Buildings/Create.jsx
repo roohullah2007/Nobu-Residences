@@ -55,6 +55,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         interior_designer: '',
         landscape_architect: '',
         status: 'active',
+        development_status: '',
         listing_type: 'For Sale',
         maintenance_fee_amenity_ids: []
     });
@@ -189,13 +190,10 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
 
             if (result.success && result.description) {
                 setData('description', result.description);
-                console.log('✅ 🤖 Building AI description generated successfully');
             } else {
                 setAiDescriptionError(result.error || 'Failed to generate AI description');
-                console.error('❌ 🤖 Error generating building AI description:', result.error);
             }
         } catch (error) {
-            console.error('❌ 🤖 Error generating building AI description:', error);
             setAiDescriptionError('Failed to generate AI description. Please try again.');
         } finally {
             setGeneratingAiDescription(false);
@@ -479,21 +477,21 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 {/* Listing Type intentionally not shown — the column keeps
                                     its 'For Sale' default; public pages/API still read it. */}
                                 <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="status" value="Status *" />
+                                    <InputLabel htmlFor="development_status" value="Development Status" />
                                     <select
-                                        id="status"
+                                        id="development_status"
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.status}
-                                        onChange={(e) => setData('status', e.target.value)}
-                                        required
+                                        value={data.development_status}
+                                        onChange={(e) => setData('development_status', e.target.value)}
                                     >
-                                        <option value="active">Active</option>
+                                        <option value="">Not specified</option>
                                         <option value="pre_construction">Pre Construction</option>
                                         <option value="under_construction">Under Construction</option>
                                         <option value="completed">Completed</option>
                                         <option value="sold_out">Sold Out</option>
                                     </select>
-                                    <InputError message={errors.status} className="mt-2" />
+                                    <p className="mt-1 text-xs text-gray-500">Construction phase — visibility is controlled by Status under Status &amp; Settings.</p>
+                                    <InputError message={errors.development_status} className="mt-2" />
                                 </div>
 
                                 <div className="sm:col-span-4">
