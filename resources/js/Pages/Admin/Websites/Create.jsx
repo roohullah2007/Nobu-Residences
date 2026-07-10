@@ -1,4 +1,4 @@
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -16,6 +16,29 @@ const lightFormClass =
     '[&_input]:!bg-white [&_input]:!text-gray-900 [&_input]:!border-gray-300 [&_input]:!text-sm ' +
     '[&_textarea]:!bg-white [&_textarea]:!text-gray-900 [&_textarea]:!border-gray-300 [&_textarea]:!text-sm ' +
     '[&_select]:!bg-white [&_select]:!text-gray-900 [&_select]:!border-gray-300 [&_select]:!text-sm';
+
+// Building thumbnail with a graceful fallback: if the image URL 404s or
+// fails to load, swap to the same placeholder used when no image is set.
+function BuildingThumb({ src, alt, className = '' }) {
+    const [hasFailed, setHasFailed] = useState(false);
+
+    if (!src || hasFailed) {
+        return (
+            <div className="h-16 w-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
+                <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h2m-2 4h2m4-4h2m-2 4h2" /></svg>
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            onError={() => setHasFailed(true)}
+            className={`h-16 w-16 rounded object-cover flex-shrink-0 ${className}`}
+        />
+    );
+}
 
 // Small clipboard button used in the DNS instruction block. Shows a brief
 // "copied" check after clicking.
@@ -64,7 +87,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
     // this collapsed "Advanced settings" toggle (all editable later in Edit).
     const [showAdvanced, setShowAdvanced] = useState(false);
 
-    const { data, setData, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         building_id: '',
         name: '',
         slug: '',
@@ -235,10 +258,17 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
 
     const submit = (e) => {
         e.preventDefault();
-        router.post(route('admin.websites.store'), data, {
+        clearErrors();
+        if (!data.name.trim()) {
+            setError('name', 'Website name is required.');
+            document.getElementById('name')?.focus();
+            return;
+        }
+        // useForm's post() (not router.post) so server validation errors
+        // populate `errors` and render under each field via InputError.
+        post(route('admin.websites.store'), {
             forceFormData: true,
             preserveScroll: true,
-            onError: (errs) => console.error('Form errors:', errs),
         });
     };
 
@@ -375,13 +405,7 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                             onClick={() => chooseBuilding(b)}
                                             className={`text-left border rounded-lg p-4 hover:border-indigo-500 hover:shadow transition-all flex gap-3 items-start ${selectedBuildingId === b.id ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-gray-200'}`}
                                         >
-                                            {b.main_image ? (
-                                                <img src={b.main_image} alt={b.name} className="h-16 w-16 rounded object-cover flex-shrink-0" />
-                                            ) : (
-                                                <div className="h-16 w-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
-                                                    <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h2m-2 4h2m4-4h2m-2 4h2" /></svg>
-                                                </div>
-                                            )}
+                                            <BuildingThumb src={b.main_image} alt={b.name} />
                                             <div className="min-w-0">
                                                 <div className="font-medium text-gray-900 truncate">{b.name}</div>
                                                 <div className="text-sm text-gray-500 truncate">{b.address || b.city || '—'}</div>
@@ -402,17 +426,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                             {/* Selected Building (locked) */}
                             {chosenBuilding && (
                                 <div className="mb-6 border border-indigo-200 bg-indigo-50/40 rounded-lg p-4 flex items-center gap-4">
-                                    {chosenBuilding.main_image ? (
-                                        <img
-                                            src={chosenBuilding.main_image}
-                                            alt={chosenBuilding.name}
-                                            className="h-16 w-16 rounded object-cover flex-shrink-0 opacity-90"
-                                        />
-                                    ) : (
-                                        <div className="h-16 w-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 flex-shrink-0">
-                                            <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h2m-2 4h2m4-4h2m-2 4h2" /></svg>
-                                        </div>
-                                    )}
+                                    <BuildingThumb
+                                        src={chosenBuilding.main_image}
+                                        alt={chosenBuilding.name}
+                                        className="opacity-90"
+                                    />
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs uppercase font-semibold tracking-wide text-indigo-700">Selected Building</span>
@@ -450,15 +468,17 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                     <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
-                                            <InputLabel htmlFor="name" value="Website Name" />
+                                            <InputLabel htmlFor="name" value="Website Name *" />
                                             <TextInput
                                                 id="name"
                                                 type="text"
                                                 name="name"
                                                 value={data.name}
-                                                className="mt-1 block w-full"
+                                                className={`mt-1 block w-full ${errors.name ? '!ring-2 !ring-red-500 !border-red-500' : ''}`}
                                                 autoComplete="name"
                                                 isFocused={true}
+                                                required
+                                                aria-invalid={Boolean(errors.name)}
                                                 onChange={(e) => setData('name', e.target.value)}
                                                 placeholder="e.g., Luxury Downtown Condos"
                                             />

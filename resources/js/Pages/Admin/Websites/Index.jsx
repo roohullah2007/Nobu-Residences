@@ -1,10 +1,26 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export default function Index({ auth }) {
     const { websites, title } = usePage().props;
     const [openDropdownId, setOpenDropdownId] = useState(null);
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+
+    const filteredWebsites = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return (websites || []).filter((website) => {
+            if (statusFilter === 'active' && !website.is_active) return false;
+            if (statusFilter === 'inactive' && website.is_active) return false;
+            if (!q) return true;
+            return (
+                (website.name || '').toLowerCase().includes(q) ||
+                (website.slug || '').toLowerCase().includes(q) ||
+                (website.domain || '').toLowerCase().includes(q)
+            );
+        });
+    }, [websites, search, statusFilter]);
 
     const toggleDropdown = (websiteId) => {
         setOpenDropdownId(openDropdownId === websiteId ? null : websiteId);
@@ -71,12 +87,18 @@ export default function Index({ auth }) {
                     </Link>
                 </div>
 
-                {/* Stats */}
+                {/* Stats — clicking a card filters the table below */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    <button
+                        type="button"
+                        onClick={() => setStatusFilter('all')}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
+                            statusFilter === 'all' ? 'border-[#0f172a] ring-1 ring-[#0f172a]' : 'border-[#e2e8f0]'
+                        }`}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#f1f5f9] flex items-center justify-center text-[#64748b]">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
                                 </svg>
                             </div>
@@ -85,11 +107,17 @@ export default function Index({ auth }) {
                                 <p className="text-sm text-[#64748b]">Total Websites</p>
                             </div>
                         </div>
-                    </div>
-                    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4">
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setStatusFilter('active')}
+                        className={`bg-white rounded-lg border p-4 text-left transition-colors hover:border-[#cbd5e1] ${
+                            statusFilter === 'active' ? 'border-[#16a34a] ring-1 ring-[#16a34a]' : 'border-[#e2e8f0]'
+                        }`}
+                    >
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-[#f0fdf4] flex items-center justify-center text-[#16a34a]">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
@@ -98,7 +126,34 @@ export default function Index({ auth }) {
                                 <p className="text-sm text-[#64748b]">Active</p>
                             </div>
                         </div>
+                    </button>
+                </div>
+
+                {/* Search and filter */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="search"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by name, slug, or domain..."
+                            aria-label="Search websites"
+                            className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-[#e2e8f0] rounded-lg focus:border-[#0f172a] focus:ring-[#0f172a]"
+                        />
                     </div>
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        aria-label="Filter by status"
+                        className="text-sm bg-white border border-[#e2e8f0] rounded-lg focus:border-[#0f172a] focus:ring-[#0f172a]"
+                    >
+                        <option value="all">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
                 </div>
 
                 {/* Websites Table */}
@@ -125,21 +180,24 @@ export default function Index({ auth }) {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-[#e2e8f0]">
-                                {websites && websites.length > 0 ? (
-                                    websites.map((website) => (
+                                {filteredWebsites.length > 0 ? (
+                                    filteredWebsites.map((website) => (
                                         <tr key={website.id} className="hover:bg-[#f8fafc] transition-colors">
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
+                                                <Link
+                                                    href={route('admin.websites.show', website.id)}
+                                                    className="flex items-center group"
+                                                >
                                                     <div className="flex-shrink-0 h-10 w-10">
                                                         <div className="h-10 w-10 rounded-lg bg-[#0f172a] flex items-center justify-center">
-                                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
                                                             </svg>
                                                         </div>
                                                     </div>
                                                     <div className="ml-3">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-medium text-[#0f172a]">
+                                                            <span className="text-sm font-medium text-[#0f172a] group-hover:text-[#3b82f6] transition-colors">
                                                                 {website.name}
                                                             </span>
                                                             {website.is_default && (
@@ -152,7 +210,7 @@ export default function Index({ auth }) {
                                                             {website.slug}
                                                         </div>
                                                     </div>
-                                                </div>
+                                                </Link>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
@@ -167,15 +225,18 @@ export default function Index({ auth }) {
                                                 {website.domain || 'Default Domain'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-[#64748b]">
-                                                {website.pages ? website.pages.length : 0} pages
+                                                {(website.pages?.length ?? 0)} {(website.pages?.length ?? 0) === 1 ? 'page' : 'pages'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right">
                                                 <div className="relative inline-block text-left">
                                                     <button
                                                         onClick={() => toggleDropdown(website.id)}
+                                                        aria-label={`Actions for ${website.name}`}
+                                                        aria-haspopup="menu"
+                                                        aria-expanded={openDropdownId === website.id}
                                                         className="inline-flex items-center p-2 text-[#64748b] bg-[#f1f5f9] rounded-lg hover:bg-[#e2e8f0] transition-colors"
                                                     >
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                                                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                                                         </svg>
                                                     </button>
@@ -268,6 +329,14 @@ export default function Index({ auth }) {
                                                                         Duplicate Website
                                                                     </button>
 
+                                                                    {website.is_default && (
+                                                                        <>
+                                                                            <div className="border-t border-[#e2e8f0] my-1"></div>
+                                                                            <p className="px-4 py-2 text-xs text-[#94a3b8]">
+                                                                                The default website cannot be deleted.
+                                                                            </p>
+                                                                        </>
+                                                                    )}
                                                                     {!website.is_default && (
                                                                         <>
                                                                             <div className="border-t border-[#e2e8f0] my-1"></div>
@@ -302,17 +371,33 @@ export default function Index({ auth }) {
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
                                                     </svg>
                                                 </div>
-                                                <p className="text-sm font-medium text-[#0f172a]">No websites found</p>
-                                                <p className="text-xs text-[#94a3b8] mt-1 mb-4">Create your first website to get started</p>
-                                                <Link
-                                                    href={route('admin.websites.create')}
-                                                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors"
-                                                >
-                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                    </svg>
-                                                    Add Website
-                                                </Link>
+                                                {totalWebsites > 0 ? (
+                                                    <>
+                                                        <p className="text-sm font-medium text-[#0f172a]">No websites match your search</p>
+                                                        <p className="text-xs text-[#94a3b8] mt-1 mb-4">Try a different search term or status filter</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setSearch(''); setStatusFilter('all'); }}
+                                                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-[#0f172a] border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors"
+                                                        >
+                                                            Clear filters
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-sm font-medium text-[#0f172a]">No websites found</p>
+                                                        <p className="text-xs text-[#94a3b8] mt-1 mb-4">Create your first website to get started</p>
+                                                        <Link
+                                                            href={route('admin.websites.create')}
+                                                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-[#0f172a] rounded-lg hover:bg-[#1e293b] transition-colors"
+                                                        >
+                                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                            </svg>
+                                                            Add Website
+                                                        </Link>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

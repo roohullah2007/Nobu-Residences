@@ -133,7 +133,7 @@
     "/build/assets/Websites-C2aqqGoh.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-Bd98Wlne.js"
+    "/build/assets/Create-YEr4xD5i.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
     "/build/assets/Created-CJX_2dYV.js"
@@ -148,13 +148,13 @@
     "/build/assets/EditHomePage_backup-l0sNRNKZ.js"
   ],
   "resources/js/Pages/Admin/Websites/Index.jsx": [
-    "/build/assets/Index-DpAL98Qx.js"
+    "/build/assets/Index-CGuD7p8u.js"
   ],
   "resources/js/Pages/Admin/Websites/Pages.jsx": [
     "/build/assets/Pages-BcJDBIpz.js"
   ],
   "resources/js/Pages/Admin/Websites/Show.jsx": [
-    "/build/assets/Show-fcb0W-28.js"
+    "/build/assets/Show-Bu0uY54N.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PropertyDetail.jsx": [
     "/build/assets/PropertyDetail-3OGbzNeO.js"
@@ -718,6 +718,9 @@
     "/build/assets/SimplePropertyMap-CcNI_Icw.js"
   ],
   "resources/js/ssr.jsx": [],
+  "resources/js/utils/brandColors.js": [
+    "/build/assets/Show-Bu0uY54N.js"
+  ],
   "resources/js/utils/contactFormValidation.js": [
     "/build/assets/contactFormValidation-CEuKRxjY.js"
   ],

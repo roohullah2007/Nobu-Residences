@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { brandColorLabel, CHECKERBOARD_STYLE } from '@/utils/brandColors';
 
 export default function Show({ auth }) {
     const { website, title } = usePage().props;
@@ -75,11 +76,16 @@ export default function Show({ auth }) {
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Logo</dt>
                                     <dd className="mt-1">
-                                        <img
-                                            src={website.logo || website.logo_url}
-                                            alt={`${website.name} logo`}
-                                            className="h-16 object-contain"
-                                        />
+                                        <div
+                                            className="inline-block rounded-lg border border-gray-200 p-3"
+                                            style={CHECKERBOARD_STYLE}
+                                        >
+                                            <img
+                                                src={website.logo || website.logo_url}
+                                                alt={`${website.name} logo`}
+                                                className="h-16 object-contain"
+                                            />
+                                        </div>
                                     </dd>
                                 </div>
                             )}
@@ -141,13 +147,21 @@ export default function Show({ auth }) {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {Object.entries(website.brand_colors).map(([name, color]) => (
                                 <div key={name} className="flex items-center space-x-3">
-                                    <div 
-                                        className="w-8 h-8 rounded-lg border border-gray-200 shadow-sm"
-                                        style={{ backgroundColor: color }}
-                                    ></div>
+                                    <div
+                                        className="w-8 h-8 rounded-lg border border-gray-300 shadow-sm shrink-0 p-0.5"
+                                        style={CHECKERBOARD_STYLE}
+                                        role="img"
+                                        aria-label={`${brandColorLabel(name)}: ${color}`}
+                                        title={color}
+                                    >
+                                        <div
+                                            className="w-full h-full rounded-md"
+                                            style={{ backgroundColor: color }}
+                                        ></div>
+                                    </div>
                                     <div>
-                                        <div className="text-sm font-medium text-gray-900 capitalize">
-                                            {name.replace('_', ' ')}
+                                        <div className="text-sm font-medium text-gray-900">
+                                            {brandColorLabel(name)}
                                         </div>
                                         <div className="text-xs text-gray-500">{color}</div>
                                     </div>
