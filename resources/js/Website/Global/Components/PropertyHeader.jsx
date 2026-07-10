@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, Share, FacebookIcon, TwitterIcon, EmailIcon, LinkIcon } from '@/Website/Components/Icons';
 import usePropertyFavourite from '@/hooks/usePropertyFavourite';
 import { Link, usePage } from '@inertiajs/react';
@@ -16,6 +16,65 @@ export default function PropertyHeader({
 
   // Use the favourite hook instead of local state
   const { isFavourited, toggleFavourite, isLoading: favouriteLoading, isAuthenticated } = usePropertyFavourite(data, auth);
+
+  // Building alerts — a saved search pinned to this building's addresses.
+  // The button only renders for buildings; toggling subscribes/unsubscribes
+  // (idempotent server-side: one subscription per user+building).
+  const isBuilding = type === 'building';
+  const buildingId = isBuilding ? (data?.id || null) : null;
+  const [alertsOn, setAlertsOn] = useState(false);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertsToast, setAlertsToast] = useState('');
+
+  useEffect(() => {
+    if (!buildingId || !isAuthenticated) return;
+    fetch(`/api/building-alerts/status?building_id=${encodeURIComponent(buildingId)}`, {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.success) setAlertsOn(!!d.subscribed); })
+      .catch(() => {});
+  }, [buildingId, isAuthenticated]);
+
+  const handleAlertsClick = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      // Same auth gate as the Favourite button
+      setAuthModalTab('login');
+      setShowAuthPrompt(true);
+      return;
+    }
+    if (alertsLoading || !buildingId) return;
+
+    setAlertsLoading(true);
+    try {
+      const res = await fetch('/api/building-alerts/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          Accept: 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ building_id: buildingId }),
+      });
+      const d = await res.json();
+      if (d?.success) {
+        setAlertsOn(!!d.subscribed);
+        setAlertsToast(d.subscribed
+          ? 'Alerts on — we\'ll email you when new listings appear in this building.'
+          : 'Alerts turned off for this building.');
+        setTimeout(() => setAlertsToast(''), 4000);
+      }
+    } catch (err) {
+      console.error('Building alert toggle failed:', err);
+    } finally {
+      setAlertsLoading(false);
+    }
+  };
 
   // Get brand colors from page props
   const { globalWebsite, website } = usePage().props;
@@ -462,8 +521,33 @@ export default function PropertyHeader({
                 )}
               </div>
               
+              {/* Get Alerts Button — buildings only. Subscribes the user to
+                  email alerts for new listings in this building (a saved
+                  search pinned to the building's addresses). */}
+              {isBuilding && (
+                <button
+                  onClick={handleAlertsClick}
+                  disabled={alertsLoading}
+                  title={alertsOn ? 'Turn off alerts for this building' : 'Email me when new listings appear in this building'}
+                  className={`flex justify-center items-center gap-2 px-4 sm:px-6 h-[33px] border rounded-[10px] font-work-sans font-medium text-sm transition-all duration-200 whitespace-nowrap ${
+                    alertsOn
+                      ? 'bg-blue-50 border-blue-200 text-[#293056] hover:bg-blue-100'
+                      : 'bg-white border-[#717680] text-[#252B37] hover:bg-gray-50'
+                  } ${alertsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {alertsLoading ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4" fill={alertsOn ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  )}
+                  {alertsOn ? 'Alerts On' : 'Get Alerts'}
+                </button>
+              )}
+
               {/* Favourite Button */}
-              <button 
+              <button
                 onClick={handleFavouriteClick}
                 disabled={favouriteLoading}
                 className={`flex justify-center items-center gap-2 px-6 h-[33px] min-w-[99px] border rounded-[10px] font-work-sans font-medium text-sm transition-all duration-200 ${
@@ -497,6 +581,18 @@ export default function PropertyHeader({
             <div className="font-space-grotesk font-bold text-2xl text-black">
               {getPriceDisplay()}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Building-alert confirmation toast */}
+      {alertsToast && (
+        <div className="fixed top-4 right-4 z-[1000000]">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 shadow-lg max-w-sm flex items-start gap-2">
+            <svg className="w-5 h-5 text-[#293056] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <p className="text-sm text-[#293056]">{alertsToast}</p>
           </div>
         </div>
       )}

@@ -378,6 +378,9 @@ class PropertySearchController extends Controller
             $apiParams['status'] = 'A';
             if (in_array($status, ['For Lease', 'For Rent'])) {
                 $apiParams['type'] = 'lease';
+            } elseif (in_array($status, ['Both', 'All'], true)) {
+                // No sale/lease type filter — Repliers returns both. Used by
+                // building alert saved searches that watch sale AND rent.
             } else {
                 $apiParams['type'] = 'sale';
             }

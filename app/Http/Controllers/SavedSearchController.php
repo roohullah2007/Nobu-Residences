@@ -192,6 +192,104 @@ class SavedSearchController extends Controller
     }
 
     /**
+     * Is the current user subscribed to alerts for this building?
+     */
+    public function buildingAlertStatus(Request $request)
+    {
+        $request->validate(['building_id' => 'required|string']);
+
+        return response()->json([
+            'success' => true,
+            'subscribed' => SavedSearch::where('user_id', Auth::id())
+                ->where('building_id', $request->building_id)
+                ->exists(),
+        ]);
+    }
+
+    /**
+     * Toggle a building alert subscription.
+     *
+     * A building alert is just a saved search whose search_params pin the
+     * building's street address(es) (building_id + street_addresses — the
+     * exact shape buildRepliersListingsParams() executes against Repliers),
+     * so the existing SavedSearchAlertService scheduling, Repliers sync and
+     * mail delivery all apply unchanged. Idempotent: one subscription per
+     * user+building; calling again unsubscribes (deletes the saved search).
+     */
+    public function toggleBuildingAlert(Request $request)
+    {
+        $validated = $request->validate([
+            'building_id' => 'required|string|exists:buildings,id',
+            'status' => 'nullable|in:For Sale,For Rent,Both',
+        ]);
+
+        $user = Auth::user();
+        $building = \App\Models\Building::find($validated['building_id']);
+
+        $existing = SavedSearch::where('user_id', $user->id)
+            ->where('building_id', $building->id)
+            ->first();
+
+        if ($existing) {
+            // Unsubscribe — clean up the Repliers mirror first (best-effort).
+            if (!empty($existing->repliers_saved_search_id)) {
+                try {
+                    app(\App\Services\RepliersApiService::class)
+                        ->deleteSavedSearch($existing->repliers_saved_search_id);
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed to delete Repliers saved search on building-alert unsubscribe', ['error' => $e->getMessage()]);
+                }
+            }
+            $existing->delete();
+
+            return response()->json([
+                'success' => true,
+                'subscribed' => false,
+                'message' => 'Alerts turned off for ' . $building->name,
+            ]);
+        }
+
+        // Pin the building the same way the building detail page scopes its
+        // live listings: every street address, comma-separated.
+        $addresses = array_filter([
+            $building->street_address_1 ?? null,
+            $building->street_address_2 ?? null,
+        ]);
+        if (is_array($building->additional_addresses)) {
+            $addresses = array_merge($addresses, array_filter($building->additional_addresses));
+        }
+        if (empty($addresses) && !empty($building->address)) {
+            $addresses[] = $building->address;
+        }
+
+        $savedSearch = SavedSearch::create([
+            'user_id' => $user->id,
+            'building_id' => $building->id,
+            'name' => 'Alerts: ' . $building->name,
+            'search_params' => [
+                'building_id' => $building->id,
+                'street_addresses' => implode(',', array_values($addresses)),
+                // 'Both' = no sale/lease type filter → alerts for new sale
+                // AND rent listings in this building.
+                'status' => $validated['status'] ?? 'Both',
+            ],
+            'email_alerts' => true,
+            'frequency' => 1,
+            'results_count' => 0,
+        ]);
+
+        // Mirror to Repliers (best-effort — never blocks subscribing).
+        $this->syncToRepliers($savedSearch);
+
+        return response()->json([
+            'success' => true,
+            'subscribed' => true,
+            'message' => 'Alerts turned on for ' . $building->name,
+            'data' => $savedSearch->fresh(),
+        ]);
+    }
+
+    /**
      * Run a saved search and redirect to the search page.
      */
     public function run($id)

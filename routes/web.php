@@ -148,6 +148,9 @@ Route::get('/api/saved-searches', [\App\Http\Controllers\SavedSearchController::
 Route::put('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'update'])->middleware('auth');
 Route::delete('/api/saved-searches/{id}', [\App\Http\Controllers\SavedSearchController::class, 'destroy'])->middleware('auth');
 Route::get('/saved-searches/{id}/run', [\App\Http\Controllers\SavedSearchController::class, 'run'])->middleware('auth');
+// Building alerts — a saved search pinned to a building's street addresses
+Route::get('/api/building-alerts/status', [\App\Http\Controllers\SavedSearchController::class, 'buildingAlertStatus'])->middleware('auth');
+Route::post('/api/building-alerts/toggle', [\App\Http\Controllers\SavedSearchController::class, 'toggleBuildingAlert'])->middleware('auth');
 Route::post('/api/buildings-search', [\App\Http\Controllers\Admin\BuildingController::class, 'searchBuildings']);
 // Live for-sale/for-rent counts for the buildings currently on screen.
 // Called AFTER the cards render so the slow Repliers fetch never blocks the list.
@@ -378,11 +381,6 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/websites', [AdminController::class, 'websites'])->name('websites');
-
-    Route::get('/api-keys', [AdminController::class, 'apiKeys'])->name('api-keys');
-    Route::post('/api-keys', [AdminController::class, 'updateApiKeys'])->name('api-keys.update');
-    Route::post('/api-keys/test', [AdminController::class, 'testApiConnection'])->name('api-keys.test');
-    Route::post('/api-keys/test-email', [AdminController::class, 'sendTestEmail'])->name('api-keys.test-email');
 
     // User Management routes
     Route::prefix('users')->name('users.')->group(function () {

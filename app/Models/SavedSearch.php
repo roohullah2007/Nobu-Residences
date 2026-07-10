@@ -11,6 +11,8 @@ class SavedSearch extends Model
 
     protected $fillable = [
         'user_id',
+        // Set when this saved search IS a building alert subscription
+        'building_id',
         'name',
         'search_params',
         'email_alerts',
