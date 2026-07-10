@@ -808,30 +808,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="parking_spots" value="Parking Spots" />
-                                    <TextInput
-                                        id="parking_spots"
-                                        type="number"
-                                        className="mt-1 block w-full"
-                                        value={data.parking_spots}
-                                        onChange={(e) => setData('parking_spots', e.target.value)}
-                                    />
-                                    <InputError message={errors.parking_spots} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-2">
-                                    <InputLabel htmlFor="locker_spots" value="Locker Spots" />
-                                    <TextInput
-                                        id="locker_spots"
-                                        type="number"
-                                        className="mt-1 block w-full"
-                                        value={data.locker_spots}
-                                        onChange={(e) => setData('locker_spots', e.target.value)}
-                                    />
-                                    <InputError message={errors.locker_spots} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-2">
                                     <QuickCreateSelect
                                         id="developer_id"
                                         label="Developer"

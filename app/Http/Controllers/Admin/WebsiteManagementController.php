@@ -341,6 +341,13 @@ class WebsiteManagementController extends Controller
             $agentData['profile_image'] = '/storage/' . $agentImagePath;
         }
 
+        // No photo from the upload, the building or the default site's
+        // agent: every new website still gets the standard agent profile
+        // photo (stored locally in public/assets, editable later).
+        if (empty($agentData['profile_image'])) {
+            $agentData['profile_image'] = '/assets/default-agent-profile.png';
+        }
+
         // Create agent info if any agent data is provided
         if ($agentData['agent_name'] || $agentData['agent_title'] || $agentData['agent_phone'] ||
             $agentData['brokerage'] || isset($agentData['profile_image'])) {

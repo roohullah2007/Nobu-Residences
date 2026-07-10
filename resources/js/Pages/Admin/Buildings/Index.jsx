@@ -36,8 +36,11 @@ export default function BuildingsIndex({ auth, buildings }) {
     const [typeFilter, setTypeFilter] = useState('all');
     const [featuredFilter, setFeaturedFilter] = useState('all');
     // Which row's actions menu is open. Null = all closed. Only one row's
-    // menu can be open at a time.
+    // menu can be open at a time. The menu renders position:fixed at these
+    // viewport coordinates so the table's overflow-x-auto container can't
+    // clip it (z-index alone can't escape an overflow clip).
     const [openMenuId, setOpenMenuId] = useState(null);
+    const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
     const [pendingDelete, setPendingDelete] = useState(null);
     // Bulk selection (checkbox column). Spans the current page only —
     // the list is paginated server-side.
@@ -58,11 +61,18 @@ export default function BuildingsIndex({ auth, buildings }) {
         const onKey = (e) => {
             if (e.key === 'Escape') setOpenMenuId(null);
         };
+        // The menu is fixed-positioned, so any scroll/resize would leave it
+        // floating detached from its row — close it instead.
+        const onScrollOrResize = () => setOpenMenuId(null);
         document.addEventListener('mousedown', onDocClick);
         document.addEventListener('keydown', onKey);
+        window.addEventListener('scroll', onScrollOrResize, true);
+        window.addEventListener('resize', onScrollOrResize);
         return () => {
             document.removeEventListener('mousedown', onDocClick);
             document.removeEventListener('keydown', onKey);
+            window.removeEventListener('scroll', onScrollOrResize, true);
+            window.removeEventListener('resize', onScrollOrResize);
         };
     }, [openMenuId]);
 
@@ -442,7 +452,15 @@ export default function BuildingsIndex({ auth, buildings }) {
                                                 <div className="relative inline-block text-left" ref={openMenuId === building.id ? menuRef : null}>
                                                     <button
                                                         type="button"
-                                                        onClick={() => setOpenMenuId(openMenuId === building.id ? null : building.id)}
+                                                        onClick={(e) => {
+                                                            if (openMenuId === building.id) {
+                                                                setOpenMenuId(null);
+                                                                return;
+                                                            }
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                                            setOpenMenuId(building.id);
+                                                        }}
                                                         className="inline-flex items-center justify-center w-8 h-8 rounded-md text-[#64748b] hover:bg-[#f1f5f9] transition-colors focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                                                         aria-haspopup="menu"
                                                         aria-expanded={openMenuId === building.id}
@@ -457,7 +475,8 @@ export default function BuildingsIndex({ auth, buildings }) {
                                                     {openMenuId === building.id && (
                                                         <div
                                                             role="menu"
-                                                            className="absolute right-0 mt-1 w-40 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-30 py-1"
+                                                            style={{ top: menuPos.top, right: menuPos.right }}
+                                                            className="fixed w-40 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50 py-1"
                                                         >
                                                             <Link
                                                                 href={route('admin.buildings.show', createBuildingSlug(building.name, building.id))}

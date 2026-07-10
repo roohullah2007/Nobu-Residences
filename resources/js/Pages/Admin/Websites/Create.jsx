@@ -359,31 +359,35 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                                     </div>
                                 )}
 
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-                                    <p className="text-xs text-gray-500 max-w-xl">
-                                        Branding, colors, contact info, agent and fonts are inherited from your default site
-                                        (or this building's agent). AI writes the SEO metadata, hero copy, About text and FAQs
-                                        in the background — everything stays editable afterwards in Websites → Edit.
-                                    </p>
-                                    <button
-                                        type="submit"
-                                        disabled={processing}
-                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 whitespace-nowrap"
-                                    >
-                                        {processing ? (
-                                            <>
-                                                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
-                                                Creating...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                                Create Website
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
                             </div>
+                        </div>
+
+                        {/* Sticky action bar — Create is always reachable even
+                            with a long building grid above. Lives outside the
+                            overflow-hidden card, otherwise sticky can't work. */}
+                        <div className="sticky bottom-0 z-10 mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-gray-200 bg-white/95 backdrop-blur px-4 py-3 sm:rounded-t-lg">
+                            <p className="text-xs text-gray-500 max-w-xl">
+                                Branding, colors, contact info, agent and fonts are inherited from your default site
+                                (or this building's agent). AI writes the SEO metadata, hero copy, About text and FAQs
+                                in the background — everything stays editable afterwards in Websites → Edit.
+                            </p>
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 whitespace-nowrap"
+                            >
+                                {processing ? (
+                                    <>
+                                        <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                                        Creating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                        Create Website
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </form>
                 )}
