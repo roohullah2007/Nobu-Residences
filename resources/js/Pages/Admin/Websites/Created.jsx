@@ -230,9 +230,24 @@ export default function WebsiteCreated({ website, report, liveStatus, persisted 
 
                     {aiPending && pollCount >= 4 && (
                         <div className="mt-3 text-xs p-3 bg-amber-50 border border-amber-200 rounded text-amber-800">
-                            AI content is still pending — make sure the queue worker is running:
-                            {' '}<code className="font-mono">php artisan queue:work</code>.
+                            AI content is still pending — the generation run may have been interrupted.
+                            Click "Run AI generation now" below to run it again.
                             The site is already live with the template content meanwhile.
+                        </div>
+                    )}
+
+                    {(website.ai_content_status === 'failed' || (aiPending && pollCount >= 2)) && (
+                        <div className="mt-4">
+                            <button
+                                type="button"
+                                onClick={retryAiContent}
+                                disabled={retryingAi}
+                                className="inline-flex items-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-60"
+                            >
+                                {retryingAi
+                                    ? 'Generating...'
+                                    : (website.ai_content_status === 'failed' ? 'Regenerate AI content' : 'Run AI generation now')}
+                            </button>
                         </div>
                     )}
 

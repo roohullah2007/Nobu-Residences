@@ -17,11 +17,16 @@ use Illuminate\Support\Facades\Log;
  * SEO meta, a building description (when the building has none), and the
  * homepage copy (hero, About overview, building-specific FAQs).
  *
- * Dispatched from WebsiteManagementController::store() so creation never
- * blocks on Gemini — the site goes live instantly with the personalized
- * template from WebsitePage::getDefaultHomeContentForBuilding() and the AI
- * copy lands within a minute. Any failure leaves the template content
- * intact and is surfaced on the Created status page via ai_content_status.
+ * Dispatched from WebsiteManagementController::store() with
+ * dispatchAfterResponse() — production runs no queue worker, so this runs
+ * right after the redirect is sent (same pattern as
+ * GeneratePropertyAiContentJob). Creation never blocks on Gemini: the site
+ * goes live instantly with the personalized template from
+ * WebsitePage::getDefaultHomeContentForBuilding() and the AI copy lands
+ * within a minute. Any failure leaves the template content intact and is
+ * surfaced on the Created status page via ai_content_status; a run that
+ * dies mid-flight leaves "pending", which the status page resolves with
+ * its "Run AI generation now" button.
  */
 class GenerateWebsiteAiContentJob implements ShouldQueue
 {

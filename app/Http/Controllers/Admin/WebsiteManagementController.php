@@ -369,7 +369,11 @@ class WebsiteManagementController extends Controller
         // status page polls ai_content_status until this lands.
         if ($website->homepage_building_id) {
             $website->update(['ai_content_status' => 'pending']);
-            \App\Jobs\GenerateWebsiteAiContentJob::dispatch($website->id);
+            // dispatchAfterResponse (not a queued dispatch): production runs
+            // no queue worker, so a database-queued job would sit pending
+            // forever. This runs right after the redirect is sent — same
+            // pattern as GeneratePropertyAiContentJob.
+            \App\Jobs\GenerateWebsiteAiContentJob::dispatchAfterResponse($website->id);
         }
 
         $this->provisionCustomHostname($website, $cloudflare);
@@ -601,7 +605,8 @@ class WebsiteManagementController extends Controller
         }
 
         $website->update(['ai_content_status' => 'pending', 'ai_content_error' => null]);
-        \App\Jobs\GenerateWebsiteAiContentJob::dispatch($website->id, force: true);
+        // After-response so it completes without a queue worker (none in prod).
+        \App\Jobs\GenerateWebsiteAiContentJob::dispatchAfterResponse($website->id, true);
 
         return redirect()->route('admin.websites.created', $website);
     }
