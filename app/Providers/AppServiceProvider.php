@@ -18,6 +18,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(RepliersApiService::class, function ($app) {
             return new RepliersApiService();
         });
+
+        // One resolver instance per request: memoizes host->website so the
+        // middleware, controllers, and auth flows all agree on the current
+        // website without re-querying. `scoped` (not `singleton`) so the memo
+        // resets per request under Octane-style long-running workers too.
+        $this->app->scoped(\App\Services\Tenancy\TenantResolver::class);
     }
 
     /**

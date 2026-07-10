@@ -18,65 +18,22 @@ use Illuminate\Foundation\Application;
 class WebsiteController extends Controller
 {
     /**
-     * Get the current website based on domain or query parameter
+     * Get the current website via the shared TenantResolver.
      *
-     * Priority:
-     * 1. ?website={slug} query parameter (for preview/testing)
-     * 2. Domain matching
-     * 3. Default active website
+     * Admin host / local dev -> default website (tenant domains can never
+     * capture them). Other hosts -> exact domain match. Unknown hosts 404
+     * (config tenancy.unknown_host) so the default site is never served —
+     * and indexed — under arbitrary domains pointed at this server.
      */
     private function getCurrentWebsite()
     {
-        $website = null;
+        $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request());
 
-        // Priority 1: Check for ?website={slug} query parameter
-        $websiteSlug = request()->query('website');
-        if ($websiteSlug) {
-            $website = Website::with('agentInfo')
-                ->where('slug', $websiteSlug)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
+        if (!$website) {
+            abort(404);
         }
 
-        // Priority 2: Check for domain match
-        $host = request()->getHost();
-
-        // Remove 'www.' if present
-        $host = preg_replace('/^www\./i', '', $host);
-
-        // Skip domain matching for localhost/dev environments
-        $skipDomains = ['localhost', '127.0.0.1', 'local'];
-        $isLocalDev = in_array($host, $skipDomains) ||
-                      str_ends_with($host, '.test') ||
-                      str_ends_with($host, '.local');
-
-        if (!$isLocalDev) {
-            $website = Website::with('agentInfo')
-                ->where('domain', $host)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
-
-            // Also try with www prefix
-            $website = Website::with('agentInfo')
-                ->where('domain', 'www.' . $host)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
-        }
-
-        // Priority 3: Fall back to default website
-        return Website::with('agentInfo')->default()->active()->first() ?? Website::with('agentInfo')->first();
+        return $website;
     }
 
     /**

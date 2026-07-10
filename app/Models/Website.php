@@ -10,6 +10,22 @@ class Website extends Model
 {
     use HasFactory;
 
+    /**
+     * Keep the TenantResolver's cross-request domain cache honest: whenever a
+     * website is saved or deleted, drop the cached lookup for both its old
+     * and new domain so Host-header resolution reflects the change at once.
+     */
+    protected static function booted(): void
+    {
+        $flushDomainCache = function (self $website): void {
+            \App\Services\Tenancy\TenantResolver::forgetDomain($website->domain);
+            \App\Services\Tenancy\TenantResolver::forgetDomain($website->getOriginal('domain'));
+        };
+
+        static::saved($flushDomainCache);
+        static::deleted($flushDomainCache);
+    }
+
     protected $fillable = [
         'name',
         'slug',

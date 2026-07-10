@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Website;
+use App\Services\Tenancy\TenantResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -25,77 +26,22 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Get the current website based on domain or query parameter
-     *
-     * Priority:
-     * 1. ?website={slug} query parameter (for preview/testing)
-     * 2. Domain matching
-     * 3. Default active website
+     * Get the current website via the shared TenantResolver (admin host is
+     * pinned to the default website; tenant domains resolve by Host header).
+     * Admin pages always get the default website so shared branding never
+     * flips to a tenant while managing the panel.
      */
     protected function getCurrentWebsite(Request $request): ?Website
     {
-        $website = null;
+        $resolver = app(TenantResolver::class);
 
-        // Priority 1: Check for ?website={slug} query parameter
-        $websiteSlug = $request->query('website');
-        if ($websiteSlug) {
-            $website = Website::with('agentInfo')
-                ->where('slug', $websiteSlug)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
+        if ($request->is('admin', 'admin/*')) {
+            return $resolver->defaultWebsite();
         }
 
-        // Priority 2: Check for domain match
-        $host = $request->getHost();
-
-        // Remove 'www.' if present
-        $host = preg_replace('/^www\./i', '', $host);
-
-        // Skip domain matching for localhost/dev environments
-        $skipDomains = ['localhost', '127.0.0.1', 'local'];
-        $isLocalDev = in_array($host, $skipDomains) ||
-                      str_ends_with($host, '.test') ||
-                      str_ends_with($host, '.local');
-
-        if (!$isLocalDev) {
-            $website = Website::with('agentInfo')
-                ->where('domain', $host)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
-
-            // Also try with www prefix
-            $website = Website::with('agentInfo')
-                ->where('domain', 'www.' . $host)
-                ->where('is_active', true)
-                ->first();
-
-            if ($website) {
-                return $website;
-            }
-        }
-
-        // Priority 3: Fall back to default website
-        $website = Website::with('agentInfo')
-            ->where('is_default', true)
-            ->where('is_active', true)
-            ->first();
-
-        // Last resort: get any active website
-        if (!$website) {
-            $website = Website::with('agentInfo')
-                ->where('is_active', true)
-                ->first();
-        }
-
-        return $website;
+        // Unknown hosts resolve to null; shared props degrade gracefully and
+        // the route layer decides whether to 404.
+        return $resolver->resolve($request);
     }
 
     /**

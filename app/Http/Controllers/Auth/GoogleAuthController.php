@@ -89,7 +89,7 @@ class GoogleAuthController extends Controller
                 \App\Notifications\NewUserRegistered::notifyAdmins(
                     $user,
                     request()->getHost(),
-                    \App\Models\Website::where('domain', request()->getHost())->value('name'),
+                    app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name,
                     'Google sign-in'
                 );
             }
@@ -195,7 +195,7 @@ class GoogleAuthController extends Controller
                 \App\Notifications\NewUserRegistered::notifyAdmins(
                     $user,
                     request()->getHost(),
-                    \App\Models\Website::where('domain', request()->getHost())->value('name'),
+                    app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name,
                     'Google sign-in'
                 );
             }

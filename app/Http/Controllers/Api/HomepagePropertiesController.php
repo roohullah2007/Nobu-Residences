@@ -92,34 +92,13 @@ class HomepagePropertiesController extends Controller
     private function resolveCurrentWebsite(Request $request)
     {
         try {
-            // Priority 1: explicit ?website={slug}
-            $slug = $request->query('website');
-            if ($slug) {
-                $w = \App\Models\Website::where('slug', $slug)
-                    ->where('is_active', true)
-                    ->first();
-                if ($w) return $w;
-            }
+            $resolver = app(\App\Services\Tenancy\TenantResolver::class);
 
-            // Priority 2: domain match (skip localhost/dev hosts)
-            $host = preg_replace('/^www\./i', '', $request->getHost());
-            $isLocalDev = in_array($host, ['localhost', '127.0.0.1', 'local'])
-                || str_ends_with($host, '.test')
-                || str_ends_with($host, '.local');
-
-            if (!$isLocalDev) {
-                $w = \App\Models\Website::where('domain', $host)
-                    ->where('is_active', true)
-                    ->first()
-                    ?? \App\Models\Website::where('domain', 'www.' . $host)
-                        ->where('is_active', true)
-                        ->first();
-                if ($w) return $w;
-            }
-
-            // Priority 3 (LAST resort): default active website, then first / id 1.
-            return \App\Models\Website::where('is_default', true)->where('is_active', true)->first()
-                ?? \App\Models\Website::where('is_active', true)->first()
+            // API endpoint: fall back to the default site for unknown hosts
+            // instead of 404 — the page-level 404 already happened (or not)
+            // on the HTML request; this just feeds its property widgets.
+            return $resolver->resolve($request)
+                ?? $resolver->defaultWebsite()
                 ?? \App\Models\Website::find(1);
         } catch (\Throwable $e) {
             return \App\Models\Website::find(1);

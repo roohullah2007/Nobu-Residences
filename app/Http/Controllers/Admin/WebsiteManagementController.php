@@ -212,10 +212,12 @@ class WebsiteManagementController extends Controller
             ]);
         }
 
+        $this->normalizeDomainInput($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|max:255|unique:websites',
-            'domain' => 'nullable|string|max:255',
+            'domain' => $this->domainRules(),
             'building_id' => 'nullable|exists:buildings,id',
             'homepage_building_id' => 'nullable|exists:buildings,id',
             'use_building_as_homepage' => 'boolean',
@@ -379,6 +381,47 @@ class WebsiteManagementController extends Controller
      * 30s delay + retries). Persists per-step status on the Website row so
      * the status page reflects reality on every reload.
      */
+    /**
+     * Canonicalize the submitted custom domain before validation so the
+     * stored value always matches TenantResolver's host normalization
+     * (lowercase, no scheme/port/path). Empty becomes null.
+     */
+    protected function normalizeDomainInput(Request $request): void
+    {
+        if (!$request->has('domain')) {
+            return;
+        }
+
+        $normalized = \App\Services\Tenancy\TenantResolver::normalizeHost((string) $request->input('domain'));
+        $request->merge(['domain' => $normalized !== '' ? $normalized : null]);
+    }
+
+    /**
+     * Custom-domain rules: unique across websites (a duplicate would make
+     * Host-header resolution indeterminate) and never the reserved admin
+     * host — a tenant claiming it would capture the admin panel's domain.
+     */
+    protected function domainRules(?int $ignoreWebsiteId = null): array
+    {
+        $unique = Rule::unique('websites', 'domain');
+        if ($ignoreWebsiteId !== null) {
+            $unique = $unique->ignore($ignoreWebsiteId);
+        }
+
+        return [
+            'nullable',
+            'string',
+            'max:255',
+            $unique,
+            function (string $attribute, $value, \Closure $fail) {
+                $adminHost = \App\Services\Tenancy\TenantResolver::normalizeHost((string) config('tenancy.admin_host'));
+                if ($value !== null && $adminHost !== '' && \App\Services\Tenancy\TenantResolver::normalizeHost($value) === $adminHost) {
+                    $fail("\"{$adminHost}\" is reserved for the admin panel and cannot be assigned to a website.");
+                }
+            },
+        ];
+    }
+
     protected function runProvisioning(Website $website, PloiService $ploi): void
     {
         $report = [
@@ -872,10 +915,12 @@ class WebsiteManagementController extends Controller
         // Merge the parsed data back into the request
         $request->merge($data);
 
+        $this->normalizeDomainInput($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => ['required', 'string', 'max:255', Rule::unique('websites')->ignore($website->id)],
-            'domain' => 'nullable|string|max:255',
+            'domain' => $this->domainRules($website->id),
             'is_default' => 'boolean',
             'is_active' => 'boolean',
             'homepage_building_id' => 'nullable|exists:buildings,id',

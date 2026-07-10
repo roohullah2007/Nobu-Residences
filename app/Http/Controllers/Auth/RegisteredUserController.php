@@ -69,7 +69,7 @@ class RegisteredUserController extends Controller
         \App\Notifications\NewUserRegistered::notifyAdmins(
             $user,
             $request->getHost(),
-            \App\Models\Website::where('domain', $request->getHost())->value('name'),
+            app(\App\Services\Tenancy\TenantResolver::class)->resolve($request)?->name,
             'email registration'
         );
 
