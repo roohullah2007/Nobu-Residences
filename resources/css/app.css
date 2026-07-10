@@ -58,9 +58,16 @@ form > .space-y-4 > :not([hidden]) ~ :not([hidden]),
     display: none; /* WebKit */
 }
 
-/* Hide horizontal scrollbar globally */
-html, body {
+/* Hide horizontal scrollbar globally.
+   html keeps overflow-x: hidden (propagated to the viewport, so sticky
+   still works). body uses clip — hidden would turn body into a scroll
+   container and silently break every position: sticky element inside
+   (admin header, building form action bar). */
+html {
     overflow-x: hidden;
+}
+body {
+    overflow-x: clip;
 }
 
 /* Additional scrollbar hiding utilities */

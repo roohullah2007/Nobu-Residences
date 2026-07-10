@@ -8,6 +8,7 @@ import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
+import useGooglePlacesAutocomplete from '@/hooks/useGooglePlacesAutocomplete';
 import { csrfHeaders } from '@/utils/csrf';
 
 export default function BuildingsCreate({ auth, developers = [], amenities = [], maintenanceFeeAmenities = [], neighbourhoods = [], subNeighbourhoods = [] }) {
@@ -87,6 +88,21 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
     const [generatingAiDescription, setGeneratingAiDescription] = useState(false);
     const [aiDescriptionError, setAiDescriptionError] = useState('');
+
+    // Google Places autofill: picking an address suggestion fills postal
+    // code, city, province, country and coordinates in one go.
+    useGooglePlacesAutocomplete('address', (parsed) => {
+        setData((prev) => ({
+            ...prev,
+            address: parsed.streetAddress || prev.address,
+            city: parsed.city || prev.city,
+            province: parsed.province || prev.province,
+            postal_code: parsed.postalCode || prev.postal_code,
+            country: parsed.country || prev.country,
+            latitude: parsed.latitude !== '' ? String(parsed.latitude) : prev.latitude,
+            longitude: parsed.longitude !== '' ? String(parsed.longitude) : prev.longitude,
+        }));
+    });
 
     const buildingTypes = [
         { value: 'condominium', label: 'Condominium' },
@@ -177,10 +193,15 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                         total_units: data.total_units,
                         year_built: data.year_built,
                         floors: data.floors,
+                        parking_spots: data.parking_spots,
+                        locker_spots: data.locker_spots,
+                        development_status: data.development_status,
+                        neighbourhood: neighbourhoodOptions.find(n => String(n.id) === String(data.neighbourhood_id))?.name || '',
+                        sub_neighbourhood: subNeighbourhoodOptions.find(s => String(s.id) === String(data.sub_neighbourhood_id))?.name || '',
                         amenities: selectedAmenities.map(a => a.name),
                         maintenance_fee_amenities: selectedMaintenanceFeeAmenities.map(a => a.name),
                         maintenance_fee_range: data.maintenance_fee_range,
-                        developer_name: data.developer_name,
+                        developer_name: developerOptions.find(d => String(d.id) === String(data.developer_id))?.name || '',
                         management_name: data.management_name,
                         existing_description: data.description
                     }
@@ -632,36 +653,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                     <InputError message={errors.country} className="mt-2" />
                                 </div>
 
-                                <div className="sm:col-span-6">
-                                    <div className="flex items-center justify-between">
-                                        <InputLabel htmlFor="description" value="Description" />
-                                        <button
-                                            type="button"
-                                            onClick={handleGenerateAiDescription}
-                                            disabled={generatingAiDescription}
-                                            className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                            </svg>
-                                            {generatingAiDescription ? 'Generating...' : 'Generate with AI'}
-                                        </button>
-                                    </div>
-                                    <textarea
-                                        id="description"
-                                        rows={4}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.description}
-                                        onChange={(e) => setData('description', e.target.value)}
-                                        placeholder="Enter building description or use AI to generate one automatically..."
-                                    />
-                                    <InputError message={errors.description} className="mt-2" />
-                                    {aiDescriptionError && (
-                                        <div className="mt-2 text-sm text-red-600">
-                                            {aiDescriptionError}
-                                        </div>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -883,6 +874,44 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                     </p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Description — placed after Building Details so "Generate
+                        with AI" can draw on everything entered above. */}
+                    <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
+                        <div className="px-4 py-6 sm:p-8">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-base font-semibold leading-7 text-gray-900">Description</h2>
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateAiDescription}
+                                    disabled={generatingAiDescription}
+                                    className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-medium rounded-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    {generatingAiDescription ? 'Generating...' : 'Generate with AI'}
+                                </button>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Fill in the building details above first — the AI uses them to write an SEO-optimized description.
+                            </p>
+                            <textarea
+                                id="description"
+                                rows={6}
+                                className="mt-3 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={data.description}
+                                onChange={(e) => setData('description', e.target.value)}
+                                placeholder="Enter building description or use AI to generate one automatically..."
+                            />
+                            <InputError message={errors.description} className="mt-2" />
+                            {aiDescriptionError && (
+                                <div className="mt-2 text-sm text-red-600">
+                                    {aiDescriptionError}
+                                </div>
+                            )}
                         </div>
                     </div>
 

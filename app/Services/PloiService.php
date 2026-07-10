@@ -279,6 +279,26 @@ class PloiService
             return false;
         };
 
+        // THE CRITICAL INVARIANT: the site's primary domain (admin host) must
+        // be part of EVERY issuance. certbot reuses the primary's cert-name,
+        // so the newest cert REPLACES the one shared file nginx serves for
+        // every domain on the site. A batch without the admin host would
+        // overwrite that file with a cert that doesn't cover the main site —
+        // instantly breaking its SSL (this is exactly how the main app went
+        // down when a tenant domain was connected). Including it makes every
+        // issuance a superset of the primary; if the batch fails, certbot
+        // leaves the existing file untouched, which fails safe.
+        $adminHost = \App\Services\Tenancy\TenantResolver::normalizeHost((string) config('tenancy.admin_host'));
+        if ($adminHost !== '' && !$hasDomain($adminHost, $domains)) {
+            array_unshift($domains, $adminHost);
+        }
+        if ($adminHost !== '') {
+            $wwwAdmin = 'www.' . $adminHost;
+            if (!$hasDomain($wwwAdmin, $domains) && $serverIp && $this->domainResolvesTo($wwwAdmin, $serverIp)) {
+                $domains[] = $wwwAdmin;
+            }
+        }
+
         $certificates = $this->listCertificates($targetSite);
 
         // Idempotency: if an ACTIVE certificate already covers everything we

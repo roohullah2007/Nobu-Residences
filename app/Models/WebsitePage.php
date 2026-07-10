@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class WebsitePage extends Model
 {
@@ -217,7 +218,12 @@ class WebsitePage extends Model
         $city = trim((string) $building->city);
 
         $content['hero']['welcome_text'] = 'WELCOME TO ' . strtoupper($name);
-        $content['hero']['subheading'] = "Whether buying or renting, {$name} makes finding your home easy and reliable.";
+        // Hero subheading: a short summary of the building's own description
+        // beats the generic tagline. Falls back when no description exists.
+        $descriptionSummary = trim(preg_replace('/\s+/', ' ', strip_tags((string) $building->description)));
+        $content['hero']['subheading'] = $descriptionSummary !== ''
+            ? Str::limit($descriptionSummary, 180, '…')
+            : "Whether buying or renting, {$name} makes finding your home easy and reliable.";
         if ($building->main_image) {
             $content['hero']['background_image'] = $building->main_image;
         }

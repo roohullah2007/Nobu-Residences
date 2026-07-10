@@ -28,7 +28,24 @@ export default function HeroSection({
         ? `Rising ${building.floors} storeys above ${building.sub_neighbourhood || building.neighbourhood || 'Toronto'}. `
         : '';
     const builtTagline = `${risingBit}${suiteBit} in ${locBit}${devBit}.`;
-    const subheading = heroContent.subheading || builtTagline;
+
+    // Prefer a summary of the building's own description over the old
+    // auto-seeded "Whether buying or renting..." tagline. A custom
+    // admin-written subheading still wins.
+    const MAX_SUMMARY_LENGTH = 180;
+    const GENERIC_TAGLINE_PATTERN = /makes finding your home easy and reliable/i;
+    const summarizeDescription = (raw) => {
+        const text = String(raw || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!text || text.length <= MAX_SUMMARY_LENGTH) return text;
+        const clipped = text.slice(0, MAX_SUMMARY_LENGTH);
+        const sentenceEnd = clipped.lastIndexOf('. ');
+        if (sentenceEnd > 60) return clipped.slice(0, sentenceEnd + 1);
+        return `${clipped.slice(0, clipped.lastIndexOf(' '))}…`;
+    };
+    const descriptionSummary = summarizeDescription(building.description);
+    const adminSubheading = heroContent.subheading || '';
+    const hasCustomSubheading = adminSubheading && !GENERIC_TAGLINE_PATTERN.test(adminSubheading);
+    const subheading = hasCustomSubheading ? adminSubheading : (descriptionSummary || adminSubheading || builtTagline);
     const backgroundImage = building.main_image || heroContent.background_image || '/assets/nobu-building.jpg';
 
     // Building addresses: prefer the building record, fall back to MLS settings.

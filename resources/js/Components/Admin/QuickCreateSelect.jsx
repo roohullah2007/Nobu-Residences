@@ -23,6 +23,9 @@ export default function QuickCreateSelect({
     placeholder = 'Select...',
     error,
     onCreated,
+    // When set, "+ New" delegates to the caller (e.g. to open a full modal)
+    // instead of showing the inline name-only creator.
+    onRequestCreate,
 }) {
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState('');
@@ -92,10 +95,10 @@ export default function QuickCreateSelect({
                 <InputLabel htmlFor={id} value={label} />
                 <button
                     type="button"
-                    onClick={() => setIsCreating(!isCreating)}
+                    onClick={() => (onRequestCreate ? onRequestCreate() : setIsCreating(!isCreating))}
                     className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
                 >
-                    {isCreating ? 'Cancel' : '+ New'}
+                    {!onRequestCreate && isCreating ? 'Cancel' : '+ New'}
                 </button>
             </div>
             {/* Searchable combobox: the input filters the list while open and

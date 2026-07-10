@@ -683,60 +683,59 @@ class BuildingController extends Controller
     }
 
     /**
-     * Build AI description prompt for building
+     * Build an SEO-optimized AI description prompt for a building. Every
+     * detail the admin has entered (building facts, neighbourhood, amenities,
+     * fees, developer) becomes source material, and the instructions target
+     * the search phrases buyers actually type.
      */
     private function buildAiDescriptionPrompt(array $buildingData): string
     {
         $name = $buildingData['name'] ?? 'Building';
-        $address = $buildingData['address'] ?? '';
-        $city = $buildingData['city'] ?? '';
-        $province = $buildingData['province'] ?? '';
-        $buildingType = $buildingData['building_type'] ?? 'residential';
-        $totalUnits = $buildingData['total_units'] ?? '';
-        $yearBuilt = $buildingData['year_built'] ?? '';
-        $floors = $buildingData['floors'] ?? '';
-        $amenities = $buildingData['amenities'] ?? [];
-        $maintenanceAmenities = $buildingData['maintenance_fee_amenities'] ?? [];
-        $priceRange = $buildingData['price_range'] ?? '';
-        $maintenanceFeeRange = $buildingData['maintenance_fee_range'] ?? '';
-        $developerName = $buildingData['developer_name'] ?? '';
-        $managementName = $buildingData['management_name'] ?? '';
+        $city = ($buildingData['city'] ?? '') ?: 'Toronto';
+        $neighbourhood = $buildingData['neighbourhood'] ?? '';
+        $buildingType = str_replace('_', ' ', (string) ($buildingData['building_type'] ?? 'condominium'));
 
-        $prompt = "Generate a compelling and professional real estate description for this building:\n\n";
-        $prompt .= "Building Name: {$name}\n";
+        $facts = array_filter([
+            'Building Name' => $name,
+            'Address' => implode(', ', array_filter([
+                $buildingData['address'] ?? '',
+                $city,
+                $buildingData['province'] ?? '',
+            ])),
+            'Neighbourhood' => implode(' / ', array_filter([$buildingData['sub_neighbourhood'] ?? '', $neighbourhood])),
+            'Type' => ucfirst($buildingType),
+            'Construction Status' => str_replace('_', ' ', (string) ($buildingData['development_status'] ?? '')),
+            'Total Units' => $buildingData['total_units'] ?? '',
+            'Number of Floors' => $buildingData['floors'] ?? '',
+            'Year Built' => $buildingData['year_built'] ?? '',
+            'Parking Spots' => $buildingData['parking_spots'] ?? '',
+            'Locker Spots' => $buildingData['locker_spots'] ?? '',
+            'Price Range' => $buildingData['price_range'] ?? '',
+            'Maintenance Fee Range' => $buildingData['maintenance_fee_range'] ?? '',
+            'Developer' => $buildingData['developer_name'] ?? '',
+            'Management' => $buildingData['management_name'] ?? '',
+            'Building Amenities' => implode(', ', $buildingData['amenities'] ?? []),
+            'Amenities Included in Maintenance Fees' => implode(', ', $buildingData['maintenance_fee_amenities'] ?? []),
+        ], fn ($value) => $value !== '' && $value !== null);
 
-        if ($address) {
-            $prompt .= "Address: {$address}";
-            if ($city) $prompt .= ", {$city}";
-            if ($province) $prompt .= ", {$province}";
-            $prompt .= "\n";
+        $prompt = "You are an expert real estate copywriter and SEO specialist. Write a building profile description for this {$buildingType}:\n\n";
+        foreach ($facts as $label => $value) {
+            $prompt .= "{$label}: {$value}\n";
         }
 
-        if ($buildingType) $prompt .= "Type: " . ucfirst($buildingType) . "\n";
-        if ($totalUnits) $prompt .= "Total Units: {$totalUnits}\n";
-        if ($floors) $prompt .= "Number of Floors: {$floors}\n";
-        if ($yearBuilt) $prompt .= "Year Built: {$yearBuilt}\n";
-        if ($priceRange) $prompt .= "Price Range: {$priceRange}\n";
-        if ($maintenanceFeeRange) $prompt .= "Maintenance Fee Range: {$maintenanceFeeRange}\n";
-        if ($developerName) $prompt .= "Developer: {$developerName}\n";
-        if ($managementName) $prompt .= "Management: {$managementName}\n";
+        $locationPhrase = $neighbourhood ? "{$neighbourhood}, {$city}" : $city;
 
-        if (!empty($amenities)) {
-            $prompt .= "Building Amenities: " . implode(', ', $amenities) . "\n";
-        }
-
-        if (!empty($maintenanceAmenities)) {
-            $prompt .= "Amenities Included in Maintenance Fees: " . implode(', ', $maintenanceAmenities) . "\n";
-        }
-
-        $prompt .= "\nPlease create a compelling, professional building description that:\n";
-        $prompt .= "- Highlights the building's key features and location benefits\n";
-        $prompt .= "- Emphasizes luxury and lifestyle aspects\n";
-        $prompt .= "- Mentions the amenities and their value\n";
-        $prompt .= "- Appeals to potential buyers or residents\n";
-        $prompt .= "- Is 100-200 words in length\n";
-        $prompt .= "- Uses engaging, professional real estate language\n";
-        $prompt .= "- Focuses on quality of life and investment value\n\n";
+        $prompt .= "\nSEO requirements:\n";
+        $prompt .= "- Open the first sentence with the building name and its address/location — this is the page's primary keyword.\n";
+        $prompt .= "- Naturally work in search phrases buyers use, such as \"{$name} condos\", \"condos for sale in {$locationPhrase}\" and \"{$name} {$city}\" — at most once each, never stuffed or repeated.\n";
+        $prompt .= "- Mention the neighbourhood and its lifestyle/transit context so the copy ranks for local searches.\n";
+        $prompt .= "- Use only the facts provided above. Never invent details, distances, prices or dates.\n\n";
+        $prompt .= "Writing requirements:\n";
+        $prompt .= "- 150-220 words in 2-3 short paragraphs of flowing prose (no headings, no bullet points, no markdown).\n";
+        $prompt .= "- Confident, professional tone aimed at buyers, renters and investors.\n";
+        $prompt .= "- Weave the strongest amenities into a lifestyle picture instead of listing them all.\n";
+        $prompt .= "- Avoid filler cliches such as \"nestled\", \"boasts\", \"stunning\", \"epitome of luxury\" and \"perfect blend\".\n";
+        $prompt .= "- End with a sentence that motivates the reader to explore current listings in the building.\n\n";
         $prompt .= "Return only the description text, no additional formatting or explanations.";
 
         return $prompt;
