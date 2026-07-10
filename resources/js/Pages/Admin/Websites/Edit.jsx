@@ -588,13 +588,13 @@ export default function Edit({ auth }) {
                                     </label>
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         {[
-                                            { key: 'brand_colors.button_primary_bg', label: 'Primary BG', desc: 'Blue buttons' },
+                                            { key: 'brand_colors.button_primary_bg', label: 'Primary BG', desc: 'Available Building, Sign Up buttons' },
                                             { key: 'brand_colors.button_primary_text', label: 'Primary Text', desc: 'Primary text' },
-                                            { key: 'brand_colors.button_secondary_bg', label: 'Secondary BG', desc: 'Red/Brown buttons' },
+                                            { key: 'brand_colors.button_secondary_bg', label: 'Secondary BG', desc: 'Contact Agent, Show All Listings' },
                                             { key: 'brand_colors.button_secondary_text', label: 'Secondary Text', desc: 'Secondary text' },
-                                            { key: 'brand_colors.button_tertiary_bg', label: 'Tertiary BG', desc: 'Black buttons' },
+                                            { key: 'brand_colors.button_tertiary_bg', label: 'Tertiary BG', desc: 'Request Tour buttons' },
                                             { key: 'brand_colors.button_tertiary_text', label: 'Tertiary Text', desc: 'Tertiary text' },
-                                            { key: 'brand_colors.button_quaternary_bg', label: 'Quaternary BG', desc: 'White buttons' },
+                                            { key: 'brand_colors.button_quaternary_bg', label: 'Quaternary BG', desc: 'Outline buttons (View Details)' },
                                             { key: 'brand_colors.button_quaternary_text', label: 'Quaternary Text', desc: 'Quaternary text' },
                                         ].map((color) => (
                                             <div key={color.key} className="text-center">

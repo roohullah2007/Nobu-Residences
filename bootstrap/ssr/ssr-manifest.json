@@ -136,13 +136,13 @@
     "/build/assets/Websites-DSHgsq3e.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-C530fLVS.js"
+    "/build/assets/Create-CGzNnJ6a.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
     "/build/assets/Created-CdSEAqNy.js"
   ],
   "resources/js/Pages/Admin/Websites/Edit.jsx": [
-    "/build/assets/Edit-CnesAg3P.js"
+    "/build/assets/Edit-iWi6qDLv.js"
   ],
   "resources/js/Pages/Admin/Websites/EditHomePage.jsx": [
     "/build/assets/EditHomePage-BvD8wr7e.js"
@@ -157,7 +157,7 @@
     "/build/assets/Pages--JSR1jTS.js"
   ],
   "resources/js/Pages/Admin/Websites/Show.jsx": [
-    "/build/assets/Show-ZTZhCnPR.js"
+    "/build/assets/Show-eRjHQUFw.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PropertyDetail.jsx": [
     "/build/assets/PropertyDetail-3OGbzNeO.js"
@@ -722,7 +722,7 @@
   ],
   "resources/js/ssr.jsx": [],
   "resources/js/utils/brandColors.js": [
-    "/build/assets/Show-ZTZhCnPR.js"
+    "/build/assets/Show-eRjHQUFw.js"
   ],
   "resources/js/utils/contactFormValidation.js": [
     "/build/assets/contactFormValidation-CEuKRxjY.js"
