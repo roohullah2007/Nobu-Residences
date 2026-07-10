@@ -231,9 +231,10 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                             <span className="text-lg font-semibold text-white">Nobu Admin</span>
                             <button
                                 onClick={() => setSidebarOpen(false)}
+                                aria-label="Close navigation menu"
                                 className="p-1 text-[#94a3b8] hover:text-white"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
@@ -267,36 +268,52 @@ export default function AdminLayout({ children, title = 'Admin' }) {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setSidebarOpen(true)}
+                                aria-label="Open navigation menu"
+                                aria-expanded={sidebarOpen}
                                 className="p-2 -ml-2 text-[#64748b] hover:text-[#0f172a] lg:hidden"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                                 </svg>
                             </button>
                             <h1 className="text-lg font-semibold text-[#0f172a]">{title}</h1>
                         </div>
                         <div className="flex items-center gap-3">
-                            <Link
+                            <a
                                 href="/"
                                 target="_blank"
+                                rel="noopener noreferrer"
                                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-[#64748b] hover:text-[#0f172a] border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
                                 View Site
-                            </Link>
+                            </a>
                             <div className="flex items-center gap-3 pl-3 border-l border-[#e2e8f0]">
                                 <Link
                                     href={route('profile.edit')}
+                                    aria-label={`Profile: ${auth?.user?.name || 'User'}`}
                                     className="flex items-center gap-2 text-sm text-[#64748b] hover:text-[#0f172a]"
                                 >
-                                    <div className="w-8 h-8 rounded-full bg-[#0f172a] flex items-center justify-center">
+                                    <div className="w-8 h-8 rounded-full bg-[#0f172a] flex items-center justify-center" aria-hidden="true">
                                         <span className="text-xs font-medium text-white">
                                             {auth?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
                                         </span>
                                     </div>
                                     <span className="hidden sm:inline font-medium">{auth?.user?.name || 'User'}</span>
+                                </Link>
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    aria-label="Log out"
+                                    className="p-2 text-[#64748b] hover:text-[#dc2626] rounded-lg hover:bg-[#fef2f2] transition-colors"
+                                    title="Log out"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
                                 </Link>
                             </div>
                         </div>

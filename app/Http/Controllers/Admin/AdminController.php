@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Building;
+use App\Models\ContactForm;
+use App\Models\User;
+use App\Models\Website;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -13,39 +17,75 @@ class AdminController extends Controller
      */
     public function dashboard(): Response
     {
-        // Get actual websites data - currently just the default website
-        $websites = [
-            [
-                'id' => 1,
-                'name' => 'Nobu Residences',
-                'domain' => 'Default Website',
-                'status' => 'active',
-                'lastUpdated' => 'Today',
-                'properties' => 0 // Will be populated from MLS API when connected
-            ]
-        ];
-
-        // Get contact form stats
         $contactStats = [
-            'total_contacts' => \App\Models\ContactForm::count(),
-            'unread_contacts' => \App\Models\ContactForm::unread()->count(),
-            'recent_contacts' => \App\Models\ContactForm::recent(7)->count(),
+            'total_contacts' => ContactForm::count(),
+            'unread_contacts' => ContactForm::unread()->count(),
+            'recent_contacts' => ContactForm::recent(7)->count(),
         ];
 
         return Inertia::render('Admin/Dashboard', [
             'title' => 'Dashboard',
             'stats' => [
-                'total_properties' => 0, // Will be populated from MLS API
-                'active_listings' => 0,
-                'pending_listings' => 0,
-                'total_users' => \App\Models\User::count(),
+                'total_properties' => Building::count(),
+                'active_listings' => Building::where('status', 'active')->count(),
+                'pending_listings' => Building::where('status', 'pending')->count(),
+                'total_users' => User::count(),
                 'total_contacts' => $contactStats['total_contacts'],
                 'unread_contacts' => $contactStats['unread_contacts'],
                 'recent_contacts' => $contactStats['recent_contacts'],
             ],
-            'websites' => $websites,
-            'contactStats' => $contactStats
+            'websites' => $this->websitesSummary(),
+            'activity' => $this->recentActivity(),
+            'contactStats' => $contactStats,
         ]);
+    }
+
+    /**
+     * Websites list for the dashboard card
+     */
+    private function websitesSummary(): array
+    {
+        return Website::withCount('pages')
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Website $website) => [
+                'id' => $website->id,
+                'name' => $website->name,
+                'domain' => $website->domain ?? 'Default Website',
+                'status' => $website->is_active ? 'active' : 'inactive',
+                'pages' => $website->pages_count,
+            ])
+            ->all();
+    }
+
+    /**
+     * Recent activity feed: latest buildings and contact inquiries
+     */
+    private function recentActivity(): array
+    {
+        $buildings = Building::latest()->limit(5)->get()
+            ->map(fn (Building $building) => [
+                'type' => 'building',
+                'label' => "Building added: {$building->name}",
+                'time' => $building->created_at?->diffForHumans(),
+                'timestamp' => $building->created_at?->timestamp ?? 0,
+            ]);
+
+        $contacts = ContactForm::latest()->limit(5)->get()
+            ->map(fn (ContactForm $contact) => [
+                'type' => 'contact',
+                'label' => "New contact inquiry from {$contact->name}",
+                'time' => $contact->created_at?->diffForHumans(),
+                'timestamp' => $contact->created_at?->timestamp ?? 0,
+            ]);
+
+        return $buildings->concat($contacts)
+            ->sortByDesc('timestamp')
+            ->take(6)
+            ->values()
+            ->map(fn (array $item) => collect($item)->except('timestamp')->all())
+            ->all();
     }
 
     /**
