@@ -75,7 +75,7 @@ function CopyButton({ value, label = 'Copy' }) {
     );
 }
 
-export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, ploiEnabled = false, serverIp = null, preselectedBuildingId = null }) {
+export default function Create({ auth, buildings = [], defaultAgent = null, defaultBranding = null, defaultContactInfo = {}, defaultSocialMedia = {}, cloudflareEnabled = false, cnameTarget = '', preselectedBuildingId = null }) {
     // Step 1 = pick building, Step 2 = fill out website form
     const [step, setStep] = useState(1);
     const [buildingSearch, setBuildingSearch] = useState('');
@@ -299,11 +299,10 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
         reader.readAsDataURL(file);
     };
 
-    // DNS instruction block: values derived from what the admin typed plus
-    // the origin server IP resolved server-side (PLOI_SERVER_IP / Ploi API).
+    // DNS instruction block: with Cloudflare Custom Hostnames the customer
+    // creates exactly ONE CNAME record pointing at the SaaS target.
     const typedDomain = String(data.domain || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
     const apexDomain = typedDomain.replace(/^www\./i, '');
-    const dnsServerIp = serverIp || '157.180.26.95';
 
     return (
         <AdminLayout title="Create New Website">
@@ -319,10 +318,10 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                 Launch a building site in two steps — pick the building, then confirm branding, contact and SEO details.
                             </p>
                         </div>
-                        {ploiEnabled && (
+                        {cloudflareEnabled && (
                             <span className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
                                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-                                Auto domain + SSL enabled
+                                Auto domain + SSL via Cloudflare
                             </span>
                         )}
                     </div>
@@ -497,18 +496,18 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                 placeholder="e.g., luxurycondos.com"
                                             />
                                             <InputError message={errors.domain} className="mt-2" />
-                                            {ploiEnabled && !typedDomain && (
+                                            {cloudflareEnabled && !typedDomain && (
                                                 <p className="mt-1 text-xs text-green-700">
-                                                    This domain will be added to the server (Ploi) and get an SSL certificate automatically once its DNS points here.
+                                                    This domain will be registered on Cloudflare automatically — SSL activates as soon as the customer creates one CNAME record.
                                                 </p>
                                             )}
-                                            {!ploiEnabled && data.domain && (
+                                            {!cloudflareEnabled && data.domain && (
                                                 <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
                                                     <p className="font-semibold">Automatic domain connection is currently OFF.</p>
                                                     <p className="mt-1">
-                                                        The site will be saved, but this domain will not be connected to the server automatically.
-                                                        To enable it, set PLOI_API_TOKEN, PLOI_SERVER_ID and PLOI_SITE_ID in the server's .env,
-                                                        then use "Retry" on the website's status page. The DNS records below must also be in place.
+                                                        The site will be saved, but this domain will not be registered on Cloudflare automatically.
+                                                        To enable it, set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ZONE_ID in the server's .env,
+                                                        then use "Retry" on the website's status page.
                                                     </p>
                                                 </div>
                                             )}
@@ -523,12 +522,11 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <h4 className="text-sm font-semibold text-gray-900">
-                                                            Point <code className="font-mono">{apexDomain}</code> at this server
+                                                            One CNAME record makes <code className="font-mono">{apexDomain}</code> live
                                                         </h4>
                                                         <p className="mt-0.5 text-xs text-gray-600">
-                                                            Add these records at your DNS provider. Server IP:{' '}
-                                                            <code className="font-mono font-semibold text-indigo-800">{dnsServerIp}</code>
-                                                            <span className="inline-block align-middle ml-1.5"><CopyButton value={dnsServerIp} label="Copy IP" /></span>
+                                                            The customer adds this single record at their DNS provider — Cloudflare then
+                                                            validates the domain and issues SSL automatically.
                                                         </p>
 
                                                         {/* Records table */}
@@ -543,41 +541,24 @@ export default function Create({ auth, buildings = [], defaultAgent = null, defa
                                                                 </thead>
                                                                 <tbody className="font-mono text-gray-800">
                                                                     <tr>
-                                                                        <td className="py-1.5 pr-4 align-top"><span className="px-1.5 py-0.5 rounded bg-white border border-gray-200">A</span></td>
-                                                                        <td className="py-1.5 pr-4 align-top">@ <span className="font-sans text-gray-400">(apex — {apexDomain})</span></td>
-                                                                        <td className="py-1.5">
-                                                                            <span className="inline-flex items-center gap-1.5">
-                                                                                {dnsServerIp}
-                                                                                <CopyButton value={dnsServerIp} label="Copy IP" />
-                                                                            </span>
-                                                                        </td>
-                                                                    </tr>
-                                                                    <tr>
                                                                         <td className="py-1.5 pr-4 align-top"><span className="px-1.5 py-0.5 rounded bg-white border border-gray-200">CNAME</span></td>
-                                                                        <td className="py-1.5 pr-4 align-top">www</td>
+                                                                        <td className="py-1.5 pr-4 align-top">{typedDomain.startsWith('www.') ? 'www' : '@'} <span className="font-sans text-gray-400">({typedDomain})</span></td>
                                                                         <td className="py-1.5">
                                                                             <span className="inline-flex items-center gap-1.5 break-all">
-                                                                                {apexDomain}
-                                                                                <CopyButton value={apexDomain} label="Copy domain" />
+                                                                                {cnameTarget}
+                                                                                <CopyButton value={cnameTarget} label="Copy target" />
                                                                             </span>
-                                                                            <span className="block font-sans text-gray-400 mt-0.5">or an A record for www → {dnsServerIp}</span>
+                                                                            <span className="block font-sans text-gray-400 mt-0.5">apex domains: use your provider's CNAME flattening / ALIAS record</span>
                                                                         </td>
                                                                     </tr>
                                                                 </tbody>
                                                             </table>
                                                         </div>
 
-                                                        {/* Cloudflare note */}
-                                                        <div className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
-                                                            <strong>Using Cloudflare?</strong> Set Proxy status to <strong>DNS only</strong> (gray cloud)
-                                                            on both records until the SSL certificate is issued — Let's Encrypt can't validate through the
-                                                            orange-cloud proxy. Afterwards you can re-enable the proxy with SSL/TLS mode <strong>Full (strict)</strong>.
-                                                        </div>
-
                                                         <p className="mt-2 text-xs text-gray-500">
-                                                            DNS changes can take a few minutes to propagate. The SSL certificate is requested
-                                                            automatically after the website is created — you can watch progress and retry from the
-                                                            status page that follows.
+                                                            DNS changes can take a few minutes to propagate. The hostname is registered on
+                                                            Cloudflare automatically after the website is created — activation is checked every
+                                                            few minutes and the status page shows live progress.
                                                         </p>
                                                     </div>
                                                 </div>

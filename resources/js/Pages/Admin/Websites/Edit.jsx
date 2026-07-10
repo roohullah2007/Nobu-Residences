@@ -1,15 +1,12 @@
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import PhoneInput from '@/Components/PhoneInput';
 import React, { useState, useEffect } from 'react';
 
 export default function Edit({ auth }) {
-    const { website, title, buildings, flash, serverIp } = usePage().props;
-    const dnsServerIp = serverIp || '157.180.26.95';
+    const { website, title, buildings, flash, cnameTarget, cloudflareEnabled } = usePage().props;
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const [showConnectDomainConfirm, setShowConnectDomainConfirm] = useState(false);
 
     // Auto-hide toast after 3 seconds
     useEffect(() => {
@@ -189,7 +186,7 @@ export default function Edit({ auth }) {
                     </div>
                 </div>
 
-                {/* Domain & Hosting (Ploi) — quick action card */}
+                {/* Domain & Hosting (Cloudflare Custom Hostnames) */}
                 <div className="bg-white shadow rounded-lg border border-gray-200 mb-6">
                     <div className="px-4 py-5 sm:p-6">
                         <div className="flex items-start gap-4 mb-4">
@@ -201,9 +198,9 @@ export default function Edit({ auth }) {
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-lg font-medium text-gray-900">Domain & Hosting</h3>
                                 <p className="text-sm text-gray-500">
-                                    Add the custom domain to Ploi as a site alias and request a Let's Encrypt SSL certificate.
-                                    The DNS A record must point to the server IP{' '}
-                                    <code className="font-mono font-semibold text-gray-700">{dnsServerIp}</code> first.
+                                    Custom domains run through Cloudflare: saving a domain registers it automatically, and SSL
+                                    activates as soon as the customer points ONE CNAME record at{' '}
+                                    <code className="font-mono font-semibold text-gray-700">{cnameTarget || 'the CNAME target'}</code>.
                                 </p>
                             </div>
                         </div>
@@ -213,21 +210,27 @@ export default function Edit({ auth }) {
                                 <div className="flex-1 min-w-0">
                                     <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Current domain</div>
                                     <div className="font-mono text-gray-900 truncate">{website.domain}</div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        Required record: <span className="font-mono">CNAME {website.domain} {'->'} {cnameTarget}</span>
+                                        {website.cloudflare_status === 'active'
+                                            ? ' - LIVE'
+                                            : ' - waiting for the CNAME (checked automatically every 5 minutes)'}
+                                    </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConnectDomainConfirm(true)}
+                                <Link
+                                    href={route('admin.websites.created', website.id)}
                                     className="inline-flex items-center justify-center px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
                                 >
                                     <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
-                                    Connect domain to Ploi
-                                </button>
+                                    View domain status
+                                </Link>
                             </div>
                         ) : (
                             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-900">
-                                No custom domain set on this website yet. Add one in the Basic Information section below and save, then come back to connect it to Ploi.
+                                No custom domain set on this website yet. Add one in the Basic Information section below and save —
+                                it is registered on Cloudflare automatically.
                             </div>
                         )}
                     </div>
@@ -1166,19 +1169,6 @@ export default function Edit({ auth }) {
                     </div>
                 </form>
             </div>
-
-            <ConfirmDialog
-                open={showConnectDomainConfirm}
-                title="Connect domain to Ploi?"
-                message={`"${website?.domain}" will be added to Ploi as a site alias and a Let's Encrypt SSL certificate will be requested.\n\nMake sure the domain's DNS A record already points to the server IP ${dnsServerIp} (apex "@" and "www" both), otherwise SSL issuance will fail.`}
-                confirmLabel="Connect"
-                variant="neutral"
-                onConfirm={() => {
-                    setShowConnectDomainConfirm(false);
-                    router.post(route('admin.websites.retry-ploi', website.id));
-                }}
-                onCancel={() => setShowConnectDomainConfirm(false)}
-            />
         </AdminLayout>
     );
 }

@@ -8,7 +8,8 @@ use App\Models\Website;
 use App\Models\WebsitePage;
 use App\Models\Icon;
 use App\Models\AgentInfo;
-use App\Services\PloiService;
+use App\Services\CloudflareService;
+use App\Services\HealthCheckService;
 use App\Services\GeminiAIService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -103,11 +104,9 @@ class WebsiteManagementController extends Controller
             'defaultBranding' => $defaultBranding,
             'defaultContactInfo' => $defaultContactInfo,
             'defaultSocialMedia' => $defaultSocialMedia,
-            'ploiEnabled' => config('services.ploi.auto_provision') && !empty(config('services.ploi.token')),
-            // Origin server IP for the DNS instruction block under the Custom
-            // Domain field (PLOI_SERVER_IP env, else Ploi API; the frontend
-            // falls back to the documented IP when null).
-            'serverIp' => app(PloiService::class)->getServerIp(),
+            'cloudflareEnabled' => app(CloudflareService::class)->isConfigured(),
+            // The hostname customers point their single CNAME record at.
+            'cnameTarget' => app(CloudflareService::class)->cnameTarget(),
             // "Launch Website" shortcut from the Building edit page
             'preselectedBuildingId' => request()->query('building_id'),
         ]);
@@ -145,7 +144,7 @@ class WebsiteManagementController extends Controller
     /**
      * Store new website
      */
-    public function store(Request $request, PloiService $ploi): RedirectResponse
+    public function store(Request $request, CloudflareService $cloudflare): RedirectResponse
     {
         // Parse nested keys from FormData (e.g., 'brand_colors.primary')
         $data = $request->all();
@@ -371,16 +370,11 @@ class WebsiteManagementController extends Controller
             'sort_order' => 0,
         ]);
 
-        $this->runProvisioning($website, $ploi);
+        $this->provisionCustomHostname($website, $cloudflare);
 
         return redirect()->route('admin.websites.created', $website);
     }
 
-    /**
-     * Run the alias add (synchronous) and queue the SSL request (async with
-     * 30s delay + retries). Persists per-step status on the Website row so
-     * the status page reflects reality on every reload.
-     */
     /**
      * Canonicalize the submitted custom domain before validation so the
      * stored value always matches TenantResolver's host normalization
@@ -414,204 +408,139 @@ class WebsiteManagementController extends Controller
             'max:255',
             $unique,
             function (string $attribute, $value, \Closure $fail) {
-                $adminHost = \App\Services\Tenancy\TenantResolver::normalizeHost((string) config('tenancy.admin_host'));
-                if ($value !== null && $adminHost !== '' && \App\Services\Tenancy\TenantResolver::normalizeHost($value) === $adminHost) {
-                    $fail("\"{$adminHost}\" is reserved for the admin panel and cannot be assigned to a website.");
+                $normalized = \App\Services\Tenancy\TenantResolver::normalizeHost((string) $value);
+                if ($value !== null && in_array($normalized, \App\Services\Tenancy\TenantResolver::adminHosts(), true)) {
+                    $fail("\"{$normalized}\" is reserved for the admin panel and cannot be assigned to a website.");
                 }
             },
         ];
     }
 
-    protected function runProvisioning(Website $website, PloiService $ploi): void
+    /**
+     * Register the website's custom domain as a Cloudflare Custom Hostname
+     * (synchronous, so the redirect can report it) and queue the SSL-status
+     * polling job. Persists per-step state on the Website row so the status
+     * page reflects reality on every reload.
+     */
+    protected function provisionCustomHostname(Website $website, CloudflareService $cloudflare): void
     {
         $report = [
-            'db'    => ['ok' => true, 'message' => 'Website saved in the database.'],
-            'ploi'  => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
-            'ssl'   => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
+            'db'         => ['ok' => true, 'message' => 'Website saved in the database.'],
+            'cloudflare' => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
+            'ssl'        => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
         ];
 
         if (empty($website->domain)) {
             $website->update([
-                'ploi_alias_status' => 'not_required',
-                'ploi_ssl_status' => 'not_required',
-                'ploi_last_error' => null,
+                'cloudflare_status' => null,
+                'cloudflare_ssl_status' => null,
+                'cloudflare_last_error' => null,
             ]);
             session()->flash('website_created_report', $report);
             return;
         }
 
-        if (!config('services.ploi.auto_provision') || !$ploi->isConfigured()) {
-            $msg = 'Ploi auto-provisioning is disabled or PLOI_API_TOKEN / PLOI_SERVER_ID / PLOI_SITE_ID is missing in the .env.';
+        if (!$cloudflare->isConfigured()) {
+            $msg = 'Cloudflare is not configured (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID missing in .env).';
             $website->update([
-                'ploi_alias_status' => 'failed',
-                'ploi_ssl_status' => 'failed',
-                'ploi_last_error' => $msg,
+                'cloudflare_status' => 'failed',
+                'cloudflare_last_error' => $msg,
             ]);
-            $report['ploi'] = ['ok' => false, 'message' => $msg];
-            $report['ssl'] = ['ok' => false, 'message' => 'Skipped — Ploi not configured.'];
+            $report['cloudflare'] = ['ok' => false, 'message' => $msg];
+            $report['ssl'] = ['ok' => false, 'message' => 'Skipped — Cloudflare not configured.'];
             session()->flash('website_created_report', $report);
             return;
         }
 
-        // Alias is added synchronously so we can report it on the redirect.
-        [$aliasOk, $aliasMsg] = $ploi->addAlias($website->domain);
-        $report['ploi'] = ['ok' => $aliasOk, 'message' => $aliasMsg];
+        [$ok, $message, $hostname] = $cloudflare->createCustomHostname($website->domain);
+        $report['cloudflare'] = ['ok' => $ok, 'message' => $message];
 
-        if ($aliasOk) {
+        if ($ok) {
             $website->update([
-                'ploi_alias_status' => 'added',
-                'ploi_alias_added_at' => now(),
-                'ploi_last_error' => null,
+                'cloudflare_hostname_id' => $hostname['id'] ?? null,
+                'cloudflare_status' => 'pending_dns',
+                'cloudflare_ssl_status' => $hostname['ssl_status'] ?? null,
+                'cloudflare_last_error' => null,
             ]);
 
-            // SSL is queued — runs 30s later so the alias has time to settle,
-            // and Laravel's queue auto-retries on failure with backoff.
-            if (config('services.ploi.request_ssl', true)) {
-                $website->update(['ploi_ssl_status' => 'queued']);
-                \App\Jobs\RequestPloiSslJob::dispatch($website->id)
-                    ->delay(now()->addSeconds(30));
-                $report['ssl'] = [
-                    'ok' => null,
-                    'message' => "SSL queued — Let's Encrypt request will run in ~30s with automatic retries (30s/1m/2m/5m/10m backoff). Refresh this page in 1–2 minutes to see status.",
-                ];
-            } else {
-                $website->update(['ploi_ssl_status' => 'not_required']);
-                $report['ssl'] = ['ok' => null, 'message' => 'SSL not requested (PLOI_REQUEST_SSL=false).'];
-            }
+            // Poll Cloudflare until the customer's CNAME lands and SSL goes
+            // active; the scheduled sync command covers the long tail.
+            \App\Jobs\SyncCustomHostnameStatusJob::dispatch($website->id)
+                ->delay(now()->addSeconds(30));
+
+            $cnameTarget = $cloudflare->cnameTarget();
+            $report['ssl'] = [
+                'ok' => null,
+                'message' => "Waiting for the customer's CNAME. Create ONE DNS record: CNAME {$website->domain} -> {$cnameTarget}. "
+                    . 'Cloudflare validates and activates SSL automatically (checked every 30s, then every 5 minutes).',
+            ];
         } else {
             $website->update([
-                'ploi_alias_status' => 'failed',
-                'ploi_ssl_status' => 'pending',
-                'ploi_last_error' => $aliasMsg,
+                'cloudflare_status' => 'failed',
+                'cloudflare_last_error' => $message,
             ]);
-            $report['ssl'] = [
-                'ok' => false,
-                'message' => 'Skipped — SSL needs the alias to be added first.',
-            ];
+            $report['ssl'] = ['ok' => false, 'message' => 'Skipped — the custom hostname must be registered first.'];
         }
 
         session()->flash('website_created_report', $report);
     }
 
     /**
-     * Post-creation status page. Always queries Ploi for the *live* alias +
-     * cert state so reloading shows the real picture (not stale flash data).
+     * Post-creation status page. Queries Cloudflare for the live custom
+     * hostname + SSL state so reloading shows the real picture (not stale
+     * flash data), and keeps the persisted DB state in sync with it.
      */
-    public function created(Website $website, PloiService $ploi): Response
+    public function created(Website $website, HealthCheckService $health, CloudflareService $cloudflare): Response
     {
         $report = session('website_created_report');
 
         $domain = $website->domain;
-        $aliases = [];
-        $certificates = [];
+        $check = $health->checkWebsite($website);
 
-        $ploiConfigured = (bool) (config('services.ploi.token') && config('services.ploi.server_id') && config('services.ploi.site_id'));
-
-        if ($ploiConfigured) {
-            // Heal duplicate alias rows on every status view: Ploi auto-adds
-            // an alias per SAN subject after each cert issuance (which happens
-            // asynchronously, after our request returns), duplicating domains
-            // in nginx's server_name. This page polls while SSL is pending,
-            // so the cleanup lands right after issuance completes.
-            $ploi->dedupeAliases();
-
-            $aliases = $ploi->listAliases();
-            $certificates = $ploi->listCertificates();
+        // Sync persisted state with Cloudflare's live view (source of truth
+        // whenever we can talk to it).
+        if ($check['configured'] && $domain && $check['hostname_exists'] !== null) {
+            $isLive = $check['hostname_exists'] && $check['ssl_active'];
+            $website->update([
+                'cloudflare_hostname_id' => $check['hostname']['id'] ?? $website->cloudflare_hostname_id,
+                'cloudflare_status' => $check['hostname_exists'] ? ($isLive ? 'active' : 'pending_dns') : 'failed',
+                'cloudflare_ssl_status' => $check['ssl_status'],
+                'cloudflare_last_error' => !empty($check['errors']) ? implode(' | ', $check['errors']) : null,
+                'cloudflare_active_at' => $isLive ? ($website->cloudflare_active_at ?: now()) : $website->cloudflare_active_at,
+            ]);
         }
 
-        // Derive a fresh "current state" report from what Ploi actually shows.
-        // Canonical comparison (trim / lowercase / strip trailing dot): Ploi
-        // may return the alias cased or padded differently from what the
-        // admin typed, and a strict comparison then reports a present alias
-        // as missing forever. $aliasListVerified distinguishes "Ploi answered
-        // and the alias is absent" from "couldn't fetch the list" — a failed
-        // fetch must never be presented as "not on Ploi".
-        $canon = fn ($d) => strtolower(rtrim(trim((string) $d), '.'));
-        $aliasListVerified = $ploiConfigured && $ploi->aliasListFetchOk;
-        $hasAlias = $domain && in_array($canon($domain), array_map($canon, $aliases), true);
-        $hasCert = false;
-        if ($domain) {
-            foreach ($certificates as $c) {
-                foreach (($c['domains'] ?? []) as $d) {
-                    if (strcasecmp($d, $domain) === 0) {
-                        $hasCert = true;
-                        break 2;
-                    }
-                }
-            }
-        }
-
-        // Keep the persisted DB state in sync with what Ploi actually shows.
-        // The sticky DB row was getting out of sync when an admin deleted the
-        // alias directly in Ploi's UI: the front-end would still see
-        // alias_status='added' and lock the Retry button as disabled. Trust
-        // Ploi's live view as the source of truth whenever we can talk to it.
-        if ($ploiConfigured && $domain) {
-            $needsUpdate = [];
-            if ($hasAlias && $website->ploi_alias_status !== 'added') {
-                $needsUpdate['ploi_alias_status'] = 'added';
-                $needsUpdate['ploi_alias_added_at'] = $website->ploi_alias_added_at ?: now();
-            } elseif (!$hasAlias && $ploi->aliasListFetchOk && $website->ploi_alias_status === 'added') {
-                // Only downgrade added→pending when Ploi actually answered the
-                // alias-list call. A transient API failure returns an empty
-                // list too, and treating that as "alias deleted" flips a
-                // perfectly good alias back to Pending.
-                $needsUpdate['ploi_alias_status'] = 'pending';
-                $needsUpdate['ploi_alias_added_at'] = null;
-            }
-            if ($hasCert && $website->ploi_ssl_status !== 'issued') {
-                $needsUpdate['ploi_ssl_status'] = 'issued';
-                $needsUpdate['ploi_ssl_issued_at'] = $website->ploi_ssl_issued_at ?: now();
-                $needsUpdate['ploi_last_error'] = null;
-            }
-            if (!empty($needsUpdate)) {
-                $website->update($needsUpdate);
-            }
-        }
+        $cnameTarget = $cloudflare->cnameTarget();
 
         $liveStatus = [
-            'db'   => ['ok' => true, 'message' => 'Website is in the database.'],
-            'ploi' => $domain
-                ? ($hasAlias
-                    ? ['ok' => true, 'message' => "Alias \"{$domain}\" is present on the Ploi site."]
-                    : ($aliasListVerified
-                        ? ['ok' => false, 'message' => "Alias \"{$domain}\" is NOT on the Ploi site yet. Click Retry below."]
-                        : ($website->ploi_alias_status === 'added'
-                            ? ['ok' => true, 'message' => "Alias \"{$domain}\" is marked as added. (Couldn't verify with Ploi right now — the live alias list was unavailable.)"]
-                            : ['ok' => null, 'message' => "Couldn't verify the alias list with Ploi right now. Refresh in a moment — this is NOT a confirmation that the alias is missing."])))
-                : ['ok' => null, 'message' => 'No custom domain set — nothing to add to Ploi.'],
-            'ssl'  => $domain
-                ? ($hasCert
-                    ? ['ok' => true, 'message' => "Let's Encrypt certificate is issued and covers \"{$domain}\"."]
-                    : ['ok' => false, 'message' => "No SSL certificate yet covers \"{$domain}\". Click Retry below (alias must be added first)."])
-                : ['ok' => null, 'message' => 'No custom domain set — nothing to issue.'],
+            'db' => ['ok' => true, 'message' => 'Website is in the database.'],
+            'cloudflare' => !$domain
+                ? ['ok' => null, 'message' => 'No custom domain set — nothing to register on Cloudflare.']
+                : (!$check['configured']
+                    ? ['ok' => false, 'message' => 'Cloudflare is not configured (CLOUDFLARE_API_TOKEN / CLOUDFLARE_ZONE_ID).']
+                    : ($check['hostname_exists'] === true
+                        ? ['ok' => true, 'message' => "Custom hostname \"{$domain}\" is registered on Cloudflare (status: {$check['status']})."]
+                        : ($check['hostname_exists'] === false
+                            ? ['ok' => false, 'message' => "Custom hostname \"{$domain}\" is NOT registered on Cloudflare. Click Retry below."]
+                            : ['ok' => null, 'message' => "Couldn't reach Cloudflare right now — this is NOT a confirmation that the hostname is missing. Refresh in a moment."]))),
+            'ssl' => !$domain
+                ? ['ok' => null, 'message' => 'No custom domain set — nothing to activate.']
+                : ($check['ssl_active'] === true
+                    ? ['ok' => true, 'message' => "SSL is ACTIVE — https://{$domain} is live via Cloudflare."]
+                    : ($check['hostname_exists'] === true
+                        ? ['ok' => null, 'message' => "SSL status: " . ($check['ssl_status'] ?: 'pending') . ". Waiting for the CNAME record ({$domain} -> {$cnameTarget}); activation is automatic once it exists."]
+                        : ['ok' => null, 'message' => 'SSL activates automatically after the hostname is registered and the CNAME exists.'])),
         ];
 
         // Persistent provisioning state from the DB — survives reloads and
-        // reflects what the queued SSL job has done in the background.
+        // reflects what the polling job/scheduler has done in the background.
         $persisted = [
-            'alias_status' => $website->ploi_alias_status,
-            'alias_added_at' => $website->ploi_alias_added_at ? $website->ploi_alias_added_at->toDateTimeString() : null,
-            'ssl_status' => $website->ploi_ssl_status,
-            'ssl_issued_at' => $website->ploi_ssl_issued_at ? $website->ploi_ssl_issued_at->toDateTimeString() : null,
-            'last_error' => $website->ploi_last_error,
+            'hostname_id' => $website->cloudflare_hostname_id,
+            'status' => $website->cloudflare_status,
+            'ssl_status' => $website->cloudflare_ssl_status,
+            'active_at' => $website->cloudflare_active_at ? $website->cloudflare_active_at->toDateTimeString() : null,
+            'last_error' => $website->cloudflare_last_error,
         ];
-
-        // Fresh DNS lookup so the user sees what the server currently resolves
-        // the domain to. This is the same view Ploi's resolver will get (give
-        // or take cache TTL), so it tells the user whether a Retry SSL is
-        // likely to succeed without having to guess.
-        $dnsCheck = $this->lookupDomainIps($domain);
-        if ($dnsCheck) {
-            // Flag Cloudflare's orange-cloud proxy specifically: Let's Encrypt
-            // can never validate through it, and the fix (gray-cloud the
-            // record) is different from a plain wrong-IP A record.
-            $dnsCheck['cloudflare'] = !empty(array_filter(
-                $dnsCheck['ips'] ?? [],
-                [PloiService::class, 'isCloudflareIp']
-            ));
-            $dnsCheck['server_ip'] = $ploiConfigured ? $ploi->getServerIp() : null;
-        }
 
         return Inertia::render('Admin/Websites/Created', [
             'title' => 'Website Created',
@@ -626,196 +555,26 @@ class WebsiteManagementController extends Controller
             // The most recent action (if any) plus the live current state.
             'report' => $report ?: $liveStatus,
             'liveStatus' => $liveStatus,
-            'liveAliases' => $aliases,
-            'liveAliasesVerified' => $aliasListVerified,
-            'liveCertificates' => $certificates,
             'persisted' => $persisted,
-            'dnsCheck' => $dnsCheck,
-            'ploi' => [
-                'configured' => $ploiConfigured,
-                'auto_provision' => (bool) config('services.ploi.auto_provision'),
-                'server_id' => config('services.ploi.server_id'),
-                'site_id' => config('services.ploi.site_id'),
+            'cloudflare' => [
+                'configured' => $check['configured'],
+                'cnameTarget' => $cnameTarget,
             ],
         ]);
     }
 
     /**
-     * Fresh A/AAAA lookup for a domain. Returns:
-     *   [ 'domain' => '...', 'ips' => ['157.180.26.95'], 'error' => null,
-     *     'checked_at' => '2026-05-18 ...' ]
-     * Returns null when there's no domain to check.
+     * Re-register the custom hostname on Cloudflare (idempotent) and re-queue
+     * the SSL status polling. One button replaces the old alias/SSL retries —
+     * Cloudflare handles validation and certificates itself.
      */
-    protected function lookupDomainIps(?string $domain): ?array
-    {
-        if (empty($domain)) {
-            return null;
-        }
-
-        try {
-            $records = @dns_get_record($domain, DNS_A + DNS_AAAA);
-            $ips = [];
-            foreach ((array) $records as $r) {
-                if (!empty($r['ip']))   { $ips[] = $r['ip']; }
-                if (!empty($r['ipv6'])) { $ips[] = $r['ipv6']; }
-            }
-            return [
-                'domain' => $domain,
-                'ips' => array_values(array_unique($ips)),
-                'error' => empty($ips) ? 'No A/AAAA record found for this domain.' : null,
-                'checked_at' => now()->toDateTimeString(),
-            ];
-        } catch (\Throwable $e) {
-            return [
-                'domain' => $domain,
-                'ips' => [],
-                'error' => 'DNS lookup failed: ' . $e->getMessage(),
-                'checked_at' => now()->toDateTimeString(),
-            ];
-        }
-    }
-
-    /**
-     * Retry the Ploi alias add (and optional SSL request) for an existing website.
-     */
-    public function retryPloi(Website $website, PloiService $ploi): RedirectResponse
+    public function retryHostname(Website $website, CloudflareService $cloudflare): RedirectResponse
     {
         if (empty($website->domain)) {
             return back()->withErrors(['domain' => 'This website has no custom domain.']);
         }
 
-        $this->runProvisioning($website, $ploi);
-
-        return redirect()->route('admin.websites.created', $website);
-    }
-
-    /**
-     * Retry ONLY the Ploi alias add (does not dispatch the SSL job).
-     */
-    public function retryAlias(Website $website, PloiService $ploi): RedirectResponse
-    {
-        if (empty($website->domain)) {
-            return back()->withErrors(['domain' => 'This website has no custom domain.']);
-        }
-        if (!$ploi->isConfigured()) {
-            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
-        }
-
-        [$ok, $msg] = $ploi->addAlias($website->domain);
-
-        if ($ok) {
-            $website->update([
-                'ploi_alias_status' => 'added',
-                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
-                'ploi_last_error' => null,
-            ]);
-        } else {
-            $website->update([
-                'ploi_alias_status' => 'failed',
-                'ploi_last_error' => $msg,
-            ]);
-        }
-
-        // Reflect current SSL state in the report so it doesn't render as a
-        // misleading "Skipped" — query Ploi and report what's actually issued.
-        $hasCert = false;
-        foreach ($ploi->listCertificates() as $c) {
-            foreach (($c['domains'] ?? []) as $d) {
-                if (strcasecmp($d, $website->domain) === 0) { $hasCert = true; break 2; }
-            }
-        }
-
-        session()->flash('website_created_report', [
-            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => ['ok' => $ok, 'message' => $msg],
-            'ssl'  => $hasCert
-                ? ['ok' => true, 'message' => "Let's Encrypt certificate already covers \"{$website->domain}\"."]
-                : ['ok' => false, 'message' => 'SSL not requested in this retry. Click "Retry SSL certificate" to issue it.'],
-        ]);
-
-        return redirect()->route('admin.websites.created', $website);
-    }
-
-    /**
-     * Retry ONLY the SSL request.
-     *
-     * Runs synchronously so the user gets immediate feedback. We used to
-     * dispatch a queued job here, but on production the queue worker isn't
-     * always running, so the status would sit at "queued" forever and the
-     * user thought the button was broken. The synchronous call is fast — Ploi
-     * either accepts the request and returns 200 (or 422 "already exists"),
-     * or rejects it with a DNS-mismatch 422 that we surface immediately.
-     */
-    public function retrySsl(Website $website, PloiService $ploi): RedirectResponse
-    {
-        if (empty($website->domain)) {
-            return back()->withErrors(['domain' => 'This website has no custom domain.']);
-        }
-        if (!$ploi->isConfigured()) {
-            return back()->withErrors(['ploi' => 'Ploi is not configured in .env.']);
-        }
-
-        $website->update(['ploi_ssl_status' => 'queued']);
-
-        [$ok, $message] = $ploi->requestSsl($website->domain);
-
-        if ($ok) {
-            $website->update([
-                'ploi_ssl_status' => 'issued',
-                'ploi_ssl_issued_at' => now(),
-                'ploi_last_error' => null,
-            ]);
-            $sslReport = ['ok' => true, 'message' => $message];
-        } elseif (PloiService::isDnsMismatchMessage($message)) {
-            // DNS not pointing yet: park in waiting_dns — the ploi:watch-dns
-            // scheduler requests the certificate automatically once the A
-            // record points at the server. No manual retry needed.
-            $website->update([
-                'ploi_ssl_status' => 'waiting_dns',
-                'ploi_last_error' => $message . ' SSL will be requested automatically once DNS points to the server (checked every 5 minutes).',
-            ]);
-            $sslReport = ['ok' => false, 'message' => $message . ' Waiting for DNS — will retry automatically.'];
-        } else {
-            $website->update([
-                'ploi_ssl_status' => 'failed',
-                'ploi_last_error' => $message,
-            ]);
-            $sslReport = ['ok' => false, 'message' => $message];
-        }
-
-        // Re-query Ploi for the alias state AFTER the SSL request. Ploi
-        // auto-creates aliases for every SAN subject in a successful cert
-        // issuance, so the alias is almost always present post-SSL even if
-        // it wasn't before. aliasExists() is tri-state: true/false when Ploi
-        // answered (all pages, canonical comparison), NULL when the alias
-        // list couldn't be fetched — which must never be reported as "NOT
-        // on Ploi".
-        $aliasOnPloiAfter = $ploi->aliasExists($website->domain);
-        if ($aliasOnPloiAfter === true && $website->ploi_alias_status !== 'added') {
-            $website->update([
-                'ploi_alias_status' => 'added',
-                'ploi_alias_added_at' => $website->ploi_alias_added_at ?: now(),
-            ]);
-        }
-
-        if ($aliasOnPloiAfter === true) {
-            $ploiReport = ['ok' => true, 'message' => "Alias \"{$website->domain}\" is on Ploi."];
-        } elseif ($aliasOnPloiAfter === null) {
-            // Couldn't verify. If the SSL request just succeeded, Ploi creates
-            // the alias as part of issuance; likewise trust a persisted
-            // "added". Otherwise stay neutral — never claim it's missing.
-            $ploiReport = ($ok || $website->ploi_alias_status === 'added')
-                ? ['ok' => true, 'message' => "Alias \"{$website->domain}\" is marked as added. (Couldn't verify with Ploi right now — the live alias list was unavailable.)"]
-                : ['ok' => null, 'message' => "Couldn't verify the alias list with Ploi right now — this is NOT a confirmation that the alias is missing."];
-        } else {
-            $ploiReport = ['ok' => false, 'message' => "Alias \"{$website->domain}\" is NOT on Ploi yet — click \"Retry domain alias\" first."];
-        }
-
-        session()->flash('website_created_report', [
-            'db'   => ['ok' => true, 'message' => 'Website already in the database.'],
-            'ploi' => $ploiReport,
-            'ssl'  => $sslReport,
-        ]);
+        $this->provisionCustomHostname($website, $cloudflare);
 
         return redirect()->route('admin.websites.created', $website);
     }
@@ -836,16 +595,17 @@ class WebsiteManagementController extends Controller
             'title' => "Edit Website: {$website->name}",
             'website' => $website,
             'buildings' => $buildings,
-            // Shown in the Domain & Hosting section and the connect-domain
-            // dialog so admins know exactly which IP the A record needs.
-            'serverIp' => app(PloiService::class)->getServerIp(),
+            // Shown in the Domain & Hosting section so admins know exactly
+            // which hostname the customer's CNAME must point at.
+            'cnameTarget' => app(CloudflareService::class)->cnameTarget(),
+            'cloudflareEnabled' => app(CloudflareService::class)->isConfigured(),
         ]);
     }
 
     /**
      * Update website
      */
-    public function update(Request $request, Website $website, PloiService $ploi)
+    public function update(Request $request, Website $website, CloudflareService $cloudflare)
     {
         // Parse JSON strings for nested objects if they come from FormData
         $data = $request->all();
@@ -1101,43 +861,66 @@ class WebsiteManagementController extends Controller
         }
 
         // Domain lifecycle: when the custom domain changes (or is removed),
-        // detach the OLD domain from Ploi — its alias rows leave nginx's
-        // server_name and any certificate dedicated to it is deleted (shared
-        // SAN certs are left alone). Without this, replaced domains would
-        // keep being served forever. The reserved admin host is refused by
-        // removeDomainFromPloi() itself.
+        // delete the OLD custom hostname on Cloudflare and register the new
+        // one. Safe by design: every custom hostname has its own edge
+        // certificate, so removing one can never affect the admin domain or
+        // any other tenant.
         $oldDomain = $website->domain;
         $newDomain = $validated['domain'] ?? null;
-        $ploiMessages = [];
+        $cfMessages = [];
 
-        if ($oldDomain && $oldDomain !== $newDomain && $ploi->isConfigured()) {
-            $ploiMessages = $ploi->removeDomainFromPloi($oldDomain);
-            Log::info('Website update: detached old domain from Ploi', [
+        if ($oldDomain && $oldDomain !== $newDomain && $cloudflare->isConfigured()) {
+            if ($website->cloudflare_hostname_id) {
+                [, $msg] = $cloudflare->deleteCustomHostname($website->cloudflare_hostname_id);
+                $cfMessages[] = $msg;
+            }
+            Log::info('Website update: removed old custom hostname from Cloudflare', [
                 'website_id' => $website->id,
                 'old_domain' => $oldDomain,
                 'new_domain' => $newDomain,
-                'messages' => $ploiMessages,
+                'messages' => $cfMessages,
             ]);
         }
 
-        // Reset provisioning state when the domain changed so the status page
-        // reflects reality: a new domain needs "Connect domain to Ploi" again;
-        // no domain means nothing to provision.
+        // Reset provisioning state when the domain changed.
         if ($oldDomain !== $newDomain) {
-            $validated['ploi_alias_status'] = $newDomain ? 'pending' : 'not_required';
-            $validated['ploi_ssl_status'] = $newDomain ? 'pending' : 'not_required';
-            $validated['ploi_last_error'] = null;
+            $validated['cloudflare_hostname_id'] = null;
+            $validated['cloudflare_status'] = null;
+            $validated['cloudflare_ssl_status'] = null;
+            $validated['cloudflare_last_error'] = null;
+            $validated['cloudflare_active_at'] = null;
         }
 
         // Update the website
         $website->update($validated);
 
+        // Register the NEW domain right away — the customer only has to
+        // create their CNAME; activation is then fully automatic.
+        if ($newDomain && $oldDomain !== $newDomain && $cloudflare->isConfigured()) {
+            [$ok, $msg, $hostname] = $cloudflare->createCustomHostname($newDomain);
+            $cfMessages[] = $msg;
+            $website->update($ok
+                ? [
+                    'cloudflare_hostname_id' => $hostname['id'] ?? null,
+                    'cloudflare_status' => 'pending_dns',
+                    'cloudflare_ssl_status' => $hostname['ssl_status'] ?? null,
+                ]
+                : [
+                    'cloudflare_status' => 'failed',
+                    'cloudflare_last_error' => $msg,
+                ]);
+            if ($ok) {
+                \App\Jobs\SyncCustomHostnameStatusJob::dispatch($website->id)
+                    ->delay(now()->addSeconds(30));
+            }
+        }
+
         $success = 'Website updated successfully!';
-        if (!empty($ploiMessages)) {
-            $success .= ' Old domain cleanup — ' . implode(' | ', $ploiMessages);
+        if (!empty($cfMessages)) {
+            $success .= ' Cloudflare: ' . implode(' | ', $cfMessages);
         }
         if ($oldDomain !== $newDomain && $newDomain) {
-            $success .= " Use \"Connect domain to Ploi\" to provision {$newDomain}.";
+            $success .= ' Point a CNAME record at ' . $cloudflare->cnameTarget() . ' to go live.';
         }
 
         // Return Inertia redirect to edit page to stay on same page
@@ -1146,26 +929,24 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Delete website. Fully detaches its custom domain from the Ploi site:
-     * every alias row for the apex and www variant is removed from nginx's
-     * server_name, and certificates DEDICATED to this domain are deleted.
-     * Shared SAN certificates are left alone — deleting one would take
-     * unrelated domains offline.
+     * Delete website. Removes its Cloudflare custom hostname too — safe by
+     * design, since every custom hostname carries its own edge certificate.
      */
-    public function destroy(Website $website, PloiService $ploi): RedirectResponse
+    public function destroy(Website $website, CloudflareService $cloudflare): RedirectResponse
     {
         if ($website->is_default) {
             return redirect()->back()
                 ->withErrors(['error' => 'Cannot delete the default website.']);
         }
 
-        $ploiMessages = [];
-        if (!empty($website->domain) && $ploi->isConfigured()) {
-            $ploiMessages = $ploi->removeDomainFromPloi($website->domain);
-            Log::info('Website delete: detached domain from Ploi', [
+        $cfMessages = [];
+        if (!empty($website->cloudflare_hostname_id) && $cloudflare->isConfigured()) {
+            [, $msg] = $cloudflare->deleteCustomHostname($website->cloudflare_hostname_id);
+            $cfMessages[] = $msg;
+            Log::info('Website delete: removed custom hostname from Cloudflare', [
                 'website_id' => $website->id,
                 'domain' => $website->domain,
-                'messages' => $ploiMessages,
+                'messages' => $cfMessages,
             ]);
         }
 
@@ -1173,8 +954,8 @@ class WebsiteManagementController extends Controller
         $website->delete();
 
         $success = "Website \"{$name}\" deleted.";
-        if (!empty($ploiMessages)) {
-            $success .= ' Ploi: ' . implode(' | ', $ploiMessages);
+        if (!empty($cfMessages)) {
+            $success .= ' Cloudflare: ' . implode(' | ', $cfMessages);
         }
 
         return redirect()->route('admin.websites.index')

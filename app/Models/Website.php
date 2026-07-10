@@ -49,11 +49,11 @@ class Website extends Model
         'description',
         'business_hours',
         'timezone',
-        'ploi_alias_status',
-        'ploi_alias_added_at',
-        'ploi_ssl_status',
-        'ploi_ssl_issued_at',
-        'ploi_last_error',
+        'cloudflare_hostname_id',
+        'cloudflare_status',
+        'cloudflare_ssl_status',
+        'cloudflare_last_error',
+        'cloudflare_active_at',
         'tracking_scripts',
     ];
 
@@ -66,8 +66,7 @@ class Website extends Model
         'contact_info' => 'array',
         'social_media' => 'array',
         'business_hours' => 'array',
-        'ploi_alias_added_at' => 'datetime',
-        'ploi_ssl_issued_at' => 'datetime',
+        'cloudflare_active_at' => 'datetime',
     ];
 
     /**

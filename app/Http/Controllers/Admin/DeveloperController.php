@@ -43,7 +43,7 @@ class DeveloperController extends Controller
             $validated['logo'] = $request->file('logo')->store('developers', 'public');
         }
 
-        Developer::create($this->normalizeContentFields($validated));
+        Developer::create($validated);
 
         return redirect()->route('admin.developers.index')
             ->with('success', 'Developer created successfully.');
@@ -83,14 +83,17 @@ class DeveloperController extends Controller
             $validated['logo'] = $request->file('logo')->store('developers', 'public');
         }
 
-        $developer->update($this->normalizeContentFields($validated));
+        $developer->update($validated);
 
         return redirect()->route('admin.developers.index')
             ->with('success', 'Developer updated successfully.');
     }
 
     /**
-     * Shared validation rules for store/update.
+     * Shared validation rules for store/update. SEO meta, project counts and
+     * highlights/awards were removed from the modal — meta tags are
+     * auto-generated on the public page, and existing DB values are left
+     * untouched because they are simply never submitted.
      */
     private function rules(): array
     {
@@ -103,63 +106,38 @@ class DeveloperController extends Controller
             'website' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:65000',
             'established_year' => 'nullable|integer|min:1800|max:' . date('Y'),
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:500',
-            'projects_completed' => 'nullable|integer|min:0',
-            'projects_under_construction' => 'nullable|integer|min:0',
-            'upcoming_projects' => 'nullable|integer|min:0',
-            // Sent as JSON strings from the FormData form; normalized below
-            'highlights' => 'nullable',
-            'awards' => 'nullable',
         ];
     }
 
     /**
-     * highlights/awards arrive as JSON strings via FormData — decode and keep
-     * only well-formed {title, text} rows with at least some text.
-     */
-    private function normalizeContentFields(array $validated): array
-    {
-        foreach (['highlights', 'awards'] as $field) {
-            if (!array_key_exists($field, $validated)) {
-                continue;
-            }
-            $value = $validated[$field];
-            if (is_string($value)) {
-                $value = json_decode($value, true);
-            }
-            if (!is_array($value)) {
-                $validated[$field] = null;
-                continue;
-            }
-            $validated[$field] = array_values(array_filter(array_map(function ($row) {
-                if (!is_array($row)) {
-                    return null;
-                }
-                $title = trim((string) ($row['title'] ?? ''));
-                $text = trim((string) ($row['text'] ?? ''));
-                return ($title !== '' || $text !== '') ? ['title' => $title, 'text' => $text] : null;
-            }, $value))) ?: null;
-        }
-
-        return $validated;
-    }
-
-    /**
      * Quick-create a developer from inside another form (e.g. the Building
-     * create/edit page). Returns JSON so the caller can append the new
-     * option to its dropdown without a page reload.
+     * create/edit page). Accepts the same profile fields as the Developers
+     * tab modal — including the logo upload — and returns JSON so the caller
+     * can append the new option to its dropdown without a page reload.
      */
     public function quickStore(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'nullable|in:builder,developer,builder_developer',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
+            'logo' => 'nullable|image|max:2048',
+            'website' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:65000',
+            'established_year' => 'nullable|integer|min:1800|max:' . date('Y'),
         ]);
 
+        if ($request->hasFile('logo')) {
+            $validated['logo'] = $request->file('logo')->store('developers', 'public');
+        }
+
+        $validated['name'] = trim($validated['name']);
+        $validated['type'] = $validated['type'] ?? 'developer';
+
         $developer = Developer::firstOrCreate(
-            ['name' => trim($validated['name'])],
-            ['type' => $validated['type'] ?? 'developer']
+            ['name' => $validated['name']],
+            $validated
         );
 
         return response()->json([

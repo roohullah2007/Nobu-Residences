@@ -410,6 +410,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::get('/import', [\App\Http\Controllers\Admin\BuildingImportController::class, 'show'])->name('import');
         Route::post('/import/upload', [\App\Http\Controllers\Admin\BuildingImportController::class, 'upload'])->name('import.upload');
         Route::post('/import/run', [\App\Http\Controllers\Admin\BuildingImportController::class, 'run'])->name('import.run');
+        Route::get('/import/progress/{token}', [\App\Http\Controllers\Admin\BuildingImportController::class, 'progress'])->name('import.progress');
         Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
         Route::get('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
         Route::get('/{buildingSlug}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
@@ -472,9 +473,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/ai-generate-seo', [WebsiteManagementController::class, 'aiGenerateSeo'])->name('ai-generate-seo');
         Route::post('/', [WebsiteManagementController::class, 'store'])->name('store');
         Route::get('/{website}/created', [WebsiteManagementController::class, 'created'])->name('created');
-        Route::post('/{website}/retry-ploi', [WebsiteManagementController::class, 'retryPloi'])->name('retry-ploi');
-        Route::post('/{website}/retry-alias', [WebsiteManagementController::class, 'retryAlias'])->name('retry-alias');
-        Route::post('/{website}/retry-ssl', [WebsiteManagementController::class, 'retrySsl'])->name('retry-ssl');
+        Route::post('/{website}/retry-hostname', [WebsiteManagementController::class, 'retryHostname'])->name('retry-hostname');
         Route::get('/{website}', [WebsiteManagementController::class, 'show'])->name('show');
         Route::get('/{website}/edit', [WebsiteManagementController::class, 'edit'])->name('edit');
         Route::put('/{website}', [WebsiteManagementController::class, 'update'])->name('update');

@@ -100,34 +100,58 @@ class BuildingCsvImportService
     }
 
     /**
-     * Run the import.
+     * Validate the column mapping before anything is queued.
      *
-     * @param string $path Absolute path to the uploaded CSV.
      * @param array<int|string, string> $mapping CSV column index => building field key.
-     * @param string $duplicateAction self::DUPLICATE_SKIP | self::DUPLICATE_UPDATE
-     * @return array{created: int, updated: int, skipped: int, errors: array<int, string>}
+     * @return array<int|string, string> The mapping filtered to known fields.
      */
-    public function import(string $path, array $mapping, string $duplicateAction = self::DUPLICATE_SKIP): array
+    public function validateMapping(array $mapping): array
     {
         $mapping = array_filter($mapping, fn ($field) => isset(self::IMPORTABLE_FIELDS[$field]));
         if (!in_array('name', $mapping, true)) {
             throw new \RuntimeException('Map a CSV column to "Building Name" before importing.');
         }
+        return $mapping;
+    }
+
+    /**
+     * Import one chunk of the CSV so a queued job can work through a large
+     * file gradually instead of processing everything in a single request.
+     *
+     * @param string $path Absolute path to the uploaded CSV.
+     * @param array<int|string, string> $mapping CSV column index => building field key.
+     * @param string $duplicateAction self::DUPLICATE_SKIP | self::DUPLICATE_UPDATE
+     * @param int $offset Number of non-blank data rows already processed.
+     * @param int $limit Maximum number of rows to process in this call.
+     * @return array{processed: int, created: int, updated: int, skipped: int, errors: array<int, string>, done: bool}
+     */
+    public function importChunk(string $path, array $mapping, string $duplicateAction, int $offset, int $limit): array
+    {
+        $mapping = $this->validateMapping($mapping);
 
         $handle = $this->openCsv($path);
         $delimiter = $this->detectDelimiter($path);
         fgetcsv($handle, 0, $delimiter, '"', '\\'); // skip header row
 
+        $processed = 0;
         $created = 0;
         $updated = 0;
         $skipped = 0;
         $errors = [];
-        $line = 1;
+        $dataRow = 0;
+        $done = true;
 
         while (($row = fgetcsv($handle, 0, $delimiter, '"', '\\')) !== false) {
-            $line++;
             if ($this->isBlankRow($row)) {
                 continue;
+            }
+            $dataRow++;
+            if ($dataRow <= $offset) {
+                continue;
+            }
+            if ($processed >= $limit) {
+                $done = false;
+                break;
             }
 
             try {
@@ -138,23 +162,19 @@ class BuildingCsvImportService
                     default => $skipped++,
                 };
             } catch (\Throwable $e) {
-                $errors[$line] = $e->getMessage();
+                $errors[$dataRow] = $e->getMessage();
             }
+            $processed++;
         }
         fclose($handle);
 
-        Log::info('Building CSV import finished', [
-            'created' => $created,
-            'updated' => $updated,
-            'skipped' => $skipped,
-            'error_count' => count($errors),
-        ]);
-
         return [
+            'processed' => $processed,
             'created' => $created,
             'updated' => $updated,
             'skipped' => $skipped,
             'errors' => $errors,
+            'done' => $done,
         ];
     }
 

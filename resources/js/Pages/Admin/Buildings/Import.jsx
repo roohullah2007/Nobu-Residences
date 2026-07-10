@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+
+const PROGRESS_POLL_MS = 2500;
 
 const getCsrfToken = () =>
     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -70,7 +72,7 @@ const downloadSampleCsv = () => {
 };
 
 export default function BuildingsImport({ importableFields = {} }) {
-    // step: 'upload' → 'map' → 'done'
+    // step: 'upload' → 'map' → 'importing' → 'done'
     const [step, setStep] = useState('upload');
     const [isBusy, setIsBusy] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
@@ -78,6 +80,8 @@ export default function BuildingsImport({ importableFields = {} }) {
     const [mapping, setMapping] = useState({}); // column index -> field key
     const [duplicateAction, setDuplicateAction] = useState('skip');
     const [result, setResult] = useState(null);
+    const [progress, setProgress] = useState(null); // { status, total, processed, created, updated, skipped, errors }
+    const pollTimerRef = useRef(null);
 
     const postJson = async (url, options) => {
         const response = await fetch(url, {
@@ -155,8 +159,16 @@ export default function BuildingsImport({ importableFields = {} }) {
                     duplicate_action: duplicateAction,
                 }),
             });
-            setResult(json);
-            setStep('done');
+            setProgress({
+                status: 'queued',
+                total: json.total ?? upload.total_rows,
+                processed: 0,
+                created: 0,
+                updated: 0,
+                skipped: 0,
+                errors: {},
+            });
+            setStep('importing');
         } catch (err) {
             setErrorMessage(err.message);
         } finally {
@@ -164,11 +176,50 @@ export default function BuildingsImport({ importableFields = {} }) {
         }
     };
 
+    // Poll the queued import until it finishes or fails. The backend
+    // processes the CSV in background chunks, so this page can even be
+    // closed and revisited — the import keeps running on the server.
+    useEffect(() => {
+        if (step !== 'importing' || !upload?.token) return undefined;
+
+        const poll = async () => {
+            try {
+                const response = await fetch(route('admin.buildings.import.progress', upload.token), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const json = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(json?.message ?? `Server returned ${response.status}`);
+                }
+                setProgress(json);
+                if (json.status === 'finished') {
+                    setResult(json);
+                    setStep('done');
+                    return;
+                }
+                if (json.status === 'failed') {
+                    setErrorMessage(json.message ?? 'Import failed.');
+                    setStep('map');
+                    return;
+                }
+                pollTimerRef.current = setTimeout(poll, PROGRESS_POLL_MS);
+            } catch (err) {
+                setErrorMessage(err.message);
+                setStep('map');
+            }
+        };
+
+        pollTimerRef.current = setTimeout(poll, PROGRESS_POLL_MS);
+        return () => clearTimeout(pollTimerRef.current);
+    }, [step, upload?.token]);
+
     const resetWizard = () => {
+        clearTimeout(pollTimerRef.current);
         setStep('upload');
         setUpload(null);
         setMapping({});
         setResult(null);
+        setProgress(null);
         setErrorMessage('');
     };
 
@@ -181,7 +232,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                     <div>
                         <h1 className="text-base font-semibold leading-6 text-gray-900">Import Buildings from CSV</h1>
                         <p className="mt-2 text-sm text-gray-700">
-                            Upload a CSV, map its columns to building fields, and import in one pass.
+                            Upload a CSV, map its columns to building fields, and the rows import gradually in the background.
                             Developers, neighbourhoods, and sub-neighbourhoods are matched by name and created automatically.
                         </p>
                     </div>
@@ -198,7 +249,8 @@ export default function BuildingsImport({ importableFields = {} }) {
                     {[
                         { key: 'upload', label: '1. Upload CSV' },
                         { key: 'map', label: '2. Map Fields' },
-                        { key: 'done', label: '3. Results' },
+                        { key: 'importing', label: '3. Importing' },
+                        { key: 'done', label: '4. Results' },
                     ].map(({ key, label }, index) => (
                         <div key={key} className="flex items-center gap-4">
                             {index > 0 && <span className="text-gray-300">/</span>}
@@ -327,9 +379,53 @@ export default function BuildingsImport({ importableFields = {} }) {
                                     disabled={isBusy || !hasNameMapped}
                                     className="inline-flex items-center px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                 >
-                                    {isBusy ? 'Importing...' : `Import ${upload.total_rows} Rows`}
+                                    {isBusy ? 'Queueing...' : `Import ${upload.total_rows} Rows`}
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'importing' && progress && (
+                    <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6 space-y-5">
+                        <div className="flex items-center gap-3">
+                            <svg className="h-5 w-5 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Importing in the background</h2>
+                                <p className="text-xs text-gray-500">
+                                    Buildings are processed gradually in batches. You can leave this page — the import keeps running on the server.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                <span>{progress.processed} of {progress.total} rows</span>
+                                <span>{progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                                    style={{ width: `${progress.total > 0 ? Math.min(100, (progress.processed / progress.total) * 100) : 0}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {[
+                                { label: 'Created', value: progress.created, classes: 'bg-green-50 text-green-700' },
+                                { label: 'Updated', value: progress.updated, classes: 'bg-blue-50 text-blue-700' },
+                                { label: 'Skipped', value: progress.skipped, classes: 'bg-gray-50 text-gray-700' },
+                                { label: 'Errors', value: Object.keys(progress.errors ?? {}).length, classes: 'bg-red-50 text-red-700' },
+                            ].map(({ label, value, classes }) => (
+                                <div key={label} className={`rounded-lg p-4 text-center ${classes}`}>
+                                    <p className="text-2xl font-semibold">{value}</p>
+                                    <p className="text-sm">{label}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -354,8 +450,8 @@ export default function BuildingsImport({ importableFields = {} }) {
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Row errors</h3>
                                 <ul className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-4 space-y-1 max-h-64 overflow-y-auto">
-                                    {Object.entries(result.errors).map(([line, message]) => (
-                                        <li key={line}>Line {line}: {message}</li>
+                                    {Object.entries(result.errors).map(([row, message]) => (
+                                        <li key={row}>Row {row}: {message}</li>
                                     ))}
                                 </ul>
                             </div>

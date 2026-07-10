@@ -6,11 +6,15 @@ return [
     |--------------------------------------------------------------------------
     | Admin host
     |--------------------------------------------------------------------------
-    | The one hostname that is ALWAYS served as the main/admin website and is
-    | never resolved against tenant domains. Requests on this host resolve to
+    | The hostname(s) that are ALWAYS served as the main/admin website and are
+    | never resolved against tenant domains. Requests on these hosts resolve to
     | the default website regardless of what any tenant row contains, so a
     | tenant can never capture the admin domain. Comparison is case-insensitive
     | and ignores a leading "www.".
+    |
+    | Accepts a comma-separated list for domain moves, e.g.
+    |   ADMIN_HOST=building.wpbun.xyz,nobu.wpbun.xyz
+    | keeps the panel reachable on both the new and old domain.
     */
     'admin_host' => env('ADMIN_HOST', 'nobu.wpbun.xyz'),
 
@@ -19,8 +23,8 @@ return [
     | Unknown host behavior
     |--------------------------------------------------------------------------
     | What to do when a request arrives on a host that matches neither the
-    | admin host nor any active tenant domain (e.g. a Ploi alias that has no
-    | Website row yet, or a stranger pointing DNS at this server).
+    | admin host nor any active tenant domain (e.g. a Cloudflare custom
+    | hostname with no Website row, or a stranger pointing DNS at this server).
     |
     |   '404'     -> abort(404). Correct for production: prevents the default
     |                site being served (and indexed) under arbitrary domains.

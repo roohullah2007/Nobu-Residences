@@ -9,6 +9,7 @@ import InputError from '@/Components/InputError';
 import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import QuickCreateSelect from '@/Components/Admin/QuickCreateSelect';
 import QuickCreateInline from '@/Components/Admin/QuickCreateInline';
+import DeveloperModal from '@/Components/Admin/DeveloperModal';
 import useGooglePlacesAutocomplete from '@/hooks/useGooglePlacesAutocomplete';
 import { csrfHeaders } from '@/utils/csrf';
 
@@ -133,6 +134,16 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [showMaintenanceAmenitySelector, setShowMaintenanceAmenitySelector] = useState(false);
     const [generatingAiDescription, setGeneratingAiDescription] = useState(false);
     const [aiDescriptionError, setAiDescriptionError] = useState('');
+    const [showDeveloperModal, setShowDeveloperModal] = useState(false);
+
+    // Full Add Developer modal (logo upload etc.) instead of the old
+    // name-only inline quick-add. Appends and selects the new developer.
+    const handleDeveloperCreated = (item) => {
+        setDeveloperOptions((prev) =>
+            prev.some((d) => d.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setData('developer_id', String(item.id));
+    };
 
     // Google Places autofill: picking an address suggestion fills postal
     // code, city, province, country and coordinates in one go.
@@ -900,14 +911,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         value={data.developer_id}
                                         onChange={(value) => setData('developer_id', value)}
                                         options={developerOptions}
-                                        createUrl={route('admin.api.developers.store')}
-                                        createPayload={{ type: 'developer' }}
-                                        createTitle="New developer name"
                                         placeholder="Select a developer"
                                         error={errors.developer_id}
-                                        onCreated={(item) => setDeveloperOptions((prev) =>
-                                            prev.some((d) => d.id === item.id) ? prev : [...prev, item].sort((a, b) => a.name.localeCompare(b.name))
-                                        )}
+                                        onRequestCreate={() => setShowDeveloperModal(true)}
                                     />
                                 </div>
 
@@ -968,6 +974,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                         onChange={(e) => setData('maintenance_fee_range', e.target.value)}
                                         placeholder="e.g., $0.65 - $0.85 per sq ft"
                                     />
+                                    <p className="mt-1 text-xs text-gray-500">Leave blank to auto-fill from live MLS listings for this address after saving.</p>
                                     <InputError message={errors.maintenance_fee_range} className="mt-2" />
                                 </div>
 
@@ -1452,6 +1459,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                     if (target) handleDeleteImage(target.imageUrl, target.isMainImage);
                 }}
                 onCancel={() => setPendingImageDelete(null)}
+            />
+
+            <DeveloperModal
+                open={showDeveloperModal}
+                onClose={() => setShowDeveloperModal(false)}
+                onCreated={handleDeveloperCreated}
             />
         </AdminLayout>
     );

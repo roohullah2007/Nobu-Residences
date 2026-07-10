@@ -46,10 +46,10 @@ export default function Index({ auth }) {
     };
 
     const deleteMessage = (website) => {
-        const ploiNote = website.domain
-            ? ` This will also remove the domain alias "${website.domain}" from the Ploi site (the SSL certificate is left alone to avoid breaking other domains).`
+        const domainNote = website.domain
+            ? ` The custom hostname "${website.domain}" will also be removed from Cloudflare (its edge certificate is dedicated, so no other domain is affected).`
             : '';
-        return `"${website.name}" will be permanently deleted. This can't be undone.${ploiNote}`;
+        return `"${website.name}" will be permanently deleted. This can't be undone.${domainNote}`;
     };
 
     // Get preview URL using ?website={slug} query parameter

@@ -17,7 +17,7 @@ class SettingsController extends Controller
      *
      * API keys are NOT managed here — they come from .env only
      * (REPLIERS_API_KEY, GOOGLE_MAPS_API_KEY, GEMINI_API_KEY,
-     * WALKSCORE_API_KEY, RESEND_API_KEY, PLOI_API_TOKEN, ...).
+     * WALKSCORE_API_KEY, RESEND_API_KEY, CLOUDFLARE_API_TOKEN, ...).
      */
     private function schema(): array
     {

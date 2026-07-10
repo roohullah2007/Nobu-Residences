@@ -47,17 +47,15 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-flash-latest'),
     ],
 
-    'ploi' => [
-        'token' => env('PLOI_API_TOKEN'),
-        'server_id' => env('PLOI_SERVER_ID'),
-        'site_id' => env('PLOI_SITE_ID'),
-        // Public IPv4 of the Ploi server. If unset, PloiService::getServerIp()
-        // falls back to GET /servers/{id} on the Ploi API. Setting it here is
-        // cheaper (no API call) and works even if Ploi rate-limits.
-        'server_ip' => env('PLOI_SERVER_IP'),
-        'auto_provision' => env('PLOI_AUTO_PROVISION', true),
-        'request_ssl' => env('PLOI_REQUEST_SSL', true),
-        'base_url' => env('PLOI_BASE_URL', 'https://ploi.io/api'),
+    // Cloudflare for SaaS (Custom Hostnames): customer domains CNAME to
+    // cname_target and Cloudflare terminates SSL — no server-side certbot.
+    'cloudflare' => [
+        'token' => env('CLOUDFLARE_API_TOKEN'),
+        'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        // The hostname customers point their CNAME at (the SaaS zone's
+        // fallback origin entry).
+        'cname_target' => env('CLOUDFLARE_CNAME_TARGET', 'nobu.wpbun.xyz'),
+        'base_url' => env('CLOUDFLARE_BASE_URL', 'https://api.cloudflare.com/client/v4'),
     ],
 
 ];

@@ -48,17 +48,32 @@ class TenantResolver
     }
 
     /**
-     * Is this host the reserved admin/main host (or local dev)?
+     * Is this host a reserved admin/main host (or local dev)?
      */
     public function isAdminHost(string $host): bool
     {
         $host = self::normalizeHost($host);
 
-        if ($host === self::normalizeHost((string) config('tenancy.admin_host'))) {
+        if (in_array($host, self::adminHosts(), true)) {
             return true;
         }
 
         return $this->isLocalHost($host);
+    }
+
+    /**
+     * The reserved admin/main hosts. ADMIN_HOST accepts a comma-separated
+     * list so the panel keeps working on both the old and new domain while
+     * a move (e.g. nobu.wpbun.xyz -> building.wpbun.xyz) is in progress.
+     *
+     * @return string[] Normalized, empty entries removed.
+     */
+    public static function adminHosts(): array
+    {
+        return array_values(array_filter(array_map(
+            fn (string $host) => self::normalizeHost($host),
+            explode(',', (string) config('tenancy.admin_host'))
+        )));
     }
 
     protected function resolveUncached(string $host, string $previewSlug): ?Website

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessBuildingImportChunkJob;
 use App\Services\BuildingCsvImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -72,7 +74,9 @@ class BuildingImportController extends Controller
     }
 
     /**
-     * Step 2: run the import with the admin's column mapping.
+     * Step 2: queue the import with the admin's column mapping. Rows are
+     * processed gradually in background chunks (see
+     * ProcessBuildingImportChunkJob); the wizard polls progress().
      */
     public function run(Request $request): JsonResponse
     {
@@ -89,18 +93,55 @@ class BuildingImportController extends Controller
         }
 
         try {
-            $result = $this->importer->import(
-                Storage::path($path),
-                $validated['mapping'],
-                $validated['duplicate_action']
-            );
+            $this->importer->validateMapping($validated['mapping']);
+            $parsed = $this->importer->parse(Storage::path($path));
         } catch (\Throwable $e) {
+            Storage::delete($path);
             Log::error('Building CSV import failed', ['error' => $e->getMessage()]);
             return response()->json(['message' => $e->getMessage()], 422);
-        } finally {
-            Storage::delete($path);
         }
 
-        return response()->json($result);
+        Cache::put(
+            ProcessBuildingImportChunkJob::progressKey($validated['token']),
+            [
+                'status' => 'queued',
+                'total' => $parsed['total_rows'],
+                'processed' => 0,
+                'created' => 0,
+                'updated' => 0,
+                'skipped' => 0,
+                'errors' => [],
+            ],
+            now()->addHours(ProcessBuildingImportChunkJob::PROGRESS_TTL_HOURS)
+        );
+
+        ProcessBuildingImportChunkJob::dispatch(
+            $validated['token'],
+            $validated['mapping'],
+            $validated['duplicate_action']
+        );
+
+        return response()->json([
+            'queued' => true,
+            'token' => $validated['token'],
+            'total' => $parsed['total_rows'],
+        ]);
+    }
+
+    /**
+     * Progress of a queued import, polled by the wizard.
+     */
+    public function progress(string $token): JsonResponse
+    {
+        if (!preg_match('/^[0-9a-f-]{36}$/i', $token)) {
+            return response()->json(['message' => 'Invalid import token.'], 422);
+        }
+
+        $progress = Cache::get(ProcessBuildingImportChunkJob::progressKey($token));
+        if (!$progress) {
+            return response()->json(['message' => 'Import not found or expired.'], 404);
+        }
+
+        return response()->json($progress);
     }
 }

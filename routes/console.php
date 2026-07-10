@@ -19,6 +19,36 @@ Artisan::command('inspire', function () {
 */
 
 // ============================================================================
+// Queue worker fallback
+// ============================================================================
+//
+// The whole schedule below (and the queued jobs: CSV building imports, price
+// range refreshes, SSL requests) only needs ONE server cron entry:
+//
+//   * * * * * cd /home/ploi/<site> && php artisan schedule:run >> /dev/null 2>&1
+//
+// (On Ploi: server → Scheduler, or it is added automatically for Laravel
+// sites. A dedicated queue worker/daemon is better when available — this
+// fallback drains the database queue once a minute either way, and running
+// both is safe because jobs are reserved atomically.)
+Schedule::command('queue:work --stop-when-empty --max-time=50 --tries=3')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->description('Drain the database queue when no dedicated worker is running');
+
+// ============================================================================
+// Building MLS stats
+// ============================================================================
+
+// Keep price_range / sqft_range / maintenance_fee_range fresh from live MLS
+// listings instead of only refreshing on manual saves.
+Schedule::command('buildings:refresh-mls-stats')
+    ->dailyAt('05:30')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/buildings-mls-stats.log'))
+    ->description('Refresh building price/sqft/maintenance ranges from MLS');
+
+// ============================================================================
 // Saved Search Alerts
 // ============================================================================
 
@@ -39,20 +69,21 @@ Schedule::command('alerts:send-saved-search')
     ->description('Send evening saved search email alerts');
 
 // ============================================================================
-// Ploi domain provisioning
+// Cloudflare custom hostnames
 // ============================================================================
 
-// Auto-provision websites whose SSL is waiting on DNS: as soon as the domain's
-// A record points at this server, the alias is added and the certificate is
-// requested — no manual "Retry SSL" needed after DNS propagates.
-Schedule::command('ploi:watch-dns')
+// Long-tail activation: the SyncCustomHostnameStatusJob polls for ~30 minutes
+// after a domain is saved; this sweep catches customers who create their
+// CNAME record later. Once Cloudflare reports hostname + SSL active, the
+// website flips to live automatically — no manual retry ever needed.
+Schedule::command('cloudflare:sync-hostnames')
     ->everyFiveMinutes()
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/ploi-watch-dns.log'))
-    ->description('Provision Ploi alias + SSL once a pending domain points at the server');
+    ->appendOutputTo(storage_path('logs/cloudflare-sync.log'))
+    ->description('Activate pending custom hostnames once their CNAME + SSL go live');
 
-// Weekly alias/domain consistency check (report-only; --fix is manual).
-Schedule::command('ploi:audit')
+// Weekly health report (read-only): hostname exists, SSL active, ownership.
+Schedule::command('cloudflare:health')
     ->weeklyOn(1, '06:00')
-    ->appendOutputTo(storage_path('logs/ploi-audit.log'))
-    ->description('Audit Ploi aliases against website domains');
+    ->appendOutputTo(storage_path('logs/cloudflare-health.log'))
+    ->description('Audit custom domains against Cloudflare');

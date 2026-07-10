@@ -496,6 +496,9 @@ class Building extends Model
      * The admin form does not expose manual inputs for these — this is the
      * source of truth.
      *
+     * maintenance_fee_range is also derived (listing maintenanceFee / sqft),
+     * but only when the field is blank — an admin-entered range always wins.
+     *
      * Only overwrites when at least one priced listing is found, so an
      * existing (e.g. CSV-imported) value survives an MLS dry spell.
      * Saved with saveQuietly() to avoid re-firing model events.
@@ -523,6 +526,8 @@ class Building extends Model
         $sqftMax = null;
         // price-per-sqft samples: [price / midpoint sqft, ...]
         $ppsfSamples = [];
+        // maintenance-fee-per-sqft samples: [monthly fee / midpoint sqft, ...]
+        $feePsfSamples = [];
 
         try {
             $api = app(\App\Services\RepliersApiService::class);
@@ -557,6 +562,11 @@ class Building extends Model
                         if ($price > 0 && $sqft['mid'] > 0) {
                             $ppsfSamples[] = $price / $sqft['mid'];
                         }
+
+                        $fee = (float) preg_replace('/[^\d.]/', '', (string) ($L['details']['maintenanceFee'] ?? ''));
+                        if ($fee > 0 && $sqft['mid'] > 0) {
+                            $feePsfSamples[] = $fee / $sqft['mid'];
+                        }
                     }
                 }
             }
@@ -589,6 +599,16 @@ class Building extends Model
         if (!empty($ppsfSamples)) {
             $avg = array_sum($ppsfSamples) / count($ppsfSamples);
             $updates['avg_price_per_sqft'] = '$' . number_format($avg);
+        }
+
+        // Fill maintenance_fee_range only when blank — the admin form exposes
+        // it, so a manually entered range is never overwritten.
+        if (!empty($feePsfSamples) && trim((string) $this->maintenance_fee_range) === '') {
+            $feeLow = number_format(min($feePsfSamples), 2);
+            $feeHigh = number_format(max($feePsfSamples), 2);
+            $updates['maintenance_fee_range'] = $feeLow === $feeHigh
+                ? "\${$feeLow} per sq ft"
+                : "\${$feeLow} - \${$feeHigh} per sq ft";
         }
 
         $this->forceFill($updates)->saveQuietly();

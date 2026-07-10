@@ -245,8 +245,6 @@ function placeholderFor(key) {
         linkedin_url: 'https://linkedin.com/company/yourpage',
         mail_from_address: 'no-reply@example.com',
         mail_from_name: 'Nobu Residences',
-        ploi_server_id: '87657',
-        ploi_site_id: '307242',
     };
     return map[key] || '';
 }
