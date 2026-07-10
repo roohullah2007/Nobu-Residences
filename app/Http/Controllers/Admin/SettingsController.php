@@ -33,8 +33,10 @@ class SettingsController extends Controller
                 ['key' => 'instagram_url',  'type' => 'string',  'is_public' => true],
                 ['key' => 'twitter_url',    'type' => 'string',  'is_public' => true],
                 ['key' => 'linkedin_url',   'type' => 'string',  'is_public' => true],
+            ],
+            'globals' => [
                 // Raw snippet (e.g. Follow Up Boss pixel) rendered in the
-                // <head> of every public website.
+                // <head> of every public website by default.
                 ['key' => 'global_tracking_scripts', 'type' => 'string'],
             ],
             'email' => [

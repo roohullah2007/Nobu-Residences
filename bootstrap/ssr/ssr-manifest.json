@@ -73,7 +73,7 @@
     "/build/assets/Index-C8HC5O4y.js"
   ],
   "resources/js/Pages/Admin/Buildings/Create.jsx": [
-    "/build/assets/Create-D8e8yjjp.js"
+    "/build/assets/Create-DB0qCNrL.js"
   ],
   "resources/js/Pages/Admin/Buildings/Edit.jsx": [
     "/build/assets/Edit-B7VR2bVv.js"
@@ -82,7 +82,7 @@
     "/build/assets/Import-BMFquEln.js"
   ],
   "resources/js/Pages/Admin/Buildings/Index.jsx": [
-    "/build/assets/Index-B23L9P20.js"
+    "/build/assets/Index-WDgOuRb7.js"
   ],
   "resources/js/Pages/Admin/Buildings/Show.jsx": [
     "/build/assets/Show-DWswP4kI.js"
@@ -124,7 +124,7 @@
     "/build/assets/Index-DCEyH5CX.js"
   ],
   "resources/js/Pages/Admin/Settings/Index.jsx": [
-    "/build/assets/Index-Bjhj3F2R.js"
+    "/build/assets/Index-CYap065k.js"
   ],
   "resources/js/Pages/Admin/SubNeighbourhoods/Index.jsx": [
     "/build/assets/Index-CSOYDRKO.js"
@@ -145,10 +145,10 @@
     "/build/assets/Create-DcdgY5yp.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
-    "/build/assets/Created-DqX83Jo7.js"
+    "/build/assets/Created-B35d9EtX.js"
   ],
   "resources/js/Pages/Admin/Websites/Edit.jsx": [
-    "/build/assets/Edit-DKi7y-C6.js"
+    "/build/assets/Edit-6AN9oiyn.js"
   ],
   "resources/js/Pages/Admin/Websites/EditHomePage.jsx": [
     "/build/assets/EditHomePage-DhQMkE-c.js"
@@ -157,13 +157,10 @@
     "/build/assets/EditHomePage_backup-l0sNRNKZ.js"
   ],
   "resources/js/Pages/Admin/Websites/Index.jsx": [
-    "/build/assets/Index-BgcSSWoc.js"
-  ],
-  "resources/js/Pages/Admin/Websites/Pages.jsx": [
-    "/build/assets/Pages-yA-9nVC5.js"
+    "/build/assets/Index-RbvFz2rW.js"
   ],
   "resources/js/Pages/Admin/Websites/Show.jsx": [
-    "/build/assets/Show-eRjHQUFw.js"
+    "/build/assets/Show-DtA6ekDc.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PropertyDetail.jsx": [
     "/build/assets/PropertyDetail-3OGbzNeO.js"
@@ -214,7 +211,7 @@
     "/build/assets/Dashboard-D42BuiWm.js"
   ],
   "resources/js/Pages/DeveloperDetail.jsx": [
-    "/build/assets/DeveloperDetail-CWu7yk2I.js"
+    "/build/assets/DeveloperDetail-tzj9-BiE.js"
   ],
   "resources/js/Pages/PriceHistorySearch.jsx": [
     "/build/assets/PriceHistorySearch-D4l4nzK7.js"
@@ -731,7 +728,7 @@
   ],
   "resources/js/ssr.jsx": [],
   "resources/js/utils/brandColors.js": [
-    "/build/assets/Show-eRjHQUFw.js"
+    "/build/assets/Show-DtA6ekDc.js"
   ],
   "resources/js/utils/contactFormValidation.js": [
     "/build/assets/contactFormValidation-CEuKRxjY.js"

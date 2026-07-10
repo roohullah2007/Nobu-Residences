@@ -17,6 +17,7 @@ const labelFor = (key) =>
 
 const TABS = [
     { id: 'general', label: 'General' },
+    { id: 'globals', label: 'Globals' },
     { id: 'email', label: 'Email & Notifications' },
 ];
 
@@ -62,6 +63,9 @@ export default function SettingsIndex({ schema, values, timezones = [], mail_dri
                     <div className="p-6">
                         {tab === 'general' && (
                             <GeneralTab schema={schema.general} values={values.general} timezones={timezones} />
+                        )}
+                        {tab === 'globals' && (
+                            <GlobalsTab schema={schema.globals} values={values.globals} />
                         )}
                         {tab === 'email' && (
                             <EmailTab schema={schema.email} values={values.email} mailDrivers={mail_drivers} />
@@ -111,25 +115,18 @@ function GeneralTab({ schema, values, timezones }) {
                             </div>
                         );
                     }
-                    if (f.key === 'contact_address' || f.key === 'global_tracking_scripts') {
-                        const isTracking = f.key === 'global_tracking_scripts';
+                    if (f.key === 'contact_address') {
                         return (
                             <div key={f.key} className="md:col-span-2">
                                 <InputLabel htmlFor={f.key} value={labelFor(f.key)} />
                                 <textarea
                                     id={f.key}
-                                    rows={isTracking ? 5 : 2}
-                                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${isTracking ? 'font-mono text-xs' : ''}`}
+                                    rows={2}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                     value={data[f.key] || ''}
                                     onChange={(e) => setData(f.key, e.target.value)}
-                                    placeholder={isTracking ? '<script>…</script> — tracking pixel injected into the <head> of every public website' : undefined}
                                 />
                                 <InputError message={errors[f.key]} className="mt-2" />
-                                {isTracking && (
-                                    <p className="mt-1 text-xs text-gray-500">
-                                        Raw HTML snippet (e.g. Follow Up Boss pixel) rendered on every public website. Leave empty to disable.
-                                    </p>
-                                )}
                             </div>
                         );
                     }
@@ -151,6 +148,51 @@ function GeneralTab({ schema, values, timezones }) {
             </div>
             <div className="flex justify-end">
                 <PrimaryButton disabled={processing}>{processing ? 'Saving…' : 'Save general settings'}</PrimaryButton>
+            </div>
+        </form>
+    );
+}
+
+/* -------- Globals -------- */
+function GlobalsTab({ schema, values }) {
+    const initial = useMemo(() => {
+        const o = { group: 'globals' };
+        for (const f of schema) o[f.key] = values[f.key] ?? '';
+        return o;
+    }, [schema, values]);
+
+    const { data, setData, put, processing, errors } = useForm(initial);
+
+    const submit = (e) => {
+        e.preventDefault();
+        put(route('admin.settings.update'), { preserveScroll: true });
+    };
+
+    return (
+        <form onSubmit={submit} className="space-y-6">
+            <p className="text-sm text-gray-500">
+                Global tags apply to <strong>all websites</strong> by default. Per-website snippets can still be
+                added on each website's Edit page (Tracking &amp; Integrations) — both are rendered together.
+            </p>
+            {schema.map((f) => (
+                <div key={f.key}>
+                    <InputLabel htmlFor={f.key} value={labelFor(f.key)} />
+                    <textarea
+                        id={f.key}
+                        rows={6}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-mono text-xs"
+                        value={data[f.key] || ''}
+                        onChange={(e) => setData(f.key, e.target.value)}
+                        placeholder={'<script>…</script> — e.g. the Follow Up Boss pixel, injected into the <head> of every public website'}
+                    />
+                    <InputError message={errors[f.key]} className="mt-2" />
+                    <p className="mt-1 text-xs text-gray-500">
+                        Raw HTML snippet rendered on every public website (never on admin pages). Leave empty to disable.
+                    </p>
+                </div>
+            ))}
+            <div className="flex justify-end">
+                <PrimaryButton disabled={processing}>{processing ? 'Saving…' : 'Save globals'}</PrimaryButton>
             </div>
         </form>
     );

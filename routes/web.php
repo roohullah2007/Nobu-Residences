@@ -412,6 +412,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/import/run', [\App\Http\Controllers\Admin\BuildingImportController::class, 'run'])->name('import.run');
         Route::get('/import/progress/{token}', [\App\Http\Controllers\Admin\BuildingImportController::class, 'progress'])->name('import.progress');
         Route::post('/', [\App\Http\Controllers\Admin\BuildingController::class, 'store'])->name('store');
+        Route::post('/bulk-delete', [\App\Http\Controllers\Admin\BuildingController::class, 'bulkDestroy'])->name('bulk-delete');
         Route::get('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
         Route::get('/{buildingSlug}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
         Route::put('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'update'])->name('update');
@@ -487,7 +488,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/{website}/duplicate', [WebsiteManagementController::class, 'duplicate'])->name('duplicate');
         Route::get('/{website}/edit-home-page', [WebsiteManagementController::class, 'editHomePage'])->name('edit-home-page');
         Route::match(['put', 'post'], '/{website}/update-home-page', [WebsiteManagementController::class, 'updateHomePage'])->name('update-home-page');
-        Route::get('/{website}/pages', [WebsiteManagementController::class, 'pages'])->name('pages');
     });
     
     // Icon Management routes

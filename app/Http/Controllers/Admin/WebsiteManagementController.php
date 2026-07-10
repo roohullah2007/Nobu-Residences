@@ -1291,19 +1291,6 @@ class WebsiteManagementController extends Controller
     }
 
     /**
-     * Display website pages management
-     */
-    public function pages(Website $website): Response
-    {
-        $website->load('pages');
-
-        return Inertia::render('Admin/Websites/Pages', [
-            'title' => "Pages: {$website->name}",
-            'website' => $website
-        ]);
-    }
-
-    /**
      * Manage icons
      */
     public function icons(): Response

@@ -647,6 +647,29 @@ class BuildingController extends Controller
     }
 
     /**
+     * Bulk delete from the buildings list (checkbox selection). Same
+     * soft-delete as destroy(), applied per model so delete hooks keep
+     * firing; websites linked via homepage_building_id keep working and
+     * simply stop resolving the building.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $validated = $request->validate([
+            'buildings' => 'required|array|min:1',
+            'buildings.*' => 'exists:buildings,id',
+        ]);
+
+        $buildings = Building::whereIn('id', $validated['buildings'])->get();
+        foreach ($buildings as $building) {
+            $building->delete();
+        }
+        $count = $buildings->count();
+
+        return redirect()->back()
+            ->with('success', $count . ' ' . ($count === 1 ? 'building' : 'buildings') . ' deleted successfully.');
+    }
+
+    /**
      * Search buildings for the public search page
      */
     public function searchBuildings(Request $request)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 
@@ -219,7 +219,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                         {website?.agent_info?.agent_title || website?.contact_info?.agent?.title || buildingData?.agent_title || 'Property Manager'}
                       </p>
                       <p className="font-work-sans font-normal text-sm text-[#535862]">
-                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'Property.ca Inc., Brokerage'}
+                        {website?.agent_info?.brokerage || website?.contact_info?.agent?.brokerage || buildingData?.agent_brokerage || 'RE/MAX'}
                       </p>
                     </div>
                   </div>

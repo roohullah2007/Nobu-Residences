@@ -39,6 +39,11 @@ export default function BuildingsIndex({ auth, buildings }) {
     // menu can be open at a time.
     const [openMenuId, setOpenMenuId] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
+    // Bulk selection (checkbox column). Spans the current page only —
+    // the list is paginated server-side.
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+    const [bulkProcessing, setBulkProcessing] = useState(false);
     const menuRef = useRef(null);
 
     // Close the actions menu on outside-click / Esc so the dropdown
@@ -93,6 +98,39 @@ export default function BuildingsIndex({ auth, buildings }) {
             building.city.toLowerCase().includes(q)
         );
     });
+
+    // Drop the selection whenever the visible rows change (search/filter) so
+    // a bulk delete can never touch rows the admin can no longer see.
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [searchTerm, statusFilter, typeFilter, featuredFilter]);
+
+    const allVisibleSelected =
+        filteredBuildings.length > 0 &&
+        filteredBuildings.every((b) => selectedIds.includes(b.id));
+
+    const toggleSelectAll = () => {
+        setSelectedIds(allVisibleSelected ? [] : filteredBuildings.map((b) => b.id));
+    };
+
+    const toggleSelect = (id) => {
+        setSelectedIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    const confirmBulkDelete = () => {
+        if (bulkProcessing || selectedIds.length === 0) return;
+        setBulkProcessing(true);
+        router.post(route('admin.buildings.bulk-delete'), { buildings: selectedIds }, {
+            preserveScroll: true,
+            onSuccess: () => setSelectedIds([]),
+            onFinish: () => {
+                setBulkProcessing(false);
+                setPendingBulkDelete(false);
+            },
+        });
+    };
 
     const getBuildingTypeLabel = (type) => {
         const types = {
@@ -277,11 +315,49 @@ export default function BuildingsIndex({ auth, buildings }) {
                         </div>
                     </div>
 
+                    {/* Bulk actions toolbar — appears when rows are selected */}
+                    {selectedIds.length > 0 && (
+                        <div className="px-4 py-3 border-b border-[#bfdbfe] bg-[#eff6ff] flex items-center justify-between flex-wrap gap-3">
+                            <span className="text-sm font-medium text-[#1e40af]">
+                                {selectedIds.length} building{selectedIds.length === 1 ? '' : 's'} selected
+                            </span>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingBulkDelete(true)}
+                                    disabled={bulkProcessing}
+                                    className="inline-flex items-center px-4 py-2 bg-[#dc2626] text-white text-sm font-medium rounded-lg hover:bg-[#b91c1c] transition-colors disabled:opacity-60"
+                                >
+                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    {bulkProcessing ? 'Deleting...' : 'Delete selected'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedIds([])}
+                                    className="text-sm font-medium text-[#64748b] hover:text-[#0f172a] transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Table */}
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-[#e2e8f0]">
                             <thead className="bg-[#f8fafc]">
                                 <tr>
+                                    <th className="px-4 py-3 text-left w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={allVisibleSelected}
+                                            onChange={toggleSelectAll}
+                                            aria-label="Select all visible buildings"
+                                            className="h-4 w-4 text-[#0f172a] focus:ring-[#3b82f6] border-[#d1d5db] rounded"
+                                        />
+                                    </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-[#64748b] uppercase tracking-wider">
                                         Building
                                     </th>
@@ -305,7 +381,16 @@ export default function BuildingsIndex({ auth, buildings }) {
                             <tbody className="bg-white divide-y divide-[#e2e8f0]">
                                 {filteredBuildings.length > 0 ? (
                                     filteredBuildings.map((building) => (
-                                        <tr key={building.id} className="hover:bg-[#f8fafc] transition-colors">
+                                        <tr key={building.id} className={`transition-colors ${selectedIds.includes(building.id) ? 'bg-[#eff6ff]' : 'hover:bg-[#f8fafc]'}`}>
+                                            <td className="px-4 py-4 w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.includes(building.id)}
+                                                    onChange={() => toggleSelect(building.id)}
+                                                    aria-label={`Select ${building.name}`}
+                                                    className="h-4 w-4 text-[#0f172a] focus:ring-[#3b82f6] border-[#d1d5db] rounded"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <Link
                                                     href={route('admin.buildings.show', createBuildingSlug(building.name, building.id))}
@@ -416,7 +501,7 @@ export default function BuildingsIndex({ auth, buildings }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="px-6 py-12 text-center">
+                                        <td colSpan="7" className="px-6 py-12 text-center">
                                             <div className="flex flex-col items-center">
                                                 <div className="w-12 h-12 rounded-lg bg-[#f1f5f9] flex items-center justify-center mb-3">
                                                     <svg className="w-6 h-6 text-[#94a3b8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -468,6 +553,15 @@ export default function BuildingsIndex({ auth, buildings }) {
                 confirmLabel="Delete"
                 onConfirm={confirmDelete}
                 onCancel={() => setPendingDelete(null)}
+            />
+
+            <ConfirmDialog
+                open={pendingBulkDelete}
+                title={`Delete ${selectedIds.length} building${selectedIds.length === 1 ? '' : 's'}?`}
+                message={`${selectedIds.length} selected building${selectedIds.length === 1 ? '' : 's'} will be permanently deleted. This can't be undone. Websites linked to any of them keep working but lose their building link.`}
+                confirmLabel={bulkProcessing ? 'Deleting...' : 'Delete'}
+                onConfirm={confirmBulkDelete}
+                onCancel={() => setPendingBulkDelete(false)}
             />
         </AdminLayout>
     );

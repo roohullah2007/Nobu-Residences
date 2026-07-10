@@ -38,7 +38,6 @@ export default function Edit({ auth }) {
         is_default: website?.is_default || false,
         is_active: website?.is_active || true,
         homepage_building_id: website?.homepage_building_id || null,
-        use_building_as_homepage: website?.use_building_as_homepage || false,
         logo_url: website?.logo_url || '',
         logo_file: null, // For logo file upload
         favicon_url: website?.favicon_url || '',
@@ -46,7 +45,6 @@ export default function Edit({ auth }) {
         meta_title: website?.meta_title || '',
         meta_description: website?.meta_description || '',
         meta_keywords: website?.meta_keywords || '',
-        description: website?.description || '',
         timezone: website?.timezone || 'America/Toronto',
         tracking_scripts: website?.tracking_scripts || '',
         // Brand colors - Core
@@ -319,17 +317,6 @@ export default function Edit({ auth }) {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                                    <textarea
-                                        value={data.description}
-                                        onChange={(e) => setData('description', e.target.value)}
-                                        rows="3"
-                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="Brief description of this website..."
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2">
                                     <div className="flex items-start space-x-6">
                                         <div className="flex items-center h-5">
                                             <input
@@ -376,8 +363,8 @@ export default function Edit({ auth }) {
                                     </div>
                                 </div>
                                 <div className="ml-3">
-                                    <h3 className="text-lg font-medium text-gray-900">Homepage Settings</h3>
-                                    <p className="text-sm text-gray-500">Configure what shows as your homepage</p>
+                                    <h3 className="text-lg font-medium text-gray-900">Linked Building</h3>
+                                    <p className="text-sm text-gray-500">The building whose data powers this website</p>
                                 </div>
                             </div>
 
@@ -413,27 +400,6 @@ export default function Edit({ auth }) {
                                             </span>
                                         )}
                                     </p>
-                                </div>
-
-                                {/* Use Building as Homepage Toggle */}
-                                <div className="flex items-start">
-                                    <div className="flex items-center h-5">
-                                        <input
-                                            id="use_building_as_homepage"
-                                            type="checkbox"
-                                            checked={data.use_building_as_homepage}
-                                            onChange={(e) => setData('use_building_as_homepage', e.target.checked)}
-                                            className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                                        />
-                                    </div>
-                                    <div className="ml-3 text-sm">
-                                        <label htmlFor="use_building_as_homepage" className="font-medium text-gray-700">
-                                            Use Building Page as Homepage
-                                        </label>
-                                        <p className="text-gray-500">
-                                            Display the selected building's details page as the homepage instead of the default homepage
-                                        </p>
-                                    </div>
                                 </div>
                             </div>
                         </div>

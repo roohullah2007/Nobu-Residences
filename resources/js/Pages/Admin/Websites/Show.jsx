@@ -171,48 +171,6 @@ export default function Show({ auth }) {
                     </div>
                 )}
 
-                {/* Website Pages */}
-                <div className="bg-white shadow rounded-lg border border-gray-200">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-base font-semibold text-gray-900">Website Pages</h3>
-                    </div>
-                    <div className="divide-y divide-gray-200">
-                        {website.pages && website.pages.length > 0 ? (
-                            website.pages.map((page) => (
-                                <div key={page.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900 capitalize">
-                                            {page.page_type.replace('_', ' ')} Page
-                                        </p>
-                                        <p className="text-sm text-gray-500">{page.title}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                            page.is_active 
-                                                ? 'bg-green-100 text-green-800' 
-                                                : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            {page.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                        {page.page_type === 'home' && (
-                                            <Link
-                                                href={route('admin.websites.edit-home-page', website.id)}
-                                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                                            >
-                                                Edit Content
-                                            </Link>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="px-6 py-8 text-center">
-                                <p className="text-sm text-gray-500">No pages found</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
                 {/* Social Media Links */}
                 {website.social_media && Object.keys(website.social_media).length > 0 && (
                     <div className="bg-white shadow rounded-lg border border-gray-200 p-6">

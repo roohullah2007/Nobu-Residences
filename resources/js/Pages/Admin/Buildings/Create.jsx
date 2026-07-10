@@ -560,7 +560,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                         <option value="completed">Completed</option>
                                         <option value="sold_out">Sold Out</option>
                                     </select>
-                                    <p className="mt-1 text-xs text-gray-500">Construction phase only — whether the building is published is controlled by Visibility Status under Status &amp; Settings.</p>
+                                    <p className="mt-1 text-xs text-gray-500">Construction phase only — new buildings are published as Active; visibility can be changed later on the Edit page.</p>
                                     <InputError message={errors.development_status} className="mt-2" />
                                 </div>
 
@@ -1312,72 +1312,6 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 </div>
                             </div>
 
-                            {/* Website Links */}
-                            <div className="border-t pt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="website_url" value="Website URL" />
-                                    <TextInput
-                                        id="website_url"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.website_url}
-                                        onChange={(e) => setData('website_url', e.target.value)}
-                                        placeholder="https://example.com"
-                                    />
-                                    <InputError message={errors.website_url} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="virtual_tour_url" value="Virtual Tour URL" />
-                                    <TextInput
-                                        id="virtual_tour_url"
-                                        type="url"
-                                        className="mt-1 block w-full"
-                                        value={data.virtual_tour_url}
-                                        onChange={(e) => setData('virtual_tour_url', e.target.value)}
-                                        placeholder="https://example.com/tour"
-                                    />
-                                    <InputError message={errors.virtual_tour_url} className="mt-2" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Status & Settings */}
-                    <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
-                        <div className="px-4 py-6 sm:p-8">
-                            <h2 className="text-base font-semibold leading-7 text-gray-900 mb-6">Status & Settings</h2>
-                            <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-                                <div className="sm:col-span-3">
-                                    <InputLabel htmlFor="status" value="Visibility Status" />
-                                    <select
-                                        id="status"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                        value={data.status}
-                                        onChange={(e) => setData('status', e.target.value)}
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                        <option value="pending">Pending</option>
-                                    </select>
-                                    <InputError message={errors.status} className="mt-2" />
-                                </div>
-
-                                <div className="sm:col-span-3">
-                                    <div className="flex items-center mt-6">
-                                        <input
-                                            id="is_featured"
-                                            type="checkbox"
-                                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                                            checked={data.is_featured}
-                                            onChange={(e) => setData('is_featured', e.target.checked)}
-                                        />
-                                        <label htmlFor="is_featured" className="ml-2 block text-sm text-gray-900">
-                                            Featured Building
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
