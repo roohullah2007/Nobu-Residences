@@ -250,7 +250,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   {(buildingData?.suite_size_range || buildingData?.sqft_range || (buildingData?.mls_properties_for_sale?.length > 0 || buildingData?.mls_properties_for_rent?.length > 0)) && (
                     <div className="flex justify-between items-start">
                       <span className="font-work-sans font-semibold text-sm text-[#252B37]">Sq Ft Range</span>
-                      <span className="font-work-sans text-sm text-[#535862]">
+                      {/* Same width constraint as the Developer/Address rows:
+                          without it a long imported value ("700 sqft - 1411
+                          sqft") ran into the label column and clipped. */}
+                      <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px] break-words">
                         {(() => {
                           // Use explicit range if available
                           if (buildingData?.suite_size_range) return buildingData.suite_size_range;
@@ -286,7 +289,7 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   {buildingData?.avg_price_per_sqft && (
                     <div className="flex justify-between items-start">
                       <span className="font-work-sans font-semibold text-sm text-[#252B37]">Avg Price / Sqft</span>
-                      <span className="font-work-sans text-sm text-[#535862]">
+                      <span className="font-work-sans text-sm text-[#535862] text-right max-w-[180px] break-words">
                         {buildingData.avg_price_per_sqft}
                       </span>
                     </div>

@@ -59,6 +59,8 @@ class Building extends Model
         'description',
         'main_image',
         'images',
+        'pending_image_urls',
+        'image_download_attempts',
         'developer_id',
         'developer',
         'developer_name',
@@ -111,6 +113,8 @@ class Building extends Model
     protected $casts = [
         'date_registered' => 'date',
         'images' => 'array',
+        'pending_image_urls' => 'array',
+        'image_download_attempts' => 'integer',
         'floor_plans' => 'array',
         'features' => 'array',
         'nearby_transit' => 'array',

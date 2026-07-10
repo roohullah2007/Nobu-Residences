@@ -48,6 +48,17 @@ Schedule::command('buildings:refresh-mls-stats')
     ->appendOutputTo(storage_path('logs/buildings-mls-stats.log'))
     ->description('Refresh building price/sqft/maintenance ranges from MLS');
 
+// CSV imports park remote image URLs in buildings.pending_image_urls instead
+// of hotlinking them. This drains that queue in small batches (20 buildings
+// per run) — downloads each image to public/images/buildings and promotes the
+// stored paths to main_image/images. Runs off the same schedule:run cron as
+// everything else; no queue worker required.
+Schedule::command('buildings:download-images --limit=20')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/building-image-downloads.log'))
+    ->description('Download pending CSV-imported building images to local storage');
+
 // ============================================================================
 // Saved Search Alerts
 // ============================================================================

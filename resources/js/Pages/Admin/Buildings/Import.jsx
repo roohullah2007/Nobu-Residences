@@ -42,7 +42,10 @@ const HEADER_ALIASES = {
     avg_price_per_sqft: 'avg_price_per_sqft', price_per_sqft: 'avg_price_per_sqft',
     images: 'images', image_links: 'images', image_urls: 'images', photos: 'images',
     description: 'description', notes: 'description', overview: 'description',
-    website_url: 'website_url', website: 'website_url', url: 'website_url',
+    // NOTE: a column literally named "URL" is deliberately NOT auto-mapped —
+    // spreadsheet exports (condos.ca) put their own listing link there, which
+    // we never want imported. "website_url" / "website" headers still map.
+    website_url: 'website_url', website: 'website_url',
     virtual_tour_url: 'virtual_tour_url', virtual_tour: 'virtual_tour_url',
     latitude: 'latitude', lat: 'latitude',
     longitude: 'longitude', lng: 'longitude', lon: 'longitude',

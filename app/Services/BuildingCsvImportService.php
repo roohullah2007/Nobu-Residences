@@ -51,7 +51,7 @@ class BuildingCsvImportService
         'sqft_range' => 'Sqft Range',
         'avg_price_per_sqft' => 'Avg Price Per Sqft',
         'amenities' => 'Amenities (comma-separated, auto-created)',
-        'images' => 'Image URLs (first becomes main image)',
+        'images' => 'Image URLs (downloaded in background; first becomes main image)',
         'description' => 'Description',
         'website_url' => 'Website URL',
         'virtual_tour_url' => 'Virtual Tour URL',
@@ -81,6 +81,13 @@ class BuildingCsvImportService
 
     private const VALID_STATUSES = ['active', 'inactive', 'pending', 'pre_construction', 'under_construction', 'completed', 'sold_out'];
     private const VALID_LISTING_TYPES = ['For Sale', 'For Rent', 'Both'];
+
+    /**
+     * Hard cap on hyphen-range address expansion. Mirrors the Create page's
+     * Expand button (Create.jsx detectAddressRange), which pushes numbers one
+     * by one and breaks once the list exceeds 50 — i.e. at most 51 entries.
+     */
+    private const ADDRESS_EXPANSION_CAP = 51;
 
     /**
      * Parse a CSV file: returns headers, a small preview, and the row count.
@@ -222,13 +229,25 @@ class BuildingCsvImportService
         $attributes = $this->castScalars($attributes);
         $attributes = $this->normalizeEnums($attributes);
 
+        // "700 sqft - 1411 sqft" spreadsheet cells → canonical "700 - 1411 sqft".
+        $this->normalizeSqftRange($attributes);
+
+        // Compose the full address the way the Create page's Address field is
+        // typed (Street_1 [& Street_2], City), then auto-expand hyphen ranges
+        // ("455-480 Front St W …") into the structured address columns exactly
+        // like the Create page's "Expand" button.
+        $this->composeAddress($attributes);
+        $this->expandAddressRange($attributes);
+
         // Amenities and maintenance-fee inclusions are relational
         // (belongsToMany) — pull them out of the column attributes and sync
         // them after the building is saved.
         $amenityNames = $this->extractDelimitedNames($attributes, 'amenities');
         $maintenanceAmenityNames = $this->extractDelimitedNames($attributes, 'maintenance_fee_amenities');
 
-        // Image links become main_image (first) + the images JSON array.
+        // Image links are parked in pending_image_urls; the scheduled
+        // buildings:download-images command downloads them to local storage
+        // and only then fills main_image / images (never remote hotlinks).
         $this->extractImages($attributes);
 
         // Resolve name-based relations, creating them on the fly.
@@ -285,7 +304,13 @@ class BuildingCsvImportService
     }
 
     /**
-     * Turn the mapped image-links cell into main_image + the images array.
+     * Park the mapped image-links cell in pending_image_urls. We deliberately
+     * do NOT write remote URLs into main_image / images — serving hotlinked
+     * third-party images is not wanted. The scheduled
+     * `buildings:download-images` command downloads each URL to local storage
+     * (public/images/buildings, same convention as manual admin uploads) and
+     * promotes the stored paths to main_image (first) + the images array.
+     *
      * URLs never contain commas, so splitting on comma/semicolon/pipe/
      * whitespace covers every export style seen so far.
      */
@@ -299,13 +324,127 @@ class BuildingCsvImportService
         $urls = collect(preg_split('/[,;|\s]+/', $raw))
             ->map(fn ($u) => trim($u))
             ->filter(fn ($u) => str_starts_with($u, 'http://') || str_starts_with($u, 'https://'))
+            ->unique()
             ->values()
             ->all();
         if (empty($urls)) {
             return;
         }
-        $attributes['main_image'] = $urls[0];
-        $attributes['images'] = $urls;
+        $attributes['pending_image_urls'] = $urls;
+        $attributes['image_download_attempts'] = 0;
+    }
+
+    /**
+     * Normalize a mapped sqft_range cell to the canonical "700 - 1411 sqft"
+     * form. Spreadsheets carry the unit on every bound ("700 sqft - 1411
+     * sqft"), sometimes with commas or "sq ft" variants; the duplicated unit
+     * made the value needlessly long and rendered badly on the building page.
+     * Single values become "700 sqft". Cells without any number are dropped.
+     */
+    private function normalizeSqftRange(array &$attributes): void
+    {
+        if (!isset($attributes['sqft_range'])) {
+            return;
+        }
+        $raw = (string) $attributes['sqft_range'];
+        if (!preg_match_all('/\d[\d,]*(?:\.\d+)?/', $raw, $m) || empty($m[0])) {
+            unset($attributes['sqft_range']);
+            return;
+        }
+        $numbers = collect($m[0])
+            ->map(fn ($n) => (float) str_replace(',', '', $n))
+            ->filter(fn ($n) => $n > 0);
+        if ($numbers->isEmpty()) {
+            unset($attributes['sqft_range']);
+            return;
+        }
+        $min = (int) round($numbers->min());
+        $max = (int) round($numbers->max());
+        $attributes['sqft_range'] = $min === $max ? "{$min} sqft" : "{$min} - {$max} sqft";
+    }
+
+    /**
+     * Compose the primary address exactly the way the Create page's Address
+     * field is typed: "Street_1 & Street_2, City".
+     *
+     * Street_2 is only appended when it isn't already contained in Street_1 —
+     * some sheets repeat it (e.g. Street_1 "229 Sutherland St S & 255 Warden
+     * St" with Street_2 "255 Warden St"), which must not become
+     * "… & 255 Warden St & 255 Warden St". The city suffix is skipped when
+     * the street already carries it.
+     */
+    private function composeAddress(array &$attributes): void
+    {
+        $street = trim((string) ($attributes['address'] ?? ''));
+        if ($street === '') {
+            return;
+        }
+        $street2 = trim((string) ($attributes['street_address_2'] ?? ''));
+        if ($street2 !== '' && stripos($street, $street2) === false) {
+            $street .= ' & ' . $street2;
+        }
+        $city = trim((string) ($attributes['city'] ?? ''));
+        if ($city !== '' && stripos($street, $city) === false) {
+            $street .= ', ' . $city;
+        }
+        $attributes['address'] = $street;
+    }
+
+    /**
+     * Server-side port of the Create page's "Detected range — expand?" button
+     * (Create.jsx detectAddressRange + handleExpandRange).
+     *
+     * When the composed address starts with a numeric hyphen range —
+     * "455-480 Front St W & 455 Wellington St W, Toronto" — every number in
+     * the range (step 1, odd AND even) is expanded against the street part up
+     * to the first comma, keeping any "& …" suffix:
+     *   "455 Front St W & 455 Wellington St W", "456 Front St W & …", …
+     *
+     * The JS regex is matched faithfully (^digits [-–—] digits space rest$),
+     * so hyphenated street names and unit prefixes like "1408-123 Main St"
+     * (end <= start) never expand. The Create page stops pushing once the
+     * list exceeds 50 entries; the same cap (ADDRESS_EXPANSION_CAP = 51)
+     * applies here, with a log line when a range is truncated.
+     *
+     * The expanded list is persisted the way the Create flow ends up storing
+     * it (Admin\BuildingController::distributeAdditionalAddresses): first →
+     * street_address_1, second → street_address_2, rest → additional_addresses.
+     */
+    private function expandAddressRange(array &$attributes): void
+    {
+        $address = trim((string) ($attributes['address'] ?? ''));
+        if ($address === '' || !preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $address, $m)) {
+            return;
+        }
+        $start = (int) $m[1];
+        $end = (int) $m[2];
+        // Street part up to the first comma: keeps "& 24 Mews Crt", drops ", City".
+        $rest = trim(preg_split('/\s*,/', $m[3])[0] ?? '');
+        if ($end <= $start || $rest === '') {
+            return;
+        }
+
+        $expanded = [];
+        for ($n = $start; $n <= $end; $n++) {
+            $expanded[] = $n . ' ' . $rest;
+            if (count($expanded) >= self::ADDRESS_EXPANSION_CAP) {
+                if ($n < $end) {
+                    Log::info('Building CSV import: address range truncated at expansion cap', [
+                        'address' => $address,
+                        'cap' => self::ADDRESS_EXPANSION_CAP,
+                        'range' => "{$start}-{$end}",
+                    ]);
+                }
+                break;
+            }
+        }
+
+        $attributes['street_address_1'] = $expanded[0];
+        $attributes['street_address_2'] = $expanded[1] ?? null;
+        $remaining = array_values(array_slice($expanded, 2));
+        if (!empty($remaining)) {
+            $attributes['additional_addresses'] = $remaining;
+        }
     }
 
     /** Attach amenities by name, creating missing ones (case-insensitive match). */
