@@ -350,6 +350,12 @@ class GeminiAIService
                     'topK' => 20,
                     'topP' => 0.8,
                     'maxOutputTokens' => $maxOutputTokens,
+                    // Gemini 2.5 Flash (the "-latest" alias) spends "thinking"
+                    // tokens from the SAME maxOutputTokens budget. Left on, it
+                    // can burn the whole budget reasoning and return
+                    // finishReason=MAX_TOKENS before emitting the answer.
+                    // Disabling thinking hands the full budget to the output.
+                    'thinkingConfig' => ['thinkingBudget' => 0],
                 ]
             ]);
 
