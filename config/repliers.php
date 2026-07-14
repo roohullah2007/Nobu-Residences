@@ -100,7 +100,15 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    // Server-side key (Geocoding/Places). Lock this to the server IP.
     'google_maps_api_key' => env('GOOGLE_MAPS_API_KEY', ''),
+
+    // Browser key (Maps JavaScript API), injected into every public page.
+    // Keep it separate from the server key so it can be API-restricted +
+    // quota-capped WITHOUT an HTTP-referrer lock — that lets every customer
+    // custom domain load the map without adding each one in Google Console.
+    // Falls back to the server key until GOOGLE_MAPS_BROWSER_KEY is set.
+    'google_maps_browser_key' => env('GOOGLE_MAPS_BROWSER_KEY') ?: env('GOOGLE_MAPS_API_KEY', ''),
 
     /*
     |--------------------------------------------------------------------------

@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         // only (read via config so they survive config caching) — the admin
         // panel no longer stores them.
         View::composer('*', function ($view) {
-            $view->with('googleMapsApiKey', (string) config('repliers.google_maps_api_key', ''));
+            $view->with('googleMapsApiKey', (string) config('repliers.google_maps_browser_key', ''));
 
             // Global tracking pixel (e.g. Follow Up Boss): admin-managed raw
             // snippet (Admin > Settings) rendered in the <head> of EVERY
