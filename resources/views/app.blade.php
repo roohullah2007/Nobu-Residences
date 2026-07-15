@@ -69,6 +69,34 @@
         @endforeach
         @endif
 
+        {{-- Follow Up Boss (Widget Tracker) pixel — hardcoded so EVERY public
+             landing page gets it automatically, independent of the admin-managed
+             per-website / global snippets below. Public pages only (kept off
+             admin). Also identifies the logged-in user to the tracker. --}}
+        @if(!request()->is('admin*'))
+        <!-- begin Widget Tracker Code -->
+        <script>
+        (function(w,i,d,g,e,t){w["WidgetTrackerObject"]=g;(w[g]=w[g]||function()
+        {(w[g].q=w[g].q||[]).push(arguments);}),(w[g].ds=1*new Date());(e="script"),
+        (t=d.createElement(e)),(e=d.getElementsByTagName(e)[0]);t.async=1;t.src=i;
+        e.parentNode.insertBefore(t,e);})
+        (window,"https://widgetbe.com/agent",document,"widgetTracker");
+        window.widgetTracker("create", "WT-AZDKVTDF");
+        window.widgetTracker("send", "pageview");
+        </script>
+        <!-- end Widget Tracker Code -->
+        @auth
+        <script>
+            // Identify the logged-in user to the Follow Up Boss widget tracker.
+            window.addEventListener('load', function () {
+                if (typeof widgetTracker === 'function') {
+                    widgetTracker('set', { email: @js(auth()->user()->email) });
+                }
+            });
+        </script>
+        @endauth
+        @endif
+
         {{-- Third-party tracking (admin-managed, rendered raw intentionally; public pages only) --}}
         @if(!request()->is('admin*') && !empty($page['props']['globalWebsite']['tracking_scripts']))
         {!! $page['props']['globalWebsite']['tracking_scripts'] !!}
