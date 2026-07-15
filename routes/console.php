@@ -59,6 +59,19 @@ Schedule::command('buildings:download-images --limit=20')
     ->appendOutputTo(storage_path('logs/building-image-downloads.log'))
     ->description('Download pending CSV-imported building images to local storage');
 
+// Buildings carry a marketing website_url but usually no logo. This scrapes
+// each building's logo from that site (header/nav <img>, schema.org logo,
+// apple-touch-icon…), stores it in public/images/buildings, and reads the
+// site color theme from it — so a building picked in Website Create shows its
+// brand colors instantly. Small batches (20/run), same schedule:run cron; a
+// building whose site has no findable logo is given up on after 3 attempts
+// (logo_scrape_attempts).
+Schedule::command('buildings:scrape-logos --limit=20')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/building-logo-scrape.log'))
+    ->description('Scrape building logos from marketing sites and detect the color theme');
+
 // The import sheets carry no postal code column, so imported buildings land
 // with postal_code = NULL. This drains that backlog in batches of 50 via the
 // Google Geocoding API — postal code always, latitude/longitude only when the

@@ -59,6 +59,8 @@ class Building extends Model
         'description',
         'main_image',
         'logo',
+        'brand_colors',
+        'logo_scrape_attempts',
         'images',
         'pending_image_urls',
         'image_download_attempts',
@@ -114,6 +116,8 @@ class Building extends Model
     protected $casts = [
         'date_registered' => 'date',
         'images' => 'array',
+        'brand_colors' => 'array',
+        'logo_scrape_attempts' => 'integer',
         'pending_image_urls' => 'array',
         'image_download_attempts' => 'integer',
         'floor_plans' => 'array',

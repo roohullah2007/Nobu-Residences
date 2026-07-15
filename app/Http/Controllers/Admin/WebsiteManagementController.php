@@ -54,7 +54,7 @@ class WebsiteManagementController extends Controller
     {
         $buildings = Building::select(
                 'id', 'name', 'slug', 'address', 'city', 'description',
-                'main_image', 'logo', 'agent_name', 'agent_title', 'agent_phone',
+                'main_image', 'logo', 'brand_colors', 'agent_name', 'agent_title', 'agent_phone',
                 'agent_email', 'agent_brokerage', 'agent_image', 'website_url'
             )
             ->orderBy('name')
@@ -168,7 +168,7 @@ class WebsiteManagementController extends Controller
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
             'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',
-            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg|max:1024',
+            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg,webp|max:1024',
             'favicon_url' => 'nullable|string|max:255',
             'brand_colors' => 'nullable|array',
             'fonts' => 'nullable|array',
@@ -279,6 +279,19 @@ class WebsiteManagementController extends Controller
             $validated['favicon_url'] = '/assets/' . $faviconFileName;
         }
         unset($validated['favicon_file']);
+
+        // Auto-derive the favicon from the site logo when the admin didn't
+        // upload one and left "Use logo as favicon" on (the Create form default).
+        // Runs after the logo is finalized above, so a building/uploaded logo is
+        // turned into an on-brand tab icon without a separate upload. Overrides
+        // any favicon inherited from the default site — the logo wins.
+        $wantFaviconFromLogo = filter_var($request->input('favicon_from_logo', false), FILTER_VALIDATE_BOOLEAN);
+        if (!$request->hasFile('favicon_file') && $wantFaviconFromLogo && !empty($validated['logo'])) {
+            $generatedFavicon = app(\App\Services\FaviconGenerator::class)->fromLogo($validated['logo']);
+            if ($generatedFavicon) {
+                $validated['favicon_url'] = $generatedFavicon;
+            }
+        }
 
         // Remove agent fields from validated array as they're handled separately
         $agentData = [
@@ -750,7 +763,7 @@ class WebsiteManagementController extends Controller
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
             'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',
-            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg|max:1024',
+            'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg,webp|max:1024',
             'favicon_url' => 'nullable|string|max:255',
             'brand_colors' => 'nullable|array',
             'fonts' => 'nullable|array',

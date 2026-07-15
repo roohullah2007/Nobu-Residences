@@ -108,6 +108,7 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
     const [colorsDetected, setColorsDetected] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [logoError, setLogoError] = useState('');
+    const [faviconPreview, setFaviconPreview] = useState(null);
     // Only send branding (logo + brand_colors) when it was actually engaged —
     // i.e. the picked building has a logo we detected colors from, the admin
     // uploaded a logo, or a swatch was edited. Left untouched, we strip these
@@ -125,6 +126,10 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         // the same URL (the site renders whichever it reads).
         logo: '',
         logo_url: '',
+        // Favicon: by default the site logo is auto-converted into the browser
+        // tab icon server-side. Uploading a file here overrides that.
+        favicon_from_logo: true,
+        favicon_file: null,
         ...DEFAULT_BRAND_COLORS,
     });
 
@@ -220,6 +225,13 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         clearErrors();
         setLogoError('');
         const hasLogo = Boolean(building.logo);
+        // Palette pre-detected server-side when the logo was scraped (dotted
+        // brand_colors.* keys). Present → seed the pickers instantly; absent
+        // (e.g. an SVG logo, or a manually-uploaded one) → detect in-browser.
+        const storedColors =
+            building.brand_colors && typeof building.brand_colors === 'object' && Object.keys(building.brand_colors).length
+                ? building.brand_colors
+                : null;
         setData((prev) => ({
             ...prev,
             building_id: building.id,
@@ -232,14 +244,20 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
             // (default site logo + palette) takes over instead.
             logo: hasLogo ? building.logo : '',
             logo_url: hasLogo ? building.logo : '',
-            ...(hasLogo ? {} : DEFAULT_BRAND_COLORS),
+            ...(hasLogo ? (storedColors || {}) : DEFAULT_BRAND_COLORS),
         }));
 
         if (hasLogo) {
-            // The building's logo IS the brand source — auto-detect + apply.
+            // The building's logo IS the brand source.
             setLogoPreview(building.logo);
             setBrandingTouched(true);
-            detectColorsFrom(building.logo);
+            if (storedColors) {
+                // Colors already detected server-side — no re-detection needed.
+                setColorsDetected(true);
+                setDetectingColors(false);
+            } else {
+                detectColorsFrom(building.logo);
+            }
         } else {
             setLogoPreview(null);
             setColorsDetected(false);
@@ -281,7 +299,9 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         // logo URL and the full brand_colors palette.
         transform((formData) => {
             if (brandingTouched) return formData;
-            const cleaned = { ...formData, logo: '', logo_url: '' };
+            // No branding engaged → also drop favicon so the site inherits the
+            // default favicon instead of auto-generating from a logo it lacks.
+            const cleaned = { ...formData, logo: '', logo_url: '', favicon_from_logo: false, favicon_file: null };
             Object.keys(cleaned).forEach((k) => {
                 if (k.startsWith('brand_colors.')) delete cleaned[k];
             });
@@ -555,6 +575,75 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                                         </div>
                                     </div>
                                     {logoError && <p className="text-red-500 text-xs mt-2">{logoError}</p>}
+                                </div>
+
+                                {/* Favicon — the browser tab icon. Default: auto-
+                                    convert the logo. Or upload a custom one. */}
+                                <div className="border-t border-gray-100 pt-5">
+                                    <InputLabel value="Favicon (browser tab icon)" />
+                                    <div className="mt-2 flex items-start gap-4">
+                                        <div className="h-14 w-14 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {faviconPreview ? (
+                                                <img src={faviconPreview} alt="Favicon" className="h-full w-full object-contain" />
+                                            ) : (data.favicon_from_logo && logoPreview) ? (
+                                                <img src={logoPreview} alt="Favicon from logo" className="h-full w-full object-contain" />
+                                            ) : (
+                                                <svg className="h-6 w-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0a9 9 0 009-9m-9 9V3" /></svg>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 space-y-2">
+                                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.favicon_from_logo}
+                                                    onChange={(e) => {
+                                                        setBrandingTouched(true);
+                                                        setData((prev) => ({ ...prev, favicon_from_logo: e.target.checked, favicon_file: e.target.checked ? null : prev.favicon_file }));
+                                                        if (e.target.checked) setFaviconPreview(null);
+                                                    }}
+                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                Generate the favicon from the logo automatically
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="favicon-upload" className="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                                                    {data.favicon_file ? 'Change custom favicon' : 'Upload a custom favicon'}
+                                                    <input
+                                                        id="favicon-upload"
+                                                        type="file"
+                                                        accept="image/png,image/x-icon,image/svg+xml,image/jpeg,image/webp,.ico"
+                                                        className="sr-only"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files[0];
+                                                            if (!file) return;
+                                                            setBrandingTouched(true);
+                                                            setData((prev) => ({ ...prev, favicon_file: file, favicon_from_logo: false }));
+                                                            const reader = new FileReader();
+                                                            reader.onload = (ev) => setFaviconPreview(ev.target.result);
+                                                            reader.readAsDataURL(file);
+                                                        }}
+                                                    />
+                                                </label>
+                                                {data.favicon_file && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setData((prev) => ({ ...prev, favicon_file: null, favicon_from_logo: true })); setFaviconPreview(null); }}
+                                                        className="text-xs text-gray-500 hover:text-red-600"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-gray-400">
+                                                {data.favicon_file
+                                                    ? 'Custom favicon will be used. PNG, ICO, SVG or WebP.'
+                                                    : data.favicon_from_logo
+                                                        ? 'The logo is converted to a square tab icon when the site is created.'
+                                                        : 'No favicon set — the default site favicon is inherited.'}
+                                            </p>
+                                            <InputError message={errors.favicon_file} className="mt-1" />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Color groups — mirrors Admin > Websites > Edit */}
