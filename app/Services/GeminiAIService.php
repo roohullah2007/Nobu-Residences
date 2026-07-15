@@ -335,9 +335,7 @@ class GeminiAIService
             // than the 10s that suffices for short snippets.
             $timeout = $maxOutputTokens > 1000 ? 60 : 10;
 
-            $response = Http::timeout($timeout)->withHeaders([
-                'Content-Type' => 'application/json',
-            ])->post($this->apiUrl . '?key=' . $this->apiKey, [
+            $payload = [
                 'contents' => [
                     [
                         'parts' => [
@@ -357,7 +355,33 @@ class GeminiAIService
                     // Disabling thinking hands the full budget to the output.
                     'thinkingConfig' => ['thinkingBudget' => 0],
                 ]
-            ]);
+            ];
+
+            // Gemini's shared-capacity Flash models return a transient HTTP 503
+            // ("model is experiencing high demand") or 429 (rate limit) whenever
+            // Google is momentarily overloaded — it has nothing to do with our
+            // request and usually clears within a second or two. Without a retry
+            // a single blip fails the whole generation, which is exactly why the
+            // job succeeds one run and 503s the next. Retry transient statuses
+            // with exponential backoff; fail fast on real errors (bad key/model,
+            // quota exhausted, blocked prompt).
+            $response = null;
+            $maxAttempts = 4; // 1 initial attempt + up to 3 retries
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                $response = Http::timeout($timeout)->withHeaders([
+                    'Content-Type' => 'application/json',
+                ])->post($this->apiUrl . '?key=' . $this->apiKey, $payload);
+
+                if ($response->successful()
+                    || !in_array($response->status(), [429, 500, 503], true)
+                    || $attempt === $maxAttempts) {
+                    break;
+                }
+
+                $sleepMs = min(8000, (int) (500 * (2 ** ($attempt - 1)))); // 0.5s, 1s, 2s
+                Log::warning("Gemini transient HTTP {$response->status()} — retry {$attempt}/" . ($maxAttempts - 1) . " after {$sleepMs}ms");
+                usleep($sleepMs * 1000);
+            }
 
             if ($response->successful()) {
                 $result = $response->json();
