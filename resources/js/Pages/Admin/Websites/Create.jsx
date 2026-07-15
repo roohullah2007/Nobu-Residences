@@ -4,6 +4,29 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import extractLogoColors from '@/lib/extractLogoColors';
+
+// Same brand-color palette + defaults the Edit page uses, so a new site
+// starts from an editable full palette here instead of only inheriting one.
+// A logo upload auto-fills these; each stays editable before Create.
+const DEFAULT_BRAND_COLORS = {
+    'brand_colors.primary': '#912018',
+    'brand_colors.accent': '#F5F8FF',
+    'brand_colors.text': '#000000',
+    'brand_colors.background': '#FFFFFF',
+    'brand_colors.button_primary_bg': '#293056',
+    'brand_colors.button_primary_text': '#FFFFFF',
+    'brand_colors.button_secondary_bg': '#912018',
+    'brand_colors.button_secondary_text': '#FFFFFF',
+    'brand_colors.button_tertiary_bg': '#000000',
+    'brand_colors.button_tertiary_text': '#FFFFFF',
+    'brand_colors.button_quaternary_bg': '#FFFFFF',
+    'brand_colors.button_quaternary_text': '#293056',
+    'brand_colors.footer_bg': '#1a1a2e',
+    'brand_colors.footer_text': '#FFFFFF',
+    'brand_colors.link_color': '#912018',
+    'brand_colors.link_hover': '#6d1812',
+};
 
 // Force white backgrounds AND one consistent border + font size on all form
 // controls. TextInput bakes in dark: classes, so without the border override
@@ -80,15 +103,52 @@ function CopyButton({ value, label = 'Copy' }) {
 export default function Create({ auth, buildings = [], buildingIdsWithWebsite = [], cloudflareEnabled = false, cnameTarget = '', preselectedBuildingId = null }) {
     const [buildingSearch, setBuildingSearch] = useState('');
     const confirmPanelRef = useRef(null);
+    const [logoPreview, setLogoPreview] = useState(null);
+    const [detectingColors, setDetectingColors] = useState(false);
+    const [colorsDetected, setColorsDetected] = useState(false);
+    // Only send brand_colors when the admin actually engaged branding (logo
+    // upload or a manual swatch edit). Left untouched, we strip them so the
+    // server keeps inheriting the default site's palette as before.
+    const [brandingTouched, setBrandingTouched] = useState(false);
 
-    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+    const setColor = (key, value) => {
+        setBrandingTouched(true);
+        setData(key, value);
+    };
+
+    const { data, setData, post, processing, errors, setError, clearErrors, transform } = useForm({
         building_id: '',
         homepage_building_id: '',
         name: '',
         domain: '',
         is_default: false,
         is_active: true,
+        logo_file: null,
+        ...DEFAULT_BRAND_COLORS,
     });
+
+    // Uploading a logo: preview it, then auto-detect a brand palette from the
+    // image in-browser and fill the color pickers. Everything stays editable.
+    const onLogoChange = async (file) => {
+        if (!file) return;
+        setBrandingTouched(true);
+        setData('logo_file', file);
+        setColorsDetected(false);
+        const reader = new FileReader();
+        reader.onload = (e) => setLogoPreview(e.target.result);
+        reader.readAsDataURL(file);
+
+        setDetectingColors(true);
+        try {
+            const palette = await extractLogoColors(file);
+            if (palette) {
+                setData((prev) => ({ ...prev, ...palette }));
+                setColorsDetected(true);
+            }
+        } finally {
+            setDetectingColors(false);
+        }
+    };
 
     const hasWebsite = useMemo(
         () => new Set((buildingIdsWithWebsite || []).map(String)),
@@ -150,7 +210,22 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         }
         // useForm's post() (not router.post) so server validation errors
         // populate `errors` and render under each field via InputError.
+        // Strip the branding fields the admin never touched so the server
+        // keeps inheriting the default site's logo + palette. When branding
+        // WAS engaged, send the logo file and the full brand_colors palette.
+        transform((formData) => {
+            if (brandingTouched) return formData;
+            const cleaned = { ...formData, logo_file: null };
+            Object.keys(cleaned).forEach((k) => {
+                if (k.startsWith('brand_colors.')) delete cleaned[k];
+            });
+            return cleaned;
+        });
+
+        // forceFormData so the logo file (when present) uploads as multipart;
+        // the backend parses the dotted brand_colors.* keys either way.
         post(route('admin.websites.store'), {
+            forceFormData: true,
             preserveScroll: true,
         });
     };
@@ -359,6 +434,106 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                                     </div>
                                 )}
 
+                            </div>
+                        </div>
+
+                        {/* Website Branding — simple logo upload that auto-detects
+                            the brand palette, plus the same editable color pickers
+                            as the Edit page. Optional: skip it and colors inherit
+                            from the default site server-side. */}
+                        <div className="mt-4 bg-white overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
+                            <div className="p-6 space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-medium text-gray-900">Website Branding</h3>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Upload a building logo to auto-detect the color palette — or leave it and colors
+                                        inherit from your default site. Every color stays editable below.
+                                    </p>
+                                </div>
+
+                                {/* Logo upload (simple) */}
+                                <div>
+                                    <InputLabel value="Building Logo" />
+                                    <div className="mt-2 flex items-center gap-4">
+                                        <div className="h-20 w-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                            {logoPreview ? (
+                                                <img src={logoPreview} alt="Logo preview" className="h-full w-full object-contain" />
+                                            ) : (
+                                                <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <label htmlFor="logo-upload" className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
+                                                {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                                                <input
+                                                    id="logo-upload"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="sr-only"
+                                                    onChange={(e) => onLogoChange(e.target.files[0])}
+                                                />
+                                            </label>
+                                            <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG, SVG or WebP up to 2MB</p>
+                                            {detectingColors && (
+                                                <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1.5">
+                                                    <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
+                                                    Detecting colors…
+                                                </p>
+                                            )}
+                                            {colorsDetected && !detectingColors && (
+                                                <p className="text-xs text-green-700 mt-1">Colors detected from logo — tweak any below.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <InputError message={errors.logo_file} className="mt-2" />
+                                </div>
+
+                                {/* Color groups — mirrors Admin > Websites > Edit */}
+                                {[
+                                    { title: 'Core Brand Colors', fields: [
+                                        { key: 'brand_colors.primary', label: 'Primary', desc: 'Main brand color' },
+                                        { key: 'brand_colors.accent', label: 'Accent', desc: 'Highlight color' },
+                                        { key: 'brand_colors.text', label: 'Text', desc: 'Text color' },
+                                        { key: 'brand_colors.background', label: 'Background', desc: 'Page background' },
+                                    ] },
+                                    { title: 'Button Colors', fields: [
+                                        { key: 'brand_colors.button_primary_bg', label: 'Primary BG', desc: 'Available Building, Sign Up' },
+                                        { key: 'brand_colors.button_primary_text', label: 'Primary Text', desc: 'Primary text' },
+                                        { key: 'brand_colors.button_secondary_bg', label: 'Secondary BG', desc: 'Contact Agent, Listings' },
+                                        { key: 'brand_colors.button_secondary_text', label: 'Secondary Text', desc: 'Secondary text' },
+                                        { key: 'brand_colors.button_tertiary_bg', label: 'Tertiary BG', desc: 'Request Tour buttons' },
+                                        { key: 'brand_colors.button_tertiary_text', label: 'Tertiary Text', desc: 'Tertiary text' },
+                                        { key: 'brand_colors.button_quaternary_bg', label: 'Quaternary BG', desc: 'Outline buttons' },
+                                        { key: 'brand_colors.button_quaternary_text', label: 'Quaternary Text', desc: 'Quaternary text' },
+                                    ] },
+                                    { title: 'Footer Colors', fields: [
+                                        { key: 'brand_colors.footer_bg', label: 'Footer Background', desc: 'Footer section background' },
+                                        { key: 'brand_colors.footer_text', label: 'Footer Text', desc: 'Footer text color' },
+                                    ] },
+                                    { title: 'Link Colors', fields: [
+                                        { key: 'brand_colors.link_color', label: 'Link Color', desc: 'Default link color' },
+                                        { key: 'brand_colors.link_hover', label: 'Link Hover', desc: 'Link hover color' },
+                                    ] },
+                                ].map((group) => (
+                                    <div key={group.title} className="border-t border-gray-100 pt-5">
+                                        <label className="block text-sm font-medium text-gray-700 mb-3">{group.title}</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            {group.fields.map((color) => (
+                                                <div key={color.key} className="text-center">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">{color.label}</label>
+                                                    <input
+                                                        type="color"
+                                                        value={data[color.key]}
+                                                        onChange={(e) => setColor(color.key, e.target.value)}
+                                                        className="h-12 w-full rounded-md border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <div className="mt-1 text-xs text-gray-500">{data[color.key]}</div>
+                                                    <p className="text-xs text-gray-400 mt-1">{color.desc}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
