@@ -100,15 +100,19 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    // Server-side key (Geocoding/Places). Lock this to the server IP.
+    // Server-side key (Geocoding/Places). IP-restricted to the server IP, so
+    // it MUST NEVER reach the browser — a browser request carries the visitor
+    // IP and Google would reject it. Used only by PHP (GeocodingService,
+    // GooglePlacesService, buildings:geocode).
     'google_maps_api_key' => env('GOOGLE_MAPS_API_KEY', ''),
 
     // Browser key (Maps JavaScript API), injected into every public page.
-    // Keep it separate from the server key so it can be API-restricted +
-    // quota-capped WITHOUT an HTTP-referrer lock — that lets every customer
-    // custom domain load the map without adding each one in Google Console.
-    // Falls back to the server key until GOOGLE_MAPS_BROWSER_KEY is set.
-    'google_maps_browser_key' => env('GOOGLE_MAPS_BROWSER_KEY') ?: env('GOOGLE_MAPS_API_KEY', ''),
+    // Deliberately NOT falling back to the server key: the server key is
+    // IP-locked, so leaking it into a page would break every map. If this env
+    // var is unset the map simply won't load (fail safe) instead of shipping
+    // the IP-locked key to the browser. Restrict this key by API + quota
+    // (NOT by IP) so every customer custom domain keeps working.
+    'google_maps_browser_key' => env('GOOGLE_MAPS_BROWSER_KEY', ''),
 
     /*
     |--------------------------------------------------------------------------
