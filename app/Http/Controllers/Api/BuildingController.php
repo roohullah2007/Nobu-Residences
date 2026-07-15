@@ -498,7 +498,7 @@ class BuildingController extends Controller
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
             'building_id' => 'nullable|exists:buildings,id', // Optional — Create page has no building yet
-            'image_type' => 'nullable|in:main,gallery' // Optional, defaults to main
+            'image_type' => 'nullable|in:main,gallery,logo' // Optional, defaults to main
         ]);
 
         try {
@@ -536,6 +536,8 @@ class BuildingController extends Controller
                 if ($building) {
                     if ($imageType === 'main') {
                         $building->main_image = $imageUrl;
+                    } elseif ($imageType === 'logo') {
+                        $building->logo = $imageUrl;
                     } else {
                         $currentImages = $building->images;
                         if (is_string($currentImages)) {

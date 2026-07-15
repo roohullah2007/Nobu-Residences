@@ -58,6 +58,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         year_built: building.year_built || '',
         description: building.description || '',
         main_image: building.main_image || '',
+        logo: building.logo || '',
         images: building.images || [],
         developer_id: building.developer_id || '',
         status: building.status || 'active',
@@ -125,6 +126,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState(initMaintenanceFeeAmenities());
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
+    const [logoPreview, setLogoPreview] = useState(building.logo || '');
     const [galleryImages, setGalleryImages] = useState(
         Array.isArray(building.images) ? building.images :
         (building.images ? JSON.parse(building.images) : [])
@@ -132,6 +134,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [showAmenitySelector, setShowAmenitySelector] = useState(false);
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
     const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
     const [imageUploadError, setImageUploadError] = useState('');
     const [pendingImageDelete, setPendingImageDelete] = useState(null);
@@ -420,8 +423,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
         setImageUploadError('');
 
-        // For main image, only take the first file
-        const filesToUpload = imageType === 'main' ? [files[0]] : files;
+        // For main image / logo, only take the first file
+        const filesToUpload = imageType === 'gallery' ? files : [files[0]];
 
         // Validate file types and sizes
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -440,6 +443,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
         if (imageType === 'main') {
             setUploadingImage(true);
+        } else if (imageType === 'logo') {
+            setUploadingLogo(true);
         } else {
             setUploadingGalleryImage(true);
         }
@@ -487,6 +492,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                 if (imageType === 'main') {
                     setData('main_image', successfulUploads[0]);
                     setImagePreview(successfulUploads[0]);
+                } else if (imageType === 'logo') {
+                    setData('logo', successfulUploads[0]);
+                    setLogoPreview(successfulUploads[0]);
                 } else {
                     const updatedImages = [...galleryImages, ...successfulUploads];
                     setGalleryImages(updatedImages);
@@ -504,6 +512,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         } finally {
             if (imageType === 'main') {
                 setUploadingImage(false);
+            } else if (imageType === 'logo') {
+                setUploadingLogo(false);
             } else {
                 setUploadingGalleryImage(false);
             }
@@ -1431,6 +1441,55 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Building Logo Section — drives the website color theme */}
+                            <div className="mb-8 border-t pt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-1">Building Logo</h3>
+                                <p className="text-xs text-gray-500 mb-4">Used as the website logo and to auto-detect the site's color theme when a website is created for this building.</p>
+                                <div>
+                                    <div className="mt-1 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
+                                                <input
+                                                    type="file"
+                                                    className="sr-only"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleImageUpload(e, 'logo')}
+                                                    disabled={uploadingLogo}
+                                                />
+                                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                                {uploadingLogo ? 'Uploading...' : 'Select Logo'}
+                                            </label>
+                                            {logoPreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setData('logo', ''); setLogoPreview(''); }}
+                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
+                                                >
+                                                    Remove Logo
+                                                </button>
+                                            )}
+                                        </div>
+                                        {!logoPreview && (
+                                            <p className="text-sm text-gray-500">Select the building logo (PNG, JPG, SVG, WebP, max 5MB)</p>
+                                        )}
+                                    </div>
+                                    <InputError message={errors.logo} className="mt-2" />
+
+                                    {logoPreview && (
+                                        <div className="mt-3">
+                                            <img
+                                                src={logoPreview}
+                                                alt="Building logo"
+                                                className="h-32 w-auto max-w-xs object-contain rounded-lg border border-gray-200 bg-gray-50 p-2"
+                                                onError={(e) => { e.target.src = 'https://via.placeholder.com/200x120?text=Invalid+Image'; }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

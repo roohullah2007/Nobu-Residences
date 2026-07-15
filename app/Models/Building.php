@@ -58,6 +58,7 @@ class Building extends Model
         'year_built',
         'description',
         'main_image',
+        'logo',
         'images',
         'pending_image_urls',
         'image_download_attempts',
@@ -157,6 +158,11 @@ class Building extends Model
     }
 
     public function getMainImageAttribute($value)
+    {
+        return $this->stripLocalHost($value);
+    }
+
+    public function getLogoAttribute($value)
     {
         return $this->stripLocalHost($value);
     }

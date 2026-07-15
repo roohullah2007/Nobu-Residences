@@ -73,10 +73,10 @@
     "/build/assets/Index-C8HC5O4y.js"
   ],
   "resources/js/Pages/Admin/Buildings/Create.jsx": [
-    "/build/assets/Create-D44yIxd7.js"
+    "/build/assets/Create--Tybl2gU.js"
   ],
   "resources/js/Pages/Admin/Buildings/Edit.jsx": [
-    "/build/assets/Edit-DEUgKlT3.js"
+    "/build/assets/Edit-B-oyb6_B.js"
   ],
   "resources/js/Pages/Admin/Buildings/Import.jsx": [
     "/build/assets/Import-C3cPDCUn.js"
@@ -142,7 +142,7 @@
     "/build/assets/Websites-DSHgsq3e.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-Cd9_qlvO.js"
+    "/build/assets/Create-DUtbqvLq.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
     "/build/assets/Created-D0oXsSPw.js"
@@ -722,6 +722,9 @@
   ],
   "resources/js/hooks/usePropertyImageLazyLoad.js": [
     "/build/assets/Search-DYAGndD_.js"
+  ],
+  "resources/js/lib/extractLogoColors.js": [
+    "/build/assets/Create-DUtbqvLq.js"
   ],
   "resources/js/services/frontendGeocoding.js": [
     "/build/assets/SimplePropertyMap-CcNI_Icw.js"

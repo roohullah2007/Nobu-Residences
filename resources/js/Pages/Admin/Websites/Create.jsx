@@ -106,15 +106,13 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
     const [logoPreview, setLogoPreview] = useState(null);
     const [detectingColors, setDetectingColors] = useState(false);
     const [colorsDetected, setColorsDetected] = useState(false);
-    // Only send brand_colors when the admin actually engaged branding (logo
-    // upload or a manual swatch edit). Left untouched, we strip them so the
-    // server keeps inheriting the default site's palette as before.
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [logoError, setLogoError] = useState('');
+    // Only send branding (logo + brand_colors) when it was actually engaged —
+    // i.e. the picked building has a logo we detected colors from, the admin
+    // uploaded a logo, or a swatch was edited. Left untouched, we strip these
+    // so the server keeps inheriting the default site's palette + logo.
     const [brandingTouched, setBrandingTouched] = useState(false);
-
-    const setColor = (key, value) => {
-        setBrandingTouched(true);
-        setData(key, value);
-    };
 
     const { data, setData, post, processing, errors, setError, clearErrors, transform } = useForm({
         building_id: '',
@@ -123,30 +121,78 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         domain: '',
         is_default: false,
         is_active: true,
-        logo_file: null,
+        // The building's logo drives the website theme. Both fields are set to
+        // the same URL (the site renders whichever it reads).
+        logo: '',
+        logo_url: '',
         ...DEFAULT_BRAND_COLORS,
     });
 
-    // Uploading a logo: preview it, then auto-detect a brand palette from the
-    // image in-browser and fill the color pickers. Everything stays editable.
-    const onLogoChange = async (file) => {
-        if (!file) return;
+    const setColor = (key, value) => {
         setBrandingTouched(true);
-        setData('logo_file', file);
-        setColorsDetected(false);
-        const reader = new FileReader();
-        reader.onload = (e) => setLogoPreview(e.target.result);
-        reader.readAsDataURL(file);
+        setData(key, value);
+    };
 
+    // Run the in-browser palette detection on a logo (File or URL) and fill
+    // the color pickers. Everything stays editable afterwards.
+    const detectColorsFrom = async (source) => {
+        setColorsDetected(false);
         setDetectingColors(true);
         try {
-            const palette = await extractLogoColors(file);
+            const palette = await extractLogoColors(source);
             if (palette) {
                 setData((prev) => ({ ...prev, ...palette }));
                 setColorsDetected(true);
             }
         } finally {
             setDetectingColors(false);
+        }
+    };
+
+    // Manual upload / replace of the building logo. Uploads to the building
+    // (image_type=logo) so the logo is saved on the building itself, then
+    // points the new website at that URL and re-detects the theme.
+    const onLogoUpload = async (file) => {
+        if (!file) return;
+        setLogoError('');
+        if (file.size > 2 * 1024 * 1024) {
+            setLogoError('Logo must be under 2MB.');
+            return;
+        }
+        setBrandingTouched(true);
+
+        // Instant local preview + detection while the upload is in flight.
+        const reader = new FileReader();
+        reader.onload = (e) => setLogoPreview(e.target.result);
+        reader.readAsDataURL(file);
+        detectColorsFrom(file);
+
+        setUploadingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('image_type', 'logo');
+            if (data.building_id) formData.append('building_id', data.building_id);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const res = await fetch('/api/buildings/upload-image', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+                body: formData,
+            });
+            const result = await res.json();
+            if (result.success && result.url) {
+                setData((prev) => ({ ...prev, logo: result.url, logo_url: result.url }));
+            } else {
+                setLogoError(result.message || 'Logo upload failed.');
+            }
+        } catch {
+            setLogoError('Logo upload failed. Please try again.');
+        } finally {
+            setUploadingLogo(false);
         }
     };
 
@@ -172,6 +218,8 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
 
     const chooseBuilding = (building) => {
         clearErrors();
+        setLogoError('');
+        const hasLogo = Boolean(building.logo);
         setData((prev) => ({
             ...prev,
             building_id: building.id,
@@ -179,7 +227,24 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
             // Editable in the confirm panel; a second site for the same
             // building just needs a different name (slug auto-suffixes).
             name: building.name || '',
+            // Point the site at the building's own logo. When the building has
+            // none, clear it and reset colors so the server-side inheritance
+            // (default site logo + palette) takes over instead.
+            logo: hasLogo ? building.logo : '',
+            logo_url: hasLogo ? building.logo : '',
+            ...(hasLogo ? {} : DEFAULT_BRAND_COLORS),
         }));
+
+        if (hasLogo) {
+            // The building's logo IS the brand source — auto-detect + apply.
+            setLogoPreview(building.logo);
+            setBrandingTouched(true);
+            detectColorsFrom(building.logo);
+        } else {
+            setLogoPreview(null);
+            setColorsDetected(false);
+            setBrandingTouched(false);
+        }
     };
 
     // Scroll the confirm panel into view once a building is picked so the
@@ -212,20 +277,18 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         // populate `errors` and render under each field via InputError.
         // Strip the branding fields the admin never touched so the server
         // keeps inheriting the default site's logo + palette. When branding
-        // WAS engaged, send the logo file and the full brand_colors palette.
+        // WAS engaged (building logo, upload, or a swatch edit), send the
+        // logo URL and the full brand_colors palette.
         transform((formData) => {
             if (brandingTouched) return formData;
-            const cleaned = { ...formData, logo_file: null };
+            const cleaned = { ...formData, logo: '', logo_url: '' };
             Object.keys(cleaned).forEach((k) => {
                 if (k.startsWith('brand_colors.')) delete cleaned[k];
             });
             return cleaned;
         });
 
-        // forceFormData so the logo file (when present) uploads as multipart;
-        // the backend parses the dotted brand_colors.* keys either way.
         post(route('admin.websites.store'), {
-            forceFormData: true,
             preserveScroll: true,
         });
     };
@@ -437,43 +500,49 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                             </div>
                         </div>
 
-                        {/* Website Branding — simple logo upload that auto-detects
-                            the brand palette, plus the same editable color pickers
-                            as the Edit page. Optional: skip it and colors inherit
-                            from the default site server-side. */}
+                        {/* Website Branding — the building's logo drives the theme:
+                            colors are auto-detected from it and applied to the new
+                            site. The pickers below stay editable. No building logo?
+                            upload one (it's saved on the building) or leave it and
+                            colors inherit from the default site server-side. */}
                         <div className="mt-4 bg-white overflow-hidden rounded-2xl border border-gray-200 shadow-sm">
                             <div className="p-6 space-y-6">
                                 <div>
                                     <h3 className="text-lg font-medium text-gray-900">Website Branding</h3>
                                     <p className="text-sm text-gray-500 mt-1">
-                                        Upload a building logo to auto-detect the color palette — or leave it and colors
-                                        inherit from your default site. Every color stays editable below.
+                                        The website's color theme is picked automatically from the building's logo.
+                                        Every color stays editable below.
                                     </p>
                                 </div>
 
-                                {/* Logo upload (simple) */}
+                                {/* Building logo — auto-loaded from the selected building */}
                                 <div>
                                     <InputLabel value="Building Logo" />
                                     <div className="mt-2 flex items-center gap-4">
                                         <div className="h-20 w-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                                             {logoPreview ? (
-                                                <img src={logoPreview} alt="Logo preview" className="h-full w-full object-contain" />
+                                                <img src={logoPreview} alt="Building logo" className="h-full w-full object-contain" />
                                             ) : (
                                                 <svg className="h-8 w-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                             )}
                                         </div>
                                         <div className="min-w-0">
-                                            <label htmlFor="logo-upload" className="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer">
-                                                {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                                            <label htmlFor="logo-upload" className={`inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer ${uploadingLogo ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                {uploadingLogo ? 'Uploading…' : (logoPreview ? 'Change Logo' : 'Upload Logo')}
                                                 <input
                                                     id="logo-upload"
                                                     type="file"
                                                     accept="image/*"
                                                     className="sr-only"
-                                                    onChange={(e) => onLogoChange(e.target.files[0])}
+                                                    disabled={uploadingLogo}
+                                                    onChange={(e) => onLogoUpload(e.target.files[0])}
                                                 />
                                             </label>
-                                            <p className="text-xs text-gray-500 mt-1">PNG, JPG, JPEG, SVG or WebP up to 2MB</p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {logoPreview
+                                                    ? 'Uploading a new logo saves it on the building and re-detects the theme.'
+                                                    : 'This building has no logo yet — upload one (saved on the building). PNG, JPG, SVG or WebP up to 2MB.'}
+                                            </p>
                                             {detectingColors && (
                                                 <p className="text-xs text-indigo-600 mt-1 flex items-center gap-1.5">
                                                     <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
@@ -481,11 +550,11 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                                                 </p>
                                             )}
                                             {colorsDetected && !detectingColors && (
-                                                <p className="text-xs text-green-700 mt-1">Colors detected from logo — tweak any below.</p>
+                                                <p className="text-xs text-green-700 mt-1">Theme colors detected from the logo — tweak any below.</p>
                                             )}
                                         </div>
                                     </div>
-                                    <InputError message={errors.logo_file} className="mt-2" />
+                                    {logoError && <p className="text-red-500 text-xs mt-2">{logoError}</p>}
                                 </div>
 
                                 {/* Color groups — mirrors Admin > Websites > Edit */}

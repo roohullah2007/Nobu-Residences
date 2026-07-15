@@ -52,6 +52,12 @@ function saturation(r, g, b) {
 function loadImage(src) {
     return new Promise((resolve, reject) => {
         const img = new Image();
+        // For remote URLs (building logos), request CORS so the canvas isn't
+        // tainted and getImageData() can read pixels. Same-origin URLs are
+        // unaffected; data: URLs never need it.
+        if (typeof src === 'string' && !src.startsWith('data:')) {
+            img.crossOrigin = 'anonymous';
+        }
         img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = src;

@@ -54,7 +54,7 @@ class WebsiteManagementController extends Controller
     {
         $buildings = Building::select(
                 'id', 'name', 'slug', 'address', 'city', 'description',
-                'main_image', 'agent_name', 'agent_title', 'agent_phone',
+                'main_image', 'logo', 'agent_name', 'agent_title', 'agent_phone',
                 'agent_email', 'agent_brokerage', 'agent_image', 'website_url'
             )
             ->orderBy('name')
@@ -166,6 +166,7 @@ class WebsiteManagementController extends Controller
             'is_default' => 'boolean',
             'is_active' => 'boolean',
             'logo_file' => 'nullable|file|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'logo' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|max:255',
             'favicon_file' => 'nullable|file|mimes:jpg,jpeg,png,ico,svg|max:1024',
             'favicon_url' => 'nullable|string|max:255',
