@@ -646,52 +646,6 @@ class BuildingController extends Controller
             ->with('success', 'Building updated successfully.');
     }
 
-    /**
-     * On-demand logo scrape: find the building's logo on its marketing
-     * website, download it, and detect the color theme. Same engine as the
-     * buildings:scrape-logos cron, run synchronously so the admin sees the
-     * result immediately. Returns JSON for the Edit page's fetch() call.
-     */
-    public function scrapeLogo($buildingSlug, \App\Services\LogoScraperService $scraper)
-    {
-        $building = $this->resolveBuildingFromSlug($buildingSlug);
-
-        if (empty(trim((string) $building->website_url))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This building has no marketing Website URL to scrape a logo from. Add one first, or upload a logo manually.',
-            ], 422);
-        }
-
-        $result = $scraper->scrapeForBuilding($building);
-
-        if ($result === null || empty($result['logo'])) {
-            $building->forceFill([
-                'logo_scrape_attempts' => (int) $building->logo_scrape_attempts + 1,
-            ])->saveQuietly();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'No logo could be found on the building\'s website. Try uploading one manually.',
-            ], 422);
-        }
-
-        $updates = ['logo' => $result['logo'], 'logo_scrape_attempts' => 0];
-        if (!empty($result['brand_colors'])) {
-            $updates['brand_colors'] = $result['brand_colors'];
-        }
-        $building->forceFill($updates)->saveQuietly();
-
-        return response()->json([
-            'success' => true,
-            'logo' => $building->logo,
-            'brand_colors' => $result['brand_colors'] ?? null,
-            'message' => !empty($result['brand_colors'])
-                ? 'Logo scraped and color theme detected.'
-                : 'Logo scraped. The color theme is detected automatically when a website is created.',
-        ]);
-    }
-
     public function destroy($buildingSlug)
     {
         $building = $this->resolveBuildingFromSlug($buildingSlug);

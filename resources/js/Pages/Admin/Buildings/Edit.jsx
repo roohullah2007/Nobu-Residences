@@ -135,8 +135,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const [amenitySearch, setAmenitySearch] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingLogo, setUploadingLogo] = useState(false);
-    const [scrapingLogo, setScrapingLogo] = useState(false);
-    const [scrapeMsg, setScrapeMsg] = useState(null); // { ok: bool, text: string }
     const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
     const [imageUploadError, setImageUploadError] = useState('');
     const [pendingImageDelete, setPendingImageDelete] = useState(null);
@@ -417,37 +415,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
         // Also update the form data to keep it in sync
         setData('maintenance_fee_amenity_ids', newSelectedMaintenanceFeeAmenities.map(a => a.id));
-    };
-
-    // Scrape the building's logo from its marketing Website URL and detect the
-    // color theme, without leaving the page. Persists on the building server-
-    // side; the preview + form logo field update on success.
-    const scrapeLogoFromWebsite = async () => {
-        setScrapeMsg(null);
-        setScrapingLogo(true);
-        try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            const res = await fetch(route('admin.buildings.scrape-logo', building.slug), {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    Accept: 'application/json',
-                },
-            });
-            const result = await res.json();
-            if (result.success && result.logo) {
-                setData('logo', result.logo);
-                setLogoPreview(result.logo);
-                setScrapeMsg({ ok: true, text: result.message || 'Logo scraped from the website.' });
-            } else {
-                setScrapeMsg({ ok: false, text: result.message || 'Could not scrape a logo from the website.' });
-            }
-        } catch {
-            setScrapeMsg({ ok: false, text: 'Logo scrape failed. Please try again.' });
-        } finally {
-            setScrapingLogo(false);
-        }
     };
 
     const handleImageUpload = async (e, imageType = 'main') => {
@@ -1497,22 +1464,6 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                                 </svg>
                                                 {uploadingLogo ? 'Uploading...' : 'Select Logo'}
                                             </label>
-                                            {data.website_url && (
-                                                <button
-                                                    type="button"
-                                                    onClick={scrapeLogoFromWebsite}
-                                                    disabled={scrapingLogo}
-                                                    title="Find the logo on this building's Website URL and detect the color theme"
-                                                    className="bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 rounded-md px-4 py-2 text-sm inline-flex items-center gap-2 disabled:opacity-60"
-                                                >
-                                                    {scrapingLogo ? (
-                                                        <>
-                                                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" /></svg>
-                                                            Detecting…
-                                                        </>
-                                                    ) : 'Auto-detect from website'}
-                                                </button>
-                                            )}
                                             {logoPreview && (
                                                 <button
                                                     type="button"
@@ -1524,10 +1475,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                             )}
                                         </div>
                                         {!logoPreview && (
-                                            <p className="text-sm text-gray-500">Select the building logo (PNG, JPG, SVG, WebP, max 5MB){data.website_url ? ' — or auto-detect it from the building\'s website.' : ''}</p>
-                                        )}
-                                        {scrapeMsg && (
-                                            <p className={`text-sm mt-1 ${scrapeMsg.ok ? 'text-green-700' : 'text-red-600'}`}>{scrapeMsg.text}</p>
+                                            <p className="text-sm text-gray-500">Select the building logo (PNG, JPG, SVG, WebP, max 5MB)</p>
                                         )}
                                     </div>
                                     <InputError message={errors.logo} className="mt-2" />

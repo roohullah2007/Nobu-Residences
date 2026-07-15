@@ -54,7 +54,7 @@ class WebsiteManagementController extends Controller
     {
         $buildings = Building::select(
                 'id', 'name', 'slug', 'address', 'city', 'description',
-                'main_image', 'logo', 'brand_colors', 'agent_name', 'agent_title', 'agent_phone',
+                'main_image', 'logo', 'agent_name', 'agent_title', 'agent_phone',
                 'agent_email', 'agent_brokerage', 'agent_image', 'website_url'
             )
             ->orderBy('name')

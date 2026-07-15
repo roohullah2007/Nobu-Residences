@@ -225,13 +225,6 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         clearErrors();
         setLogoError('');
         const hasLogo = Boolean(building.logo);
-        // Palette pre-detected server-side when the logo was scraped (dotted
-        // brand_colors.* keys). Present → seed the pickers instantly; absent
-        // (e.g. an SVG logo, or a manually-uploaded one) → detect in-browser.
-        const storedColors =
-            building.brand_colors && typeof building.brand_colors === 'object' && Object.keys(building.brand_colors).length
-                ? building.brand_colors
-                : null;
         setData((prev) => ({
             ...prev,
             building_id: building.id,
@@ -244,20 +237,14 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
             // (default site logo + palette) takes over instead.
             logo: hasLogo ? building.logo : '',
             logo_url: hasLogo ? building.logo : '',
-            ...(hasLogo ? (storedColors || {}) : DEFAULT_BRAND_COLORS),
+            ...(hasLogo ? {} : DEFAULT_BRAND_COLORS),
         }));
 
         if (hasLogo) {
-            // The building's logo IS the brand source.
+            // The building's logo IS the brand source — auto-detect + apply.
             setLogoPreview(building.logo);
             setBrandingTouched(true);
-            if (storedColors) {
-                // Colors already detected server-side — no re-detection needed.
-                setColorsDetected(true);
-                setDetectingColors(false);
-            } else {
-                detectColorsFrom(building.logo);
-            }
+            detectColorsFrom(building.logo);
         } else {
             setLogoPreview(null);
             setColorsDetected(false);

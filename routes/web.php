@@ -417,9 +417,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         Route::post('/bulk-delete', [\App\Http\Controllers\Admin\BuildingController::class, 'bulkDestroy'])->name('bulk-delete');
         Route::get('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'show'])->name('show');
         Route::get('/{buildingSlug}/edit', [\App\Http\Controllers\Admin\BuildingController::class, 'edit'])->name('edit');
-        // On-demand: scrape this building's logo from its marketing website and
-        // detect the color theme (same engine as the buildings:scrape-logos cron).
-        Route::post('/{buildingSlug}/scrape-logo', [\App\Http\Controllers\Admin\BuildingController::class, 'scrapeLogo'])->name('scrape-logo');
         Route::put('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'update'])->name('update');
         Route::delete('/{buildingSlug}', [\App\Http\Controllers\Admin\BuildingController::class, 'destroy'])->name('destroy');
     });
