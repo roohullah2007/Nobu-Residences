@@ -51,8 +51,6 @@ class WebsiteController extends Controller
                 'year' => date('Y'),
                 'canLogin' => \Illuminate\Support\Facades\Route::has('login'),
                 'canRegister' => \Illuminate\Support\Facades\Route::has('register'),
-                'laravelVersion' => Application::VERSION,
-                'phpVersion' => PHP_VERSION,
             ];
         }
 
@@ -89,8 +87,6 @@ class WebsiteController extends Controller
             'year' => date('Y'),
             'canLogin' => \Illuminate\Support\Facades\Route::has('login'),
             'canRegister' => \Illuminate\Support\Facades\Route::has('register'),
-            'laravelVersion' => Application::VERSION,
-            'phpVersion' => PHP_VERSION,
         ];
     }
 

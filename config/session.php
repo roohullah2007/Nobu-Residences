@@ -122,15 +122,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Here you may change the name of the session cookie that is created by
-    | the framework. Typically, you should not need to change this value
-    | since doing so does not grant a meaningful security improvement.
+    | the framework. Deliberately generic ("sid") instead of the Laravel
+    | default APP_NAME-based name: tenant landing pages must not leak the
+    | platform owner's brand or the framework in cookie names.
     |
     */
 
-    'cookie' => env(
-        'SESSION_COOKIE',
-        Str::snake((string) env('APP_NAME', 'laravel')).'_session'
-    ),
+    'cookie' => env('SESSION_COOKIE', 'sid'),
 
     /*
     |--------------------------------------------------------------------------
