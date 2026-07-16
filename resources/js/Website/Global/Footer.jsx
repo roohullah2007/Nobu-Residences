@@ -3,6 +3,11 @@ import { Link, usePage } from '@inertiajs/react';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 import { normalizeImageUrl } from '@/utils/imageUrl';
 
+// Footer CONTACT US block (per client): the phone and email are fixed across
+// every landing page; the address is the domain's linked building address.
+const CONTACT_PHONE = '+1 416 669 4755';
+const CONTACT_EMAIL = 'info@jatingill.com';
+
 const Footer = ({
     siteName = 'Nobu Residences',
     siteUrl = 'www.noburesidences.com',
@@ -67,12 +72,15 @@ const Footer = ({
     const showEmail = contactSettings?.show_email !== false;
     const showAddress = contactSettings?.show_address !== false;
 
-    // Determine which contact info to use - prioritize agent_info from database
-    // No hardcoded fallbacks - if data is not set in backend, show nothing
+    // Contact block values. Admin per-page overrides (use_global_contact off)
+    // still win; otherwise phone/email are the fixed client contact and the
+    // address is THIS domain's building address (website contact as fallback).
     const displayContactInfo = {
-        phone: useGlobalContact ? contactInfo?.phone : contactSettings?.custom_phone,
-        email: useGlobalContact ? contactInfo?.email : contactSettings?.custom_email,
-        address: useGlobalContact ? contactInfo?.address : contactSettings?.custom_address,
+        phone: useGlobalContact ? CONTACT_PHONE : contactSettings?.custom_phone,
+        email: useGlobalContact ? CONTACT_EMAIL : contactSettings?.custom_email,
+        address: useGlobalContact
+            ? (globalWebsite?.building_address || contactInfo?.address)
+            : contactSettings?.custom_address,
         agent: {
             name: agentInfo?.agent_name || contactInfo?.agent?.name || '',
             title: agentInfo?.agent_title || contactInfo?.agent?.title || '',
@@ -87,7 +95,12 @@ const Footer = ({
         heading: footerData?.heading || 'Your new home is waiting',
         subheading: footerData?.subheading || 'Apply online in minutes or get in touch to schedule a personalized tour',
         description: footerData?.description || effectiveWebsite?.description || '',
-        logo_url: footerData?.logo_url || effectiveWebsite?.logo_url || '',
+        // Same source as the header Navbar (website.logo_url) so the footer
+        // always carries the header's logo. Saved pages hold a legacy
+        // '/assets/logo.png' footer default that 404s on the case-sensitive
+        // production server (the tracked file is Logo.png), so the page-
+        // content value is only a fallback for sites without a logo.
+        logo_url: effectiveWebsite?.logo_url || footerData?.logo_url || '',
         // Per-domain image: admin override first, then THIS site's building
         // photo/logo. The old stock photo is gone — saved pages still carry
         // '/assets/house-img.jpg' from the legacy defaults, so that value is

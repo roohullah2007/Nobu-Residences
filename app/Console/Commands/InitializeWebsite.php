@@ -24,7 +24,7 @@ class InitializeWebsite extends Command
                 'slug' => 'nobu-residences',
                 'is_default' => true,
                 'is_active' => true,
-                'logo_url' => '/assets/logo.png',
+                'logo_url' => '/assets/Logo.png',
                 'domain' => null,
                 'description' => 'Luxury condos in downtown Toronto',
                 'timezone' => 'America/Toronto',

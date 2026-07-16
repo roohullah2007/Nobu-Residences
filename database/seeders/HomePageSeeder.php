@@ -21,7 +21,7 @@ class HomePageSeeder extends Seeder
                 'name' => 'Nobu Residences',
                 'is_default' => true,
                 'is_active' => true,
-                'logo_url' => '/assets/logo.png',
+                'logo_url' => '/assets/Logo.png',
                 'brand_colors' => [
                     'primary' => '#912018',
                     'secondary' => '#293056',

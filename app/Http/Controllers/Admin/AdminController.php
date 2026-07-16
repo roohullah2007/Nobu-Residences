@@ -103,7 +103,7 @@ class AdminController extends Controller
                     'domain' => null,
                     'is_default' => true,
                     'is_active' => true,
-                    'logo_url' => '/assets/logo.png',
+                    'logo_url' => '/assets/Logo.png',
                     'pages' => [
                         ['id' => 1, 'page_type' => 'home', 'title' => 'Home', 'is_active' => true]
                     ]

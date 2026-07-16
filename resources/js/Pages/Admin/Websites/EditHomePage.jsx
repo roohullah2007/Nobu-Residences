@@ -94,7 +94,9 @@ export default function EditHomePage({ auth }) {
                 enabled: true,
                 heading: 'Your new home is waiting',
                 subheading: 'Apply online in minutes or get in touch to schedule a personalized tour',
-                logo_url: '/assets/logo.png',
+                // Empty on purpose: the public footer renders the website's
+                // own logo (same image as the header).
+                logo_url: '',
                 // Empty on purpose: the public footer defaults to the
                 // website's linked building image.
                 background_image: '',
