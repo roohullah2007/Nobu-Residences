@@ -300,15 +300,21 @@ class RepliersApiService
     }
 
     /**
-     * Build the full CDN image URL from a filename
+     * Build the full CDN image URL from a filename.
+     *
+     * The Repliers CDN resizes on the fly via ?class=small|medium|large.
+     * Card/thumbnail callers pass a class so browsers don't download the
+     * multi-MB originals; null keeps the full-resolution image.
      */
-    public function getImageUrl(string $filename): string
+    public function getImageUrl(string $filename, ?string $class = null): string
     {
         if (str_starts_with($filename, 'http://') || str_starts_with($filename, 'https://')) {
             return $filename;
         }
 
-        return $this->cdnUrl . '/' . ltrim($filename, '/');
+        $url = $this->cdnUrl . '/' . ltrim($filename, '/');
+
+        return $class ? $url . '?class=' . $class : $url;
     }
 
     /**
@@ -317,10 +323,10 @@ class RepliersApiService
      * @param array $listing The listing data from API
      * @return array Array of full CDN image URLs
      */
-    public function getListingImageUrls(array $listing): array
+    public function getListingImageUrls(array $listing, ?string $class = null): array
     {
         $images = $listing['images'] ?? [];
-        return array_map(fn($img) => $this->getImageUrl($img), $images);
+        return array_map(fn($img) => $this->getImageUrl($img, $class), $images);
     }
 
     // =========================================================================

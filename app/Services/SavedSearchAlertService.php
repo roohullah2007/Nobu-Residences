@@ -269,7 +269,7 @@ class SavedSearchAlertService
      */
     protected function getFirstImageUrl(array $listing): ?string
     {
-        $urls = $this->repliersApi->getListingImageUrls($listing);
+        $urls = $this->repliersApi->getListingImageUrls($listing, 'medium');
 
         return $urls[0] ?? null;
     }

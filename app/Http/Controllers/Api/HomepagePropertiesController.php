@@ -411,7 +411,7 @@ class HomepagePropertiesController extends Controller
 
         foreach ($listings as $listing) {
             // Get images from Repliers listing
-            $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+            $imageUrls = $this->repliersApi->getListingImageUrls($listing, 'medium');
             $imageUrl = !empty($imageUrls) ? $imageUrls[0] : null;
 
             $address = $listing['address']['unparsedAddress']

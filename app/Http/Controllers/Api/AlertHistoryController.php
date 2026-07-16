@@ -129,7 +129,7 @@ class AlertHistoryController extends Controller
                         'formatted_price' => '$' . number_format($price),
                         'bedrooms' => $details['numBedrooms'] ?? 0,
                         'bathrooms' => $details['numBathrooms'] ?? 0,
-                        'image_url' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                        'image_url' => !empty($images) ? $repliersApi->getImageUrl($images[0], 'small') : null,
                         'url' => '/property/' . $mlsNumber,
                     ];
                 }

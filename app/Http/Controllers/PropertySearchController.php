@@ -836,7 +836,7 @@ class PropertySearchController extends Controller
                 $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
             }
 
-            $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+            $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img, 'medium'), $images);
             $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
 
             $transactionType = strtolower($listing['type'] ?? 'sale') === 'lease' ? 'For Rent' : 'For Sale';
@@ -1136,7 +1136,7 @@ class PropertySearchController extends Controller
             ]);
             $listing = $result['listings'][0] ?? null;
             if ($listing && ($listing['mlsNumber'] ?? '') === $mlsNumber && !empty($listing['images'])) {
-                return $this->repliersApi->getListingImageUrls($listing);
+                return $this->repliersApi->getListingImageUrls($listing, 'medium');
             }
         } catch (Exception $e) {
             Log::warning('Failed to fetch MLS images for property', [
@@ -2500,7 +2500,7 @@ class PropertySearchController extends Controller
                     'city' => $address['city'] ?? '',
                     'province' => $address['state'] ?? 'ON',
                     'postalCode' => $address['zip'] ?? '',
-                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0], 'small') : null,
                     'href' => '/price-history/' . $mlsNumber,
                 ];
             }
@@ -2758,7 +2758,7 @@ class PropertySearchController extends Controller
                     'baths' => (int) ($details['numBathrooms'] ?? 0),
                     'type' => $details['style'] ?? '',
                     'hasImage' => !empty($images),
-                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0]) : null,
+                    'image' => !empty($images) ? $repliersApi->getImageUrl($images[0], 'small') : null,
                 ];
             };
 

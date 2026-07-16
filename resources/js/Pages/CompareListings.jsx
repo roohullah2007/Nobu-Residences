@@ -503,41 +503,49 @@ export default function CompareListings({
                             </button>
                         </div>
 
-                        {/* Property thumbnail row (3 slots, empty placeholders for missing) */}
-                        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        {/* Property thumbnail row — always 3-up (even on mobile)
+                            so each card lines up with its column in the
+                            comparison grids below; cards go compact on phones. */}
+                        <div className="flex-1 w-full grid grid-cols-3 gap-2 sm:gap-4">
                             {slots.map((it, idx) => (
                                 <div key={idx} className="relative">
                                     {it ? (
-                                        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                                        <div className="bg-white border border-gray-200 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
                                             <button
                                                 type="button"
                                                 onClick={() => removeFromCompare(it.listingKey)}
-                                                className="absolute top-2 right-2 z-10 w-7 h-7 bg-white hover:bg-gray-50 text-gray-700 rounded-full flex items-center justify-center shadow-md border border-gray-200"
+                                                className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 w-6 h-6 sm:w-7 sm:h-7 bg-white hover:bg-gray-50 text-gray-700 rounded-full flex items-center justify-center shadow-md border border-gray-200"
                                                 title="Remove from compare"
                                             >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
                                             <a href={propertyHref(it)} className="block relative">
                                                 {/* Featured badge */}
-                                                <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-[#293056] text-white text-xs font-semibold px-2 py-1 rounded">
-                                                    <svg className="w-3 h-3 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
+                                                <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 inline-flex items-center gap-1 bg-[#293056] text-white text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded">
+                                                    <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-yellow-300" fill="currentColor" viewBox="0 0 24 24">
                                                         <path d="M12 .587l3.668 7.568L24 9.75l-6 5.847L19.336 24 12 19.897 4.664 24 6 15.597 0 9.75l8.332-1.595z" />
                                                     </svg>
                                                     Featured
                                                 </span>
                                                 {it.imageUrl ? (
-                                                    <img src={it.imageUrl} alt={it.shortAddress} className="w-full h-[160px] object-cover" />
+                                                    <img
+                                                        src={it.imageUrl}
+                                                        alt={it.shortAddress}
+                                                        loading={idx === 0 ? 'eager' : 'lazy'}
+                                                        decoding="async"
+                                                        className="w-full h-[90px] sm:h-[140px] lg:h-[160px] object-cover"
+                                                    />
                                                 ) : (
-                                                    <div className="w-full h-[160px] bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No image</div>
+                                                    <div className="w-full h-[90px] sm:h-[140px] lg:h-[160px] bg-gray-200 flex items-center justify-center text-gray-400 text-xs">No image</div>
                                                 )}
                                             </a>
-                                            <div className="p-3">
-                                                <div className="font-work-sans font-bold text-[#293056] text-base">
+                                            <div className="p-2 sm:p-3">
+                                                <div className="font-work-sans font-bold text-[#293056] text-sm sm:text-base truncate">
                                                     {formatPrice(it.listPrice) || dash}
                                                 </div>
-                                                <a href={propertyHref(it)} className="block font-work-sans text-[#037888] underline text-sm mt-1 truncate">
+                                                <a href={propertyHref(it)} className="block font-work-sans text-[#037888] underline text-xs sm:text-sm mt-0.5 sm:mt-1 truncate">
                                                     {it.shortAddress || it.listingKey}
                                                 </a>
                                             </div>
@@ -545,12 +553,12 @@ export default function CompareListings({
                                     ) : (
                                         <a
                                             href="/search"
-                                            className="flex flex-col items-center justify-center h-[260px] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors"
+                                            className="flex flex-col items-center justify-center h-[150px] sm:h-[220px] lg:h-[260px] bg-gray-50 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors px-1"
                                         >
-                                            <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-6 h-6 sm:w-10 sm:h-10 text-gray-400 mb-1 sm:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                                             </svg>
-                                            <span className="text-sm font-medium">Add a property</span>
+                                            <span className="text-xs sm:text-sm font-medium text-center">Add a property</span>
                                         </a>
                                     )}
                                 </div>

@@ -197,7 +197,7 @@ class PropertyImageController extends Controller
             if (!$mlsNumber || !array_key_exists($mlsNumber, $imagesByKey)) {
                 continue;
             }
-            $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+            $imageUrls = $this->repliersApi->getListingImageUrls($listing, 'medium');
             if (empty($imageUrls)) {
                 continue;
             }
@@ -248,7 +248,7 @@ class PropertyImageController extends Controller
 
                 if (!empty($result['listings'][0])) {
                     $listing = $result['listings'][0];
-                    $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+                    $imageUrls = $this->repliersApi->getListingImageUrls($listing, 'large');
 
                     if (!empty($imageUrls)) {
                         $executionTime = round((microtime(true) - $startTime) * 1000, 2);

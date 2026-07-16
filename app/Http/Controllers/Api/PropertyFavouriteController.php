@@ -258,7 +258,7 @@ class PropertyFavouriteController extends Controller
                         if (!$mlsNumber) {
                             continue;
                         }
-                        $imageUrls = $repliersApi->getListingImageUrls($listing);
+                        $imageUrls = $repliersApi->getListingImageUrls($listing, 'medium');
                         if (!empty($imageUrls)) {
                             $imagesByKey[$mlsNumber] = array_values($imageUrls);
                         }

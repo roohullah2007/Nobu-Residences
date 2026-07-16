@@ -124,7 +124,7 @@ class PropertyDetailController extends Controller
             if (is_string($first)) {
                 $imageUrl = str_starts_with($first, 'http')
                     ? $first
-                    : $this->repliersApi->getImageUrl($first);
+                    : $this->repliersApi->getImageUrl($first, 'medium');
             }
         } elseif (! empty($listing['MediaURL'])) {
             $imageUrl = $listing['MediaURL'];
@@ -638,11 +638,11 @@ class PropertyDetailController extends Controller
             $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
         }
 
-        $imageUrl = !empty($images) ? $this->repliersApi->getImageUrl($images[0]) : null;
+        $imageUrl = !empty($images) ? $this->repliersApi->getImageUrl($images[0], 'medium') : null;
 
         $allImages = array_map(function ($img, $index) {
             return [
-                'MediaURL' => $this->repliersApi->getImageUrl($img),
+                'MediaURL' => $this->repliersApi->getImageUrl($img, 'medium'),
                 'Order' => $index,
             ];
         }, $images, array_keys($images));
@@ -684,7 +684,7 @@ class PropertyDetailController extends Controller
         $images = [];
         foreach ($listingImages as $index => $filename) {
             $images[] = [
-                'url' => $this->repliersApi->getImageUrl($filename),
+                'url' => $this->repliersApi->getImageUrl($filename, 'large'),
                 'caption' => '',
                 'description' => '',
                 'order' => $index,

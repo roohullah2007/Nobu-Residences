@@ -171,9 +171,15 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     // blueHeader wrapper), drop the inner white "pill" so the header reads
     // as one continuous bar, and flip link text to white. Otherwise keep
     // the existing white pill + dark text used on the homepage.
+    // On the dark band the mobile logo is centered in the header (absolute,
+    // so the hamburger stays pinned right); the white-pill variant keeps the
+    // original left logo / right burger layout.
     const mobileContainerClass = onDarkBg
-        ? 'flex lg:hidden justify-between items-center w-full'
+        ? 'relative flex lg:hidden justify-end items-center w-full'
         : 'flex lg:hidden justify-between items-center px-4 py-3 bg-white rounded-xl w-full';
+    const mobileLogoLinkClass = onDarkBg
+        ? 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center cursor-pointer'
+        : 'flex items-center cursor-pointer';
     const linkTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
     const logoFallbackTextClass = onDarkBg ? 'text-white' : 'text-gray-900';
     const mobileBurgerClass = onDarkBg
@@ -203,16 +209,16 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                 {/* Mobile Navbar */}
                 <div className={mobileContainerClass}>
                     {/* Logo */}
-                    <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
-                        {website?.logo_url ? (
+                    <Link href={buildUrl("/")} className={mobileLogoLinkClass}>
+                        {effectiveWebsite?.logo_url ? (
                             <img
-                                src={website.logo_url}
-                                alt={website?.name || 'Site Logo'}
-                                className={onDarkBg ? 'object-contain object-left w-[160px] h-[55px]' : 'object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]'}
+                                src={effectiveWebsite.logo_url}
+                                alt={effectiveWebsite?.name || 'Site Logo'}
+                                className={onDarkBg ? 'object-contain w-[160px] h-[55px]' : 'object-contain w-[140px] h-[35px] md:w-[200px] md:h-[50px]'}
                             />
                         ) : (
                             <div className={`font-space-grotesk font-bold text-base tracking-tight leading-tight ${logoFallbackTextClass}`}>
-                                {website?.name || 'X HOUSES'}
+                                {effectiveWebsite?.name || 'X HOUSES'}
                             </div>
                         )}
                     </Link>
@@ -246,10 +252,10 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                 <div className={`hidden lg:flex items-center justify-between w-full ${onDarkBg ? 'h-full' : 'px-6 h-16 bg-white rounded-xl'}`}>
                     {/* Logo and Brand */}
                     <Link href={buildUrl("/")} className="flex items-center cursor-pointer">
-                        {website?.logo_url ? (
+                        {effectiveWebsite?.logo_url ? (
                             <img
-                                src={website.logo_url}
-                                alt={website?.name || 'Site Logo'}
+                                src={effectiveWebsite.logo_url}
+                                alt={effectiveWebsite?.name || 'Site Logo'}
                                 style={onDarkBg
                                     ? { width: '220px', height: '60px', maxWidth: '220px' }
                                     : { width: '200px', height: '50px', maxWidth: '200px' }
@@ -258,7 +264,7 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
                             />
                         ) : (
                             <div className={`font-space-grotesk font-bold text-[32px] leading-[36px] tracking-[-0.011em] ${logoFallbackTextClass}`}>
-                                {website?.name || 'X HOUSES'}
+                                {effectiveWebsite?.name || 'X HOUSES'}
                             </div>
                         )}
                     </Link>

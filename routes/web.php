@@ -210,9 +210,11 @@ Route::get('/api/market-stats', [WebsiteController::class, 'getMarketStats']);
 Route::post('/api/newsletter/subscribe', [\App\Http\Controllers\NewsletterController::class, 'subscribe']);
 
 Route::get('/dashboard', function () {
-    // Get website settings for consistent header/footer
-    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
-        ?? \App\Models\Website::with('agentInfo')->first();
+    // Get website settings for consistent header/footer. Resolve by the
+    // request's domain (tenant sites keep their own logo/branding on these
+    // global pages); the default website is only a fallback.
+    $resolver = app(\App\Services\Tenancy\TenantResolver::class);
+    $website = $resolver->resolve(request()) ?? $resolver->defaultWebsite();
 
     $websiteData = null;
     if ($website) {
@@ -252,9 +254,11 @@ Route::get('/user/dashboard', function () {
 
 // User Favourites Route
 Route::get('/user/favourites', function () {
-    // Get website settings for consistent header/footer
-    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
-        ?? \App\Models\Website::with('agentInfo')->first();
+    // Get website settings for consistent header/footer. Resolve by the
+    // request's domain (tenant sites keep their own logo/branding on these
+    // global pages); the default website is only a fallback.
+    $resolver = app(\App\Services\Tenancy\TenantResolver::class);
+    $website = $resolver->resolve(request()) ?? $resolver->defaultWebsite();
 
     $websiteData = null;
     if ($website) {
@@ -289,9 +293,11 @@ Route::get('/user/favourites', function () {
 
 // Compare Listings Route
 Route::get('/compare-listings', function () {
-    // Get website settings for consistent header/footer
-    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
-        ?? \App\Models\Website::with('agentInfo')->first();
+    // Get website settings for consistent header/footer. Resolve by the
+    // request's domain (tenant sites keep their own logo/branding on these
+    // global pages); the default website is only a fallback.
+    $resolver = app(\App\Services\Tenancy\TenantResolver::class);
+    $website = $resolver->resolve(request()) ?? $resolver->defaultWebsite();
 
     $websiteData = null;
     if ($website) {
@@ -336,9 +342,11 @@ Route::get('/compare-listings', function () {
 
 // User Alerts Route
 Route::get('/user/alerts', function () {
-    // Get website settings for consistent header/footer
-    $website = \App\Models\Website::with('agentInfo')->where('is_default', true)->where('is_active', true)->first()
-        ?? \App\Models\Website::with('agentInfo')->first();
+    // Get website settings for consistent header/footer. Resolve by the
+    // request's domain (tenant sites keep their own logo/branding on these
+    // global pages); the default website is only a fallback.
+    $resolver = app(\App\Services\Tenancy\TenantResolver::class);
+    $website = $resolver->resolve(request()) ?? $resolver->defaultWebsite();
 
     $websiteData = null;
     if ($website) {

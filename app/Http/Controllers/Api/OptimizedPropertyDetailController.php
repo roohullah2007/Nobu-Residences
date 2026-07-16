@@ -224,7 +224,7 @@ class OptimizedPropertyDetailController extends Controller
             return [];
         }
 
-        $imageUrls = $this->repliersApi->getListingImageUrls($listing);
+        $imageUrls = $this->repliersApi->getListingImageUrls($listing, 'large');
 
         // Format images for frontend
         $images = [];

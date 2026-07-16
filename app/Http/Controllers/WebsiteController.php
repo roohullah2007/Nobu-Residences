@@ -1820,7 +1820,7 @@ class WebsiteController extends Controller
                     // Get images from the Repliers listing data
                     if (!empty($repliersListing['images'])) {
                         $repliersApiForImages = app(\App\Services\RepliersApiService::class);
-                        $propertyImages = $repliersApiForImages->getListingImageUrls($repliersListing);
+                        $propertyImages = $repliersApiForImages->getListingImageUrls($repliersListing, 'large');
                         $propertyImages = array_filter($propertyImages);
                         \Log::info('Repliers property images for ' . $listingKey, ['count' => count($propertyImages)]);
                     } else {
@@ -2376,7 +2376,7 @@ class WebsiteController extends Controller
         $formatted = $this->formatRepliersPropertyData($listing, false);
 
         // Add image URLs from Repliers CDN
-        $imageUrls = $repliersApi->getListingImageUrls($listing);
+        $imageUrls = $repliersApi->getListingImageUrls($listing, 'medium');
         $imageUrl = !empty($imageUrls) ? $imageUrls[0] : null;
 
         $formatted['MediaURL'] = $imageUrl;
@@ -2499,7 +2499,7 @@ class WebsiteController extends Controller
             $repliersApi = app(\App\Services\RepliersApiService::class);
             $listing = $repliersApi->getListingByMlsNumber($mlsNumber);
             if ($listing && !empty($listing['images'])) {
-                $images = $repliersApi->getListingImageUrls($listing);
+                $images = $repliersApi->getListingImageUrls($listing, 'medium');
 
                 \Log::info('Fetched MLS images from Repliers API for backend property', [
                     'mls_number' => $mlsNumber,
@@ -2837,7 +2837,7 @@ class WebsiteController extends Controller
         );
 
         $images = $listing['images'] ?? [];
-        $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+        $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img, 'medium'), $images);
 
         $unitNumber = $address['unitNumber'] ?? '';
         $streetNumber = $address['streetNumber'] ?? '';
@@ -2915,7 +2915,7 @@ class WebsiteController extends Controller
                     $address = $l['address'] ?? [];
                     $images = $l['images'] ?? [];
                     $imageUrl = !empty($images[0])
-                        ? $api->getImageUrl($images[0])
+                        ? $api->getImageUrl($images[0], 'small')
                         : null;
 
                     $unit = $address['unitNumber'] ?? '';
@@ -3113,7 +3113,7 @@ class WebsiteController extends Controller
                         $fullAddress = $address['unitNumber'] . ' - ' . $fullAddress;
                     }
 
-                    $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img), $images);
+                    $imageUrls = array_map(fn($img) => $repliersApi->getImageUrl($img, 'medium'), $images);
                     $mediaUrl = !empty($imageUrls) ? $imageUrls[0] : null;
 
                     $isLease = $type === 'lease';
