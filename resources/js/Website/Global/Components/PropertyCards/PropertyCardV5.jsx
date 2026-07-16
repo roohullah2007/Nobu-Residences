@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
+import PropertyCardImageCarousel from '@/Website/Global/Components/PropertyCards/PropertyCardImageCarousel';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import { createSEOBuildingUrl } from '@/utils/slug';
 import {
@@ -498,23 +498,23 @@ const PropertyCardV5 = ({
             className="w-full h-full"
             style={lockSoldPrice ? { filter: 'blur(2px)' } : undefined}
           >
-            <PluginStyleImageLoader
-              src={property.imageUrl}
+            {/* Slidable photos: swipe on touch, hover arrows on desktop.
+                Single-image listings render the plain loader as before. */}
+            <PropertyCardImageCarousel
+              imageUrl={property.imageUrl}
+              images={property.source === 'building' ? [] : (property.images || property.Images)}
               alt={`${property.propertyType || 'Property'} in ${property.address}`}
-              className="w-full h-full property-image lazy-property-image transition-transform duration-300 group-hover:scale-105"
-              enableLazyLoading={true}
-              rootMargin="200px"
-              threshold={0.01}
-              enableBlurEffect={true}
-              priority="normal"
-              data-listing-key={property.listingKey}
+              imageClassName="w-full h-full property-image lazy-property-image"
+              listingKey={property.listingKey}
             />
           </div>
 
-          {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings */}
+          {/* IDX-AMPRE Style Filter Chips and Action Buttons - Hide for Buildings.
+              pointer-events-none lets touch swipes reach the image carousel
+              underneath; the Compare/heart buttons restore pointer-events. */}
           {property.source !== 'building' && (
             <div
-              className="absolute inset-2 flex flex-col justify-between"
+              className="absolute inset-2 flex flex-col justify-between pointer-events-none"
               style={lockSoldPrice ? { filter: 'blur(2px)' } : undefined}
             >
               {/* Top row - Sale and Property Type chips - Swapped positions */}
@@ -579,7 +579,7 @@ const PropertyCardV5 = ({
                 {showCompareButton && property.source !== 'building' && (
                   <button
                     onClick={toggleCompare}
-                    className={`flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm transition-all duration-200 ${
+                    className={`pointer-events-auto flex items-center justify-center ${config.chip} h-8 rounded-full font-bold tracking-tight whitespace-nowrap shadow-sm transition-all duration-200 ${
                       isInCompare
                         ? 'bg-[#293056] text-white border border-[#293056] hover:bg-[#293056]/90'
                         : 'bg-white text-[#293056] border border-gray-200 hover:bg-gray-50'
@@ -598,7 +598,7 @@ const PropertyCardV5 = ({
                   <button
                     onClick={toggleFavourite}
                     disabled={isLoadingFavourite}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 ${
+                    className={`pointer-events-auto w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-all duration-200 ${
                       isFavourited
                         ? 'bg-red-500 hover:bg-red-600'
                         : 'bg-white/90 hover:bg-white backdrop-blur-sm'
