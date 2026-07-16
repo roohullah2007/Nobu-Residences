@@ -39,7 +39,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         ...(Array.isArray(building.additional_addresses) ? building.additional_addresses : []),
     ].filter((a) => typeof a === 'string' && a.trim() !== '');
 
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, put, processing, errors, transform } = useForm({
         name: building.name || '',
         address: building.address || '',
         street_address_1: '',
@@ -373,16 +373,28 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         }
     };
 
+    // Admins paste bare domains ("wellcondostoronto.ca"); links need a scheme
+    // to not be treated as relative URLs. Server-side store/update normalize too.
+    const normalizeUrl = (value) => {
+        const trimmed = (value || '').trim();
+        if (trimmed === '' || /^https?:\/\//i.test(trimmed)) return trimmed;
+        return `https://${trimmed}`;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const formData = {
-            ...data,
+        // transform() runs at submit time, so it always sees the latest
+        // values (setData right before put() would submit stale state).
+        transform((current) => ({
+            ...current,
+            website_url: normalizeUrl(current.website_url),
+            virtual_tour_url: normalizeUrl(current.virtual_tour_url),
             amenity_ids: selectedAmenities.map(a => a.id),
             maintenance_fee_amenity_ids: selectedMaintenanceFeeAmenities.map(a => a.id)
-        };
+        }));
 
-        put(route('admin.buildings.update', createBuildingSlug(building.name, building.id)), formData);
+        put(route('admin.buildings.update', createBuildingSlug(building.name, building.id)));
     };
 
     const toggleAmenity = (amenity) => {
@@ -1031,6 +1043,19 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                 </div>
 
                                 <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="architect" value="Architect" />
+                                    <TextInput
+                                        id="architect"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.architect}
+                                        onChange={(e) => setData('architect', e.target.value)}
+                                        placeholder="Architect name"
+                                    />
+                                    <InputError message={errors.architect} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
                                     <InputLabel htmlFor="corp_number" value="Corp Number" />
                                     <TextInput
                                         id="corp_number"
@@ -1557,11 +1582,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <InputLabel htmlFor="website_url" value="Website URL" />
                                     <TextInput
                                         id="website_url"
-                                        type="url"
+                                        type="text"
+                                        inputMode="url"
                                         className="mt-1 block w-full"
                                         value={data.website_url}
                                         onChange={(e) => setData('website_url', e.target.value)}
-                                        placeholder="https://example.com"
+                                        placeholder="example.com or https://example.com"
                                     />
                                     <InputError message={errors.website_url} className="mt-2" />
                                 </div>
@@ -1571,11 +1597,12 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                     <InputLabel htmlFor="virtual_tour_url" value="Virtual Tour URL" />
                                     <TextInput
                                         id="virtual_tour_url"
-                                        type="url"
+                                        type="text"
+                                        inputMode="url"
                                         className="mt-1 block w-full"
                                         value={data.virtual_tour_url}
                                         onChange={(e) => setData('virtual_tour_url', e.target.value)}
-                                        placeholder="https://example.com/tour"
+                                        placeholder="example.com/tour"
                                     />
                                     <InputError message={errors.virtual_tour_url} className="mt-2" />
                                 </div>

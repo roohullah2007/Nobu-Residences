@@ -2,8 +2,38 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { brandColorLabel, CHECKERBOARD_STYLE } from '@/utils/brandColors';
 
+// Admin building routes use "{name-slug}-{id}" keys (same helper as Buildings/Index).
+const createBuildingSlug = (name, id) => {
+    if (!name) return id;
+    const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${slug}-${id}`;
+};
+
 export default function Show({ auth }) {
     const { website, title } = usePage().props;
+    const building = website.homepage_building;
+
+    // Preview goes to the real domain when one is set; the ?website={slug}
+    // query parameter is the fallback so the admin host renders THIS site
+    // instead of the default one.
+    const liveSiteUrl = website.domain
+        ? `https://${website.domain}`
+        : `/?website=${website.slug}`;
+
+    const buildingFacts = building ? [
+        { label: 'Total Units', value: building.total_units },
+        { label: 'Floors', value: building.floors },
+        { label: 'Year Built', value: building.year_built },
+        { label: 'Units For Sale', value: building.units_for_sale },
+        { label: 'Units For Rent', value: building.units_for_rent },
+        { label: 'Developer', value: building.developer_name },
+        { label: 'Management', value: building.management_name },
+        { label: 'Corp Number', value: building.corp_number },
+    ].filter((fact) => fact.value !== null && fact.value !== undefined && String(fact.value).trim() !== '') : [];
 
     return (
         <AdminLayout title={title}>
@@ -33,7 +63,7 @@ export default function Show({ auth }) {
                     </div>
                     <div className="flex items-center space-x-3">
                         <a
-                            href="/"
+                            href={liveSiteUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
@@ -65,6 +95,53 @@ export default function Show({ auth }) {
                         </span>
                     </div>
                 </div>
+
+                {/* Linked Building */}
+                {building && (
+                    <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">Linked Building</h3>
+                                <p className="text-sm text-gray-600 mt-1">This building powers the homepage hero, facts and listings</p>
+                            </div>
+                            <Link
+                                href={route('admin.buildings.show', createBuildingSlug(building.name, building.id))}
+                                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                            >
+                                View Building
+                            </Link>
+                        </div>
+                        <div className="flex items-start gap-4">
+                            {building.main_image && (
+                                <img
+                                    src={building.main_image}
+                                    alt={`${building.name} building`}
+                                    className="h-24 w-24 rounded-lg object-cover border border-gray-200 shrink-0"
+                                />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-gray-900">{building.name}</p>
+                                <p className="text-sm text-gray-600 mt-0.5">
+                                    {[building.address, building.city].filter(Boolean).join(', ') || 'No address on file'}
+                                </p>
+                                {buildingFacts.length > 0 ? (
+                                    <dl className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {buildingFacts.map((fact) => (
+                                            <div key={fact.label}>
+                                                <dt className="text-xs font-medium uppercase tracking-wide text-gray-500">{fact.label}</dt>
+                                                <dd className="mt-1 text-sm text-gray-900">{fact.value}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                ) : (
+                                    <p className="mt-4 text-sm text-gray-500">
+                                        No building details on file yet. Add units, floors and year built on the building edit page.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

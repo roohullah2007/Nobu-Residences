@@ -10,10 +10,12 @@ use Illuminate\Support\Facades\Cache;
  * Single source of truth for "which website does this request belong to".
  *
  * Resolution order:
- *   1. Admin host (config tenancy.admin_host) and local dev hosts always get
- *      the default website — tenant domains can never capture them.
- *   2. ?website={slug} preview override — honored only on the admin host or
+ *   1. ?website={slug} preview override — honored only on the admin host or
  *      local dev, so a tenant domain cannot be made to render another tenant.
+ *   2. Admin host (config tenancy.admin_host) and local dev hosts never serve
+ *      a website: "/" redirects to the login screen (WebsiteController::home)
+ *      and every other public site route 404s. Sites are only served on their
+ *      own domains (or via the preview override above).
  *   3. Exact (normalized) domain match against active websites.
  *   4. Unknown host: null (callers abort 404) or the default website when
  *      config tenancy.unknown_host = 'default'.
@@ -100,7 +102,11 @@ class TenantResolver
         }
 
         if ($isAdminHost) {
-            return $this->defaultWebsite();
+            // The admin/main host never serves a public website — there is no
+            // "default site". "/" redirects to the login screen and all other
+            // public site routes 404. Sites are only served on their own
+            // domains, or on this host via the ?website= preview override.
+            return null;
         }
 
         $website = $this->findByDomain($host);

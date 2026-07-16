@@ -136,8 +136,15 @@ export default function BuildingsShow({ auth, building }) {
                                     <dd className="mt-1 text-sm text-gray-900">{building.floors || 'N/A'}</dd>
                                 </div>
                                 <div>
-                                    <dt className="text-sm font-medium text-gray-500">Available Units</dt>
-                                    <dd className="mt-1 text-sm text-gray-900">{building.available_units_count || 0}</dd>
+                                    <dt className="text-sm font-medium text-gray-500">Available Units (Live MLS)</dt>
+                                    <dd className="mt-1 text-sm text-gray-900">
+                                        {building.available_units_count || 0}
+                                        {(building.units_for_sale > 0 || building.units_for_rent > 0) && (
+                                            <span className="ml-2 text-gray-500">
+                                                ({building.units_for_sale || 0} for sale, {building.units_for_rent || 0} for rent)
+                                            </span>
+                                        )}
+                                    </dd>
                                 </div>
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Year Built</dt>
@@ -213,7 +220,7 @@ export default function BuildingsShow({ auth, building }) {
                                 </div>
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Management Company</dt>
-                                    <dd className="mt-1 text-sm text-gray-900">{building.management_company || 'N/A'}</dd>
+                                    <dd className="mt-1 text-sm text-gray-900">{building.management_name || building.management_company || 'N/A'}</dd>
                                 </div>
                                 <div>
                                     <dt className="text-sm font-medium text-gray-500">Architect</dt>

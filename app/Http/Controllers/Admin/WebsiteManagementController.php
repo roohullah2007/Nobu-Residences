@@ -39,7 +39,18 @@ class WebsiteManagementController extends Controller
      */
     public function show(Website $website): Response
     {
-        $website->load(['pages', 'agentInfo']);
+        $website->load([
+            'pages',
+            'agentInfo',
+            // Linked building details shown on the detail page (units, floors,
+            // year built, ...). Selected columns only — the full record embeds
+            // large JSON blobs (images, amenities) the page doesn't need.
+            'homepageBuilding' => fn ($q) => $q->select(
+                'id', 'name', 'slug', 'address', 'city', 'main_image',
+                'total_units', 'floors', 'year_built', 'units_for_sale',
+                'units_for_rent', 'developer_name', 'management_name', 'corp_number'
+            ),
+        ]);
 
         return Inertia::render('Admin/Websites/Show', [
             'title' => "Website: {$website->name}",

@@ -861,6 +861,19 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
                                 </div>
 
                                 <div className="sm:col-span-2">
+                                    <InputLabel htmlFor="architect" value="Architect" />
+                                    <TextInput
+                                        id="architect"
+                                        type="text"
+                                        className="mt-1 block w-full"
+                                        value={data.architect}
+                                        onChange={(e) => setData('architect', e.target.value)}
+                                        placeholder="Architect name"
+                                    />
+                                    <InputError message={errors.architect} className="mt-2" />
+                                </div>
+
+                                <div className="sm:col-span-2">
                                     <InputLabel htmlFor="corp_number" value="Corp Number" />
                                     <TextInput
                                         id="corp_number"

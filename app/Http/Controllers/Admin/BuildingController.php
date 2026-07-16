@@ -97,6 +97,22 @@ class BuildingController extends Controller
     }
 
     /**
+     * Admins paste bare domains ("wellcondostoronto.ca"); without a scheme the
+     * value renders as a relative link on the site. Prepend https:// when
+     * missing. Mutates $validated in place.
+     */
+    private function normalizeUrlFields(array &$validated): void
+    {
+        foreach (['website_url', 'virtual_tour_url'] as $field) {
+            $value = trim((string) ($validated[$field] ?? ''));
+            if ($value === '' || preg_match('#^https?://#i', $value)) {
+                continue;
+            }
+            $validated[$field] = 'https://' . $value;
+        }
+    }
+
+    /**
      * Resolve building from slug (either UUID or name-slug-uuid format)
      */
     private function resolveBuildingFromSlug($buildingSlug)
@@ -230,11 +246,14 @@ class BuildingController extends Controller
             'avg_price_per_sqft' => 'nullable|string|max:50',
             'website_url' => 'nullable|string',
             'virtual_tour_url' => 'nullable|string',
+            'architect' => 'nullable|string',
             'amenity_ids' => 'nullable|array',
             'amenity_ids.*' => 'exists:amenities,id',
             'maintenance_fee_amenity_ids' => 'nullable|array',
             'maintenance_fee_amenity_ids.*' => 'exists:maintenance_fee_amenities,id',
         ]);
+
+        $this->normalizeUrlFields($validated);
 
         // Extract amenity IDs for the relationship
         $amenityIds = $validated['amenity_ids'] ?? [];
@@ -332,8 +351,18 @@ class BuildingController extends Controller
         // Use direct query for amenities due to eager loading issue with UUIDs
         $building->setRelation('amenities', $building->amenities()->get());
 
+        // available_units_count is an accessor without $appends, so it never
+        // reaches the frontend (the page always showed 0). Listings are live
+        // MLS, not local properties — use the cached live counts (10 min TTL,
+        // fails soft to 0/0 when the API is unreachable).
+        $buildingData = $building->toArray();
+        $counts = $building->getLiveListingCounts();
+        $buildingData['units_for_sale'] = $counts['sale'] ?? 0;
+        $buildingData['units_for_rent'] = $counts['rent'] ?? 0;
+        $buildingData['available_units_count'] = ($counts['sale'] ?? 0) + ($counts['rent'] ?? 0);
+
         return Inertia::render('Admin/Buildings/Show', [
-            'building' => $building
+            'building' => $buildingData
         ]);
     }
 
@@ -534,6 +563,8 @@ class BuildingController extends Controller
             'maintenance_fee_amenity_ids' => 'nullable|array',
             'maintenance_fee_amenity_ids.*' => 'exists:maintenance_fee_amenities,id',
         ]);
+
+        $this->normalizeUrlFields($validated);
 
         // Extract amenity IDs for the relationship
         $amenityIds = $validated['amenity_ids'] ?? [];

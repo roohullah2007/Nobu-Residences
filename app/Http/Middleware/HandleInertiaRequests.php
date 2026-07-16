@@ -26,10 +26,10 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
-     * Get the current website via the shared TenantResolver (admin host is
-     * pinned to the default website; tenant domains resolve by Host header).
-     * Admin pages always get the default website so shared branding never
-     * flips to a tenant while managing the panel.
+     * Get the current website via the shared TenantResolver (tenant domains
+     * resolve by Host header; the admin/main host resolves to null unless a
+     * ?website= preview override is present). Admin panel pages keep using
+     * the default-website fallback purely for panel branding.
      */
     protected function getCurrentWebsite(Request $request): ?Website
     {
@@ -95,14 +95,14 @@ class HandleInertiaRequests extends Middleware
         }
 
         // Check if Google OAuth is properly configured (not placeholder values).
-        // Google login only works on the DEFAULT site (nobu) — its OAuth
-        // redirect URI is registered for that domain — so it is hidden on all
+        // Google login only works on the admin/main host — its OAuth redirect
+        // URI is registered for that domain — so it is hidden on all
         // sub-sites/created sites until each gets its own OAuth config.
         $googleClientId = config('services.google.client_id');
         $googleOAuthEnabled = !empty($googleClientId) &&
                               $googleClientId !== 'your-google-client-id' &&
                               !str_starts_with($googleClientId, 'your-') &&
-                              ($website && $website->is_default);
+                              app(TenantResolver::class)->isAdminHost($request->getHost());
 
         return [
             ...parent::share($request),
