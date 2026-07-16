@@ -2990,22 +2990,30 @@ class WebsiteController extends Controller
             return $name === '' ? null : $m[1] . ' ' . $name;
         };
 
-        $out = [];
-        if (!empty($building->street_address_1) && ($p = $parseAddress($building->street_address_1))) {
-            $out[] = $p;
+        // Every raw value goes through Building::splitCompoundAddress() so
+        // "&"-joined lists and unexpanded hyphen ranges ("455-480 Front St W
+        // & 455 Wellington St W") resolve to individual matchable addresses.
+        $rawCandidates = [];
+        if (!empty($building->street_address_1)) {
+            $rawCandidates[] = $building->street_address_1;
         }
-        if (!empty($building->street_address_2) && ($p = $parseAddress($building->street_address_2))) {
-            $out[] = $p;
+        if (!empty($building->street_address_2)) {
+            $rawCandidates[] = $building->street_address_2;
         }
         if (is_array($building->additional_addresses)) {
             foreach ($building->additional_addresses as $extra) {
-                if (is_string($extra) && ($p = $parseAddress($extra))) {
-                    $out[] = $p;
+                if (is_string($extra)) {
+                    $rawCandidates[] = $extra;
                 }
             }
         }
-        if (empty($out) && !empty($building->address)) {
-            foreach (preg_split('/\s*[,&]\s*/', $building->address) as $part) {
+        if (empty($rawCandidates) && !empty($building->address)) {
+            $rawCandidates[] = $building->address;
+        }
+
+        $out = [];
+        foreach ($rawCandidates as $raw) {
+            foreach (\App\Models\Building::splitCompoundAddress($raw) as $part) {
                 if ($p = $parseAddress($part)) {
                     $out[] = $p;
                 }

@@ -389,11 +389,54 @@ class Building extends Model
     }
 
     /**
+     * Break a raw address cell into simple "number street" strings.
+     * Handles the two compound shapes admins actually type/save:
+     *   - "&" / "," joined lists: "455 Front St W & 455 Wellington St W"
+     *     → ["455 Front St W", "455 Wellington St W"]
+     *   - hyphen ranges PER SEGMENT: "455-480 Front St W & 455 Wellington
+     *     St W" → 455..480 Front St W + 455 Wellington St W. A segment where
+     *     end <= start (unit prefixes like "1408-123 Main St") is kept as-is.
+     * Splitting on "&" happens BEFORE range expansion — expanding first glued
+     * the "& …" tail onto every number and produced addresses that match
+     * nothing in the MLS (For Sale/Rent stuck at 0).
+     */
+    public static function splitCompoundAddress(?string $raw): array
+    {
+        if (!$raw || trim($raw) === '') {
+            return [];
+        }
+
+        $segments = array_values(array_filter(
+            array_map('trim', preg_split('/\s*[,&]\s*/u', $raw))
+        ));
+
+        $out = [];
+        foreach ($segments as $segment) {
+            if (preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $segment, $m)
+                && (int) $m[2] > (int) $m[1] && trim($m[3]) !== '') {
+                $rest = trim($m[3]);
+                for ($n = (int) $m[1]; $n <= (int) $m[2]; $n++) {
+                    $out[] = $n . ' ' . $rest;
+                    if (count($out) > 60) {
+                        break;
+                    }
+                }
+                continue;
+            }
+            $out[] = $segment;
+        }
+
+        return $out;
+    }
+
+    /**
      * Collect every parsed street address for this building as
      * [['number' => '8', 'name' => 'Widmer'], ...]. Reads SA1, SA2 and every
      * entry in additional_addresses (so ranges like "8-38 Widmer St" that are
      * stored as individual numbers are fully expanded), then falls back to the
-     * primary `address` field if no street fields are populated.
+     * primary `address` field if no street fields are populated. Every raw
+     * value goes through splitCompoundAddress() first, so "&"-joined and
+     * ranged values resolve correctly even when saved unexpanded.
      *
      * Shared by getLiveListingCounts() and the homepage carousel API so both
      * resolve the SAME listings for a building.
@@ -409,22 +452,15 @@ class Building extends Model
                 $rawCandidates[] = $a;
             }
         }
+        if (empty(array_filter($rawCandidates)) && !empty($this->address)) {
+            $rawCandidates[] = $this->address;
+        }
 
         $addresses = [];
         $seen = [];
-        foreach ($rawCandidates as $a) {
-            if ($parsed = self::parseStreetAddress($a)) {
-                $key = strtolower($parsed['number'] . '|' . $parsed['name']);
-                if (!isset($seen[$key])) {
-                    $seen[$key] = true;
-                    $addresses[] = $parsed;
-                }
-            }
-        }
-        if (empty($addresses) && !empty($this->address)) {
-            $parts = preg_split('/\s*[,&]\s*/', $this->address);
-            foreach (array_filter(array_map('trim', $parts)) as $part) {
-                if ($parsed = self::parseStreetAddress($part)) {
+        foreach ($rawCandidates as $raw) {
+            foreach (self::splitCompoundAddress($raw) as $a) {
+                if ($parsed = self::parseStreetAddress($a)) {
                     $key = strtolower($parsed['number'] . '|' . $parsed['name']);
                     if (!isset($seen[$key])) {
                         $seen[$key] = true;

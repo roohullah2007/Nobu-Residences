@@ -620,35 +620,38 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     // offer "Expand" for a plain "10 Capreol Crt".
     const detectAddressRange = (value) => {
         if (!value) return null;
-        // Shape 1: hyphen-range
-        const rangeMatch = value.match(/^(\d+)\s*[-–—]\s*(\d+)\s+(.+)$/);
-        if (rangeMatch) {
-            const start = parseInt(rangeMatch[1], 10);
-            const end = parseInt(rangeMatch[2], 10);
-            // Trailing ", Toronto" / ", ON ..." dropped so each generated
-            // entry stays clean ("9 Widmer St" not "9 Widmer St, Toronto").
-            const rest = rangeMatch[3].split(/\s*,/)[0].trim();
-            if (!isNaN(start) && !isNaN(end) && end > start && rest) {
-                const numbers = [];
-                for (let n = start; n <= end; n += 1) {
-                    numbers.push(n);
-                    if (numbers.length > 50) break;
-                }
-                return {
-                    count: numbers.length,
-                    addresses: numbers.map((n) => `${n} ${rest}`),
-                };
-            }
-        }
-        // Shape 2: comma / & list of distinct addresses
-        const parts = value
+        // Split on "&" / "," FIRST (drops the ", City" suffix via the
+        // starts-with-digit filter), THEN expand hyphen ranges per segment.
+        // Expanding before splitting glued the "& …" tail onto every number
+        // ("456 Front St W & 455 Wellington St W") — addresses that match
+        // nothing in the MLS.
+        const segments = value
             .split(/\s*[,&]\s*/)
             .map((p) => p.trim())
             .filter((p) => /^\d/.test(p));
-        if (parts.length >= 2) {
-            return { count: parts.length, addresses: parts };
+        if (segments.length === 0) return null;
+
+        let expandedAny = false;
+        const addresses = [];
+        for (const segment of segments) {
+            const rangeMatch = segment.match(/^(\d+)\s*[-–—]\s*(\d+)\s+(.+)$/);
+            if (rangeMatch) {
+                const start = parseInt(rangeMatch[1], 10);
+                const end = parseInt(rangeMatch[2], 10);
+                const rest = rangeMatch[3].trim();
+                if (!isNaN(start) && !isNaN(end) && end > start && rest) {
+                    expandedAny = true;
+                    for (let n = start; n <= end && addresses.length <= 50; n += 1) {
+                        addresses.push(`${n} ${rest}`);
+                    }
+                    continue;
+                }
+            }
+            if (addresses.length <= 50) addresses.push(segment);
         }
-        return null;
+
+        if (!expandedAny && addresses.length < 2) return null;
+        return { count: addresses.length, addresses };
     };
 
     const handleExpandRange = () => {

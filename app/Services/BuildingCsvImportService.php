@@ -441,63 +441,63 @@ class BuildingCsvImportService
     }
 
     /**
-     * Faithful PHP port of Create.jsx detectAddressRange. Two shapes:
-     *
-     * Shape 1 — numeric hyphen range: "455-480 Front St W & 455 Wellington
-     * St W, Toronto" → every number in the range (step 1, odd AND even)
-     * against the street part up to the first comma (keeps "& …", drops
-     * ", City"): "455 Front St W & 455 Wellington St W", "456 Front St W &
-     * …", … The JS regex is matched faithfully (^digits [-–—] digits space
-     * rest$), so hyphenated street names and unit prefixes like "1408-123
-     * Main St" (end <= start) never expand. The Create page stops pushing
-     * once the list exceeds 50 entries; the same cap (ADDRESS_EXPANSION_CAP
-     * = 51) applies here, with a log line when a range is truncated.
-     *
-     * Shape 2 — comma / & list of distinct numbered addresses: "229
-     * Sutherland St S & 255 Warden St, Clearview" → ["229 Sutherland St S",
-     * "255 Warden St"]. Parts not starting with a digit (the ", City"
-     * suffix) are dropped, exactly like the JS filter.
+     * Faithful PHP port of Create.jsx detectAddressRange. The address is
+     * split on "&" / "," FIRST (parts not starting with a digit — the
+     * ", City" suffix — are dropped), THEN each segment that is a numeric
+     * hyphen range expands to every number in it (step 1, odd AND even):
+     * "455-480 Front St W & 455 Wellington St W, Toronto" → 455..480 Front
+     * St W plus 455 Wellington St W. Expanding before splitting used to glue
+     * the "& …" tail onto every number ("456 Front St W & 455 Wellington St
+     * W") — addresses that match nothing in the MLS. Segments where
+     * end <= start (unit prefixes like "1408-123 Main St") never expand.
+     * The combined list is capped at ADDRESS_EXPANSION_CAP entries, with a
+     * log line when a range is truncated.
      *
      * @return string[]|null The expanded address list, or null when the
      *                       address is a single plain address.
      */
     private function detectAddressRange(string $address): ?array
     {
-        // Shape 1: hyphen range.
-        if (preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $address, $m)) {
-            $start = (int) $m[1];
-            $end = (int) $m[2];
-            // Street part up to the first comma: keeps "& 24 Mews Crt", drops ", City".
-            $rest = trim(preg_split('/\s*,/', $m[3])[0] ?? '');
-            if ($end > $start && $rest !== '') {
-                $expanded = [];
-                for ($n = $start; $n <= $end; $n++) {
-                    $expanded[] = $n . ' ' . $rest;
-                    if (count($expanded) >= self::ADDRESS_EXPANSION_CAP) {
-                        if ($n < $end) {
-                            Log::info('Building CSV import: address range truncated at expansion cap', [
-                                'address' => $address,
-                                'cap' => self::ADDRESS_EXPANSION_CAP,
-                                'range' => "{$start}-{$end}",
-                            ]);
-                        }
-                        break;
-                    }
-                }
-                return $expanded;
-            }
-        }
-
-        // Shape 2: comma / & list of distinct numbered addresses.
-        $parts = array_values(array_filter(
+        $segments = array_values(array_filter(
             array_map(fn ($p) => trim((string) $p), preg_split('/\s*[,&]\s*/u', $address)),
             fn ($p) => preg_match('/^\d/', $p) === 1
         ));
-        if (count($parts) >= 2) {
-            return $parts;
+        if (empty($segments)) {
+            return null;
         }
 
-        return null;
+        $expandedAny = false;
+        $expanded = [];
+        foreach ($segments as $segment) {
+            if (preg_match('/^(\d+)\s*[-\x{2013}\x{2014}]\s*(\d+)\s+(.+)$/u', $segment, $m)
+                && (int) $m[2] > (int) $m[1] && trim($m[3]) !== '') {
+                $start = (int) $m[1];
+                $end = (int) $m[2];
+                $rest = trim($m[3]);
+                $expandedAny = true;
+                for ($n = $start; $n <= $end; $n++) {
+                    if (count($expanded) >= self::ADDRESS_EXPANSION_CAP) {
+                        Log::info('Building CSV import: address range truncated at expansion cap', [
+                            'address' => $address,
+                            'cap' => self::ADDRESS_EXPANSION_CAP,
+                            'range' => "{$start}-{$end}",
+                        ]);
+                        break;
+                    }
+                    $expanded[] = $n . ' ' . $rest;
+                }
+                continue;
+            }
+            if (count($expanded) < self::ADDRESS_EXPANSION_CAP) {
+                $expanded[] = $segment;
+            }
+        }
+
+        if (!$expandedAny && count($expanded) < 2) {
+            return null;
+        }
+
+        return $expanded;
     }
 
     /** Attach amenities by name, creating missing ones (case-insensitive match). */
