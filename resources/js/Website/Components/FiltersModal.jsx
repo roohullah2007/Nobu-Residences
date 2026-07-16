@@ -371,7 +371,7 @@ const FiltersModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-[200]">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[92dvh] flex flex-col font-['Work_Sans']">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[92dvh] flex flex-col overflow-hidden font-['Work_Sans']">
 
         {/* Modal Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
@@ -823,26 +823,30 @@ const FiltersModal = ({
 
         </div>
 
-        {/* Modal Footer */}
-        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
-          <button
-            onClick={handleReset}
-            className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
-            style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
-          >
-            Reset filters
-          </button>
-          <div className="flex gap-2 sm:gap-3">
+        {/* Modal Footer - three buttons don't fit one row on phones
+            ("See N,NNN properties" is wide), so mobile stacks Reset/Cancel
+            above a full-width See button; desktop keeps the single row. */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
+          <div className="flex gap-2">
+            <button
+              onClick={handleReset}
+              className="flex-1 sm:flex-none h-10 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
+              style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
+            >
+              Reset filters
+            </button>
             <button
               onClick={onClose}
-              className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
+              className="flex-1 sm:flex-none h-10 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"
               style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
             >
               Cancel
             </button>
+          </div>
+          <div className="flex">
             <button
               onClick={handleApply}
-              className="h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none min-w-[120px] sm:min-w-[140px] flex items-center justify-center gap-2 whitespace-nowrap"
+              className="w-full sm:w-auto h-10 sm:h-11 px-4 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-90 transition-all cursor-pointer border-none sm:min-w-[140px] flex items-center justify-center gap-2 whitespace-nowrap"
               style={{ backgroundColor: buttonPrimaryBg, color: buttonPrimaryText }}
             >
               {isLoadingCount ? (

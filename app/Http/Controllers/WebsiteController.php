@@ -1421,14 +1421,24 @@ class WebsiteController extends Controller
                 $active = (int) ($activeResp['count'] ?? 0);
 
                 $sold90 = 0;
+                $medianDom = null;
+                $saleToList = null;
                 try {
                     $soldResp = $api->searchListings($scope + [
                         'status' => 'U',
                         'type' => $type,
                         'minSoldDate' => date('Y-m-d', strtotime('-90 days')),
+                        'statistics' => 'med-daysOnMarket,med-soldPrice,med-listPrice',
                         'resultsPerPage' => 1,
                     ]);
                     $sold90 = (int) ($soldResp['count'] ?? 0);
+                    $stats = $soldResp['statistics'] ?? [];
+                    $medianDom = isset($stats['daysOnMarket']['med']) ? (int) $stats['daysOnMarket']['med'] : null;
+                    $medSold = (float) ($stats['soldPrice']['med'] ?? 0);
+                    $medList = (float) ($stats['listPrice']['med'] ?? 0);
+                    if ($medSold > 0 && $medList > 0) {
+                        $saleToList = (int) round(($medSold / $medList) * 100);
+                    }
                 } catch (\Throwable $e) {
                     $sold90 = 0;
                 }
@@ -1439,6 +1449,10 @@ class WebsiteController extends Controller
                 elseif ($soldRatio >= 0.4)   { $label = "Balanced"; }
                 else                         { $label = "Buyer's Market"; }
 
+                // Months of inventory: active supply / monthly absorption
+                // (sold90 covers 3 months).
+                $monthsInventory = $sold90 > 0 ? round($active / ($sold90 / 3), 1) : null;
+
                 $sentiment = [
                     'active' => $active,
                     'sold90' => $sold90,
@@ -1446,6 +1460,9 @@ class WebsiteController extends Controller
                     // Pointer position 0-100 along Buyer's→Seller's gradient.
                     'position' => (int) max(8, min(92, round($soldRatio * 100))),
                     'scope' => $scopeLabel,
+                    'monthsInventory' => $monthsInventory,
+                    'medianDom' => $medianDom,
+                    'saleToList' => $saleToList,
                 ];
             }
 

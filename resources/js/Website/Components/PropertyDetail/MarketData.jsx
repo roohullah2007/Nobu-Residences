@@ -80,8 +80,10 @@ export default function MarketData({ propertyData = {}, buildingData = null, aut
 
   const priceByYear = data?.trends?.priceByYear || [];
   const salesByYear = data?.trends?.salesByYear || [];
-  if (priceByYear.length < 2) return null;
+  const sentiment = data?.sentiment || null;
+  if (priceByYear.length < 2 && !sentiment) return null;
 
+  const hasTrends = priceByYear.length >= 2;
   const series = (tab === 'price' ? priceByYear : salesByYear).map((p) => ({
     x: p.year,
     y: tab === 'price' ? p.value : p.count,
@@ -122,6 +124,58 @@ export default function MarketData({ propertyData = {}, buildingData = null, aut
     <div id="market-info" className="scroll-mt-32 rounded-2xl bg-white p-5 sm:p-6 border border-gray-200">
       <h3 style={{ fontSize: '20px', fontWeight: 700, color: NAVY }}>Market Data</h3>
       <p className="mt-1 text-sm text-gray-500">Sold price &amp; sales trends in {scopeName}</p>
+
+      {/* Market Sentiment gauge (per client reference): Buyer's/Balanced/
+          Seller's gradient with pointer + key stats for the area. */}
+      {sentiment && (
+        <div className="mt-4 rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold" style={{ color: NAVY }}>Market Sentiment</span>
+            <span className="text-sm font-bold text-blue-600">{sentiment.label}</span>
+          </div>
+          <div className="relative mt-3">
+            <div
+              className="h-1.5 rounded-full"
+              style={{ background: 'linear-gradient(to right, #2563eb, #d1d5db 45%, #d1d5db 55%, #dc2626)' }}
+            />
+            <div
+              className="absolute -top-1.5 -translate-x-1/2"
+              style={{ left: `${sentiment.position}%` }}
+            >
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: '5px solid transparent',
+                  borderRight: '5px solid transparent',
+                  borderTop: `7px solid ${NAVY}`,
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-1.5 flex justify-between text-[11px] text-gray-500">
+            <span>Buyer's Market</span>
+            <span>Balanced</span>
+            <span>Seller's Market</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+            {sentiment.monthsInventory != null && (
+              <span><span className="font-bold" style={{ color: NAVY }}>{sentiment.monthsInventory}</span> mo inventory</span>
+            )}
+            {sentiment.medianDom != null && (
+              <span><span className="font-bold" style={{ color: NAVY }}>{sentiment.medianDom}</span> median DOM</span>
+            )}
+            {sentiment.saleToList != null && (
+              <span><span className="font-bold" style={{ color: NAVY }}>{sentiment.saleToList}%</span> sale-to-list</span>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-gray-400">
+            Based on {sentiment.active} active listings · {sentiment.sold90} sales in {sentiment.scope || scopeName} (last 90 days)
+          </p>
+        </div>
+      )}
+
+      {hasTrends && (
       <div className="mt-4">
         <div className="flex gap-6 border-b border-gray-200">
           {tabBtn('price', 'Price Trends')}
@@ -159,6 +213,7 @@ export default function MarketData({ propertyData = {}, buildingData = null, aut
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }
