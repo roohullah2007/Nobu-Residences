@@ -411,22 +411,25 @@ const FiltersModal = ({
           {/* Price Range */}
           <div className="mb-3 sm:mb-6">
             <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-1.5 sm:mb-3">Price</label>
-            <div className="flex items-center gap-4 mb-2 sm:mb-4">
+            {/* min-w-0 lets the inputs shrink below their intrinsic default
+                width (~170px) — without it the row overflows the modal on
+                phones instead of splitting the available space. */}
+            <div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
               <input
                 type="text"
                 placeholder="No min"
                 value={priceMin}
                 onChange={(e) => handlePriceMinChange(e.target.value)}
-                className="flex-1 h-9 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                className="flex-1 min-w-0 h-9 sm:h-11 px-3 sm:px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
                 style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
-              <span className="font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056]">to</span>
+              <span className="flex-shrink-0 font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056]">to</span>
               <input
                 type="text"
                 placeholder="No max"
                 value={priceMax}
                 onChange={(e) => handlePriceMaxChange(e.target.value)}
-                className="flex-1 h-9 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                className="flex-1 min-w-0 h-9 sm:h-11 px-3 sm:px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
                 style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
             </div>
