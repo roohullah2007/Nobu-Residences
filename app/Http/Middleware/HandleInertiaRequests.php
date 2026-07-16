@@ -94,15 +94,20 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        // The admin/main host gets a bare login screen: no signup, no forgot
+        // password, no Google login (per owner request). Tenant sites keep
+        // their full auth UI.
+        $isMainDomain = app(TenantResolver::class)->isAdminHost($request->getHost());
+
         // Check if Google OAuth is properly configured (not placeholder values).
-        // Google login only works on the admin/main host — its OAuth redirect
-        // URI is registered for that domain — so it is hidden on all
-        // sub-sites/created sites until each gets its own OAuth config.
+        // Hidden on the main domain (bare login screen) and on sub-sites/
+        // created sites (each needs its own OAuth redirect URI config).
         $googleClientId = config('services.google.client_id');
         $googleOAuthEnabled = !empty($googleClientId) &&
                               $googleClientId !== 'your-google-client-id' &&
                               !str_starts_with($googleClientId, 'your-') &&
-                              app(TenantResolver::class)->isAdminHost($request->getHost());
+                              !$isMainDomain &&
+                              ($website && $website->is_default);
 
         return [
             ...parent::share($request),
@@ -111,6 +116,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'globalWebsite' => $globalWebsite,
             'currentWebsiteSlug' => $website?->slug,
+            'isMainDomain' => $isMainDomain,
             'googleMapsApiKey' => (string) config('repliers.google_maps_browser_key', ''),
             'googleOAuthEnabled' => $googleOAuthEnabled,
             'ziggy' => fn () => [

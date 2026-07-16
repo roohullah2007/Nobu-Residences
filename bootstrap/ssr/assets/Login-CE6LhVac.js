@@ -3,7 +3,7 @@ import { usePage, useForm, Head, Link } from "@inertiajs/react";
 import { useState } from "react";
 import { G as GoogleLoginButton } from "./GoogleLoginButton-wrwag0eM.js";
 function Login({ status, canResetPassword }) {
-  const { globalWebsite, website, googleOAuthEnabled } = usePage().props;
+  const { globalWebsite, website, googleOAuthEnabled, isMainDomain } = usePage().props;
   const currentWebsite = globalWebsite || website || {};
   const websiteName = currentWebsite?.name || "Our Site";
   const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
@@ -95,7 +95,7 @@ function Login({ status, canResetPassword }) {
               ),
               /* @__PURE__ */ jsx("span", { className: "ml-2 text-sm font-work-sans text-gray-600", children: "Remember me" })
             ] }),
-            canResetPassword && /* @__PURE__ */ jsx(
+            canResetPassword && !isMainDomain && /* @__PURE__ */ jsx(
               Link,
               {
                 href: route("password.request"),
@@ -114,14 +114,14 @@ function Login({ status, canResetPassword }) {
               children: processing ? "Signing in..." : "Sign In"
             }
           ),
-          googleOAuthEnabled && /* @__PURE__ */ jsxs(Fragment, { children: [
+          googleOAuthEnabled && !isMainDomain && /* @__PURE__ */ jsxs(Fragment, { children: [
             /* @__PURE__ */ jsxs("div", { className: "relative", children: [
               /* @__PURE__ */ jsx("div", { className: "absolute inset-0 flex items-center", children: /* @__PURE__ */ jsx("div", { className: "w-full border-t border-gray-300" }) }),
               /* @__PURE__ */ jsx("div", { className: "relative flex justify-center text-sm", children: /* @__PURE__ */ jsx("span", { className: "px-2 bg-white text-gray-500 font-work-sans", children: "Or continue with" }) })
             ] }),
             /* @__PURE__ */ jsx(GoogleLoginButton, {})
           ] }),
-          /* @__PURE__ */ jsx("div", { className: "text-center pt-4 border-t border-gray-100", children: /* @__PURE__ */ jsxs("p", { className: "text-sm font-work-sans text-gray-600", children: [
+          !isMainDomain && /* @__PURE__ */ jsx("div", { className: "text-center pt-4 border-t border-gray-100", children: /* @__PURE__ */ jsxs("p", { className: "text-sm font-work-sans text-gray-600", children: [
             "Don't have an account?",
             " ",
             /* @__PURE__ */ jsx(

@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'agent' => \App\Http\Middleware\AgentMiddleware::class,
             'address.protect' => \App\Http\Middleware\AddressProtectionMiddleware::class,
+            'not.main-domain' => \App\Http\Middleware\NotOnMainDomain::class,
         ]);
 
         // Exclude API routes from CSRF verification

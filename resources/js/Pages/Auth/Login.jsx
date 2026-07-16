@@ -3,7 +3,7 @@ import { useState } from 'react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
 
 export default function Login({ status, canResetPassword }) {
-    const { globalWebsite, website, googleOAuthEnabled } = usePage().props;
+    const { globalWebsite, website, googleOAuthEnabled, isMainDomain } = usePage().props;
     const currentWebsite = globalWebsite || website || {};
     const websiteName = currentWebsite?.name || 'Our Site';
     const brandColors = globalWebsite?.brand_colors || website?.brand_colors || {};
@@ -138,7 +138,7 @@ export default function Login({ status, canResetPassword }) {
                                     </span>
                                 </label>
 
-                                {canResetPassword && (
+                                {canResetPassword && !isMainDomain && (
                                     <Link
                                         href={route('password.request')}
                                         className="text-sm font-work-sans text-[#293056] hover:text-[#1f2441] transition-colors"
@@ -158,8 +158,8 @@ export default function Login({ status, canResetPassword }) {
                                 {processing ? 'Signing in...' : 'Sign In'}
                             </button>
 
-                            {/* OR Divider and Google Login - Only show when OAuth is configured */}
-                            {googleOAuthEnabled && (
+                            {/* OR Divider and Google Login - Only show when OAuth is configured (never on the main domain) */}
+                            {googleOAuthEnabled && !isMainDomain && (
                                 <>
                                     <div className="relative">
                                         <div className="absolute inset-0 flex items-center">
@@ -175,18 +175,20 @@ export default function Login({ status, canResetPassword }) {
                                 </>
                             )}
 
-                            {/* Register Link */}
-                            <div className="text-center pt-4 border-t border-gray-100">
-                                <p className="text-sm font-work-sans text-gray-600">
-                                    Don't have an account?{' '}
-                                    <Link
-                                        href={route('register')}
-                                        className="text-[#293056] font-semibold hover:text-[#1f2441] transition-colors"
-                                    >
-                                        Sign up
-                                    </Link>
-                                </p>
-                            </div>
+                            {/* Register Link — hidden on the main domain (bare login screen) */}
+                            {!isMainDomain && (
+                                <div className="text-center pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-work-sans text-gray-600">
+                                        Don't have an account?{' '}
+                                        <Link
+                                            href={route('register')}
+                                            className="text-[#293056] font-semibold hover:text-[#1f2441] transition-colors"
+                                        >
+                                            Sign up
+                                        </Link>
+                                    </p>
+                                </div>
+                            )}
                         </form>
                     </div>
 
