@@ -63,70 +63,43 @@ export default function MerchandiseLofts({ propertyData }) {
           setBuildingData(fetchedBuildingData);
         }
 
-        // Fetch MLS counts (with cache-busting timestamp)
-        const timestamp = new Date().getTime();
-
-        // If we have building data with street addresses, fetch counts for all addresses
-        let totalForSale = 0;
-        let totalForRent = 0;
-
-        if (fetchedBuildingData && (fetchedBuildingData.street_address_1 || fetchedBuildingData.street_address_2 || (Array.isArray(fetchedBuildingData.additional_addresses) && fetchedBuildingData.additional_addresses.length))) {
-          const addresses = [];
-          const seen = new Set();
-          const ADDR_RE = /^(\d+)\s+(.+?)(?:\s+(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ct|Court|Pl|Place|Ln|Lane|Way))?(?:\s*,.*)?$/i;
-          const pushParsed = (raw) => {
-            if (!raw) return;
-            const m = String(raw).match(ADDR_RE);
-            if (!m) return;
-            const num = m[1];
-            const name = m[2].trim();
-            const key = `${num}|${name.toLowerCase()}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            addresses.push({ streetNumber: num, streetName: name });
-          };
-
-          pushParsed(fetchedBuildingData.street_address_1);
-          pushParsed(fetchedBuildingData.street_address_2);
-          if (Array.isArray(fetchedBuildingData.additional_addresses)) {
-            fetchedBuildingData.additional_addresses.forEach(pushParsed);
-          }
-
-          // If no addresses parsed, fallback to original extraction
-          if (addresses.length === 0) {
-            addresses.push({ streetNumber: address.streetNumber, streetName: address.streetName });
-          }
-
-          // Fetch counts for each address and sum them
-          const countPromises = addresses.map(async (addr) => {
-            const countUrl = `/api/buildings/count-mls-listings?street_number=${addr.streetNumber}&street_name=${encodeURIComponent(addr.streetName)}&_t=${timestamp}`;
-            try {
-              const response = await fetch(countUrl);
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.data) {
-                  return result.data;
-                }
+        // Counts come from /api/buildings-counts (Building::getLiveListingCounts,
+        // 10-min cache) — the same source the homepage and building cards use.
+        // The old client-side per-address fan-out re-parsed addresses with a
+        // /^(\d+)\s+/ regex that silently dropped ranged addresses like
+        // "455-480 Front St W", undercounting compound-address buildings.
+        let countsSet = false;
+        if (fetchedBuildingData?.id) {
+          try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            const countsResponse = await fetch('/api/buildings-counts', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+              },
+              body: JSON.stringify({ ids: [fetchedBuildingData.id] })
+            });
+            if (countsResponse.ok) {
+              const countsResult = await countsResponse.json();
+              const counts = countsResult?.counts?.[fetchedBuildingData.id];
+              if (countsResult?.success && counts) {
+                setMlsCounts({
+                  for_sale: counts.sale || 0,
+                  for_rent: counts.rent || 0,
+                  total: (counts.sale || 0) + (counts.rent || 0)
+                });
+                countsSet = true;
               }
-            } catch (err) {
-              console.error(`Error fetching counts for ${addr.streetNumber} ${addr.streetName}:`, err);
             }
-            return { for_sale: 0, for_rent: 0 };
-          });
+          } catch (err) {
+            console.error('Error fetching building counts:', err);
+          }
+        }
 
-          const results = await Promise.all(countPromises);
-          results.forEach(result => {
-            totalForSale += result.for_sale || 0;
-            totalForRent += result.for_rent || 0;
-          });
-
-          setMlsCounts({
-            for_sale: totalForSale,
-            for_rent: totalForRent,
-            total: totalForSale + totalForRent
-          });
-        } else {
-          // Fallback to single address query
+        // Fallback: single-address count query (no matched building id)
+        if (!countsSet) {
+          const timestamp = new Date().getTime();
           const countUrl = `/api/buildings/count-mls-listings?street_number=${address.streetNumber}&street_name=${encodeURIComponent(address.streetName)}&_t=${timestamp}`;
           const mlsResponse = await fetch(countUrl);
 
@@ -222,9 +195,6 @@ export default function MerchandiseLofts({ propertyData }) {
                     console.error('Building image failed to load:', buildingImage);
                     // Try to fallback to placeholder or hide
                     e.target.style.display = 'none';
-                  }}
-                  onLoad={() => {
-                    console.log('Building image loaded successfully:', buildingImage);
                   }}
                 />
               ) : (
