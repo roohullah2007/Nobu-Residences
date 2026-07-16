@@ -2454,7 +2454,11 @@ class WebsiteController extends Controller
             foreach ($listing['rooms'] as $room) {
                 $length = $room['length'] ?? '';
                 $width = $room['width'] ?? '';
-                $dimensions = ($length && $width) ? "{$length} x {$width} m" : ($room['dimensions'] ?? $room['RoomDimensions'] ?? '');
+                // Repliers sends "0.0" for unmeasured rooms — a truthy string
+                // in PHP, which rendered a literal "0 x 0 m" on the page.
+                // Only build the string when both sides are real measurements.
+                $hasDimensions = (float) $length > 0 && (float) $width > 0;
+                $dimensions = $hasDimensions ? "{$length} x {$width} m" : ($room['dimensions'] ?? $room['RoomDimensions'] ?? '');
 
                 $rooms[] = [
                     'type' => $room['description'] ?? $room['type'] ?? $room['RoomType'] ?? '',

@@ -11,6 +11,15 @@ const PropertyRooms = ({ property }) => {
     return null;
   }
 
+  // Pre-formatted backend string; drop zero-valued "0 x 0 m" (Repliers
+  // sends "0.0" lengths for unmeasured rooms like bathrooms/foyers).
+  const fallbackDimensions = (room) => {
+    const raw = room.dimensions || '';
+    const parsed = String(raw).match(/([\d.]+)\s*x\s*([\d.]+)/i);
+    if (parsed && !(parseFloat(parsed[1]) > 0 && parseFloat(parsed[2]) > 0)) return '';
+    return raw;
+  };
+
   // Format rooms with meter/feet conversion
   const rooms = rawRooms.map((room, index) => {
     const length = parseFloat(room.length) || 0;
@@ -23,8 +32,8 @@ const PropertyRooms = ({ property }) => {
 
     return {
       name: room.name || room.type || room.description || '',
-      meters: hasDimensions ? `${length} x ${width} m` : (room.dimensions || ''),
-      feet: hasDimensions ? `${lengthFt} x ${widthFt} ft` : (room.dimensions || ''),
+      meters: hasDimensions ? `${length} x ${width} m` : fallbackDimensions(room),
+      feet: hasDimensions ? `${lengthFt} x ${widthFt} ft` : fallbackDimensions(room),
       features: room.features || '',
       isAlternate: index % 2 === 0,
     };
@@ -62,7 +71,7 @@ const PropertyRooms = ({ property }) => {
           <div key={index} className={`mb-1 ${room.isAlternate ? 'bg-blue-50' : 'bg-white'}`}>
             <div className="grid grid-cols-12 py-2 text-sm items-center px-3">
               <div className="col-span-3 text-[#263238]">{room.name}</div>
-              <div className="col-span-3">{isMetric ? room.meters : room.feet}</div>
+              <div className="col-span-3">{(isMetric ? room.meters : room.feet) || <span className="text-gray-400">—</span>}</div>
               <div className="col-span-2"></div>
               <div className="col-span-4 text-[#263238]">{room.features}</div>
             </div>

@@ -235,7 +235,7 @@
     "/build/assets/UserProfile-CL2hUlvD.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-DMGVhvxW.js"
+    "/build/assets/PropertyDetail-CnRLOELQ.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-D249YMuS.js"
@@ -430,16 +430,16 @@
     "/build/assets/PropertyDescriptionSection-DKC5YnW2.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyDetailsSections.jsx": [
-    "/build/assets/PropertyDetailsSections-NwTsIh8O.js"
+    "/build/assets/PropertyDetailsSections-D7Zrats0.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyRooms.jsx": [
-    "/build/assets/PropertyRooms-CuQrzH0C.js"
+    "/build/assets/PropertyRooms-BPD_aBia.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertySidebar.jsx": [
     "/build/assets/PropertySidebar-BphZ46Gc.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PropertyStatusTabs.jsx": [
-    "/build/assets/PropertyStatusTabs-DjRtSeaW.js"
+    "/build/assets/PropertyStatusTabs-BCYkMOd6.js"
   ],
   "resources/js/Website/Components/PropertyDetail/RealEstateLinksSection.jsx": [
     "/build/assets/RealEstateLinksSection-rgnwZUht.js"
@@ -601,7 +601,7 @@
     "/build/assets/PropertyAiDemo-CUKsV2pD.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-Dqea-fQW.js"
+    "/build/assets/PropertyDetail-cib3PKfW.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-BKUq6zzJ.js"
@@ -706,7 +706,7 @@
     "/build/assets/PropertyHeader-BmnRhyZ9.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertySections.jsx": [
-    "/build/assets/PropertySections-C6E_4P-L.js"
+    "/build/assets/PropertySections-qjZWvzbL.js"
   ],
   "resources/js/Website/Sections/School/SchoolHeroSection.jsx": [
     "/build/assets/SchoolHeroSection-CPzWDOrv.js"

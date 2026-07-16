@@ -311,10 +311,15 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
     (room) => room && (room.name || room.type || room.level || room.dimensions)
   );
   const roomDims = (room) => {
-    if (room.dimensions) return room.dimensions;
     const l = parseFloat(room.length) || 0;
     const w = parseFloat(room.width) || 0;
-    return l && w ? `${room.length} x ${room.width} m` : '';
+    if (l > 0 && w > 0) return `${room.length} x ${room.width} m`;
+    // Pre-formatted backend string; drop zero-valued "0 x 0 m" (Repliers
+    // sends "0.0" lengths for unmeasured rooms like bathrooms/foyers).
+    const raw = room.dimensions || '';
+    const parsed = String(raw).match(/([\d.]+)\s*x\s*([\d.]+)/i);
+    if (parsed && !(parseFloat(parsed[1]) > 0 && parseFloat(parsed[2]) > 0)) return '';
+    return raw;
   };
   // Dimensions in the unit selected by the toggle. The base data is in metres;
   // when "Feet" is active we parse the two numbers and convert (1 m = 3.28084 ft).
@@ -428,7 +433,7 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
             <div key={`${room.name || room.type}-${i}`} className={`mb-1 ${i % 2 === 0 ? 'bg-blue-50' : 'bg-white'}`}>
               <div className="grid grid-cols-12 py-2 text-sm items-center px-3">
                 <div className="col-span-3 text-[#263238]">{room.name || room.type || 'Room'}</div>
-                <div className="col-span-3">{roomDimsUnit(room)}</div>
+                <div className="col-span-3">{roomDimsUnit(room) || <span className="text-gray-400">—</span>}</div>
                 <div className="col-span-2"></div>
                 <div className="col-span-4 text-[#263238]">{pick(room.features)}</div>
               </div>
