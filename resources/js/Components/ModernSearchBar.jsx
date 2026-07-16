@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 // Icon components
 const SearchIcon = ({ className }) => (
@@ -86,30 +87,11 @@ const ModernSearchBar = ({
     { label: '$2M+', min: 2000000, max: null },
   ];
 
-  // Initialize Google Places Autocomplete
+  // Initialize Google Places Autocomplete (Maps API loaded on demand)
   useEffect(() => {
-    if (!window.google || !window.google.maps || !window.google.maps.places) {
-      const loadGoogleMapsScript = () => {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${window.googleMapsApiKey}&libraries=places&callback=initAutocomplete`;
-        script.async = true;
-        script.defer = true;
-        
-        window.initAutocomplete = () => {
-          initializeAutocomplete();
-        };
-        
-        document.head.appendChild(script);
-      };
-      
-      loadGoogleMapsScript();
-      
-      return () => {
-        delete window.initAutocomplete;
-      };
-    } else {
-      initializeAutocomplete();
-    }
+    loadGoogleMaps()
+      .then(() => initializeAutocomplete())
+      .catch(() => {});
   }, []);
 
   const initializeAutocomplete = () => {

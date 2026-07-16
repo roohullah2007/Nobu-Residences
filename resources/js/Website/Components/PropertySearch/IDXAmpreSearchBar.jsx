@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import LoginModal from '@/Website/Global/Components/LoginModal';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 // Icon components
 const Search = ({ className }) => (
@@ -236,50 +237,9 @@ const IDXAmpreSearchBar = ({ initialValues = {}, onSearch, onSaveSearch, onFilte
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Load Google Maps script if needed (using new Places API)
+    // Load the Maps JS API on demand (shared loader, places included)
     useEffect(() => {
-        const loadGoogleMapsScript = () => {
-            // Check if API key exists
-            if (!window.googleMapsApiKey || window.googleMapsApiKey === '') {
-                console.error('Google Maps API key is not configured. Please add GOOGLE_MAPS_API_KEY to your .env file');
-                return;
-            }
-
-            // Check if script is already loaded or loading
-            const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-
-            if (window.google && window.google.maps && window.google.maps.places) {
-                // Already loaded
-                console.log('Google Maps already loaded');
-                return;
-            }
-
-            if (existingScript) {
-                // Script exists but may still be loading
-                console.log('Google Maps script found, waiting for load...');
-                return;
-            }
-
-            // Create and load the script with the new Places API
-            console.log('Loading Google Maps script for autocomplete...');
-            const script = document.createElement('script');
-            // Use the new Places API (places library still works for PlaceAutocompleteElement)
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${window.googleMapsApiKey}&libraries=places&loading=async`;
-            script.async = true;
-            script.defer = true;
-
-            script.onload = () => {
-                console.log('Google Maps script loaded successfully');
-            };
-
-            script.onerror = () => {
-                console.error('Failed to load Google Maps script. Please check your API key and ensure it has Places API enabled.');
-            };
-
-            document.head.appendChild(script);
-        };
-
-        loadGoogleMapsScript();
+        loadGoogleMaps().catch((e) => console.error(e.message));
     }, []);
 
     // State for Google Places autocomplete suggestions

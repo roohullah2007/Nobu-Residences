@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import EnhancedPropertyImageLoader from '@/Components/EnhancedPropertyImageLoader';
 import { renderPropertyCardInInfoWindow } from '@/Website/Components/MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 /**
  * Enhanced PropertyMap Component with IDX-AMPRE Style Mixed View Support
@@ -426,68 +427,13 @@ const PropertyMap = ({
       return;
     }
 
-    // Check if Google Maps is already loaded
-    if (window.google && window.google.maps) {
-      initializeMap();
-      return;
-    }
-
-    // Check if script is already in the DOM
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      // Wait for Google Maps to be available
-      const checkGoogleMaps = setInterval(() => {
-        if (window.google && window.google.maps) {
-          clearInterval(checkGoogleMaps);
-          initializeMap();
-        }
-      }, 100);
-      
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkGoogleMaps);
-        if (!window.google || !window.google.maps) {
-          setMapState(prev => ({ 
-            ...prev, 
-            error: 'Google Maps API failed to load' 
-          }));
-        }
-      }, 10000);
-      
-      return () => clearInterval(checkGoogleMaps);
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry${enableClustering ? ',marker' : ''}&loading=async`;
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      // Wait a moment for Google Maps to fully initialize
-      setTimeout(() => {
-        if (window.google && window.google.maps) {
-          initializeMap();
-        } else {
-          setMapState(prev => ({ 
-            ...prev, 
-            error: 'Google Maps API not available after loading' 
-          }));
-        }
-      }, 100);
-    };
-    
-    script.onerror = () => {
-      setMapState(prev => ({ 
-        ...prev, 
-        error: 'Failed to load Google Maps API' 
-      }));
-      initializationRef.current = false;
-    };
-
-    document.head.appendChild(script);
-
-    // Don't remove the script as other components might need it
-    return () => {};
+    // Shared on-demand loader (geometry/marker included in its library set)
+    loadGoogleMaps()
+      .then(() => initializeMap())
+      .catch((e) => {
+        setMapState(prev => ({ ...prev, error: e.message }));
+        initializationRef.current = false;
+      });
   }, [initializeMap, enableClustering, mapConfig.apiKey]);
 
   // Track when map ref is ready

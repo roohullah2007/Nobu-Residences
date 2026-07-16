@@ -124,17 +124,23 @@
         {!! $globalTrackingScripts !!}
         @endif
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=work-sans:400,500,600,700&family=space-grotesk:700&family=playfair-display:400,500,600,700&display=swap" rel="stylesheet" />
+        <!-- Fonts — loaded async (media swap) so the bunny.net stylesheet
+             doesn't render-block first paint; display=swap shows fallback
+             text until the fonts arrive. -->
+        <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+        <link href="https://fonts.bunny.net/css?family=work-sans:400,500,600,700&family=space-grotesk:700&family=playfair-display:400,500,600,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+        <noscript>
+            <link href="https://fonts.bunny.net/css?family=work-sans:400,500,600,700&family=space-grotesk:700&family=playfair-display:400,500,600,700&display=swap" rel="stylesheet" />
+        </noscript>
 
         <!-- Scripts -->
+        {{-- The Maps JS API is NOT loaded globally anymore: components that
+             need it await loadGoogleMaps() (resources/js/utils/googleMaps.js)
+             which injects the script on first use. Pages without a map or
+             autocomplete never download it. --}}
         <script>
             window.googleMapsApiKey = "{{ $googleMapsApiKey ?? '' }}";
         </script>
-        @if($googleMapsApiKey ?? false)
-        <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=places,drawing&loading=async"></script>
-        @endif
         {{-- Public pages get the filtered "public" route group (config/ziggy.php)
              so tenant landing pages never embed the admin panel's route map.
              Admin pages (null group) keep the full list for route('admin.*'). --}}

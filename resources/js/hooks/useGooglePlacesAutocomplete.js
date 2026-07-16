@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 const GOOGLE_READY_POLL_MS = 400;
 const GOOGLE_READY_MAX_ATTEMPTS = 25;
@@ -30,8 +31,8 @@ const parseAddressComponents = (place) => {
 /**
  * Attach Google Places Autocomplete to a text input (looked up by id —
  * the shared TextInput component does not forward its DOM node). The Maps
- * JS API with the `places` library is loaded globally in app.blade.php
- * (async), so this polls briefly until window.google is ready.
+ * JS API is loaded on demand via loadGoogleMaps(); this polls briefly
+ * until window.google is ready.
  *
  * @param {string} inputId The id attribute of the address <input>.
  * @param {(parsed: object, place: object) => void} onPlaceSelected Called
@@ -70,6 +71,7 @@ export default function useGooglePlacesAutocomplete(inputId, onPlaceSelected) {
             });
         };
 
+        loadGoogleMaps().catch(() => {});
         init();
 
         return () => {

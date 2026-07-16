@@ -33,4 +33,10 @@ export default defineConfig({
             '@': path.resolve(__dirname, 'resources/js'),
         },
     },
+    // Modern-browser target: skips es2015-era transpilation/polyfills that
+    // PageSpeed flags as "Legacy JavaScript". All browsers with es2022 also
+    // run every feature this app uses.
+    build: {
+        target: 'es2022',
+    },
 });

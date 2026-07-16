@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 // Icon components
 const ChevronDownIcon = ({ className }) => (
@@ -69,27 +70,11 @@ const EnhancedSearchBar = ({
     { label: '$5M+', min: 5000000, max: null },
   ];
   
-  // Initialize Google Places Autocomplete
+  // Initialize Google Places Autocomplete (Maps API loaded on demand)
   useEffect(() => {
-    if (!window.google || !window.google.maps || !window.google.maps.places) {
-      // Load Google Places library if not loaded
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${window.googleMapsApiKey}&libraries=places&callback=initAutocomplete`;
-      script.async = true;
-      script.defer = true;
-      
-      window.initAutocomplete = () => {
-        initializeAutocomplete();
-      };
-      
-      document.head.appendChild(script);
-      
-      return () => {
-        delete window.initAutocomplete;
-      };
-    } else {
-      initializeAutocomplete();
-    }
+    loadGoogleMaps()
+      .then(() => initializeAutocomplete())
+      .catch(() => {});
   }, []);
   
   const initializeAutocomplete = () => {

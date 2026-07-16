@@ -3,6 +3,7 @@ import GoogleMapContainer from './GoogleMapContainer';
 import { renderPropertyCardInInfoWindow } from './MapPropertyCard';
 import frontendGeocoding from '@/services/frontendGeocoding';
 import { createBuildingUrl } from '@/utils/slug';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 const SimplePropertyMap = React.forwardRef(({ 
   properties = [], 
@@ -142,78 +143,11 @@ const SimplePropertyMap = React.forwardRef(({
     }
   }, [getMapCenter, viewType]);
 
-  // Load Google Maps script if needed
+  // Load the Maps JS API on demand via the shared loader
   const loadGoogleMapsScript = (callback) => {
-    const apiKey = window.googleMapsApiKey;
-    
-    console.log('Loading Google Maps script, API key:', apiKey ? 'Present' : 'Missing');
-    
-    if (!apiKey || apiKey === '') {
-      setMapError('Google Maps API key not configured. Please add your API key in the .env file.');
-      console.error('Google Maps API key is missing. Add GOOGLE_MAPS_API_KEY to your .env file');
-      return;
-    }
-
-    // Check if script already exists
-    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existingScript) {
-      console.log('Google Maps script already in DOM, waiting for it to load...');
-      // Wait for it to load
-      const checkInterval = setInterval(() => {
-        if (window.google && window.google.maps && window.google.maps.Map) {
-          clearInterval(checkInterval);
-          console.log('Google Maps now available');
-          callback();
-        }
-      }, 100);
-      
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        if (!window.google || !window.google.maps) {
-          setMapError('Google Maps failed to load');
-        }
-      }, 5000);
-      return;
-    }
-
-    // Check if already loading
-    if (window._googleMapsLoading) {
-      window._googleMapsCallbacks = window._googleMapsCallbacks || [];
-      window._googleMapsCallbacks.push(callback);
-      return;
-    }
-
-    // Check if already loaded
-    if (window.google && window.google.maps && window.google.maps.Map) {
-      callback();
-      return;
-    }
-
-    window._googleMapsLoading = true;
-    window._googleMapsCallbacks = [callback];
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initGoogleMaps`;
-    script.async = true;
-    script.defer = true;
-    
-    // Create a global callback function for Google Maps to call
-    window.initGoogleMaps = () => {
-      console.log('Google Maps loaded successfully');
-      window._googleMapsLoading = false;
-      const callbacks = window._googleMapsCallbacks || [];
-      callbacks.forEach(cb => cb());
-      window._googleMapsCallbacks = [];
-      delete window.initGoogleMaps; // Clean up
-    };
-    
-    script.onerror = () => {
-      window._googleMapsLoading = false;
-      setMapError('Failed to load Google Maps');
-    };
-
-    document.head.appendChild(script);
+    loadGoogleMaps()
+      .then(() => callback())
+      .catch((e) => setMapError(e.message));
   };
 
   // Format price for marker display

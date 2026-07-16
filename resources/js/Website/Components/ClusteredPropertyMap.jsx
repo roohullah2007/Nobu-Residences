@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
 import { debounce } from 'lodash';
+import loadGoogleMaps from '@/utils/googleMaps';
 
 // condos.ca-style muted tiles: light grey base, soft green parks, pale blue
 // water, and hidden POI clutter so price bubbles dominate the view.
@@ -727,43 +728,18 @@ const ClusteredPropertyMap = ({
     }
   }, [initialCenter, initialZoom, debouncedUpdate]);
 
-  // Load Google Maps script
+  // Load the Maps JS API on demand via the shared loader (drawing included)
   const loadGoogleMapsScript = (callback) => {
-    const apiKey = window.googleMapsApiKey;
-
-    if (!apiKey) {
-      setMapError('Google Maps API key not configured');
-      return;
-    }
-
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      const checkInterval = setInterval(async () => {
-        if (window.google && window.google.maps) {
-          clearInterval(checkInterval);
-          // Ensure drawing library is available even if the existing
-          // script tag did not include &libraries=drawing.
-          if (!window.google.maps.drawing && window.google.maps.importLibrary) {
-            try { await window.google.maps.importLibrary('drawing'); } catch (e) {}
-          }
-          callback();
+    loadGoogleMaps()
+      .then(async () => {
+        // Belt and braces: if some other script tag loaded the API without
+        // the drawing library, pull it in before initializing.
+        if (!window.google.maps.drawing && window.google.maps.importLibrary) {
+          try { await window.google.maps.importLibrary('drawing'); } catch (e) {}
         }
-      }, 100);
-      setTimeout(() => clearInterval(checkInterval), 5000);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=drawing&callback=initClusteredMap`;
-    script.async = true;
-    script.defer = true;
-
-    window.initClusteredMap = () => {
-      callback();
-      delete window.initClusteredMap;
-    };
-
-    script.onerror = () => setMapError('Failed to load Google Maps');
-    document.head.appendChild(script);
+        callback();
+      })
+      .catch((e) => setMapError(e.message));
   };
 
   // Cleanup on unmount only (empty deps so it doesn't tear down the

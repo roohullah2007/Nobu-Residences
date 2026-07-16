@@ -215,15 +215,32 @@ class WebsiteController extends Controller
         // building info instead of hardcoded template copy. Listings are still
         // fetched client-side; this only carries the static building profile.
         $homepageBuilding = null;
+        $homepageBuildingModel = null;
         if ($website && $website->homepage_building_id) {
             $b = \App\Models\Building::with(['amenities', 'maintenanceFeeAmenities'])->find($website->homepage_building_id);
-            if ($b) { $homepageBuilding = $b->getDisplayData(); }
+            if ($b) { $homepageBuilding = $b->getDisplayData(); $homepageBuildingModel = $b; }
         }
         // Fallback: resolve NOBU by name if not configured.
         if (!$homepageBuilding) {
             $b = \App\Models\Building::with(['amenities', 'maintenanceFeeAmenities'])
                 ->whereRaw('LOWER(name) LIKE ?', ['%nobu%'])->first();
-            if ($b) { $homepageBuilding = $b->getDisplayData(); }
+            if ($b) { $homepageBuilding = $b->getDisplayData(); $homepageBuildingModel = $b; }
+        }
+
+        // Homepage SEO: the featured image (og:image) and structured data use
+        // the homepage building's hero image instead of the site logo.
+        $homeSeo = [];
+        if ($homepageBuildingModel) {
+            $homeSeo = [
+                'image' => $homepageBuildingModel->main_image
+                    ? (str_starts_with($homepageBuildingModel->main_image, 'http')
+                        ? $homepageBuildingModel->main_image
+                        : url($homepageBuildingModel->main_image))
+                    : null,
+                'jsonLd' => array_values(array_filter([
+                    \App\Support\Schema::building($homepageBuildingModel, url('/')),
+                ])),
+            ];
         }
 
         return Inertia::render('Welcome', array_merge($settings, [
@@ -235,6 +252,7 @@ class WebsiteController extends Controller
             'blogs' => $blogs,
             'blogCategories' => $blogCategories,
             'buildingData' => $homepageBuilding,
+            'seo' => array_filter($homeSeo),
         ]));
     }
 
@@ -2693,7 +2711,15 @@ class WebsiteController extends Controller
             'seo' => [
                 'title' => $building->name . ' | ' . ($this->getWebsiteSettings()['siteName'] ?? config('app.name')),
                 'description' => $building->description ? \Illuminate\Support\Str::limit(strip_tags($building->description), 155) : null,
-                'jsonLd' => array_values(array_filter([\App\Support\Schema::faqPage($faqs)])),
+                // Featured image (og:image / twitter:image) is the building's
+                // hero image, absolute for crawlers.
+                'image' => $building->main_image
+                    ? (str_starts_with($building->main_image, 'http') ? $building->main_image : url($building->main_image))
+                    : null,
+                'jsonLd' => array_values(array_filter([
+                    \App\Support\Schema::building($building),
+                    \App\Support\Schema::faqPage($faqs),
+                ])),
             ],
         ]));
     }
