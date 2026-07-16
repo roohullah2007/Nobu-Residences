@@ -137,8 +137,11 @@ class HandleInertiaRequests extends Middleware
             'isMainDomain' => $isMainDomain,
             'googleMapsApiKey' => (string) config('repliers.google_maps_browser_key', ''),
             'googleOAuthEnabled' => $googleOAuthEnabled,
+            // Public pages get the "public" Ziggy group (config/ziggy.php):
+            // admin.*/sanctum.*/storage routes must not appear in the page
+            // JSON of tenant landing pages. Admin pages need the full list.
             'ziggy' => fn () => [
-                ...(new Ziggy)->toArray(),
+                ...(new Ziggy($request->is('admin', 'admin/*') ? null : 'public'))->toArray(),
                 'location' => $request->url(),
             ],
         ];

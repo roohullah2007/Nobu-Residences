@@ -12,10 +12,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Refuse scrapers/AI crawlers/security scanners on every request
+        // before any other work happens (global, runs first).
+        $middleware->prepend(\App\Http\Middleware\BlockScrapers::class);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\AddressProtectionMiddleware::class,
+        ]);
+
+        // CSRF cookie renamed from the framework's "XSRF-TOKEN" (a stack
+        // fingerprint on every response); validation itself is unchanged,
+        // and the except-list below still applies (static on the parent).
+        $middleware->web(replace: [
+            \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class => \App\Http\Middleware\ValidateCsrfToken::class,
         ]);
 
         $middleware->alias([

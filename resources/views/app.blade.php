@@ -13,15 +13,19 @@
             //   ['title' => ..., 'description' => ..., 'image' => ..., 'jsonLd' => [...]]
             $seo = $page['props']['globalWebsite'] ?? null;
             $pageSeo = $page['props']['seo'] ?? [];
+            // Last-resort name is the request host, NEVER config('app.name'):
+            // tenant landing pages must not leak the platform owner's brand
+            // (or "Laravel") in titles/og:site_name when a site has no name.
+            $hostName = str_replace('www.', '', request()->getHost());
             $seoTitle = $pageSeo['title']
                 ?? (!empty($seo['meta_title'])
                     ? $seo['meta_title']
-                    : ($seo['name'] ?? config('app.name', 'Laravel')));
+                    : ($seo['name'] ?? $hostName));
             $seoDescription = $pageSeo['description'] ?? $seo['meta_description'] ?? ($seo['description'] ?? null);
             $seoKeywords = $seo['meta_keywords'] ?? null;
             $seoImage = $pageSeo['image'] ?? $seo['logo_url'] ?? null;
             $seoFavicon = $seo['favicon_url'] ?? '/favicon.ico';
-            $seoSiteName = $seo['name'] ?? config('app.name', 'Laravel');
+            $seoSiteName = $seo['name'] ?? $hostName;
             $seoUrl = url()->current();
             // jsonLd may be one schema object or a list of them.
             $seoJsonLd = $pageSeo['jsonLd'] ?? null;
@@ -131,7 +135,10 @@
         @if($googleMapsApiKey ?? false)
         <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ $googleMapsApiKey }}&libraries=places,drawing&loading=async"></script>
         @endif
-        @routes
+        {{-- Public pages get the filtered "public" route group (config/ziggy.php)
+             so tenant landing pages never embed the admin panel's route map.
+             Admin pages (null group) keep the full list for route('admin.*'). --}}
+        @routes(request()->is('admin', 'admin/*') ? null : 'public')
         @viteReactRefresh
         {{-- Component names starting with "Website/" live under resources/js
              (e.g. resources/js/Website/Pages/UserFavourites.jsx), matching the
