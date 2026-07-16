@@ -183,7 +183,9 @@ class WebsitePage extends Model
                 'heading' => 'Your new home is waiting',
                 'subheading' => 'Apply online in minutes or get in touch to schedule a personalized tour',
                 'logo_url' => '/assets/logo.png',
-                'background_image' => '/assets/house-img.jpg',
+                // Empty on purpose: the footer falls back to the website's
+                // linked building image, not a generic stock photo.
+                'background_image' => '',
                 'description' => 'Experience luxury living at Nobu Residences in the heart of Toronto. Modern condos with world-class amenities and unparalleled service.',
                 'quick_links' => [
                     ['text' => 'Properties for Rent', 'url' => '/rent'],

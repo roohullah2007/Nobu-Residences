@@ -89,11 +89,15 @@ const Footer = ({
         description: footerData?.description || effectiveWebsite?.description || '',
         logo_url: footerData?.logo_url || effectiveWebsite?.logo_url || '',
         // Per-domain image: admin override first, then THIS site's building
-        // photo/logo, and only then the generic stock fallback.
-        background_image: footerData?.background_image
+        // photo/logo. The old stock photo is gone — saved pages still carry
+        // '/assets/house-img.jpg' from the legacy defaults, so that value is
+        // treated as "no override". No building image → block hides entirely.
+        background_image: (footerData?.background_image && footerData.background_image !== '/assets/house-img.jpg'
+                ? footerData.background_image
+                : '')
             || globalWebsite?.building_image
             || globalWebsite?.building_logo
-            || '/assets/house-img.jpg',
+            || '',
         copyright_text: footerData?.copyright_text || `Copyright ${year} © ${siteName} - All Rights Reserved.`,
         quick_links: footerData?.quick_links || [
             { text: 'Privacy Policy', url: '/privacy' },
