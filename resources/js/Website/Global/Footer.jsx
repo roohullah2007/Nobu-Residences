@@ -238,10 +238,20 @@ const Footer = ({
                     <div className="flex flex-col md:flex-row justify-between items-start gap-6 md:gap-4">
                         {/* Company/Brand Section */}
                         <div className="flex flex-col items-start gap-3 md:gap-4 w-full md:w-auto">
-                            {/* Brand Name with responsive styles */}
-                            <h3 className="font-space-grotesk font-medium text-xl md:text-[28px] leading-7 md:leading-[38px] tracking-[-0.03em]" style={{ color: footerText }}>
-                                {siteName.toUpperCase()}
-                            </h3>
+                            {/* Brand logo - same image as the header so the
+                                footer carries the site's logo, not a plain
+                                text name; text stays as the no-logo fallback */}
+                            {footerContent.logo_url ? (
+                                <img
+                                    src={footerContent.logo_url}
+                                    alt={siteName}
+                                    className="object-contain object-left w-[160px] h-[55px] md:w-[220px] md:h-[60px]"
+                                />
+                            ) : (
+                                <h3 className="font-space-grotesk font-medium text-xl md:text-[28px] leading-7 md:leading-[38px] tracking-[-0.03em]" style={{ color: footerText }}>
+                                    {siteName.toUpperCase()}
+                                </h3>
+                            )}
                             {/* Description with responsive styles */}
                             <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] max-w-full md:max-w-xs" style={{ color: footerText }}>
                                 {footerContent.description}
