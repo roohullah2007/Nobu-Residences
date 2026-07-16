@@ -8,3 +8,4 @@ export { default as BuildingSlider } from './BuildingSlider';
 export { default as LoginModal } from './LoginModal';
 export { default as RealEstateLinksSection } from './RealEstateLinksSection';
 export { default as PropertyHeader } from './PropertyHeader';
+export { default as WhatsAppButton } from './WhatsAppButton';

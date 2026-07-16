@@ -235,7 +235,7 @@
     "/build/assets/UserProfile-C_TvrRji.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-DaaP0RAh.js"
+    "/build/assets/PropertyDetail-BHaEEnKp.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-Cjpe_bXg.js"
@@ -259,7 +259,7 @@
     "/build/assets/UserDashboard-CW0hDGX7.js"
   ],
   "resources/js/Pages/Welcome.jsx": [
-    "/build/assets/Welcome-DIw8wbwN.js"
+    "/build/assets/Welcome-CFMevnXW.js"
   ],
   "resources/js/Website/Components/CategoryCard.jsx": [
     "/build/assets/CategoryCard-DsOzFIOh.js"
@@ -567,6 +567,9 @@
   "resources/js/Website/Global/Components/ViewingRequestModal.jsx": [
     "/build/assets/ViewingRequestModal-BBfxqnQH.js"
   ],
+  "resources/js/Website/Global/Components/WhatsAppButton.jsx": [
+    "/build/assets/WhatsAppButton-DsPQeoY4.js"
+  ],
   "resources/js/Website/Global/Footer.jsx": [
     "/build/assets/Footer-COZ0Sr-M.js"
   ],
@@ -580,7 +583,7 @@
     "/build/assets/ViewingRequestProvider-BZSoc4WF.js"
   ],
   "resources/js/Website/Home.jsx": [
-    "/build/assets/Home-C9j9Pwta.js"
+    "/build/assets/Home-DI15QveC.js"
   ],
   "resources/js/Website/Pages/Blog.jsx": [
     "/build/assets/Blog-YSNkTnM3.js"
@@ -595,7 +598,7 @@
     "/build/assets/PropertyAiDemo-CYZu_RfQ.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CyZiJODd.js"
+    "/build/assets/PropertyDetail-CImjZv0e.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-EHmvGMIH.js"

@@ -14,10 +14,10 @@ import OwnershipCosts from '@/Website/Sections/Home/OwnershipCosts';
 import HistoryTimeline from '@/Website/Sections/Home/HistoryTimeline';
 import FAQSection from '@/Website/Sections/Home/FAQSection';
 import ContactSection from '@/Website/Sections/Home/ContactSection';
-import { ViewingRequestModal } from '@/Website/Global/Components';
+import { ViewingRequestModal, WhatsAppButton } from '@/Website/Global/Components';
 import { normalizeListing, priceStats } from '@/Website/Sections/Home/iceData';
 
-export default function Home({ auth, laravelVersion, phpVersion, website, siteName, siteUrl, year, pageContent, availableIcons, buildingData, ...props }) {
+export default function Home({ auth, website, siteName, siteUrl, year, pageContent, availableIcons, buildingData, ...props }) {
     const building = buildingData || {};
     const { globalWebsite } = usePage().props;
     const pageTitle = globalWebsite?.meta_title || `${siteName} - Luxury Condominiums at Nobu Residences`;
@@ -133,6 +133,11 @@ export default function Home({ auth, laravelVersion, phpVersion, website, siteNa
 
                 <ContactSection website={website} pageContent={pageContent} building={building} />
             </div>
+
+            {/* Floating WhatsApp contact button (homepage message) */}
+            <WhatsAppButton
+                message={`Hi, I'd like to get information about unit availability at ${building.name || siteName || 'Nobu Residences'}.`}
+            />
 
             {/* Global Viewing Request Modal */}
             <ViewingRequestModal

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
-import { ViewingRequestModal, LoginModal } from '@/Website/Global/Components';
+import { ViewingRequestModal, LoginModal, WhatsAppButton } from '@/Website/Global/Components';
 import PropertyHeader from '@/Website/Global/Components/PropertyHeader';
 import {
   PropertyGallery,
@@ -301,6 +301,18 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
     building: buildingData  // Include building data for PropertyHeader location breadcrumb
   };
 
+  // WhatsApp enquiry message for the floating button, built from the live
+  // listing: For Sale vs For Rent is detected from TransactionType (Repliers
+  // uses "For Lease" for rentals), same test as PropertyHeader.
+  const whatsAppMessage = (() => {
+    if (!propertyData) return null;
+    const isRent = /rent|lease/i.test((propertyData.transactionType || propertyData.TransactionType || '').toString());
+    const listingType = isRent ? 'For Rent' : 'For Sale';
+    const mlsId = propertyData.mlsNumber || propertyData.listingKey || listingKey;
+    const location = [propertyData.address, buildingData?.name].filter(Boolean).join(', ');
+    return `Hi, I'd like to get more information about the ${listingType} listing ${mlsId} at ${location}.`;
+  })();
+
   if (isLoading) {
     return (
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website} blueHeader={true}>
@@ -405,6 +417,10 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
       {/* Mobile Bottom Bar - Fixed at bottom */}
       <MobileBottomBar />
+
+      {/* Floating WhatsApp contact button — lifted above the fixed mobile
+          bottom bar on small screens, standard corner offset from md up */}
+      <WhatsAppButton message={whatsAppMessage} className="bottom-24 md:bottom-6" />
 
       {/* Global Viewing Request Modal */}
       <ViewingRequestModal
