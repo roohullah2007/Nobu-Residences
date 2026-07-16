@@ -34,6 +34,17 @@ class Building extends Model
                 $model->slug = Str::slug($model->name);
             }
         });
+
+        // Websites render this building live (hero, counts, footer image),
+        // but through short caches. Bust them on every save — admin edits,
+        // image uploads, CSV imports — so the site reflects a building
+        // update immediately instead of after cache expiry.
+        static::saved(function ($model) {
+            \Illuminate\Support\Facades\Cache::forget('building_listing_counts:' . $model->id);
+            Website::where('homepage_building_id', $model->id)->pluck('id')->each(
+                fn ($id) => \Illuminate\Support\Facades\Cache::forget('website.' . $id . '.footer_building')
+            );
+        });
     }
 
     protected $fillable = [
