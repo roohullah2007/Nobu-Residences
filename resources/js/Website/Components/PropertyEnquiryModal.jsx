@@ -115,13 +115,17 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                 onClick={onClose}
             />
             
-            {/* Modal Content */}
-            <div className="relative bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            {/* Modal Content - compact paddings/inputs on mobile so the whole
+                form (incl. the submit button) fits the viewport without
+                scrolling; overflow-y-auto stays as a safety net for very
+                short screens. dvh tracks the real visible height under the
+                mobile browser chrome. */}
+            <div className="relative bg-white rounded-2xl max-w-lg w-full max-h-[92dvh] overflow-y-auto mx-4">
                 {/* Header */}
-                <div className="border-b border-gray-200 p-6 sticky top-0 bg-white z-10">
+                <div className="border-b border-gray-200 p-4 sm:p-6 sticky top-0 bg-white z-10">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="font-space-grotesk font-bold text-2xl text-[#293056] mb-2">
+                            <h2 className="font-space-grotesk font-bold text-xl sm:text-2xl text-[#293056] mb-1 sm:mb-2">
                                 Property Enquiry
                             </h2>
                             <p className="font-work-sans text-sm text-gray-600">
@@ -156,7 +160,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                     </div>
                 ) : (
                     /* Form */
-                    <form onSubmit={handleSubmit} className="p-6">
+                    <form onSubmit={handleSubmit} className="p-4 sm:p-6">
                         {errors.general && (
                             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
                                 {errors.general}
@@ -164,8 +168,8 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         )}
 
                         {/* Name */}
-                        <div className="mb-4">
-                            <label className="block font-work-sans font-medium text-gray-700 mb-2">
+                        <div className="mb-3 sm:mb-4">
+                            <label className="block font-work-sans font-medium text-sm sm:text-base text-gray-700 mb-1 sm:mb-2">
                                 Full Name *
                             </label>
                             <input
@@ -173,7 +177,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors ${
+                                className={`w-full px-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors ${
                                     errors.name ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -184,8 +188,8 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Email */}
-                        <div className="mb-4">
-                            <label className="block font-work-sans font-medium text-gray-700 mb-2">
+                        <div className="mb-3 sm:mb-4">
+                            <label className="block font-work-sans font-medium text-sm sm:text-base text-gray-700 mb-1 sm:mb-2">
                                 Email Address *
                             </label>
                             <input
@@ -193,7 +197,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors ${
+                                className={`w-full px-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors ${
                                     errors.email ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -204,30 +208,30 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                         </div>
 
                         {/* Phone */}
-                        <div className="mb-4">
-                            <label className="block font-work-sans font-medium text-gray-700 mb-2">
+                        <div className="mb-3 sm:mb-4">
+                            <label className="block font-work-sans font-medium text-sm sm:text-base text-gray-700 mb-1 sm:mb-2">
                                 Phone Number
                             </label>
                             <PhoneInput
                                 name="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors"
+                                className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors"
                                 placeholder="(optional)"
                             />
                         </div>
 
                         {/* Message */}
-                        <div className="mb-4">
-                            <label className="block font-work-sans font-medium text-gray-700 mb-2">
+                        <div className="mb-3 sm:mb-4">
+                            <label className="block font-work-sans font-medium text-sm sm:text-base text-gray-700 mb-1 sm:mb-2">
                                 Message *
                             </label>
                             <textarea
                                 name="message"
                                 value={formData.message}
                                 onChange={handleChange}
-                                rows={4}
-                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors resize-none ${
+                                rows={3}
+                                className={`w-full px-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-[#293056] focus:ring-opacity-50 focus:border-transparent transition-colors resize-none ${
                                     errors.message ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -237,13 +241,15 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
                             )}
                         </div>
 
-                        {/* Property Details Summary */}
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                            <h4 className="font-work-sans font-semibold text-sm text-gray-700 mb-2">
+                        {/* Property Details Summary - single wrapped line on
+                            mobile (the address already sits in the header);
+                            full labelled list from sm up. */}
+                        <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+                            <h4 className="hidden sm:block font-work-sans font-semibold text-sm text-gray-700 mb-2">
                                 Property Details
                             </h4>
-                            <div className="space-y-1 text-sm text-gray-600">
-                                <p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 sm:block sm:space-y-1 text-sm text-gray-600">
+                                <p className="hidden sm:block">
                                     <span className="font-medium">Address:</span> {formatAddress()}
                                 </p>
                                 {propertyData?.ListPrice && (
