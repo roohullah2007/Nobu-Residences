@@ -58,6 +58,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         year_built: building.year_built || '',
         description: building.description || '',
         main_image: building.main_image || '',
+        hero_image_mobile: building.hero_image_mobile || '',
         logo: building.logo || '',
         images: building.images || [],
         developer_id: building.developer_id || '',
@@ -126,6 +127,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
 
     const [selectedMaintenanceFeeAmenities, setSelectedMaintenanceFeeAmenities] = useState(initMaintenanceFeeAmenities());
     const [imagePreview, setImagePreview] = useState(building.main_image || '');
+    const [heroMobilePreview, setHeroMobilePreview] = useState(building.hero_image_mobile || '');
+    const [uploadingHeroMobile, setUploadingHeroMobile] = useState(false);
     const [logoPreview, setLogoPreview] = useState(building.logo || '');
     const [galleryImages, setGalleryImages] = useState(
         Array.isArray(building.images) ? building.images :
@@ -457,6 +460,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             setUploadingImage(true);
         } else if (imageType === 'logo') {
             setUploadingLogo(true);
+        } else if (imageType === 'hero_mobile') {
+            setUploadingHeroMobile(true);
         } else {
             setUploadingGalleryImage(true);
         }
@@ -507,6 +512,9 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                 } else if (imageType === 'logo') {
                     setData('logo', successfulUploads[0]);
                     setLogoPreview(successfulUploads[0]);
+                } else if (imageType === 'hero_mobile') {
+                    setData('hero_image_mobile', successfulUploads[0]);
+                    setHeroMobilePreview(successfulUploads[0]);
                 } else {
                     const updatedImages = [...galleryImages, ...successfulUploads];
                     setGalleryImages(updatedImages);
@@ -526,6 +534,8 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                 setUploadingImage(false);
             } else if (imageType === 'logo') {
                 setUploadingLogo(false);
+            } else if (imageType === 'hero_mobile') {
+                setUploadingHeroMobile(false);
             } else {
                 setUploadingGalleryImage(false);
             }
@@ -1466,6 +1476,58 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Mobile Hero Image Section — phones get this image in the
+                                landing-page hero; desktop keeps the main image */}
+                            <div className="mb-8 border-t pt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-1">Mobile Hero Image</h3>
+                                <p className="text-xs text-gray-500 mb-4">Optional. Shown as the landing page hero on phones (portrait crop recommended). Desktop keeps the main building image.</p>
+                                <div>
+                                    <div className="mt-1 space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <label className="relative cursor-pointer bg-indigo-600 rounded-md font-medium text-white hover:bg-indigo-700 px-4 py-2 inline-flex items-center">
+                                                <input
+                                                    type="file"
+                                                    className="sr-only"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleImageUpload(e, 'hero_mobile')}
+                                                    disabled={uploadingHeroMobile}
+                                                />
+                                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                                {uploadingHeroMobile ? 'Uploading...' : 'Select Mobile Hero'}
+                                            </label>
+                                            {heroMobilePreview && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setData('hero_image_mobile', ''); setHeroMobilePreview(''); }}
+                                                    className="bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm"
+                                                >
+                                                    Remove Mobile Hero
+                                                </button>
+                                            )}
+                                        </div>
+                                        {!heroMobilePreview && (
+                                            <p className="text-sm text-gray-500">Select the mobile hero image (JPG, PNG, WebP, max 5MB)</p>
+                                        )}
+                                    </div>
+                                    <InputError message={errors.hero_image_mobile} className="mt-2" />
+
+                                    {heroMobilePreview && (
+                                        <div className="mt-3">
+                                            <img
+                                                src={heroMobilePreview}
+                                                alt="Mobile hero image"
+                                                className="w-40 h-64 object-cover rounded-lg border border-gray-200"
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/300x400?text=Invalid+Image';
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

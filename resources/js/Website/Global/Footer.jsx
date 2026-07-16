@@ -88,7 +88,12 @@ const Footer = ({
         subheading: footerData?.subheading || 'Apply online in minutes or get in touch to schedule a personalized tour',
         description: footerData?.description || effectiveWebsite?.description || '',
         logo_url: footerData?.logo_url || effectiveWebsite?.logo_url || '',
-        background_image: footerData?.background_image || '/assets/house-img.jpg',
+        // Per-domain image: admin override first, then THIS site's building
+        // photo/logo, and only then the generic stock fallback.
+        background_image: footerData?.background_image
+            || globalWebsite?.building_image
+            || globalWebsite?.building_logo
+            || '/assets/house-img.jpg',
         copyright_text: footerData?.copyright_text || `Copyright ${year} © ${siteName} - All Rights Reserved.`,
         quick_links: footerData?.quick_links || [
             { text: 'Privacy Policy', url: '/privacy' },

@@ -92,6 +92,24 @@ class HandleInertiaRequests extends Middleware
                 // <head> by app.blade.php; kept out of admin pages.
                 'tracking_scripts' => $request->is('admin*') ? null : $website->tracking_scripts,
             ];
+
+            // This site's linked building image/logo for global chrome (e.g.
+            // the footer CTA image) so every domain shows ITS building, not a
+            // stock photo. Cached briefly; Building accessors strip the host
+            // so tenant domains serve the file same-origin.
+            $building = null;
+            if ($website->homepage_building_id) {
+                $building = \Illuminate\Support\Facades\Cache::remember(
+                    'website.' . $website->id . '.footer_building',
+                    60,
+                    fn () => \App\Models\Building::query()
+                        ->where('id', $website->homepage_building_id)
+                        ->first(['id', 'name', 'main_image', 'logo'])
+                );
+            }
+            $globalWebsite['building_name'] = $building?->name;
+            $globalWebsite['building_image'] = $building?->main_image;
+            $globalWebsite['building_logo'] = $building?->logo;
         }
 
         // The admin/main host gets a bare login screen: no signup, no forgot

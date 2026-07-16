@@ -47,6 +47,9 @@ export default function HeroSection({
     const hasCustomSubheading = adminSubheading && !GENERIC_TAGLINE_PATTERN.test(adminSubheading);
     const subheading = hasCustomSubheading ? adminSubheading : (descriptionSummary || adminSubheading || builtTagline);
     const backgroundImage = building.main_image || heroContent.background_image || '/assets/nobu-building.jpg';
+    // Phones get the building's dedicated mobile hero when set (admin upload
+    // on the building); desktop keeps the main image.
+    const backgroundImageMobile = building.hero_image_mobile || heroContent.background_image_mobile || '';
 
     // Building addresses: prefer the building record, fall back to MLS settings.
     const defaultBuildingAddresses = building.address || mlsSettings.default_building_address || '15 Mercer Street';
@@ -88,11 +91,17 @@ export default function HeroSection({
         <section className="relative min-h-screen flex flex-col font-work-sans">
             {/* Building image background + dark luxury overlay */}
             <div className="absolute inset-0">
-                <img
-                    src={backgroundImage}
-                    alt={`${buildingName} building`}
-                    className="w-full h-full object-cover"
-                />
+                <picture>
+                    {backgroundImageMobile && (
+                        <source media="(max-width: 767px)" srcSet={backgroundImageMobile} />
+                    )}
+                    <img
+                        src={backgroundImage}
+                        alt={`${buildingName} building`}
+                        fetchPriority="high"
+                        className="w-full h-full object-cover"
+                    />
+                </picture>
                 <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/80"></div>
             </div>
 

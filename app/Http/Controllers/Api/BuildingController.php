@@ -498,7 +498,7 @@ class BuildingController extends Controller
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
             'building_id' => 'nullable|exists:buildings,id', // Optional — Create page has no building yet
-            'image_type' => 'nullable|in:main,gallery,logo' // Optional, defaults to main
+            'image_type' => 'nullable|in:main,gallery,logo,hero_mobile' // Optional, defaults to main
         ]);
 
         try {
@@ -526,8 +526,12 @@ class BuildingController extends Controller
                 // Store in public/images/buildings directory
                 $path = $image->move($uploadPath, $imageName);
 
-                // Generate URL
-                $imageUrl = asset('images/buildings/' . $imageName);
+                // Root-relative web path — never asset(): asset() bakes the
+                // ADMIN domain (APP_URL) into the DB, so tenant landing pages
+                // would hotlink the admin host (owner leak + extra DNS/TLS).
+                // The files live in this app's public dir, so a relative path
+                // works on every domain that serves the app.
+                $imageUrl = '/images/buildings/' . $imageName;
 
                 $imageType = $request->input('image_type', 'main');
 
@@ -538,6 +542,8 @@ class BuildingController extends Controller
                         $building->main_image = $imageUrl;
                     } elseif ($imageType === 'logo') {
                         $building->logo = $imageUrl;
+                    } elseif ($imageType === 'hero_mobile') {
+                        $building->hero_image_mobile = $imageUrl;
                     } else {
                         $currentImages = $building->images;
                         if (is_string($currentImages)) {

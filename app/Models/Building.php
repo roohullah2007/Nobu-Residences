@@ -58,6 +58,7 @@ class Building extends Model
         'year_built',
         'description',
         'main_image',
+        'hero_image_mobile',
         'logo',
         'images',
         'pending_image_urls',
@@ -139,25 +140,34 @@ class Building extends Model
         'deleted_at',
     ];
 
-    // Old records stored absolute dev URLs like
-    // "http://127.0.0.1:8000/images/buildings/foo.jpeg". Those break the
-    // moment the app runs on a different host/port (production, a colleague's
-    // machine, `php artisan serve` on another port, or even `localhost` vs
-    // `127.0.0.1`). Strip the host so the browser resolves the path against
-    // the current origin.
+    // Old records stored absolute URLs — dev hosts like
+    // "http://127.0.0.1:8000/images/buildings/foo.jpeg" AND production
+    // uploads saved via asset() as "https://pcdadmin.com/images/...". Both
+    // break tenancy: tenant landing pages must serve these self-hosted files
+    // from their OWN domain (same server, same public dir) — hotlinking the
+    // admin domain leaks the platform owner on every tenant site and adds a
+    // needless cross-origin DNS+TLS round trip. Strip the host from any URL
+    // pointing at our own /images/ uploads so the browser resolves it
+    // against the current origin; genuinely external URLs are untouched.
     protected function stripLocalHost(?string $url): ?string
     {
         if (! $url) {
             return $url;
         }
-        return preg_replace(
+        $url = preg_replace(
             '#^https?://(?:127\.0\.0\.1|localhost|0\.0\.0\.0)(?::\d+)?#i',
             '',
             $url
         );
+        return preg_replace('#^https?://[^/]+(?=/images/)#i', '', $url);
     }
 
     public function getMainImageAttribute($value)
+    {
+        return $this->stripLocalHost($value);
+    }
+
+    public function getHeroImageMobileAttribute($value)
     {
         return $this->stripLocalHost($value);
     }
@@ -341,6 +351,7 @@ class Building extends Model
             'agent_email' => $this->agent_email,
             'agent_image' => $this->agent_image,
             'main_image' => $this->main_image,
+            'hero_image_mobile' => $this->hero_image_mobile,
             'images' => $this->images,
             'building_type' => $this->building_type,
             'price_range' => $this->price_range,

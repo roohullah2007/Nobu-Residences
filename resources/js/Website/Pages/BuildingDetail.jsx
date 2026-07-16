@@ -244,12 +244,6 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
     ]
   };
 
-  // DEBUG: Log effectiveBuildingData
-  console.log('[BuildingDetail] effectiveBuildingData:', effectiveBuildingData);
-  console.log('[BuildingDetail] effectiveBuildingData.name:', effectiveBuildingData?.name);
-  console.log('[BuildingDetail] effectiveBuildingData.mls_properties_for_sale:', effectiveBuildingData?.mls_properties_for_sale);
-  console.log('[BuildingDetail] effectiveBuildingData.mls_properties_for_rent:', effectiveBuildingData?.mls_properties_for_rent);
-
   // Use actual building images from backend or fallback to samples
   const buildingImages = [];
   

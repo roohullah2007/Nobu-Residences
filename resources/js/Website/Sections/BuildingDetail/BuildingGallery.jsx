@@ -144,11 +144,20 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                   className="relative w-full h-full rounded-xl overflow-hidden cursor-pointer group"
                   onClick={() => openModal(0)}
                 >
-                  <img
-                    src={buildingImages[0]}
-                    alt="Building image"
-                    className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
-                  />
+                  {/* Phones get the building's dedicated mobile hero when
+                      set; desktop keeps the main image. fetchpriority: this
+                      is the LCP element of the landing page. */}
+                  <picture>
+                    {buildingData?.hero_image_mobile && (
+                      <source media="(max-width: 767px)" srcSet={buildingData.hero_image_mobile} />
+                    )}
+                    <img
+                      src={buildingImages[0]}
+                      alt="Building image"
+                      fetchPriority="high"
+                      className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </picture>
                   <div className="absolute inset-0 bg-black bg-opacity-10"></div>
                   {/* View Photos overlay on hover */}
                   <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -435,9 +444,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
               >
                 {buildingImages.map((image, index) => (
                   <div key={index} className="min-w-full flex items-center justify-center p-4">
-                    <img 
+                    <img
                       src={image}
                       alt={`Building image ${index + 1}`}
+                      loading="lazy"
                       className="max-w-full max-h-full object-contain"
                     />
                   </div>
@@ -469,9 +479,10 @@ const BuildingGallery = ({ buildingImages, buildingData, website, isFavorited, o
                       : 'border-white border-opacity-20'
                   }`}
                 >
-                  <img 
+                  <img
                     src={image}
                     alt={`Thumbnail ${index + 1}`}
+                    loading="lazy"
                     className="w-20 h-15 object-cover block"
                   />
                 </button>
