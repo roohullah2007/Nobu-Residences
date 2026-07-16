@@ -586,16 +586,27 @@ class GeminiAIService
      */
     public function generatePropertyFaqs(array $propertyData, string $mlsId): array
     {
+        // Callers pass the raw Repliers listing (nested address/details); the
+        // FAQ prompt and fallbacks read flat AMPRE-style keys, so unmapped
+        // data produced "0 bedroom, 0 bathroom ... $0" FAQs. Normalize first.
+        $propertyData = $this->normalizeFaqData($propertyData);
+
         try {
             // Check if FAQs already exist in database
             $existingFaqs = PropertyFaq::getByMlsId($mlsId);
 
             if ($existingFaqs->count() > 0) {
-                Log::info("Using cached FAQs for MLS: {$mlsId}");
-                return [
-                    'faqs' => $existingFaqs->toArray(),
-                    'cached' => true
-                ];
+                if (!self::faqsLookStale($existingFaqs)) {
+                    Log::info("Using cached FAQs for MLS: {$mlsId}");
+                    return [
+                        'faqs' => $existingFaqs->toArray(),
+                        'cached' => true
+                    ];
+                }
+                // Legacy zero-data fallback rows — purge so this listing
+                // regenerates with its real data.
+                Log::info("Purging stale zero-data FAQs for MLS: {$mlsId}");
+                PropertyFaq::where('mls_id', $mlsId)->delete();
             }
 
             // Generate new FAQs
@@ -605,7 +616,7 @@ class GeminiAIService
             $faqResponse = $this->generateContent($faqPrompt);
 
             // Parse the FAQ response into questions and answers
-            $faqs = $this->parseFaqResponse($faqResponse);
+            $faqs = $this->parseFaqResponse($faqResponse, $propertyData);
 
             // Store FAQs in database
             foreach ($faqs as $index => $faq) {
@@ -716,9 +727,83 @@ class GeminiAIService
     }
 
     /**
+     * True when stored FAQ rows are legacy zero-data fallbacks ("0 bedroom,
+     * 0 bathroom ... $0") generated before the listing data was normalized.
+     * Accepts a collection of PropertyFaq models or plain arrays.
+     */
+    public static function faqsLookStale($faqs): bool
+    {
+        return collect($faqs)->contains(function ($faq) {
+            $question = (string) data_get($faq, 'question', '');
+            $answer = (string) data_get($faq, 'answer', '');
+
+            return str_contains($answer, '0 bedroom, 0 bathroom')
+                || str_contains($answer, ' is $0')
+                || str_contains($question, '0 bedroom');
+        });
+    }
+
+    /**
+     * Map a raw Repliers listing (nested address/details/condominium) onto
+     * the flat AMPRE-style keys the FAQ prompt and fallbacks read. Flat
+     * arrays pass through untouched.
+     */
+    private function normalizeFaqData(array $data): array
+    {
+        if (!isset($data['address']) || !is_array($data['address'])) {
+            return $data;
+        }
+
+        $address = $data['address'];
+        $details = $data['details'] ?? [];
+        $condo = $data['condominium'] ?? [];
+        $taxes = $data['taxes'] ?? [];
+
+        $street = trim(($address['streetNumber'] ?? '') . ' ' . ($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? ''));
+        $unit = $address['unitNumber'] ?? '';
+
+        // Repliers sqft can be a range like "600-699" — use the midpoint so
+        // number_format() in the fallbacks gets a number.
+        $sqftRaw = $details['sqft'] ?? '';
+        $sqft = 0;
+        if (is_numeric($sqftRaw)) {
+            $sqft = (int) $sqftRaw;
+        } elseif (is_string($sqftRaw) && preg_match('/(\d+)\s*-\s*(\d+)/', $sqftRaw, $m)) {
+            $sqft = (int) round(((int) $m[1] + (int) $m[2]) / 2);
+        }
+
+        $taxAmount = 0;
+        if (!empty($taxes)) {
+            $taxAmount = (float) (isset($taxes[0])
+                ? ($taxes[0]['annualAmount'] ?? 0)
+                : ($taxes['annualAmount'] ?? 0));
+        }
+
+        return [
+            'PropertySubType' => $details['propertyType'] ?? $details['style'] ?? 'property',
+            'UnparsedAddress' => $unit ? "{$unit} - {$street}" : $street,
+            'BedroomsTotal' => (int) (($details['numBedrooms'] ?? 0) + ($details['numBedroomsPlus'] ?? 0)),
+            'BathroomsTotalInteger' => (int) (($details['numBathrooms'] ?? 0) + ($details['numBathroomsPlus'] ?? 0)),
+            'LivingArea' => $sqft,
+            'ListPrice' => (float) ($data['listPrice'] ?? 0),
+            'City' => $address['city'] ?? '',
+            'Area' => $address['neighborhood'] ?? $address['area'] ?? '',
+            'YearBuilt' => $details['yearBuilt'] ?? '',
+            'ParkingTotal' => (int) ($details['numParkingSpaces'] ?? 0),
+            'TransactionType' => strtolower($data['type'] ?? 'sale') === 'lease' ? 'For Rent' : 'For Sale',
+            'AssociationFee' => (float) ($condo['fees']['maintenance'] ?? $details['maintenanceFee'] ?? 0),
+            'TaxAnnualAmount' => $taxAmount,
+            'StreetName' => trim(($address['streetName'] ?? '') . ' ' . ($address['streetSuffix'] ?? '')),
+            'UnitNumber' => $unit,
+            'AssociationAmenities' => $condo['amenities'] ?? [],
+            'PublicRemarks' => $details['description'] ?? '',
+        ];
+    }
+
+    /**
      * Parse FAQ response from AI into structured array
      */
-    private function parseFaqResponse(string $response): array
+    private function parseFaqResponse(string $response, array $propertyData = []): array
     {
         $faqs = [];
 
@@ -737,9 +822,9 @@ class GeminiAIService
             }
         }
 
-        // If parsing fails, return fallback
+        // If parsing fails, build the fallback from the real listing data
         if (empty($faqs)) {
-            return $this->getFallbackFaqs([]);
+            return $this->getFallbackFaqs($propertyData);
         }
 
         return $faqs;
@@ -776,18 +861,23 @@ class GeminiAIService
         $isLuxury = $price > 1500000;
         $isNew = $yearBuilt && (date('Y') - $yearBuilt <= 5);
 
-        // Question 1: Dynamic price question based on property type and transaction
+        // Question 1: Dynamic price question based on property type and transaction.
+        // Never bake "0 bedroom" / "$0" into the copy — omit missing values.
         $sqftText = $sqft > 0 ? number_format($sqft) . ' sq ft ' : '';
+        $bedText = $bedrooms > 0 ? "{$bedrooms} bedroom " : '';
+        $bedBathText = $bedrooms > 0 ? "{$bedrooms} bedroom, {$bathrooms} bathroom " : '';
         $priceQuestion = $isRental
-            ? "What is the monthly rent for this {$bedrooms} bedroom {$propertyType}?"
+            ? "What is the monthly rent for this {$bedText}{$propertyType}?"
             : ($isCondo
-                ? "What is the price for this {$bedrooms} bedroom condo" . ($unitNumber ? " (Unit {$unitNumber})" : "") . " and are maintenance fees included?"
+                ? "What is the price for this {$bedText}condo" . ($unitNumber ? " (Unit {$unitNumber})" : "") . " and are maintenance fees included?"
                 : "What is the asking price for this {$sqftText}{$propertyType}?");
 
         $faqs[] = [
             'question' => $priceQuestion,
-            'answer' => "The " . strtolower($transactionType) . " price for this {$bedrooms} bedroom, {$bathrooms} bathroom {$propertyType} is $" . number_format($price) .
-                       ($sqft > 0 ? ", which works out to approximately $" . number_format($price / $sqft, 0) . " per square foot. " : ". ") .
+            'answer' => "The " . strtolower($transactionType) . " price for this {$bedBathText}{$propertyType} " .
+                       ($price > 0
+                           ? "is $" . number_format($price) . ($sqft > 0 ? ", which works out to approximately $" . number_format($price / $sqft, 0) . " per square foot. " : ". ")
+                           : "is available on request — contact us for current pricing. ") .
                        "This price reflects the property's prime location" . ($neighborhood ? " in {$neighborhood}" : " in {$city}") .
                        ", its well-maintained condition" . ($yearBuilt ? " (built in {$yearBuilt})" : "") .
                        ", and the current market conditions. The price includes all fixtures and fittings currently in the property. " .
@@ -796,7 +886,7 @@ class GeminiAIService
 
         // Question 2: Dynamic neighborhood question based on location
         $neighborhoodQuestion = $neighborhood
-            ? "What makes the {$neighborhood} neighborhood special for {$bedrooms} bedroom properties?"
+            ? "What makes the {$neighborhood} neighborhood special for " . ($bedrooms > 0 ? "{$bedrooms} bedroom properties" : "properties like this") . "?"
             : ($streetName
                 ? "What's it like living on {$streetName} in {$city}?"
                 : "What are the key features of this {$city} location?");
@@ -828,15 +918,16 @@ class GeminiAIService
             ];
         } else {
             $featuresQuestion = $isHouse
-                ? "What are the standout features of this {$bedrooms} bedroom house" . ($yearBuilt && $isNew ? " built in {$yearBuilt}" : "") . "?"
+                ? "What are the standout features of this {$bedText}house" . ($yearBuilt && $isNew ? " built in {$yearBuilt}" : "") . "?"
                 : ($isTownhouse
-                    ? "What makes this townhouse unique compared to other {$bedrooms} bedroom properties?"
+                    ? "What makes this townhouse unique compared to other " . ($bedrooms > 0 ? "{$bedrooms} bedroom properties" : "properties") . "?"
                     : "What are the key features and upgrades of this {$propertyType}?");
 
             $faqs[] = [
                 'question' => $featuresQuestion,
-                'answer' => "This {$propertyType} offers {$bedrooms} bedrooms and {$bathrooms} bathrooms" .
-                           ($sqft > 0 ? " across {$sqft} square feet of thoughtfully designed living space" : "") . ". " .
+                'answer' => "This {$propertyType} offers " .
+                           ($bedrooms > 0 ? "{$bedrooms} bedrooms and {$bathrooms} bathrooms" : "a thoughtfully designed layout") .
+                           ($sqft > 0 ? " across {$sqft} square feet of living space" : "") . ". " .
                            ($yearBuilt ? "Built in {$yearBuilt}, the property combines classic architecture with modern updates. " : "") .
                            "The layout is designed for both comfortable living and entertaining, with well-proportioned rooms and ample natural light. " .
                            ($parking > 0 ? "The property includes {$parking} parking space(s) for your convenience. " : "") .
@@ -874,7 +965,7 @@ class GeminiAIService
 
         $faqs[] = [
             'question' => $costsQuestion,
-            'answer' => "Beyond the " . ($transactionType === 'For Rent' ? "monthly rent of $" . number_format($price) : "purchase price") .
+            'answer' => "Beyond the " . ($isRental && $price > 0 ? "monthly rent of $" . number_format($price) : ($isRental ? "monthly rent" : "purchase price")) .
                        ", buyers should be aware of the following ongoing costs: " .
                        ($taxes > 0 ? "Annual property taxes are approximately $" . number_format($taxes) . ". " : "Property taxes apply based on the municipal assessment. ") .
                        ($maintenanceFee > 0 ? "The monthly maintenance fee is $" . number_format($maintenanceFee) . ", which covers building amenities, common area maintenance, and management services. " : "") .
@@ -893,7 +984,7 @@ class GeminiAIService
                     ? "What are the benefits of buying in this newly built {$yearBuilt} development?"
                     : ($neighborhood
                         ? "How has the {$neighborhood} real estate market performed recently?"
-                        : "Is this {$bedrooms} bedroom {$propertyType} a good investment in today's market?")));
+                        : "Is this {$bedText}{$propertyType} a good investment in today's market?")));
 
         $faqs[] = [
             'question' => $investmentQuestion,

@@ -532,18 +532,19 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
 
         {/* Tab navigation — same styling as the previous layout */}
         <div className="flex flex-col items-start gap-[18px] w-full">
-          {/* min-h (not fixed h): at tablet the tabs wrap to two rows and a
-              fixed 50px height clipped the second row */}
-          <div className="flex flex-row items-center gap-[8px] min-h-[50px] overflow-x-auto scrollbar-hide w-full md:flex-wrap">
+          {/* Tabs wrap on every breakpoint (no horizontal slide) so all of
+              them stay visible on mobile; min-h (not fixed h) lets the row
+              grow when they wrap. Compact text/height on phones. */}
+          <div className="flex flex-row flex-wrap items-center gap-x-2 min-h-[40px] md:min-h-[50px] w-full">
             {tabs.map((tab) => (
               <div
                 key={tab.id}
-                className={`flex justify-center items-center p-2.5 cursor-pointer transition-all duration-300 border-b flex-shrink-0 ${
+                className={`flex justify-center items-center p-1.5 md:p-2.5 cursor-pointer transition-all duration-300 border-b flex-shrink-0 ${
                   currentTab === tab.id ? 'border-[#252B37]' : 'border-transparent hover:border-[#3E4784]'
-                } h-[50px]`}
+                } h-[40px] md:h-[50px]`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <span className={`font-red-hat font-bold text-xl leading-[30px] tracking-tight whitespace-nowrap flex items-center ${
+                <span className={`font-red-hat font-bold text-base md:text-xl leading-6 md:leading-[30px] tracking-tight whitespace-nowrap flex items-center ${
                   currentTab === tab.id ? 'text-[#252B37]' : 'text-[#252B37] hover:text-[#3E4784]'
                 }`}>
                   {tab.label}

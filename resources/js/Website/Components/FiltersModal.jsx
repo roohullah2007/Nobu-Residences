@@ -74,6 +74,11 @@ const FiltersModal = ({
   const [amenities, setAmenities] = useState([]);
   const [keywords, setKeywords] = useState('');
 
+  // Mobile-only accordion for the secondary sections (Home Type, Days on
+  // Market, Condo Includes, Amenities, Keywords) so the core filters +
+  // footer fit one phone screen without scrolling; always open from sm up.
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+
   // Dynamic count states
   const [previewCount, setPreviewCount] = useState(totalCount);
   const [isLoadingCount, setIsLoadingCount] = useState(false);
@@ -353,7 +358,6 @@ const FiltersModal = ({
       amenities,
       keywords
     };
-    console.log('🔍 FiltersModal applying filters:', filters);
     onApply(filters);
     onClose();
   };
@@ -367,10 +371,10 @@ const FiltersModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-[200]">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[90vh] flex flex-col font-['Work_Sans']">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[650px] max-h-[92dvh] flex flex-col font-['Work_Sans']">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
           <div></div>
           <h2 className="font-medium text-[#293056] text-base leading-6 tracking-[-0.03em]">Filters</h2>
           <button
@@ -384,15 +388,15 @@ const FiltersModal = ({
         </div>
 
         {/* Modal Content */}
-        <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 sm:px-6 py-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="overflow-y-auto overflow-x-hidden flex-1 px-4 sm:px-6 py-3 sm:py-5 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
 
           {/* Status Tabs */}
-          <div className="flex gap-2 p-1 bg-gray-50 rounded-lg mb-6">
+          <div className="flex gap-2 p-1 bg-gray-50 rounded-lg mb-3 sm:mb-6">
             {['For Sale', 'For Rent', 'Sold', 'Leased'].map((s) => (
               <button
                 key={s}
                 onClick={() => setStatus(s)}
-                className={`flex-1 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all ${
+                className={`flex-1 h-9 sm:h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all ${
                   status === s
                     ? ''
                     : 'bg-transparent hover:bg-gray-200'
@@ -405,15 +409,15 @@ const FiltersModal = ({
           </div>
 
           {/* Price Range */}
-          <div className="mb-6">
-            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3">Price</label>
-            <div className="flex items-center gap-4 mb-4">
+          <div className="mb-3 sm:mb-6">
+            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-1.5 sm:mb-3">Price</label>
+            <div className="flex items-center gap-4 mb-2 sm:mb-4">
               <input
                 type="text"
                 placeholder="No min"
                 value={priceMin}
                 onChange={(e) => handlePriceMinChange(e.target.value)}
-                className="flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                className="flex-1 h-9 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
                 style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
               <span className="font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056]">to</span>
@@ -422,7 +426,7 @@ const FiltersModal = ({
                 placeholder="No max"
                 value={priceMax}
                 onChange={(e) => handlePriceMaxChange(e.target.value)}
-                className="flex-1 h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
+                className="flex-1 h-9 sm:h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] focus:outline-none"
                 style={{ backgroundColor: buttonQuaternaryBg, color: buttonQuaternaryText, borderColor: buttonQuaternaryText }}
               />
             </div>
@@ -610,14 +614,14 @@ const FiltersModal = ({
           </div>
 
           {/* Property Type */}
-          <div className="mb-6">
-            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3">Property Type</label>
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-3 sm:mb-6">
+            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-1.5 sm:mb-3">Property Type</label>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {propertyTypeOptions.map((type) => (
                 <button
                   key={type}
                   onClick={() => togglePropertyType(type)}
-                  className={`px-4 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
+                  className={`px-3 sm:px-4 h-9 sm:h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     propertyTypes.includes(type)
                       ? ''
                       : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
@@ -631,14 +635,14 @@ const FiltersModal = ({
           </div>
 
           {/* Bedrooms */}
-          <div className="mb-6">
-            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3">Bedrooms</label>
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-3 sm:mb-6">
+            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-1.5 sm:mb-3">Bedrooms</label>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {bedroomOptions.map((bed) => (
                 <button
                   key={bed}
                   onClick={() => setBedrooms(bed)}
-                  className={`min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
+                  className={`min-w-[42px] sm:min-w-[46px] px-2 sm:px-2.5 h-9 sm:h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     bedrooms === bed
                       ? ''
                       : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
@@ -652,14 +656,14 @@ const FiltersModal = ({
           </div>
 
           {/* Bathrooms */}
-          <div className="mb-6">
-            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-3">Bathrooms</label>
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-3 sm:mb-6">
+            <label className="block font-normal text-sm leading-6 tracking-[-0.03em] text-[#293056] mb-1.5 sm:mb-3">Bathrooms</label>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {bathroomOptions.map((bath) => (
                 <button
                   key={bath}
                   onClick={() => setBathrooms(bath)}
-                  className={`min-w-[46px] px-2.5 h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
+                  className={`min-w-[42px] sm:min-w-[46px] px-2 sm:px-2.5 h-9 sm:h-11 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] transition-all shadow-[0px_3px_11px_rgba(0,0,0,0.02)] ${
                     bathrooms === bath
                       ? ''
                       : 'bg-[#E9EAEB] hover:bg-[#d1d3d6]'
@@ -671,6 +675,22 @@ const FiltersModal = ({
               ))}
             </div>
           </div>
+
+          {/* More filters toggle - mobile only; the sections below always
+              show from sm up */}
+          <button
+            type="button"
+            onClick={() => setShowMoreFilters(!showMoreFilters)}
+            className="sm:hidden w-full h-9 mb-3 flex items-center justify-center gap-1.5 rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] bg-gray-50 hover:bg-gray-100 transition-all"
+            style={{ color: buttonPrimaryBg }}
+          >
+            {showMoreFilters ? 'Fewer filters' : 'More filters'}
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform ${showMoreFilters ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <div className={`${showMoreFilters ? 'block' : 'hidden'} sm:block`}>
 
           {/* Home Type */}
           <div className="mb-6">
@@ -799,10 +819,12 @@ const FiltersModal = ({
             </div>
           </div>
 
+          </div>
+
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-t border-gray-100">
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
           <button
             onClick={handleReset}
             className="h-11 px-4 border rounded-lg font-normal text-sm leading-6 tracking-[-0.03em] hover:opacity-80 transition-all cursor-pointer whitespace-nowrap"

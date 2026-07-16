@@ -135,18 +135,6 @@ const Footer = ({
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-12 items-center">
                         {/* Left Content */}
                         <div className="flex flex-col items-start gap-4 md:gap-8">
-                            {/* Get in touch button with responsive styles */}
-                            <div className="inline-flex items-center bg-[#F5F5F5] rounded-full">
-                                <div className="flex justify-center items-center py-1.5 px-4">
-                                    <span
-                                        className="font-work-sans font-medium text-sm leading-6 text-center whitespace-nowrap"
-                                        style={{ color: brandColors.primary }}
-                                    >
-                                        Get in touch
-                                    </span>
-                                </div>
-                            </div>
-
                             {/* Main Heading with responsive styles */}
                             <h2 className="font-space-grotesk font-bold text-2xl md:text-[40px] leading-8 md:leading-[50px] tracking-[-0.03em] max-w-md" style={{ color: footerText }}>
                                 {footerContent.heading}

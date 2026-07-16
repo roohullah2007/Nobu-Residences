@@ -1892,6 +1892,14 @@ class WebsiteController extends Controller
                 ->orderBy('order', 'asc')
                 ->get();
 
+            // Purge legacy zero-data fallback FAQs ("0 bedroom, 0 bathroom
+            // ... $0" — generated before the Repliers data was normalized)
+            // so the job below regenerates them from the real listing.
+            if ($aiFaqsCollection->count() > 0 && \App\Services\GeminiAIService::faqsLookStale($aiFaqsCollection)) {
+                \App\Models\PropertyFaq::where('mls_id', $listingKey)->delete();
+                $aiFaqsCollection = collect();
+            }
+
             // Generate AI content if it doesn't exist and we have property data
             // Use raw listing data for AI generation, or fallback to formatted data
             $aiGenerationData = $rawListingData ?: $propertyData;

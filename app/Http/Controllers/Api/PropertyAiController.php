@@ -119,10 +119,12 @@ class PropertyAiController extends Controller
         $forceRegenerate = $request->input('force_regenerate', false);
 
         try {
-            // Check if FAQs already exist and force_regenerate is false
+            // Check if FAQs already exist and force_regenerate is false.
+            // Legacy zero-data fallback rows fall through so the service
+            // purges and regenerates them from the real listing data.
             if (!$forceRegenerate) {
                 $existingFaqs = PropertyFaq::getByMlsId($mlsId);
-                if ($existingFaqs->count() > 0) {
+                if ($existingFaqs->count() > 0 && !\App\Services\GeminiAIService::faqsLookStale($existingFaqs)) {
                     Log::info("Returning cached FAQs for MLS: {$mlsId}");
 
                     return response()->json([
