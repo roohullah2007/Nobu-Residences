@@ -15,6 +15,7 @@ export default function Register() {
         email: '',
         password: '',
         password_confirmation: '',
+        is_agent: false,
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -173,6 +174,33 @@ export default function Register() {
                                         {errors.password_confirmation}
                                     </p>
                                 )}
+                            </div>
+
+                            {/* Agent question */}
+                            <div>
+                                <label className="block text-sm font-work-sans font-medium text-gray-700 mb-2">
+                                    Are you a real estate agent?
+                                </label>
+                                <div className="flex gap-6">
+                                    <label className="flex items-center gap-2 text-sm font-work-sans text-gray-700">
+                                        <input
+                                            type="radio"
+                                            name="is_agent"
+                                            checked={!data.is_agent}
+                                            onChange={() => setData('is_agent', false)}
+                                        />
+                                        No
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm font-work-sans text-gray-700">
+                                        <input
+                                            type="radio"
+                                            name="is_agent"
+                                            checked={data.is_agent}
+                                            onChange={() => setData('is_agent', true)}
+                                        />
+                                        Yes, I am an agent
+                                    </label>
+                                </div>
                             </div>
 
                             {/* Terms and Conditions */}

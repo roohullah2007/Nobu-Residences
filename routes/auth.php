@@ -38,16 +38,24 @@ Route::middleware('guest')->group(function () {
 
         Route::post('reset-password', [NewPasswordController::class, 'store'])
             ->name('password.store');
-
-        // Google OAuth redirect (guest only)
-        Route::get('auth/google', [GoogleAuthController::class, 'redirectToGoogle'])
-            ->name('auth.google');
     });
+
+    // Google OAuth redirect. Deliberately OUTSIDE not.main-domain: the OAuth
+    // callback URI is registered for ONE host, so tenant domains relay the
+    // sign-in through that host (?origin={tenant}). The controller still
+    // 404s plain visits on the main/admin domain (no valid origin).
+    Route::get('auth/google', [GoogleAuthController::class, 'redirectToGoogle'])
+        ->name('auth.google');
 });
 
 // Google OAuth callback - outside guest middleware to avoid session issues
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])
     ->name('auth.google.callback');
+
+// Completes a relayed Google sign-in on the tenant domain: exchanges the
+// one-time token minted by the callback host for a local session.
+Route::get('auth/google/complete', [GoogleAuthController::class, 'completeFromToken'])
+    ->name('auth.google.complete');
 
 Route::middleware('auth')->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)

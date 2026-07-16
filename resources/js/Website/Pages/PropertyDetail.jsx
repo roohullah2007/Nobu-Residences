@@ -416,7 +416,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
       </div>
 
       {/* Mobile Bottom Bar - Fixed at bottom */}
-      <MobileBottomBar />
+      <MobileBottomBar property={propertyData} />
 
       {/* Floating WhatsApp contact button — lifted above the fixed mobile
           bottom bar on small screens, standard corner offset from md up */}

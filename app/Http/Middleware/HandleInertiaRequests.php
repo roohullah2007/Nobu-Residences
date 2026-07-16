@@ -119,14 +119,15 @@ class HandleInertiaRequests extends Middleware
         $isMainDomain = app(TenantResolver::class)->isAdminHost($request->getHost());
 
         // Check if Google OAuth is properly configured (not placeholder values).
-        // Hidden on the main domain (bare login screen) and on sub-sites/
-        // created sites (each needs its own OAuth redirect URI config).
+        // Hidden on the main domain (bare login screen). Enabled on every
+        // tenant site: domains other than the registered callback host relay
+        // the sign-in through it (see GoogleAuthController::redirectToGoogle).
         $googleClientId = config('services.google.client_id');
         $googleOAuthEnabled = !empty($googleClientId) &&
                               $googleClientId !== 'your-google-client-id' &&
                               !str_starts_with($googleClientId, 'your-') &&
                               !$isMainDomain &&
-                              ($website && $website->is_default);
+                              (bool) $website;
 
         return [
             ...parent::share($request),

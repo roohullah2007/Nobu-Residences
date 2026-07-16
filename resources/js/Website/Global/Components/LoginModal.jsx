@@ -21,7 +21,8 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
     password: '',
     name: '',
     phone: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    isAgent: 'no'
   });
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [errors, setErrors] = useState({});
@@ -68,7 +69,8 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
         password: '',
         name: '',
         phone: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        isAgent: 'no'
       });
       setForgotPasswordEmail('');
       setErrors({});
@@ -201,6 +203,7 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
         name: formData.name.trim(),
         email: formData.email,
         phone: formData.phone.trim(),
+        is_agent: formData.isAgent === 'yes',
         password: formData.password,
         password_confirmation: formData.confirmPassword,
         redirect_to: redirectTo,
@@ -539,6 +542,35 @@ const LoginModal = ({ isOpen, onClose, website = {}, initialTab = 'register' }) 
                     {errors.confirmPassword && (
                       <p className="mt-1 text-xs text-red-600">{errors.confirmPassword}</p>
                     )}
+                  </div>
+                </div>
+
+                {/* Agent question */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Are you a real estate agent?
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="isAgent"
+                        value="no"
+                        checked={formData.isAgent === 'no'}
+                        onChange={handleInputChange}
+                      />
+                      No
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="isAgent"
+                        value="yes"
+                        checked={formData.isAgent === 'yes'}
+                        onChange={handleInputChange}
+                      />
+                      Yes, I am an agent
+                    </label>
                   </div>
                 </div>
               </>
