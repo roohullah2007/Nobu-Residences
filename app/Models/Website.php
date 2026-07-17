@@ -197,7 +197,28 @@ class Website extends Model
             return $defaults;
         }
 
-        return array_merge($defaults, $this->contact_info);
+        $info = array_merge($defaults, $this->contact_info);
+
+        // Legacy seed junk: landing sites were created with the Nobu site's
+        // contact details copied into contact_info, so every tenant domain
+        // showed Nobu's phone/email/address as its "own" data. On non-default
+        // sites treat those exact values as unset — real dashboard-entered
+        // values pass through untouched, and the frontends fall back to the
+        // building / global landing-page contacts instead.
+        if (!$this->is_default) {
+            $legacySeeds = [
+                'phone' => '647-490-1532',
+                'email' => 'info@noburesidences.com',
+                'address' => '55 Mercer Street, Toronto, ON',
+            ];
+            foreach ($legacySeeds as $key => $seed) {
+                if (strcasecmp(trim((string) $info[$key]), $seed) === 0) {
+                    $info[$key] = '';
+                }
+            }
+        }
+
+        return $info;
     }
 
     /**

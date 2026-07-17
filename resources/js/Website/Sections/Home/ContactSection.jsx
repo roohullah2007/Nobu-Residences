@@ -1,11 +1,21 @@
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import PhoneInput from '@/Components/PhoneInput';
 
-// Contact — ICE-reference layout (5-col: info + AI concierge box | form card).
+// Same fixed landing-page contacts the Footer uses (per client): every tenant
+// domain reaches the one team unless the site has its own dashboard-entered
+// contact info or building agent details.
+const CONTACT_PHONE = '+1 416 669 4755';
+const CONTACT_EMAIL = 'info@jatingill.com';
+
+// Contact — ICE-reference layout (5-col: info | form card).
 // Submit posts to /contact (same endpoint as before). Contact/agent details
-// are dynamic from website.contact_info / agent_info / the building record.
+// are dynamic from website.contact_info / agent_info / the building record,
+// with the Footer's fixed contacts as the final fallback so tenant sites
+// never render another site's details.
 export default function ContactSection({ website, pageContent, building = {} }) {
+    const { globalWebsite } = usePage().props;
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', email: '', phone: '', message: '', interests: [],
     });
@@ -25,9 +35,9 @@ export default function ContactSection({ website, pageContent, building = {} }) 
 
     const buildingName = clean(building.name) || 'Nobu Residences';
 
-    const phone = clean(agentInfo.agent_phone) || clean(contactInfo.phone) || clean(building.agent_phone);
-    const email = clean(contactInfo.email) || clean(building.agent_email);
-    const address = clean(contactInfo.address) || clean(building.address);
+    const phone = clean(agentInfo.agent_phone) || clean(contactInfo.phone) || clean(building.agent_phone) || CONTACT_PHONE;
+    const email = clean(contactInfo.email) || clean(building.agent_email) || CONTACT_EMAIL;
+    const address = clean(contactInfo.address) || clean(building.address) || clean(globalWebsite?.building_address);
     const hours = clean(contactInfo.hours) || 'Mon–Sat: 9AM–8PM · Sun: 10AM–5PM';
 
     const INTERESTS = ['Buying', 'Renting', 'Selling', 'Investing', 'Short-Term Rental', 'General Info'];
@@ -153,15 +163,6 @@ export default function ContactSection({ website, pageContent, building = {} }) 
                             ))}
                         </div>
 
-                        <div className="mt-8 p-5 bg-neutral-900 rounded-xl">
-                            <div className="flex items-center gap-3 mb-3">
-                                <svg {...ico} className="text-gold-400"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /></svg>
-                                <span className="text-white text-[14px] font-medium">AI Concierge Available</span>
-                            </div>
-                            <p className="text-white/50 text-[13px] leading-relaxed">
-                                Use our AI-powered chat assistant (bottom right) for instant answers about available units, pricing, amenities, and more.
-                            </p>
-                        </div>
                     </div>
 
                     {/* Right: form card */}
