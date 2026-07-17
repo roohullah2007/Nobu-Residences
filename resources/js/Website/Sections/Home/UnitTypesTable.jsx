@@ -36,14 +36,21 @@ export default function UnitTypesTable({ forSale = [], forRent = [], building = 
 
     // Build the Search URL for a bedroom row scoped to this building + the
     // current Sale/Rent toggle. `status` carries the transaction (For Sale /
-    // For Rent), `bedrooms` the bucket, and `street_addresses` (+ `building_id`
-    // as backup) the building scope.
+    // For Rent) and `bedrooms` the bucket. Prefer `building_id` alone for the
+    // building scope: the controller fans out EVERY stored address for the
+    // building (SA1/SA2 + additional_addresses, compound values expanded), so
+    // the results match the badge counts. SA1/SA2 via `street_addresses` only
+    // cover the first two towers of multi-address buildings — kept solely as
+    // the no-id fallback.
     const searchUrlFor = (beds) => {
         const params = new URLSearchParams();
         params.set('status', mode === 'sale' ? 'For Sale' : 'For Rent');
         params.set('bedrooms', String(beds));
-        if (streetAddresses) params.set('street_addresses', streetAddresses);
-        if (building.id) params.set('building_id', String(building.id));
+        if (building.id) {
+            params.set('building_id', String(building.id));
+        } else if (streetAddresses) {
+            params.set('street_addresses', streetAddresses);
+        }
         if (buildingName) params.set('query', buildingName);
         return `/search?${params.toString()}`;
     };

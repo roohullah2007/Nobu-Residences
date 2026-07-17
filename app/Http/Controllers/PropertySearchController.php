@@ -466,6 +466,22 @@ class PropertySearchController extends Controller
             }
         }
 
+        // Expand compound values before parsing: legacy building data stores
+        // "&"-joined pairs ("455 Front St W & 455 Wellington St W") and hyphen
+        // ranges ("455-480 Front St W"). Parsing those raw swallows the tail
+        // into streetName ("Front St W & 455 Wellington") and Repliers
+        // returns zero listings — the "clicking a unit count shows nothing"
+        // bug. splitCompoundAddress() is the same expander the count paths use.
+        if (!empty($rawAddresses)) {
+            $expandedAddresses = [];
+            foreach ($rawAddresses as $raw) {
+                foreach (Building::splitCompoundAddress($raw) as $piece) {
+                    $expandedAddresses[] = $piece;
+                }
+            }
+            $rawAddresses = $expandedAddresses;
+        }
+
         if (!empty($rawAddresses)) {
             $streetNumbers = [];
             $streetNames = [];
