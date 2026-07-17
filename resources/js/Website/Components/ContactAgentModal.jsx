@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
+import axios from 'axios';
 import PhoneInput from '@/Components/PhoneInput';
 
 export default function ContactAgentModal({ isOpen, onClose, agentData, propertyData, auth, websiteSettings }) {
@@ -87,41 +88,44 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
         if (!validateForm()) return;
         
         setIsSubmitting(true);
-        
+
+        // Plain XHR on purpose: an Inertia visit here triggers a page
+        // navigation on success (back() falls back to "/" without a referer),
+        // which yanked users to the home page mid-scroll and looked like a
+        // broken layout. The modal is self-contained — submit stays on-page.
         try {
-            await router.post('/agent-enquiry', {
+            const response = await axios.post('/agent-enquiry', {
                 ...formData,
                 agent_id: agentData?.id,
                 agent_name: agentData?.name,
                 property_listing_key: propertyData?.ListingKey || propertyData?.listingKey || propertyData?.id,
                 property_address: propertyData?.UnparsedAddress || propertyData?.address,
                 building_name: propertyData?.BuildingName || propertyData?.buildingName || 'Building'
-            }, {
-                preserveState: true,
-                preserveScroll: true,
-                onSuccess: () => {
-                    setSubmitStatus('success');
-                    setIsSubmitting(false);
-                    setTimeout(() => {
-                        onClose();
-                        setSubmitStatus(null);
-                        setFormData({
-                            ...formData,
-                            question: ''
-                        });
-                    }, 2000);
-                },
-                onError: (errors) => {
-                    setErrors(errors);
-                    setIsSubmitting(false);
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                }
             });
+            if (response.data?.success) {
+                setSubmitStatus('success');
+                setTimeout(() => {
+                    onClose();
+                    setSubmitStatus(null);
+                    setFormData({
+                        ...formData,
+                        question: ''
+                    });
+                }, 2000);
+            } else {
+                setErrors({ general: response.data?.message || 'An error occurred. Please try again.' });
+            }
         } catch (error) {
-            console.error('Error submitting enquiry:', error);
-            setErrors({ general: 'An error occurred. Please try again.' });
+            const validationErrors = error.response?.data?.errors;
+            if (validationErrors) {
+                const flat = Object.fromEntries(
+                    Object.entries(validationErrors).map(([field, messages]) => [field, Array.isArray(messages) ? messages[0] : messages])
+                );
+                setErrors(flat);
+            } else {
+                setErrors({ general: error.response?.data?.message || 'An error occurred. Please try again.' });
+            }
+        } finally {
             setIsSubmitting(false);
         }
     };

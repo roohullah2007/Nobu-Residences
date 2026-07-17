@@ -14,7 +14,7 @@ import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearc
 import LoginModal from '@/Website/Global/Components/LoginModal';
 import FiltersModal from '@/Website/Components/FiltersModal';
 import SaveSearchModal, { popPendingSavedSearch } from '@/Website/Components/PropertySearch/SaveSearchModal';
-import { FAQ } from '@/Website/Global/Components';
+import { FAQ, WhatsAppButton } from '@/Website/Global/Components';
 
 
 // Icon components
@@ -2028,6 +2028,12 @@ export default function EnhancedPropertySearch({
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
           website={website}
+        />
+
+        {/* Floating WhatsApp contact button — same as Home/PropertyDetail so
+            it never disappears when users browse into the search page */}
+        <WhatsAppButton
+          message={`Hi, I'd like to get information about available listings at ${siteName || 'your site'}.`}
         />
       </MainLayout>
   );

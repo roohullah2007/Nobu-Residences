@@ -117,6 +117,15 @@ class PropertyEnquiryController extends Controller
             \Log::error('Failed to log agent enquiry', ['error' => $e->getMessage()]);
         }
 
+        // XHR callers (ContactAgentModal) stay on-page and read JSON; the
+        // Inertia back() redirect remains for any full-form submitters.
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Your message has been sent. The agent will be in touch shortly.',
+            ]);
+        }
+
         return back()->with('success', 'Your message has been sent. The agent will be in touch shortly.');
     }
 
