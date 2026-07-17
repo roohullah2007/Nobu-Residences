@@ -128,4 +128,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new \App\Notifications\Auth\VerifyEmailNotification());
     }
+
+    /**
+     * Site-branded, minimal password reset email instead of the stock
+     * Laravel notification (verbose copy, app-name branding).
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\Auth\ResetPasswordNotification($token));
+    }
 }
