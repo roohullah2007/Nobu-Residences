@@ -1026,42 +1026,15 @@ class BuildingController extends Controller
      */
     private function buildingStreetGroups(Building $building): array
     {
-        $rawCandidates = [
-            $building->street_address_1 ?? null,
-            $building->street_address_2 ?? null,
-        ];
-        if (is_array($building->additional_addresses)) {
-            foreach ($building->additional_addresses as $a) {
-                $rawCandidates[] = $a;
-            }
-        }
-
-        $addresses = [];
-        $seen = [];
-        foreach ($rawCandidates as $a) {
-            if ($parsed = Building::parseStreetAddress($a)) {
-                $key = strtolower($parsed['number'] . '|' . $parsed['name']);
-                if (!isset($seen[$key])) {
-                    $seen[$key] = true;
-                    $addresses[] = $parsed;
-                }
-            }
-        }
-        if (empty($addresses) && !empty($building->address)) {
-            $parts = preg_split('/\s*[,&]\s*/', $building->address);
-            foreach (array_filter(array_map('trim', $parts)) as $part) {
-                if ($parsed = Building::parseStreetAddress($part)) {
-                    $key = strtolower($parsed['number'] . '|' . $parsed['name']);
-                    if (!isset($seen[$key])) {
-                        $seen[$key] = true;
-                        $addresses[] = $parsed;
-                    }
-                }
-            }
-        }
-
+        // Building::parsedStreetAddresses() runs every raw field through
+        // splitCompoundAddress() first. Parsing the raw fields directly here
+        // broke "&"-joined values like "455 Front St W & 455 Wellington St W":
+        // parseStreetAddress() swallowed the whole tail into the street name
+        // ("Front St W & 455 Wellington"), every Repliers query matched
+        // nothing, and the resulting 0/0 was cached under the shared
+        // building_listing_counts key — poisoning the serial path too.
         $groups = [];
-        foreach ($addresses as $addr) {
+        foreach ($building->parsedStreetAddresses() as $addr) {
             $key = strtolower($addr['name']);
             if (!isset($groups[$key])) {
                 $groups[$key] = ['name' => $addr['name'], 'numbers' => []];
