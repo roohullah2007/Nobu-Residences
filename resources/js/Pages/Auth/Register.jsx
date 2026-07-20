@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import GoogleLoginButton from '@/Components/GoogleLoginButton';
+import PhoneInput from '@/Components/PhoneInput';
 
 export default function Register() {
     const { globalWebsite, website, googleOAuthEnabled } = usePage().props;
@@ -13,6 +14,7 @@ export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         email: '',
+        phone: '',
         password: '',
         password_confirmation: '',
         is_agent: false,
@@ -90,6 +92,27 @@ export default function Register() {
                                 {errors.email && (
                                     <p className="mt-2 text-sm font-work-sans text-red-600">
                                         {errors.email}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Phone Field */}
+                            <div>
+                                <label htmlFor="phone" className="block text-sm font-work-sans font-medium text-gray-700 mb-2">
+                                    Phone Number
+                                </label>
+                                <PhoneInput
+                                    id="phone"
+                                    name="phone"
+                                    value={data.phone}
+                                    onChange={(e) => setData('phone', e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg font-work-sans text-gray-900 placeholder-gray-400 transition-colors border-2 border-gray-300 focus:border-gray-300"
+                                    placeholder="Enter your phone number"
+                                    required
+                                />
+                                {errors.phone && (
+                                    <p className="mt-2 text-sm font-work-sans text-red-600">
+                                        {errors.phone}
                                     </p>
                                 )}
                             </div>

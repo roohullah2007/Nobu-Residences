@@ -186,6 +186,13 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
 
+            // Google gives us no phone — collect it before continuing so the
+            // FUB lead profile completes (the step forwards to the original
+            // destination afterwards).
+            if (empty($user->phone)) {
+                return redirect('/complete-phone' . ($redirectTo !== null ? '?redirect=' . urlencode($redirectTo) : ''));
+            }
+
             // If we stashed a page-level redirect when the user clicked the
             // modal's "Sign in with Google", honor it now.
             if ($redirectTo !== null) {
@@ -222,6 +229,12 @@ class GoogleAuthController extends Controller
         $request->session()->regenerate();
 
         $redirectTo = $this->safeRelativeRedirect($payload['redirect_to'] ?? null);
+
+        // Google gives us no phone — collect it before continuing so the
+        // FUB lead profile completes.
+        if (empty($user->phone)) {
+            return redirect('/complete-phone' . ($redirectTo !== null ? '?redirect=' . urlencode($redirectTo) : ''));
+        }
 
         return redirect($redirectTo ?? '/');
     }
@@ -341,6 +354,12 @@ class GoogleAuthController extends Controller
             }
 
             Auth::login($user, true);
+
+            // Google gives us no phone — collect it before continuing so the
+            // FUB lead profile completes.
+            if (empty($user->phone)) {
+                return redirect('/complete-phone');
+            }
 
             return redirect()->intended('/dashboard');
 

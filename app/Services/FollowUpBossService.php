@@ -155,6 +155,54 @@ class FollowUpBossService
     }
 
     /**
+     * Update an existing FUB person located BY EMAIL (e.g. add the phone a
+     * Google-sign-up user supplied after the fact). Guarded; returns false
+     * when disabled, the person isn't found, or the API rejects the update.
+     */
+    public function updatePersonPhoneByEmail(string $email, string $phone): bool
+    {
+        if (!$this->isEnabled() || $email === '' || $phone === '') {
+            return false;
+        }
+
+        try {
+            $auth = Http::withBasicAuth((string) config('services.followupboss.key'), '')
+                ->acceptJson()
+                ->timeout(self::TIMEOUT_SECONDS);
+
+            $personId = $auth->get('https://api.followupboss.com/v1/people', ['email' => $email])
+                ->json('people.0.id');
+
+            if (!$personId) {
+                Log::info('Follow Up Boss person not found for phone update', ['email' => $email]);
+
+                return false;
+            }
+
+            $response = $auth->put('https://api.followupboss.com/v1/people/' . $personId, [
+                'phones' => [['value' => $phone]],
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('Follow Up Boss rejected phone update', [
+                    'person_id' => $personId,
+                    'status' => $response->status(),
+                ]);
+
+                return false;
+            }
+
+            Log::info('Follow Up Boss phone updated', ['person_id' => $personId]);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Follow Up Boss phone update failed', ['email' => $email, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
      * Guarded static dispatcher for controller hooks — same contract as
      * WelcomeNewUser::send(): lead capture must never break the flow.
      */

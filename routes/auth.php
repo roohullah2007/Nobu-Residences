@@ -58,6 +58,13 @@ Route::get('auth/google/complete', [GoogleAuthController::class, 'completeFromTo
     ->name('auth.google.complete');
 
 Route::middleware('auth')->group(function () {
+    // "Add your phone number" step after Google sign-ins (Google provides
+    // no phone); saving also completes the FUB lead profile.
+    Route::get('complete-phone', [\App\Http\Controllers\Auth\CompletePhoneController::class, 'create'])
+        ->name('profile.complete-phone');
+    Route::post('complete-phone', [\App\Http\Controllers\Auth\CompletePhoneController::class, 'store'])
+        ->name('profile.complete-phone.store');
+
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 
