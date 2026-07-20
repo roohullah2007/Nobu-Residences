@@ -88,6 +88,13 @@ class GoogleAuthController extends Controller
             // Check if user exists with this email
             $user = User::where('email', $googleUser->email)->first();
 
+            // Relayed flows report the tenant site, not the callback host.
+            $website = $origin !== ''
+                ? Website::where('domain', $origin)->orWhere('domain', 'www.' . $origin)->first()
+                : app(TenantResolver::class)->resolve(request());
+            $websiteName = $website?->name;
+            $signupHost = $origin !== '' ? $origin : request()->getHost();
+
             if ($user) {
                 // Update user with Google information if not already set
                 if (!$user->google_id) {
@@ -98,6 +105,18 @@ class GoogleAuthController extends Controller
                         'provider_id' => $googleUser->id,
                     ]);
                 }
+
+                // Existing accounts can predate the FUB integration — make
+                // sure the person exists there too. FUB events dedupe by
+                // email, so this never creates duplicate people.
+                \App\Services\FollowUpBossService::report('Registration', [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ], [
+                    'source' => $websiteName ?: $signupHost,
+                    'message' => 'Signed in with Google on ' . ($websiteName ?: $signupHost) . ' (existing account)',
+                ]);
             } else {
                 // Create new user
                 $user = User::create([
@@ -127,13 +146,6 @@ class GoogleAuthController extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
-
-                // Relayed flows report the tenant site, not the callback host.
-                $website = $origin !== ''
-                    ? Website::where('domain', $origin)->orWhere('domain', 'www.' . $origin)->first()
-                    : app(TenantResolver::class)->resolve(request());
-                $websiteName = $website?->name;
-                $signupHost = $origin !== '' ? $origin : request()->getHost();
 
                 // Tell the admins — guarded inside notifyAdmins(); never breaks login.
                 \App\Notifications\NewUserRegistered::notifyAdmins(
@@ -254,6 +266,8 @@ class GoogleAuthController extends Controller
             // Check if user exists with this email
             $user = User::where('email', $googleUser->email)->first();
 
+            $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name;
+
             if ($user) {
                 // Update user with Google information if not already set
                 if (!$user->google_id) {
@@ -264,6 +278,17 @@ class GoogleAuthController extends Controller
                         'provider_id' => $googleUser->id,
                     ]);
                 }
+
+                // Existing accounts can predate the FUB integration — make
+                // sure the person exists there too. FUB events dedupe by
+                // email, so this never creates duplicate people.
+                \App\Services\FollowUpBossService::report('Registration', [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ], [
+                    'message' => 'Signed in with Google on ' . ($websiteName ?: request()->getHost()) . ' (existing account)',
+                ]);
             } else {
                 // Create new user
                 $user = User::create([
@@ -293,8 +318,6 @@ class GoogleAuthController extends Controller
                 } catch (\Exception $e) {
                     \Log::error('Failed to create Repliers client for Google user', ['error' => $e->getMessage()]);
                 }
-
-                $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name;
 
                 // Tell the admins — guarded inside notifyAdmins(); never breaks login.
                 \App\Notifications\NewUserRegistered::notifyAdmins(
