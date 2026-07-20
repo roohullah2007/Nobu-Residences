@@ -89,6 +89,43 @@ final class EmailBranding
     }
 
     /**
+     * Embed an image into the outgoing email and return its cid: src.
+     * Strategy: local file first; when the file isn't on this filesystem,
+     * the SERVER downloads the URL and embeds the bytes — the recipient's
+     * mail client never has to fetch anything remote (Gmail's image proxy
+     * being blocked by Cloudflare is what breaks remote logo images).
+     * Returns null when neither works — callers fall back to the plain URL.
+     *
+     * @param \Illuminate\Mail\Message $message
+     */
+    public static function embedImage($message, ?string $path, ?string $url): ?string
+    {
+        try {
+            if (!empty($path)) {
+                return $message->embed($path);
+            }
+
+            if (!empty($url) && str_starts_with($url, 'http')) {
+                $response = \Illuminate\Support\Facades\Http::timeout(5)->get($url);
+                if ($response->successful() && $response->body() !== '') {
+                    $ext = pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'png';
+                    $mime = $response->header('Content-Type') ?: ('image/' . $ext);
+
+                    return $message->embedData($response->body(), 'logo.' . $ext, $mime);
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Email image embed failed', [
+                'path' => $path,
+                'url' => $url,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    /**
      * The agent block listing-alert emails lead with. Dashboard-entered
      * agent info on the site wins, then the default site's agent, then the
      * fixed landing-page agent (same chain the site frontend uses).

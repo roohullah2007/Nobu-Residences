@@ -16,9 +16,11 @@
                                 // Embed the logo inline (cid:) when actually sending — mail
                                 // clients fetch remote images via proxies that Cloudflare can
                                 // block on tenant domains; an inline attachment always shows.
+                                // Local file first, else the server downloads and embeds the
+                                // bytes; the plain URL is the last resort.
                                 $logoSrc = $logoUrl ?? null;
-                                if (!empty($logoPath) && isset($message)) {
-                                    try { $logoSrc = $message->embed($logoPath); } catch (\Throwable $e) {}
+                                if (isset($message)) {
+                                    $logoSrc = \App\Support\EmailBranding::embedImage($message, $logoPath ?? null, $logoUrl ?? null) ?? $logoSrc;
                                 }
                             @endphp
                             @if (!empty($logoSrc))
@@ -36,8 +38,8 @@
                             {{-- Agent header --}}
                             @php
                                 $agentPhotoSrc = $agent['photoUrl'] ?? null;
-                                if (!empty($agent['photoPath']) && isset($message)) {
-                                    try { $agentPhotoSrc = $message->embed($agent['photoPath']); } catch (\Throwable $e) {}
+                                if (isset($message)) {
+                                    $agentPhotoSrc = \App\Support\EmailBranding::embedImage($message, $agent['photoPath'] ?? null, $agent['photoUrl'] ?? null) ?? $agentPhotoSrc;
                                 }
                             @endphp
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
