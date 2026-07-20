@@ -12,9 +12,18 @@
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
                     <tr>
                         <td align="center" style="padding-bottom:24px;">
-                            @if (!empty($logoUrl))
+                            @php
+                                // Embed the logo inline (cid:) when actually sending — mail
+                                // clients fetch remote images via proxies that Cloudflare can
+                                // block on tenant domains; an inline attachment always shows.
+                                $logoSrc = $logoUrl ?? null;
+                                if (!empty($logoPath) && isset($message)) {
+                                    try { $logoSrc = $message->embed($logoPath); } catch (\Throwable $e) {}
+                                }
+                            @endphp
+                            @if (!empty($logoSrc))
                                 <span style="display:inline-block; background-color:#293056; border-radius:12px; padding:12px 24px;">
-                                    <img src="{{ $logoUrl }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px;">
+                                    <img src="{{ $logoSrc }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px;">
                                 </span>
                             @else
                                 <span style="font-size:18px; font-weight:700; color:#293056; letter-spacing:0.5px;">{{ $siteName }}</span>
@@ -25,11 +34,17 @@
                         <td style="background-color:#ffffff; border-radius:12px; padding:32px;">
 
                             {{-- Agent header --}}
+                            @php
+                                $agentPhotoSrc = $agent['photoUrl'] ?? null;
+                                if (!empty($agent['photoPath']) && isset($message)) {
+                                    try { $agentPhotoSrc = $message->embed($agent['photoPath']); } catch (\Throwable $e) {}
+                                }
+                            @endphp
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
                                 <tr>
-                                    @if (!empty($agent['photoUrl']))
+                                    @if (!empty($agentPhotoSrc))
                                         <td width="170" style="vertical-align:top; padding-right:24px;">
-                                            <img src="{{ $agent['photoUrl'] }}" alt="{{ $agent['name'] }}" width="170" style="display:block; width:170px; border-radius:8px;">
+                                            <img src="{{ $agentPhotoSrc }}" alt="{{ $agent['name'] }}" width="170" style="display:block; width:170px; border-radius:8px;">
                                             <div style="font-size:17px; font-weight:700; color:#111827; margin-top:12px;">{{ $agent['name'] }}</div>
                                             <div style="font-size:13px; color:#6b7280; margin-top:2px;">{{ $agent['title'] }}</div>
                                         </td>

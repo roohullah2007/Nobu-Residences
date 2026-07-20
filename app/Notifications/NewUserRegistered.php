@@ -55,6 +55,7 @@ class NewUserRegistered extends Notification
             ->view('emails.branded', [
                 'siteName' => $siteName,
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'title' => 'New user registration',
                 'paragraphs' => ['A new user just signed up.'],
                 'rows' => $rows,

@@ -57,6 +57,7 @@ class ContactFormReceived extends Notification
             ->view('emails.branded', [
                 'siteName' => $branding['siteName'],
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'title' => 'New contact inquiry',
                 'paragraphs' => ['A new contact form has been submitted on your website.'],
                 'rows' => $rows,

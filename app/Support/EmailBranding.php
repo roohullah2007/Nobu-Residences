@@ -49,7 +49,7 @@ final class EmailBranding
     }
 
     /**
-     * @return array{siteName: string, logoUrl: ?string, homeUrl: string}
+     * @return array{siteName: string, logoUrl: ?string, logoPath: ?string, homeUrl: string}
      */
     public static function forWebsite(?Website $website): array
     {
@@ -64,8 +64,28 @@ final class EmailBranding
         return [
             'siteName' => $website?->name ?: config('app.name'),
             'logoUrl' => self::absoluteLogoUrl($website, $homeUrl),
+            // Local file path so templates can EMBED the logo inline (cid:)
+            // — mail clients fetch remote images through proxies that
+            // Cloudflare can block, which shows a broken image even though
+            // the same URL works in a browser.
+            'logoPath' => self::localPublicPath($website?->logo_url),
             'homeUrl' => $homeUrl,
         ];
+    }
+
+    /**
+     * Absolute filesystem path for a site-relative public asset ("/assets/
+     * logo.png"), or null for external URLs / missing files.
+     */
+    private static function localPublicPath(?string $urlPath): ?string
+    {
+        if (empty($urlPath) || str_starts_with($urlPath, 'http')) {
+            return null;
+        }
+
+        $path = public_path(ltrim($urlPath, '/'));
+
+        return is_file($path) ? $path : null;
     }
 
     /**
@@ -105,6 +125,8 @@ final class EmailBranding
             'photoUrl' => $photo
                 ? (str_starts_with($photo, 'http') ? $photo : $homeUrl . '/' . ltrim($photo, '/'))
                 : null,
+            // Same inline-embed treatment as the site logo (see forWebsite)
+            'photoPath' => self::localPublicPath($photo),
         ];
     }
 

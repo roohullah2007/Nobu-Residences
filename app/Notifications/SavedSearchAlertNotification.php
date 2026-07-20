@@ -58,6 +58,7 @@ class SavedSearchAlertNotification extends Notification
             ->view('emails.listing-alert', [
                 'siteName' => $branding['siteName'],
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'agent' => $agent,
                 'headline' => EmailMergeTags::apply($template['headline'], $values),
                 'introHtml' => EmailMergeTags::applyHtml($template['intro'], $values, $rawValues)

@@ -31,6 +31,7 @@ class VerifyEmailNotification extends VerifyEmail
             ->view('emails.branded', [
                 'siteName' => $siteName,
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'title' => "Welcome to {$siteName}",
                 'paragraphs' => [
                     'Thanks for creating an account. Please confirm your email address so we can keep you updated on new listings and your saved searches.',

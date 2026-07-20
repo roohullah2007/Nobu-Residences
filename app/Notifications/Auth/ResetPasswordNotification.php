@@ -39,6 +39,7 @@ class ResetPasswordNotification extends ResetPassword
             ->view('emails.branded', [
                 'siteName' => $siteName,
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'title' => 'Reset your password',
                 'paragraphs' => [
                     'Hi ' . e($firstName) . ', tap the button below to choose a new password for your ' . e($siteName) . ' account.',

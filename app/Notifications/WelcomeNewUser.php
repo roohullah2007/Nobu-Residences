@@ -45,6 +45,7 @@ class WelcomeNewUser extends Notification
             ->view('emails.branded', [
                 'siteName' => $siteName,
                 'logoUrl' => $branding['logoUrl'],
+                'logoPath' => $branding['logoPath'],
                 'title' => "Welcome to {$siteName}",
                 'paragraphs' => [
                     'Hi ' . e($firstName) . ', thanks for registering with ' . e($siteName) . ' — your account has been created successfully.',

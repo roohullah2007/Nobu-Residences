@@ -12,10 +12,19 @@
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
                     <tr>
                         <td align="center" style="padding-bottom:24px;">
-                            @if (!empty($logoUrl))
+                            @php
+                                // Embed the logo inline (cid:) when actually sending — mail
+                                // clients fetch remote images via proxies that Cloudflare can
+                                // block on tenant domains; an inline attachment always shows.
+                                $logoSrc = $logoUrl ?? null;
+                                if (!empty($logoPath) && isset($message)) {
+                                    try { $logoSrc = $message->embed($logoPath); } catch (\Throwable $e) {}
+                                }
+                            @endphp
+                            @if (!empty($logoSrc))
                                 {{-- Site logos are typically white-on-transparent (made for the navy site header), so they sit on a navy chip to stay legible on the gray page. --}}
                                 <span style="display:inline-block; background-color:#293056; border-radius:12px; padding:12px 24px;">
-                                    <img src="{{ $logoUrl }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px;">
+                                    <img src="{{ $logoSrc }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px;">
                                 </span>
                             @else
                                 <span style="font-size:18px; font-weight:700; color:#293056; letter-spacing:0.5px;">{{ $siteName }}</span>
