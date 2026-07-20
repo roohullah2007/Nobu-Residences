@@ -171,6 +171,9 @@
   "resources/js/Pages/Agent_REMOVED/PublicPropertyListing.jsx": [
     "/build/assets/PublicPropertyListing-Btgc-GmX.js"
   ],
+  "resources/js/Pages/Auth/CompletePhone.jsx": [
+    "/build/assets/CompletePhone-BQYQEkjr.js"
+  ],
   "resources/js/Pages/Auth/ConfirmPassword.jsx": [
     "/build/assets/ConfirmPassword-aDpJJVOi.js"
   ],
@@ -181,7 +184,7 @@
     "/build/assets/Login-CE6LhVac.js"
   ],
   "resources/js/Pages/Auth/Register.jsx": [
-    "/build/assets/Register-CY8m_439.js"
+    "/build/assets/Register-ZWUkCbNf.js"
   ],
   "resources/js/Pages/Auth/ResetPassword.jsx": [
     "/build/assets/ResetPassword-DBT2SQU_.js"
@@ -238,7 +241,7 @@
     "/build/assets/UserProfile-DhJ9SW6I.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CuP1wOVs.js"
+    "/build/assets/PropertyDetail-lcxMBRyL.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-bKD4hGzj.js"
@@ -460,7 +463,7 @@
     "/build/assets/TourSection-Aw9dFwTy.js"
   ],
   "resources/js/Website/Components/PropertyEnquiryModal.jsx": [
-    "/build/assets/PropertyEnquiryModal-E8vJF7WS.js"
+    "/build/assets/PropertyEnquiryModal-DJSQi6Gb.js"
   ],
   "resources/js/Website/Components/PropertyImageLoader.jsx": [
     "/build/assets/PropertyImageLoader-BD5_TkCg.js"
@@ -604,7 +607,7 @@
     "/build/assets/PropertyAiDemo-WVoA622-.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-BHS_kcUO.js"
+    "/build/assets/PropertyDetail-CzLmt_iY.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-Y2tz79_d.js"
@@ -703,7 +706,7 @@
     "/build/assets/MobileBottomBar-De7RmA_4.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertyGallery.jsx": [
-    "/build/assets/PropertyGallery-0js9EgWI.js"
+    "/build/assets/PropertyGallery-CkwX2VBi.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertyHeader.jsx": [
     "/build/assets/PropertyHeader-BmnRhyZ9.js"
