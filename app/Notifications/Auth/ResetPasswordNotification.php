@@ -35,6 +35,7 @@ class ResetPasswordNotification extends ResetPassword
         ], false));
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $siteName)
             ->subject("Reset your password — {$siteName}")
             ->view('emails.branded', [
                 'siteName' => $siteName,

@@ -51,6 +51,7 @@ class NewUserRegistered extends Notification
         ]);
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $siteName)
             ->subject('New user registered — ' . ($this->websiteName ?: $this->host))
             ->view('emails.branded', [
                 'siteName' => $siteName,

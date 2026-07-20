@@ -27,6 +27,7 @@ class VerifyEmailNotification extends VerifyEmail
         $siteName = $branding['siteName'];
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $siteName)
             ->subject("Verify your email address — {$siteName}")
             ->view('emails.branded', [
                 'siteName' => $siteName,

@@ -49,6 +49,7 @@ class FavouriteListingUpdateNotification extends Notification
         $rawValues = ['site_link' => $this->siteLinkHtml($branding['homeUrl'])];
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $branding['siteName'])
             ->subject(EmailMergeTags::apply($template['subject'], $values))
             ->view('emails.listing-alert', [
                 'siteName' => $branding['siteName'],

@@ -41,6 +41,7 @@ class WelcomeNewUser extends Notification
         $firstName = explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there';
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $siteName)
             ->subject("Welcome to {$siteName} — your registration is confirmed")
             ->view('emails.branded', [
                 'siteName' => $siteName,

@@ -53,6 +53,7 @@ class ContactFormReceived extends Notification
         ]);
 
         return (new MailMessage)
+            ->from(config('mail.from.address'), $branding['siteName'])
             ->subject('New Contact Form Submission - ' . $this->contact->name)
             ->view('emails.branded', [
                 'siteName' => $branding['siteName'],

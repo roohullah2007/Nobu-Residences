@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Ask dark-mode mail clients to keep our light palette instead of recoloring it --}}
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
     <title>{{ $title }}</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f5f7; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -24,9 +27,11 @@
                                 }
                             @endphp
                             @if (!empty($logoSrc))
-                                {{-- Site logos are typically white-on-transparent (made for the navy site header), so they sit on a navy chip to stay legible on the gray page. --}}
-                                <span style="display:inline-block; background-color:#293056; border-radius:12px; padding:12px 24px;">
-                                    <img src="{{ $logoSrc }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px;">
+                                {{-- Mid-tone slate chip: legible for white AND dark logos. The
+                                     linear-gradient doubles the color as a background-image so
+                                     Gmail dark mode can't recolor it out from under the logo. --}}
+                                <span style="display:inline-block; background-color:#64748b; background-image:linear-gradient(#64748b,#64748b); border-radius:12px; padding:12px 24px;">
+                                    <img src="{{ $logoSrc }}" alt="{{ $siteName }}" height="36" style="display:block; height:36px; max-width:180px; color:#ffffff; font-weight:700;">
                                 </span>
                             @else
                                 <span style="font-size:18px; font-weight:700; color:#293056; letter-spacing:0.5px;">{{ $siteName }}</span>
