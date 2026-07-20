@@ -18,6 +18,15 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    // Follow Up Boss CRM — leads (registrations, enquiries, tour requests,
+    // saved searches) are pushed server-side via the FUB Events API.
+    // Create the key in FUB: Admin > API > Create API Key.
+    'followupboss' => [
+        'key' => env('FUB_API_KEY'),
+        // Optional registered-system name shown on FUB events
+        'system' => env('FUB_SYSTEM'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY', env('RESEND_KEY')),
     ],

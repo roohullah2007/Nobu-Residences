@@ -81,6 +81,16 @@ class RegisteredUserController extends Controller
         // Registration confirmation to the registrant — guarded inside send().
         \App\Notifications\WelcomeNewUser::send($user, $request->getHost(), $websiteName);
 
+        // Push the lead into Follow Up Boss — guarded inside report().
+        \App\Services\FollowUpBossService::report('Registration', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+        ], [
+            'message' => 'New account registration on ' . ($websiteName ?: $request->getHost()),
+            'pageUrl' => $request->headers->get('referer'),
+        ]);
+
         Auth::login($user);
 
         // If the user registered via the modal on a public page, send them

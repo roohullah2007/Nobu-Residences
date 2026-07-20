@@ -83,6 +83,17 @@ class SavedSearchController extends Controller
         // Best-effort: never blocks/fails the local save.
         $this->syncToRepliers($savedSearch);
 
+        // Push the activity into Follow Up Boss — guarded inside report().
+        $user = Auth::user();
+        \App\Services\FollowUpBossService::report('Saved Property Search', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+        ], [
+            'message' => 'Saved search "' . $savedSearch->name . '" — ' . $savedSearch->formatted_criteria,
+            'pageUrl' => $request->headers->get('referer'),
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Search saved successfully',

@@ -88,6 +88,16 @@ class ContactController extends Controller
             // Create the contact record
             $contact = ContactForm::create($validated);
 
+            // Push the lead into Follow Up Boss — guarded inside report().
+            \App\Services\FollowUpBossService::report('General Inquiry', [
+                'name' => $contact->name,
+                'email' => $contact->email,
+                'phone' => $contact->phone,
+            ], [
+                'message' => trim('[' . ($validated['inquiry_categories'] ?? 'contact') . '] ' . ($contact->message ?? 'Contact form submission')),
+                'pageUrl' => $request->headers->get('referer'),
+            ]);
+
             Log::info('Contact form saved successfully', [
                 'contact_id' => $contact->id,
                 'name' => $contact->name,

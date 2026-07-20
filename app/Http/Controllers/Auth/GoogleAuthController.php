@@ -145,6 +145,16 @@ class GoogleAuthController extends Controller
 
                 // Registration confirmation to the registrant — guarded inside send().
                 \App\Notifications\WelcomeNewUser::send($user, $signupHost, $websiteName);
+
+                // Push the lead into Follow Up Boss — guarded inside report().
+                \App\Services\FollowUpBossService::report('Registration', [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ], [
+                    'source' => $signupHost,
+                    'message' => 'New account registration (Google sign-in) on ' . ($websiteName ?: $signupHost),
+                ]);
             }
 
             $redirectTo = $request->session()->pull('post_login_redirect');
@@ -296,6 +306,15 @@ class GoogleAuthController extends Controller
 
                 // Registration confirmation to the registrant — guarded inside send().
                 \App\Notifications\WelcomeNewUser::send($user, request()->getHost(), $websiteName);
+
+                // Push the lead into Follow Up Boss — guarded inside report().
+                \App\Services\FollowUpBossService::report('Registration', [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ], [
+                    'message' => 'New account registration (Google sign-in) on ' . ($websiteName ?: request()->getHost()),
+                ]);
             }
 
             Auth::login($user, true);

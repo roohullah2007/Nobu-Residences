@@ -58,6 +58,24 @@ class TourRequestController extends Controller
                 'property_id' => $tourRequest->property_id
             ]);
 
+            // Push the lead into Follow Up Boss — guarded inside report().
+            \App\Services\FollowUpBossService::report('Property Inquiry', [
+                'name' => $tourRequest->full_name,
+                'email' => $tourRequest->email,
+                'phone' => $tourRequest->phone,
+            ], [
+                'message' => trim('Tour request'
+                    . ($tourRequest->selected_date ? ' for ' . $tourRequest->selected_date : '')
+                    . ($tourRequest->selected_time ? ' at ' . $tourRequest->selected_time : '')
+                    . ($tourRequest->message ? ' — ' . $tourRequest->message : '')),
+                'property' => array_filter([
+                    'street' => $tourRequest->property_address,
+                    'mlsNumber' => $tourRequest->property_id,
+                    'type' => $tourRequest->property_type,
+                ]),
+                'pageUrl' => $request->headers->get('referer'),
+            ]);
+
             // TODO: Send email notifications to admin and user
             // $this->sendAdminNotification($tourRequest);
             // $this->sendUserConfirmation($tourRequest);

@@ -39,6 +39,22 @@ class PropertyEnquiryController extends Controller
         // Create the enquiry record
         $enquiry = PropertyEnquiry::create($validated);
 
+        // Push the lead into Follow Up Boss — guarded inside report().
+        \App\Services\FollowUpBossService::report('Property Inquiry', [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+        ], [
+            'message' => $validated['message'],
+            'property' => array_filter([
+                'street' => $validated['property_address'] ?? null,
+                'mlsNumber' => $validated['property_mls'] ?? $validated['property_listing_key'] ?? null,
+                'price' => $validated['property_price'] ?? null,
+                'type' => $validated['property_type'] ?? null,
+            ]),
+            'pageUrl' => $request->headers->get('referer'),
+        ]);
+
         // Send email notification to admin
         try {
             // You can configure the admin email in env file
@@ -105,6 +121,20 @@ class PropertyEnquiryController extends Controller
         }
 
         $enquiry = PropertyEnquiry::create($payload);
+
+        // Push the lead into Follow Up Boss — guarded inside report().
+        \App\Services\FollowUpBossService::report('General Inquiry', [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'phone' => $validated['phone'] ?? null,
+        ], [
+            'message' => trim(($validated['message'] ?? '') . (!empty($validated['building_name']) ? ' [Building: ' . $validated['building_name'] . ']' : '')) ?: 'Contact agent request',
+            'property' => array_filter([
+                'street' => $validated['property_address'] ?? null,
+                'mlsNumber' => $validated['property_listing_key'] ?? null,
+            ]),
+            'pageUrl' => $request->headers->get('referer'),
+        ]);
 
         try {
             \Log::info('Agent enquiry received', [
