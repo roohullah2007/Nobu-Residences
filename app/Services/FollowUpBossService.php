@@ -24,9 +24,57 @@ class FollowUpBossService
     private const EVENTS_URL = 'https://api.followupboss.com/v1/events';
     private const TIMEOUT_SECONDS = 10;
 
+    public function __construct(protected RepliersApiService $repliersApi)
+    {
+    }
+
     public function isEnabled(): bool
     {
         return !empty(config('services.followupboss.key'));
+    }
+
+    /**
+     * FUB property payload + a "For Sale" / "For Lease" tag for a listing,
+     * enriched live from Repliers by MLS number (price, beds, baths, city,
+     * sale-vs-lease) so FUB shows the full property details regardless of
+     * what the submitting form collected. Guarded — falls back to the
+     * address/MLS the form supplied.
+     *
+     * @return array{property: array, tag: ?string}
+     */
+    public function propertyContext(?string $mlsNumber, ?string $fallbackAddress = null): array
+    {
+        $property = array_filter([
+            'street' => $fallbackAddress,
+            'mlsNumber' => $mlsNumber,
+        ]);
+        $tag = null;
+
+        if ($mlsNumber && $this->isEnabled()) {
+            try {
+                $listing = $this->repliersApi->getListingByMlsNumber($mlsNumber);
+                if ($listing) {
+                    $details = $listing['details'] ?? [];
+                    $isLease = strcasecmp((string) ($listing['type'] ?? ''), 'lease') === 0;
+                    $tag = $isLease ? 'For Lease' : 'For Sale';
+
+                    $property = array_filter([
+                        'street' => $fallbackAddress ?: null,
+                        'city' => $listing['address']['city'] ?? null,
+                        'mlsNumber' => $mlsNumber,
+                        'price' => (float) ($listing['listPrice'] ?? 0) ?: null,
+                        'bedrooms' => $details['numBedrooms'] ?? null,
+                        'bathrooms' => $details['numBathrooms'] ?? null,
+                        'type' => $details['propertyType'] ?? null,
+                    ]);
+                    $property['forRent'] = $isLease;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('FUB property enrichment failed', ['mls' => $mlsNumber, 'error' => $e->getMessage()]);
+            }
+        }
+
+        return ['property' => $property, 'tag' => $tag];
     }
 
     /**

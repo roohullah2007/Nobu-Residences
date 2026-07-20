@@ -43,6 +43,30 @@ class PropertyQuestionController extends Controller
 
             $question = PropertyQuestion::create($questionData);
 
+            // Push the lead into Follow Up Boss with live property details
+            // and a For Sale / For Lease tag — guarded, never breaks the
+            // question submission.
+            try {
+                $fub = app(\App\Services\FollowUpBossService::class);
+                $context = $fub->propertyContext(
+                    $questionData['property_listing_key'] ?? null,
+                    $questionData['property_address'] ?? null
+                );
+
+                $fub->sendEvent('Property Inquiry', array_filter([
+                    'name' => $questionData['name'],
+                    'email' => $questionData['email'],
+                    'phone' => $questionData['phone'],
+                    'tags' => $context['tag'] ? [$context['tag']] : null,
+                ]), [
+                    'message' => 'Question: ' . $questionData['question'],
+                    'property' => $context['property'],
+                    'pageUrl' => $request->headers->get('referer'),
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('Follow Up Boss question reporting failed', ['error' => $e->getMessage()]);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Your question has been submitted successfully. Our agent will get back to you within 24 hours.',

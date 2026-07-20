@@ -39,21 +39,32 @@ class PropertyEnquiryController extends Controller
         // Create the enquiry record
         $enquiry = PropertyEnquiry::create($validated);
 
-        // Push the lead into Follow Up Boss — guarded inside report().
-        \App\Services\FollowUpBossService::report('Property Inquiry', [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-        ], [
-            'message' => $validated['message'],
-            'property' => array_filter([
-                'street' => $validated['property_address'] ?? null,
-                'mlsNumber' => $validated['property_mls'] ?? $validated['property_listing_key'] ?? null,
-                'price' => $validated['property_price'] ?? null,
-                'type' => $validated['property_type'] ?? null,
-            ]),
-            'pageUrl' => $request->headers->get('referer'),
-        ]);
+        // Push the lead into Follow Up Boss with live property details and a
+        // For Sale / For Lease tag — guarded, never breaks the enquiry.
+        try {
+            $fub = app(\App\Services\FollowUpBossService::class);
+            $context = $fub->propertyContext(
+                $validated['property_mls'] ?? $validated['property_listing_key'] ?? null,
+                $validated['property_address'] ?? null
+            );
+
+            $fub->sendEvent('Property Inquiry', array_filter([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'tags' => $context['tag'] ? [$context['tag']] : null,
+            ]), [
+                'message' => $validated['message'],
+                'property' => $context['property'] ?: array_filter([
+                    'street' => $validated['property_address'] ?? null,
+                    'price' => $validated['property_price'] ?? null,
+                    'type' => $validated['property_type'] ?? null,
+                ]),
+                'pageUrl' => $request->headers->get('referer'),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Follow Up Boss enquiry reporting failed', ['error' => $e->getMessage()]);
+        }
 
         // Send email notification to admin
         try {
@@ -122,19 +133,28 @@ class PropertyEnquiryController extends Controller
 
         $enquiry = PropertyEnquiry::create($payload);
 
-        // Push the lead into Follow Up Boss — guarded inside report().
-        \App\Services\FollowUpBossService::report('General Inquiry', [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-        ], [
-            'message' => trim(($validated['message'] ?? '') . (!empty($validated['building_name']) ? ' [Building: ' . $validated['building_name'] . ']' : '')) ?: 'Contact agent request',
-            'property' => array_filter([
-                'street' => $validated['property_address'] ?? null,
-                'mlsNumber' => $validated['property_listing_key'] ?? null,
-            ]),
-            'pageUrl' => $request->headers->get('referer'),
-        ]);
+        // Push the lead into Follow Up Boss with live property details and a
+        // For Sale / For Lease tag — guarded, never breaks the enquiry.
+        try {
+            $fub = app(\App\Services\FollowUpBossService::class);
+            $context = $fub->propertyContext(
+                $validated['property_listing_key'] ?? null,
+                $validated['property_address'] ?? null
+            );
+
+            $fub->sendEvent('General Inquiry', array_filter([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'tags' => $context['tag'] ? [$context['tag']] : null,
+            ]), [
+                'message' => trim(($validated['message'] ?? '') . (!empty($validated['building_name']) ? ' [Building: ' . $validated['building_name'] . ']' : '')) ?: 'Contact agent request',
+                'property' => $context['property'],
+                'pageUrl' => $request->headers->get('referer'),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('Follow Up Boss agent enquiry reporting failed', ['error' => $e->getMessage()]);
+        }
 
         try {
             \Log::info('Agent enquiry received', [

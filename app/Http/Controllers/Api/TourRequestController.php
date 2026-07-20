@@ -58,25 +58,25 @@ class TourRequestController extends Controller
                 'property_id' => $tourRequest->property_id
             ]);
 
-            // Push the lead into Follow Up Boss, then book the showing on the
-            // person's Appointments panel. Both guarded — never break the
-            // tour request itself.
+            // Push the lead into Follow Up Boss (with live property details
+            // + a For Sale / For Lease tag), then book the showing on the
+            // person's Appointments panel. Guarded — never break the tour
+            // request itself.
             try {
                 $fub = app(\App\Services\FollowUpBossService::class);
-                $fubPerson = $fub->sendEvent('Property Inquiry', [
+                $context = $fub->propertyContext($tourRequest->property_id, $tourRequest->property_address);
+
+                $fubPerson = $fub->sendEvent('Property Inquiry', array_filter([
                     'name' => $tourRequest->full_name,
                     'email' => $tourRequest->email,
                     'phone' => $tourRequest->phone,
-                ], [
+                    'tags' => $context['tag'] ? [$context['tag']] : null,
+                ]), [
                     'message' => trim('Tour request'
                         . ($tourRequest->selected_date ? ' for ' . $tourRequest->selected_date : '')
                         . ($tourRequest->selected_time ? ' at ' . $tourRequest->selected_time : '')
                         . ($tourRequest->message ? ' — ' . $tourRequest->message : '')),
-                    'property' => array_filter([
-                        'street' => $tourRequest->property_address,
-                        'mlsNumber' => $tourRequest->property_id,
-                        'type' => $tourRequest->property_type,
-                    ]),
+                    'property' => $context['property'],
                     'pageUrl' => $request->headers->get('referer'),
                 ]);
 
@@ -115,22 +115,17 @@ class TourRequestController extends Controller
     /**
      * Book the requested showing as a FUB appointment so it appears on the
      * lead's Appointments panel and the account calendar. Skipped when the
-     * lead push failed (no personId) or the requested date can't be parsed.
-     * Tour slots are Toronto local times; appointments default to one hour.
+     * lead push failed (no personId) or the requested slot can't be parsed.
      */
     private function createFubAppointment(\App\Services\FollowUpBossService $fub, TourRequest $tourRequest, ?int $personId): void
     {
-        if (!$personId || empty($tourRequest->selected_date)) {
+        if (!$personId) {
             return;
         }
 
-        try {
-            $start = \Carbon\Carbon::parse(
-                trim($tourRequest->selected_date . ' ' . ($tourRequest->selected_time ?? '')),
-                'America/Toronto'
-            );
-        } catch (\Throwable $e) {
-            Log::warning('Tour request date unparseable for FUB appointment', [
+        $slot = $this->parseTourSlot($tourRequest->selected_date, $tourRequest->selected_time);
+        if (!$slot) {
+            Log::warning('Tour request slot unparseable for FUB appointment', [
                 'tour_request_id' => $tourRequest->id,
                 'date' => $tourRequest->selected_date,
                 'time' => $tourRequest->selected_time,
@@ -141,8 +136,8 @@ class TourRequestController extends Controller
 
         $fub->createAppointment(
             'Property showing — ' . ($tourRequest->property_address ?: 'requested listing'),
-            $start,
-            $start->copy()->addHour(),
+            $slot['start'],
+            $slot['end'],
             [array_filter([
                 'personId' => $personId,
                 'name' => $tourRequest->full_name,
@@ -151,6 +146,47 @@ class TourRequestController extends Controller
             trim('Requested from the website.' . ($tourRequest->message ? ' Note: ' . $tourRequest->message : '')),
             $tourRequest->property_address
         );
+    }
+
+    /**
+     * Parse the tour widget's display strings into concrete Toronto-local
+     * times: selected_date "TUE, JUL 21" (weekday prefix, no year) and
+     * selected_time "12PM to 4PM" (a slot range; the appointment spans it).
+     * A date with no year that already passed rolls into next year. Returns
+     * null when no usable date exists.
+     *
+     * @return array{start: \Carbon\Carbon, end: \Carbon\Carbon}|null
+     */
+    private function parseTourSlot(?string $date, ?string $time): ?array
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        $timezone = 'America/Toronto';
+
+        try {
+            $day = \Carbon\Carbon::parse(trim(preg_replace('/^[A-Za-z]{3,9},\s*/', '', $date)), $timezone);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($day->lt(now($timezone)->subDay())) {
+            $day->addYear();
+        }
+
+        $range = preg_split('/\s+to\s+/i', trim((string) $time)) ?: [];
+
+        try {
+            $start = \Carbon\Carbon::parse($day->format('Y-m-d') . ' ' . trim($range[0] ?? '9AM'), $timezone);
+            $end = isset($range[1])
+                ? \Carbon\Carbon::parse($day->format('Y-m-d') . ' ' . trim($range[1]), $timezone)
+                : $start->copy()->addHour();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $start->lt($end) ? ['start' => $start, 'end' => $end] : null;
     }
 
     /**
