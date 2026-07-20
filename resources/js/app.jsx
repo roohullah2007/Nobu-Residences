@@ -22,7 +22,10 @@ function updateFavicon(faviconUrl) {
 }
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    // Page titles are already complete (each page includes its own site
+    // name) — appending the APP name here stamped "- Nobu Residences" onto
+    // every tenant site's title tag.
+    title: (title) => title || appName,
     resolve: (name) => {
         const allPages = import.meta.glob(['./Pages/**/*.jsx', './Website/**/*.jsx']);
 

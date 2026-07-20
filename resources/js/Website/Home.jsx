@@ -20,7 +20,7 @@ import { normalizeListing, priceStats } from '@/Website/Sections/Home/iceData';
 export default function Home({ auth, website, siteName, siteUrl, year, pageContent, availableIcons, buildingData, ...props }) {
     const building = buildingData || {};
     const { globalWebsite } = usePage().props;
-    const pageTitle = globalWebsite?.meta_title || `${siteName} - Luxury Condominiums at Nobu Residences`;
+    const pageTitle = globalWebsite?.meta_title || `${siteName} - Luxury Condominiums`;
 
     const [viewingModal, setViewingModal] = useState({ isOpen: false, property: null });
 

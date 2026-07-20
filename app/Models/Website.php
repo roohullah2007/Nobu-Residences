@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Website extends Model
 {
     use HasFactory;
+
+    /**
+     * The Nobu site's SEO meta that landing sites were seeded with — on
+     * non-default sites these exact values are treated as unset (same
+     * self-heal pattern as the legacy contact_info seeds) so tenant pages
+     * never advertise Nobu in their title/description/keywords.
+     */
+    private const LEGACY_SEED_META = [
+        'meta_title' => 'Nobu Residences - Luxury Toronto Condos',
+        'meta_description' => 'Discover luxury living at Nobu Residences in downtown Toronto. Premium condos with world-class amenities.',
+        'meta_keywords' => 'Toronto condos, luxury condos, Nobu Residences, downtown Toronto',
+    ];
 
     /**
      * Cloudflare provisioning bookkeeping columns — changes to these never
@@ -111,6 +124,47 @@ class Website extends Model
         'cloudflare_active_at' => 'datetime',
         'ai_content_generated_at' => 'datetime',
     ];
+
+    protected function metaTitle(): Attribute
+    {
+        return Attribute::get(fn ($value) => $this->healLegacyMeta('meta_title', $value));
+    }
+
+    protected function metaDescription(): Attribute
+    {
+        return Attribute::get(fn ($value) => $this->healLegacyMeta('meta_description', $value));
+    }
+
+    protected function metaKeywords(): Attribute
+    {
+        return Attribute::get(function ($value) {
+            $value = $this->healLegacyMeta('meta_keywords', $value);
+            if ($value === null || $this->is_default) {
+                return $value;
+            }
+
+            // Keywords are a comma list — drop any Nobu leftovers on tenant
+            // sites without touching the rest.
+            $kept = array_filter(
+                array_map('trim', explode(',', $value)),
+                fn (string $keyword) => stripos($keyword, 'nobu') === false
+            );
+
+            return $kept ? implode(', ', $kept) : null;
+        });
+    }
+
+    /**
+     * Exact legacy Nobu seed values read as unset on non-default sites.
+     */
+    private function healLegacyMeta(string $key, ?string $value): ?string
+    {
+        if ($value === null || $this->is_default) {
+            return $value;
+        }
+
+        return strcasecmp(trim($value), self::LEGACY_SEED_META[$key]) === 0 ? null : $value;
+    }
 
     /**
      * Get the pages for this website
