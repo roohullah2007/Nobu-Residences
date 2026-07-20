@@ -152,7 +152,7 @@ class GoogleAuthController extends Controller
                     'email' => $user->email,
                     'phone' => $user->phone,
                 ], [
-                    'source' => $signupHost,
+                    'source' => $websiteName ?: $signupHost,
                     'message' => 'New account registration (Google sign-in) on ' . ($websiteName ?: $signupHost),
                 ]);
             }

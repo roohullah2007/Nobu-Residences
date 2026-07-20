@@ -58,23 +58,32 @@ class TourRequestController extends Controller
                 'property_id' => $tourRequest->property_id
             ]);
 
-            // Push the lead into Follow Up Boss — guarded inside report().
-            \App\Services\FollowUpBossService::report('Property Inquiry', [
-                'name' => $tourRequest->full_name,
-                'email' => $tourRequest->email,
-                'phone' => $tourRequest->phone,
-            ], [
-                'message' => trim('Tour request'
-                    . ($tourRequest->selected_date ? ' for ' . $tourRequest->selected_date : '')
-                    . ($tourRequest->selected_time ? ' at ' . $tourRequest->selected_time : '')
-                    . ($tourRequest->message ? ' — ' . $tourRequest->message : '')),
-                'property' => array_filter([
-                    'street' => $tourRequest->property_address,
-                    'mlsNumber' => $tourRequest->property_id,
-                    'type' => $tourRequest->property_type,
-                ]),
-                'pageUrl' => $request->headers->get('referer'),
-            ]);
+            // Push the lead into Follow Up Boss, then book the showing on the
+            // person's Appointments panel. Both guarded — never break the
+            // tour request itself.
+            try {
+                $fub = app(\App\Services\FollowUpBossService::class);
+                $fubPerson = $fub->sendEvent('Property Inquiry', [
+                    'name' => $tourRequest->full_name,
+                    'email' => $tourRequest->email,
+                    'phone' => $tourRequest->phone,
+                ], [
+                    'message' => trim('Tour request'
+                        . ($tourRequest->selected_date ? ' for ' . $tourRequest->selected_date : '')
+                        . ($tourRequest->selected_time ? ' at ' . $tourRequest->selected_time : '')
+                        . ($tourRequest->message ? ' — ' . $tourRequest->message : '')),
+                    'property' => array_filter([
+                        'street' => $tourRequest->property_address,
+                        'mlsNumber' => $tourRequest->property_id,
+                        'type' => $tourRequest->property_type,
+                    ]),
+                    'pageUrl' => $request->headers->get('referer'),
+                ]);
+
+                $this->createFubAppointment($fub, $tourRequest, $fubPerson['id'] ?? null);
+            } catch (\Throwable $e) {
+                Log::warning('Follow Up Boss tour reporting failed', ['error' => $e->getMessage()]);
+            }
 
             // TODO: Send email notifications to admin and user
             // $this->sendAdminNotification($tourRequest);
@@ -101,6 +110,47 @@ class TourRequestController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
+    }
+
+    /**
+     * Book the requested showing as a FUB appointment so it appears on the
+     * lead's Appointments panel and the account calendar. Skipped when the
+     * lead push failed (no personId) or the requested date can't be parsed.
+     * Tour slots are Toronto local times; appointments default to one hour.
+     */
+    private function createFubAppointment(\App\Services\FollowUpBossService $fub, TourRequest $tourRequest, ?int $personId): void
+    {
+        if (!$personId || empty($tourRequest->selected_date)) {
+            return;
+        }
+
+        try {
+            $start = \Carbon\Carbon::parse(
+                trim($tourRequest->selected_date . ' ' . ($tourRequest->selected_time ?? '')),
+                'America/Toronto'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Tour request date unparseable for FUB appointment', [
+                'tour_request_id' => $tourRequest->id,
+                'date' => $tourRequest->selected_date,
+                'time' => $tourRequest->selected_time,
+            ]);
+
+            return;
+        }
+
+        $fub->createAppointment(
+            'Property showing — ' . ($tourRequest->property_address ?: 'requested listing'),
+            $start,
+            $start->copy()->addHour(),
+            [array_filter([
+                'personId' => $personId,
+                'name' => $tourRequest->full_name,
+                'email' => $tourRequest->email,
+            ])],
+            trim('Requested from the website.' . ($tourRequest->message ? ' Note: ' . $tourRequest->message : '')),
+            $tourRequest->property_address
+        );
     }
 
     /**

@@ -84,11 +84,19 @@ class SavedSearchController extends Controller
         $this->syncToRepliers($savedSearch);
 
         // Push the activity into Follow Up Boss — guarded inside report().
+        // The search criteria also populate the account's Custom Fields
+        // (Location / Number of Bedrooms / Number of Bathrooms / price range).
         $user = Auth::user();
+        $params = $savedSearch->search_params ?? [];
         \App\Services\FollowUpBossService::report('Saved Property Search', [
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
+            'customLocation' => $params['query'] ?? null,
+            'customNumberOfBedrooms' => ($params['bedrooms'] ?? 0) > 0 ? (string) $params['bedrooms'] : null,
+            'customNumberOfBathrooms' => ($params['bathrooms'] ?? 0) > 0 ? (string) $params['bathrooms'] : null,
+            'customMinimumPrice' => ($params['price_min'] ?? 0) > 0 ? (string) $params['price_min'] : null,
+            'customMaximumPrice' => ($params['price_max'] ?? 0) > 0 && ($params['price_max'] ?? 0) < 10000000 ? (string) $params['price_max'] : null,
         ], [
             'message' => 'Saved search "' . $savedSearch->name . '" — ' . $savedSearch->formatted_criteria,
             'pageUrl' => $request->headers->get('referer'),
