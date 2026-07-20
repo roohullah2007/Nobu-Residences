@@ -212,6 +212,8 @@ class SavedSearchAlertService
                 'bathrooms' => $details['numBathrooms'] ?? null,
                 'square_footage' => $details['sqft'] ?? null,
                 'property_type' => $details['propertyType'] ?? null,
+                // 'Sale' | 'Lease' — drives the FOR SALE / FOR RENT card banner
+                'transaction_type' => $listing['type'] ?? null,
                 'image_url' => $this->getFirstImageUrl($listing),
                 'url' => $this->getPropertyUrl($listing),
             ];

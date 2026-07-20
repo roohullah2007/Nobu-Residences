@@ -67,6 +67,12 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
 
+// One-click unsubscribe from a saved-search alert email (signed link — the
+// recipient may not be logged in on the device they open the email on)
+Route::get('/alerts/saved-search/{savedSearch}/unsubscribe', \App\Http\Controllers\SavedSearchUnsubscribeController::class)
+    ->middleware('signed')
+    ->name('alerts.saved-search.unsubscribe');
+
 // Building full price history page
 Route::get('/{city}/{buildingSlug}/price-history', [WebsiteController::class, 'buildingPriceHistory'])
     ->where([

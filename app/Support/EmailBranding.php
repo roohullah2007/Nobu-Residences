@@ -22,6 +22,17 @@ use App\Services\Tenancy\TenantResolver;
 final class EmailBranding
 {
     /**
+     * Fixed landing-page agent fallbacks — the same constants the site
+     * frontend uses (Footer / ContactSection) when a site has no
+     * dashboard-entered agent details.
+     */
+    private const FALLBACK_AGENT_NAME = 'Jatin Gill';
+    private const FALLBACK_AGENT_TITLE = 'Broker';
+    private const FALLBACK_AGENT_PHONE = '+1 416 669 4755';
+    private const FALLBACK_AGENT_EMAIL = 'info@jatingill.com';
+    private const FALLBACK_AGENT_BROKERAGE = 'Re/Max Your Community Realty, Brokerage';
+
+    /**
      * @return array{siteName: string, logoUrl: ?string, homeUrl: string}
      */
     public static function current(): array
@@ -55,6 +66,52 @@ final class EmailBranding
             'logoUrl' => self::absoluteLogoUrl($website, $homeUrl),
             'homeUrl' => $homeUrl,
         ];
+    }
+
+    /**
+     * The agent block listing-alert emails lead with. Dashboard-entered
+     * agent info on the site wins, then the default site's agent, then the
+     * fixed landing-page agent (same chain the site frontend uses).
+     *
+     * @return array{name: string, title: string, phone: string, email: string, brokerage: string, photoUrl: ?string}
+     */
+    public static function agentForWebsite(?Website $website): array
+    {
+        try {
+            $website ??= Website::where('is_default', true)->first();
+            $agent = $website?->agentInfo;
+            if (self::agentIsEmpty($agent) && !$website?->is_default) {
+                $agent = Website::where('is_default', true)->first()?->agentInfo;
+            }
+        } catch (\Throwable $e) {
+            $agent = null;
+        }
+
+        $contact = [];
+        try {
+            $contact = $website?->getContactInfo() ?? [];
+        } catch (\Throwable $e) {
+        }
+
+        $homeUrl = self::homeUrl($website);
+        $photo = $agent?->profile_image;
+
+        return [
+            'name' => $agent?->agent_name ?: self::FALLBACK_AGENT_NAME,
+            'title' => $agent?->agent_title ?: self::FALLBACK_AGENT_TITLE,
+            'phone' => $agent?->agent_phone ?: ($contact['phone'] ?? '') ?: self::FALLBACK_AGENT_PHONE,
+            'email' => ($contact['email'] ?? '') ?: self::FALLBACK_AGENT_EMAIL,
+            'brokerage' => $agent?->brokerage ?: self::FALLBACK_AGENT_BROKERAGE,
+            'photoUrl' => $photo
+                ? (str_starts_with($photo, 'http') ? $photo : $homeUrl . '/' . ltrim($photo, '/'))
+                : null,
+        ];
+    }
+
+    private static function agentIsEmpty(?object $agent): bool
+    {
+        return !$agent
+            || (empty($agent->agent_name) && empty($agent->agent_phone) && empty($agent->brokerage));
     }
 
     /**

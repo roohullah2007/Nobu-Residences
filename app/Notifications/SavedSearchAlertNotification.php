@@ -4,14 +4,17 @@ namespace App\Notifications;
 
 use App\Models\SavedSearch;
 use App\Support\EmailBranding;
+use App\Support\ListingEmailCard;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
 
 /**
- * "New listings match your saved search" email, on the shared site-branded
- * template (emails/branded.blade.php) — branded with and linking to the
- * landing site the search was saved on (website_id), falling back to the
- * default website.
+ * "New listings match your saved search" email on the listing-alert template
+ * (emails/listing-alert.blade.php — agent header, thank-you box, property
+ * cards with FOR SALE / FOR RENT banners, manage + one-click-unsubscribe
+ * footer), branded with and linking to the landing site the search was
+ * saved on (website_id), falling back to the default website.
  *
  * Sent synchronously (no ShouldQueue) on purpose: alerts go out from the
  * scheduled alerts:send-saved-search command, and the production server
@@ -24,7 +27,7 @@ class SavedSearchAlertNotification extends Notification
     protected array $listings;
     protected int $totalCount;
 
-    private const MAX_LISTINGS_SHOWN = 5;
+    private const MAX_LISTINGS_SHOWN = 6;
 
     public function __construct(SavedSearch $savedSearch, array $listings, int $totalCount)
     {
@@ -41,31 +44,29 @@ class SavedSearchAlertNotification extends Notification
     public function toMail($notifiable): MailMessage
     {
         $branding = EmailBranding::forWebsite($this->savedSearch->website);
+        $agent = EmailBranding::agentForWebsite($this->savedSearch->website);
         $searchName = $this->savedSearch->name ?? 'Your Saved Search';
-        $firstName = explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there';
-        $listingWord = $this->totalCount === 1 ? 'listing' : 'listings';
         $shown = array_slice($this->listings, 0, self::MAX_LISTINGS_SHOWN);
-        $remaining = count($this->listings) - count($shown);
-
-        $paragraphs = [
-            'Hi ' . e($firstName) . ", we found <strong>{$this->totalCount} new {$listingWord}</strong> matching your saved search \"" . e($searchName) . '".',
-        ];
-        if ($remaining > 0) {
-            $paragraphs[] = 'Here are the newest ' . count($shown) . ' — plus ' . $remaining . ' more on the site.';
-        }
 
         return (new MailMessage)
             ->subject("New Listings Match \"{$searchName}\" - {$this->totalCount} Properties Found")
-            ->view('emails.branded', [
+            ->view('emails.listing-alert', [
                 'siteName' => $branding['siteName'],
                 'logoUrl' => $branding['logoUrl'],
-                'title' => 'New listings match your search',
-                'paragraphs' => $paragraphs,
-                'rows' => ['Criteria' => $this->savedSearch->formatted_criteria],
-                'listings' => $this->brandedListings($shown, $branding['homeUrl']),
-                'buttonText' => 'View all listings',
+                'agent' => $agent,
+                'headline' => 'Handpicked listings just for you.',
+                'introHtml' => $this->introHtml($branding['homeUrl'], $searchName),
+                'sectionTitle' => 'New or Updated Properties',
+                'cards' => array_map(
+                    fn (array $listing) => ListingEmailCard::make($listing, $agent, $branding['homeUrl']),
+                    $shown
+                ),
+                'buttonText' => $this->totalCount > count($shown)
+                    ? "View all {$this->totalCount} matching listings"
+                    : 'View all matching listings',
                 'buttonUrl' => $this->getSearchUrl($branding['homeUrl']),
-                'footnote' => "You're receiving this email because you have a {$this->getFrequencyText()} alert set up for \"{$searchName}\". You can manage your alerts from your dashboard.",
+                'manageUrl' => $branding['homeUrl'] . '/dashboard',
+                'unsubscribeUrl' => $this->unsubscribeUrl(),
             ]);
     }
 
@@ -90,18 +91,35 @@ class SavedSearchAlertNotification extends Notification
     }
 
     /**
-     * Re-point each listing's detail link at the branded site's domain (the
-     * service builds them against app.url).
+     * The thank-you box: alert frequency + site link + the saved criteria.
      */
-    protected function brandedListings(array $listings, string $homeUrl): array
+    protected function introHtml(string $homeUrl, string $searchName): string
     {
-        return array_map(function ($listing) use ($homeUrl) {
-            if (!empty($listing['mls_id'])) {
-                $listing['url'] = $homeUrl . '/property/' . $listing['mls_id'];
-            }
+        $host = parse_url($homeUrl, PHP_URL_HOST) ?: $homeUrl;
+        $frequency = ucfirst($this->getFrequencyText());
+        $siteLink = '<a href="' . $homeUrl . '" style="color:#293056; text-decoration:underline; font-weight:600;">' . e($host) . '</a>';
 
-            return $listing;
-        }, $listings);
+        return "Thank you for registering for the {$frequency} Listings Alert at {$siteLink}. "
+            . "I've put together the list below to help you find new listings based on your specific Real Estate needs. "
+            . 'Feel free to contact me should you have any questions.'
+            . '<br><span style="color:#6b7280; font-size:13px;">Your search: "' . e($searchName) . '" — ' . e($this->savedSearch->formatted_criteria) . '</span>';
+    }
+
+    /**
+     * One-click signed unsubscribe link for this saved search. Null (link
+     * omitted) if the URL can't be generated — never blocks the alert.
+     */
+    protected function unsubscribeUrl(): ?string
+    {
+        if (!$this->savedSearch->id) {
+            return null;
+        }
+
+        try {
+            return URL::signedRoute('alerts.saved-search.unsubscribe', ['savedSearch' => $this->savedSearch->id]);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     protected function getFrequencyText(): string

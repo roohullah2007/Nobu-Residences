@@ -195,6 +195,8 @@ class FavouriteUpdateAlertService
         return [
             'mls_id' => $listing['mlsNumber'] ?? $favourite->property_listing_key,
             'image_url' => $imageUrls[0] ?? null,
+            // 'Sale' | 'Lease' — drives the FOR SALE / FOR RENT card banner
+            'transaction_type' => $listing['type'] ?? null,
             'formatted_price' => $price > 0 ? '$' . number_format($price) : null,
             'address' => $this->formatListingAddress($listing) ?: $favourite->property_address,
             'city' => $listing['address']['city'] ?? $favourite->property_city,
@@ -241,7 +243,7 @@ class FavouriteUpdateAlertService
                     'mlsNumber' => $batch,
                     'status' => ['A', 'U'],
                     'resultsPerPage' => count($batch),
-                    'fields' => 'mlsNumber,listPrice,lastStatus,address,details,images',
+                    'fields' => 'mlsNumber,listPrice,lastStatus,type,address,details,images',
                 ]);
 
                 foreach ($result['listings'] ?? [] as $listing) {
