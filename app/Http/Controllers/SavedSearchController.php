@@ -136,7 +136,7 @@ class SavedSearchController extends Controller
                 $savedSearch->name
             );
 
-            $repliersId = $result['savedSearchId'] ?? $result['id'] ?? null;
+            $repliersId = $result['searchId'] ?? $result['savedSearchId'] ?? $result['id'] ?? null;
             $savedSearch->update([
                 'repliers_saved_search_id' => $repliersId,
                 'repliers_sync_status' => $repliersId ? 'synced' : 'failed',

@@ -448,16 +448,22 @@ class RepliersApiService
     public function createSavedSearch(string $clientId, array $searchParams, string $name = ''): ?array
     {
         try {
-            $body = [
-                'clientId' => $clientId,
+            // Repliers' saved-search resource lives at POST /searches (the
+            // old /saved-searches path 404s) and takes FLAT criteria fields
+            // (type/class/minPrice/cities/...), not our internal filter
+            // object — see docs.repliers.io/reference/create-a-saved-search.
+            $body = array_merge($this->mapSavedSearchCriteria($searchParams), [
+                'clientId' => (int) $clientId,
                 'name' => $name ?: 'Saved Search',
-                'filters' => $searchParams,
-            ];
+            ]);
 
-            $response = $this->makeRequest('POST', '/saved-searches', $body);
+            $response = $this->makeRequest('POST', '/searches', $body);
             $data = $response->json();
 
-            Log::info('Repliers saved search created', ['clientId' => $clientId]);
+            Log::info('Repliers saved search created', [
+                'clientId' => $clientId,
+                'searchId' => $data['searchId'] ?? $data['id'] ?? null,
+            ]);
             return $data;
         } catch (Exception $e) {
             Log::error('Failed to create Repliers saved search', ['error' => $e->getMessage()]);
@@ -466,12 +472,66 @@ class RepliersApiService
     }
 
     /**
+     * Map our internal search params to the flat criteria the Repliers
+     * saved-search endpoint expects. Reuses the search page's param mapping
+     * (GTA city matching, street-address parsing, property-type expansion)
+     * and then translates listing-search keys to their saved-search
+     * equivalents (city -> cities, propertyType -> propertyTypes, ...).
+     */
+    protected function mapSavedSearchCriteria(array $searchParams): array
+    {
+        $listing = app(\App\Http\Controllers\PropertySearchController::class)
+            ->buildRepliersListingsParams($searchParams);
+
+        $criteria = [
+            // Required fields. 'Both' building alerts carry no listing type —
+            // the mirror watches sales (our own alert engine covers both).
+            'type' => $listing['type'] ?? 'sale',
+            'class' => ['condo'],
+            // Repliers validates minPrice/maxPrice as "must be greater than
+            // 0", so an unset minimum is sent as $1 (same effect as none).
+            'minPrice' => max(1, (int) ($listing['minPrice'] ?? 0)),
+            'maxPrice' => (int) ($listing['maxPrice'] ?? 99999999),
+        ];
+
+        if (!empty($listing['city'])) {
+            $criteria['cities'] = array_values((array) $listing['city']);
+        }
+        if (!empty($listing['streetName'])) {
+            $criteria['streetNames'] = array_values((array) $listing['streetName']);
+        }
+        if (!empty($listing['streetNumber'])) {
+            $criteria['streetNumbers'] = array_values((array) $listing['streetNumber']);
+        }
+        if (!empty($listing['propertyType'])) {
+            $criteria['propertyTypes'] = array_values((array) $listing['propertyType']);
+        }
+        if (!empty($listing['minBedrooms'])) {
+            $criteria['minBeds'] = (int) $listing['minBedrooms'];
+        }
+        if (!empty($listing['maxBedrooms'])) {
+            $criteria['maxBeds'] = (int) $listing['maxBedrooms'];
+        }
+        if (!empty($listing['minBaths'])) {
+            $criteria['minBaths'] = (int) $listing['minBaths'];
+        }
+        if (($searchParams['min_sqft'] ?? 0) > 0) {
+            $criteria['minSqft'] = (int) $searchParams['min_sqft'];
+        }
+        if (($searchParams['max_sqft'] ?? 0) > 0) {
+            $criteria['maxSqft'] = (int) $searchParams['max_sqft'];
+        }
+
+        return $criteria;
+    }
+
+    /**
      * Delete a saved search from Repliers
      */
     public function deleteSavedSearch(string $savedSearchId): bool
     {
         try {
-            $this->makeRequest('DELETE', "/saved-searches/{$savedSearchId}");
+            $this->makeRequest('DELETE', "/searches/{$savedSearchId}");
             return true;
         } catch (Exception $e) {
             Log::error('Failed to delete Repliers saved search', ['error' => $e->getMessage()]);
@@ -485,11 +545,11 @@ class RepliersApiService
     public function getSavedSearches(string $clientId): array
     {
         try {
-            $response = $this->makeRequest('GET', '/saved-searches', [
+            $response = $this->makeRequest('GET', '/searches', [
                 'clientId' => $clientId,
             ]);
 
-            return $response->json()['savedSearches'] ?? $response->json() ?? [];
+            return $response->json()['searches'] ?? $response->json()['savedSearches'] ?? $response->json() ?? [];
         } catch (Exception $e) {
             Log::warning('Failed to get Repliers saved searches', ['clientId' => $clientId, 'error' => $e->getMessage()]);
             return [];

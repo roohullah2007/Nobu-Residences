@@ -67,6 +67,16 @@ class ResendTransport extends AbstractTransport
                 'Resend API returned ' . $response->status() . ': ' . $response->body()
             );
         }
+
+        // Log the Resend message id for every accepted send so "the app said
+        // sent but nothing arrived" can be traced: the id looks up the exact
+        // message (delivered / bounced / suppressed) in the Resend dashboard,
+        // and `php artisan mail:test` polls the same events.
+        \Log::info('Resend accepted email', [
+            'resend_id' => $response->json('id'),
+            'to' => $payload['to'],
+            'subject' => $payload['subject'],
+        ]);
     }
 
     public function __toString(): string
