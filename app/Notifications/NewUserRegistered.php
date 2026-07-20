@@ -3,13 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\EmailBranding;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * "New user registered" email to the site admins. Fired from both
- * registration paths (email form + Google OAuth).
+ * "New user registered" email to the site admins, on the shared site-branded
+ * template (emails/branded.blade.php). Fired from both registration paths
+ * (email form + Google OAuth).
  *
  * Sent SYNCHRONOUSLY on purpose (no ShouldQueue): QUEUE_CONNECTION=database
  * and production runs no queue worker — same rationale as
@@ -35,25 +37,31 @@ class NewUserRegistered extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $branding = EmailBranding::current();
+        $siteName = $this->websiteName ?: $branding['siteName'];
         $site = $this->websiteName ? "{$this->websiteName} ({$this->host})" : $this->host;
 
-        $mail = (new MailMessage)
+        $rows = array_filter([
+            'Name' => $this->newUser->name,
+            'Email' => $this->newUser->email,
+            'Phone' => $this->newUser->phone ?: null,
+            'Website' => $site,
+            'Signed up via' => $this->source,
+            'Time' => now()->format('Y-m-d H:i (T)'),
+        ]);
+
+        return (new MailMessage)
             ->subject('New user registered — ' . ($this->websiteName ?: $this->host))
-            ->greeting('New User Registration')
-            ->line('A new user just signed up.')
-            ->line('**Name:** ' . $this->newUser->name)
-            ->line('**Email:** ' . $this->newUser->email);
-
-        if (!empty($this->newUser->phone)) {
-            $mail->line('**Phone:** ' . $this->newUser->phone);
-        }
-
-        return $mail
-            ->line('**Website:** ' . $site)
-            ->line('**Signed up via:** ' . $this->source)
-            ->line('**Time:** ' . now()->format('Y-m-d H:i (T)'))
-            ->action('View users', url('/admin/users'))
-            ->line('This is an automated notification.');
+            ->view('emails.branded', [
+                'siteName' => $siteName,
+                'logoUrl' => $branding['logoUrl'],
+                'title' => 'New user registration',
+                'paragraphs' => ['A new user just signed up.'],
+                'rows' => $rows,
+                'buttonText' => 'View users',
+                'buttonUrl' => url('/admin/users'),
+                'footnote' => 'This is an automated notification.',
+            ]);
     }
 
     /**

@@ -12,17 +12,24 @@ class UserPropertyFavourite extends Model
 
     protected $fillable = [
         'user_id',
+        // The landing site the favourite was saved on — update emails are
+        // branded with and link to this site
+        'website_id',
         'property_listing_key',
         'property_data',
         'property_address',
         'property_price',
         'property_type',
         'property_city',
+        // Last price/status the user was emailed about (favourite-update alerts)
+        'last_notified_price',
+        'last_notified_status',
     ];
 
     protected $casts = [
         'property_data' => 'array',
         'property_price' => 'decimal:2',
+        'last_notified_price' => 'decimal:2',
     ];
 
     /**
@@ -31,6 +38,14 @@ class UserPropertyFavourite extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the landing site this favourite was saved on
+     */
+    public function website(): BelongsTo
+    {
+        return $this->belongsTo(Website::class);
     }
 
     /**

@@ -2,15 +2,16 @@
 
 namespace App\Notifications\Auth;
 
+use App\Support\EmailBranding;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 
 /**
- * Site-branded, minimal password reset email. Replaces the stock Laravel
- * notification (verbose copy, app-name branding, raw fallback URL block)
- * with a dedicated clean template: the requesting tenant site's name, one
- * line of copy, the button, and the expiry note.
+ * Site-branded, minimal password reset email on the shared template
+ * (emails/branded.blade.php): the requesting tenant site's name + logo, one
+ * line of copy, the button, and the expiry note — never the stock Laravel
+ * notification (verbose copy, app-name branding, raw fallback URL block).
  *
  * Extends the framework notification so token semantics stay stock. The
  * reset URL is built exactly like the parent's — url() on the current
@@ -24,8 +25,10 @@ class ResetPasswordNotification extends ResetPassword
 
     public function toMail($notifiable): MailMessage
     {
-        $siteName = $this->siteName();
+        $branding = EmailBranding::current();
+        $siteName = $branding['siteName'];
         $expireMinutes = (int) config('auth.passwords.' . config('auth.defaults.passwords') . '.expire', 60);
+        $firstName = explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there';
         $resetUrl = url(route('password.reset', [
             'token' => $this->token,
             'email' => $notifiable->getEmailForPasswordReset(),
@@ -33,30 +36,16 @@ class ResetPasswordNotification extends ResetPassword
 
         return (new MailMessage)
             ->subject("Reset your password — {$siteName}")
-            ->view('emails.password-reset', [
+            ->view('emails.branded', [
                 'siteName' => $siteName,
-                'resetUrl' => $resetUrl,
-                'expireMinutes' => $expireMinutes,
-                'firstName' => explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there',
+                'logoUrl' => $branding['logoUrl'],
+                'title' => 'Reset your password',
+                'paragraphs' => [
+                    'Hi ' . e($firstName) . ', tap the button below to choose a new password for your ' . e($siteName) . ' account.',
+                ],
+                'buttonText' => 'Reset password',
+                'buttonUrl' => $resetUrl,
+                'footnote' => "This link expires in {$expireMinutes} minutes. If you didn't request a password reset, you can safely ignore this email.",
             ]);
-    }
-
-    /**
-     * The site the user requested the reset from (reset emails are sent
-     * synchronously, so the tenant request is still current). Falls back to
-     * the default website, then the app name — same chain as
-     * VerifyEmailNotification.
-     */
-    private function siteName(): string
-    {
-        try {
-            $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request());
-
-            return $website?->name
-                ?? \App\Models\Website::where('is_default', true)->value('name')
-                ?? config('app.name');
-        } catch (\Throwable $e) {
-            return config('app.name');
-        }
     }
 }

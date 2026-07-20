@@ -3,11 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\SavedSearch;
+use App\Services\Tenancy\TenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class SavedSearchController extends Controller
 {
+    public function __construct(protected TenantResolver $tenantResolver)
+    {
+    }
+
+    /**
+     * The landing site the request came in on — stored so alert emails are
+     * branded with and link back to the same site. Never blocks a save.
+     */
+    private function currentWebsiteId(Request $request): ?int
+    {
+        try {
+            return $this->tenantResolver->resolve($request)?->id;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     /**
      * Display a listing of the user's saved searches.
      */
@@ -53,6 +71,7 @@ class SavedSearchController extends Controller
         // Create the saved search (local DB)
         $savedSearch = SavedSearch::create([
             'user_id' => Auth::id(),
+            'website_id' => $this->currentWebsiteId($request),
             'name' => $validated['name'],
             'search_params' => $validated['search_params'],
             'email_alerts' => $validated['email_alerts'] ?? false,
@@ -264,6 +283,7 @@ class SavedSearchController extends Controller
 
         $savedSearch = SavedSearch::create([
             'user_id' => $user->id,
+            'website_id' => $this->currentWebsiteId($request),
             'building_id' => $building->id,
             'name' => 'Alerts: ' . $building->name,
             'search_params' => [

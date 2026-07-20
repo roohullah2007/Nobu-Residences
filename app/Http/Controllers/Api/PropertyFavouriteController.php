@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserPropertyFavourite;
+use App\Services\Tenancy\TenantResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,24 @@ use Illuminate\Support\Facades\DB;
 
 class PropertyFavouriteController extends Controller
 {
+    public function __construct(protected TenantResolver $tenantResolver)
+    {
+    }
+
+    /**
+     * The landing site the request came in on — stored so favourite-update
+     * emails are branded with and link back to the same site. Never blocks
+     * saving a favourite.
+     */
+    private function currentWebsiteId(Request $request): ?int
+    {
+        try {
+            return $this->tenantResolver->resolve($request)?->id;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     /**
      * Get user's favourite properties
      */
@@ -94,6 +113,7 @@ class PropertyFavouriteController extends Controller
             // Create favourite
             $favourite = UserPropertyFavourite::create([
                 'user_id' => $user->id,
+                'website_id' => $this->currentWebsiteId($request),
                 'property_listing_key' => $request->property_listing_key,
                 'property_data' => $request->property_data,
                 'property_address' => $request->property_address,
@@ -371,6 +391,7 @@ class PropertyFavouriteController extends Controller
                 // Add to favourites (local DB)
                 $favourite = UserPropertyFavourite::create([
                     'user_id' => $user->id,
+                    'website_id' => $this->currentWebsiteId($request),
                     'property_listing_key' => $request->property_listing_key,
                     'property_data' => $request->property_data,
                     'property_address' => $request->property_address,

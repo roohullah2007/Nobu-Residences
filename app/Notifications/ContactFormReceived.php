@@ -2,12 +2,17 @@
 
 namespace App\Notifications;
 
+use App\Models\ContactForm;
+use App\Support\EmailBranding;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\ContactForm;
 
+/**
+ * "New contact form submission" email to the site admins, on the shared
+ * site-branded template (emails/branded.blade.php) — never the stock
+ * Laravel markdown layout.
+ */
 class ContactFormReceived extends Notification
 {
     use Queueable;
@@ -37,19 +42,28 @@ class ContactFormReceived extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $branding = EmailBranding::current();
+
+        $rows = array_filter([
+            'Name' => $this->contact->name,
+            'Email' => $this->contact->email,
+            'Phone' => $this->contact->phone ?: 'Not provided',
+            'Categories' => $this->contact->formatted_categories,
+            'Message' => $this->contact->message ?: null,
+        ]);
+
         return (new MailMessage)
-                    ->subject('New Contact Form Submission - ' . $this->contact->name)
-                    ->greeting('New Contact Inquiry')
-                    ->line('A new contact form has been submitted on your website.')
-                    ->line('**Name:** ' . $this->contact->name)
-                    ->line('**Email:** ' . $this->contact->email)
-                    ->line('**Phone:** ' . ($this->contact->phone ?: 'Not provided'))
-                    ->line('**Categories:** ' . $this->contact->formatted_categories)
-                    ->when($this->contact->message, function ($mail) {
-                        return $mail->line('**Message:** ' . $this->contact->message);
-                    })
-                    ->action('View in Admin Panel', url('/admin/contacts/' . $this->contact->id))
-                    ->line('Please respond to this inquiry as soon as possible.');
+            ->subject('New Contact Form Submission - ' . $this->contact->name)
+            ->view('emails.branded', [
+                'siteName' => $branding['siteName'],
+                'logoUrl' => $branding['logoUrl'],
+                'title' => 'New contact inquiry',
+                'paragraphs' => ['A new contact form has been submitted on your website.'],
+                'rows' => $rows,
+                'buttonText' => 'View in admin panel',
+                'buttonUrl' => url('/admin/contacts/' . $this->contact->id),
+                'footnote' => 'Please respond to this inquiry as soon as possible.',
+            ]);
     }
 
     /**

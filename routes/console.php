@@ -90,6 +90,15 @@ Schedule::command('alerts:send-saved-search')
     ->appendOutputTo(storage_path('logs/saved-search-alerts.log'))
     ->description('Send evening saved search email alerts');
 
+// Email users when a favourited listing changes (price change, sold, leased,
+// terminated). Compares live Repliers state against the last price/status
+// each user was notified about, so every change is emailed exactly once.
+Schedule::command('alerts:send-favourite-updates')
+    ->dailyAt('08:30')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/favourite-update-alerts.log'))
+    ->description('Send favourite-listing change email alerts');
+
 // ============================================================================
 // Cloudflare custom hostnames
 // ============================================================================

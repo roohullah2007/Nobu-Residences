@@ -11,6 +11,9 @@ class SavedSearch extends Model
 
     protected $fillable = [
         'user_id',
+        // The landing site the search was saved on — alert emails are
+        // branded with and link to this site
+        'website_id',
         // Set when this saved search IS a building alert subscription
         'building_id',
         'name',
@@ -38,6 +41,14 @@ class SavedSearch extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the landing site this search was saved on
+     */
+    public function website()
+    {
+        return $this->belongsTo(Website::class);
     }
 
     /**
@@ -82,6 +93,14 @@ class SavedSearch extends Model
 
         if (!empty($params['bathrooms']) && $params['bathrooms'] > 0) {
             $criteria[] = "Baths: {$params['bathrooms']}+";
+        }
+
+        if (!empty($params['min_sqft']) && $params['min_sqft'] > 0) {
+            $criteria[] = "Min Sqft: " . number_format($params['min_sqft']);
+        }
+
+        if (!empty($params['max_sqft']) && $params['max_sqft'] > 0) {
+            $criteria[] = "Max Sqft: " . number_format($params['max_sqft']);
         }
 
         return implode(' • ', $criteria) ?: 'All Properties';

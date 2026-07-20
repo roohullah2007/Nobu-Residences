@@ -3,10 +3,16 @@
 namespace App\Notifications;
 
 use App\Models\SavedSearch;
+use App\Support\EmailBranding;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
+ * "New listings match your saved search" email, on the shared site-branded
+ * template (emails/branded.blade.php) — branded with and linking to the
+ * landing site the search was saved on (website_id), falling back to the
+ * default website.
+ *
  * Sent synchronously (no ShouldQueue) on purpose: alerts go out from the
  * scheduled alerts:send-saved-search command, and the production server
  * runs no queue worker — a queued notification would sit in the jobs
@@ -14,18 +20,12 @@ use Illuminate\Notifications\Notification;
  */
 class SavedSearchAlertNotification extends Notification
 {
-
     protected SavedSearch $savedSearch;
     protected array $listings;
     protected int $totalCount;
 
-    /**
-     * Create a new notification instance.
-     *
-     * @param SavedSearch $savedSearch
-     * @param array $listings
-     * @param int $totalCount
-     */
+    private const MAX_LISTINGS_SHOWN = 5;
+
     public function __construct(SavedSearch $savedSearch, array $listings, int $totalCount)
     {
         $this->savedSearch = $savedSearch;
@@ -33,72 +33,44 @@ class SavedSearchAlertNotification extends Notification
         $this->totalCount = $totalCount;
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @param mixed $notifiable
-     * @return array
-     */
     public function via($notifiable): array
     {
         return ['mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     *
-     * @param mixed $notifiable
-     * @return MailMessage
-     */
     public function toMail($notifiable): MailMessage
     {
+        $branding = EmailBranding::forWebsite($this->savedSearch->website);
         $searchName = $this->savedSearch->name ?? 'Your Saved Search';
-        $criteria = $this->savedSearch->formatted_criteria;
-        $frequency = $this->getFrequencyText();
+        $firstName = explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there';
+        $listingWord = $this->totalCount === 1 ? 'listing' : 'listings';
+        $shown = array_slice($this->listings, 0, self::MAX_LISTINGS_SHOWN);
+        $remaining = count($this->listings) - count($shown);
 
-        $mail = (new MailMessage)
-            ->subject("New Listings Match \"{$searchName}\" - {$this->totalCount} Properties Found")
-            ->greeting("Hi {$notifiable->name}!")
-            ->line("Great news! We found **{$this->totalCount} new " . ($this->totalCount === 1 ? 'listing' : 'listings') . "** matching your saved search.")
-            ->line("**Search:** {$searchName}")
-            ->line("**Criteria:** {$criteria}");
-
-        // Add property listings
-        if (!empty($this->listings)) {
-            $mail->line('---');
-            $mail->line('**Here are your new listings:**');
-
-            foreach (array_slice($this->listings, 0, 5) as $listing) {
-                $propertyLine = "**{$listing['formatted_price']}** - {$listing['address']}, {$listing['city']}";
-                if ($listing['bedrooms'] || $listing['bathrooms']) {
-                    $propertyLine .= " ({$listing['bedrooms']} bed, {$listing['bathrooms']} bath)";
-                }
-                $mail->line($propertyLine);
-            }
-
-            if (count($this->listings) > 5) {
-                $remaining = count($this->listings) - 5;
-                $mail->line("*...and {$remaining} more " . ($remaining === 1 ? 'listing' : 'listings') . "*");
-            }
+        $paragraphs = [
+            'Hi ' . e($firstName) . ", we found <strong>{$this->totalCount} new {$listingWord}</strong> matching your saved search \"" . e($searchName) . '".',
+        ];
+        if ($remaining > 0) {
+            $paragraphs[] = 'Here are the newest ' . count($shown) . ' — plus ' . $remaining . ' more on the site.';
         }
 
-        $mail->line('---');
-
-        // Action button to view all results
-        $searchUrl = $this->getSearchUrl();
-        $mail->action('View All Listings', $searchUrl);
-
-        $mail->line("You're receiving this email because you have a {$frequency} alert set up for \"{$searchName}\".");
-        $mail->line('You can manage your alerts from your dashboard.');
-
-        return $mail;
+        return (new MailMessage)
+            ->subject("New Listings Match \"{$searchName}\" - {$this->totalCount} Properties Found")
+            ->view('emails.branded', [
+                'siteName' => $branding['siteName'],
+                'logoUrl' => $branding['logoUrl'],
+                'title' => 'New listings match your search',
+                'paragraphs' => $paragraphs,
+                'rows' => ['Criteria' => $this->savedSearch->formatted_criteria],
+                'listings' => $this->brandedListings($shown, $branding['homeUrl']),
+                'buttonText' => 'View all listings',
+                'buttonUrl' => $this->getSearchUrl($branding['homeUrl']),
+                'footnote' => "You're receiving this email because you have a {$this->getFrequencyText()} alert set up for \"{$searchName}\". You can manage your alerts from your dashboard.",
+            ]);
     }
 
     /**
      * Get the array representation of the notification (for database storage).
-     *
-     * @param mixed $notifiable
-     * @return array
      */
     public function toArray($notifiable): array
     {
@@ -112,16 +84,26 @@ class SavedSearchAlertNotification extends Notification
                     'address' => $listing['address'],
                     'price' => $listing['price'],
                 ];
-            }, array_slice($this->listings, 0, 5)),
+            }, array_slice($this->listings, 0, self::MAX_LISTINGS_SHOWN)),
             'sent_at' => now()->toDateTimeString(),
         ];
     }
 
     /**
-     * Get human-readable frequency text
-     *
-     * @return string
+     * Re-point each listing's detail link at the branded site's domain (the
+     * service builds them against app.url).
      */
+    protected function brandedListings(array $listings, string $homeUrl): array
+    {
+        return array_map(function ($listing) use ($homeUrl) {
+            if (!empty($listing['mls_id'])) {
+                $listing['url'] = $homeUrl . '/property/' . $listing['mls_id'];
+            }
+
+            return $listing;
+        }, $listings);
+    }
+
     protected function getFrequencyText(): string
     {
         return match ($this->savedSearch->frequency ?? 1) {
@@ -133,15 +115,27 @@ class SavedSearchAlertNotification extends Notification
     }
 
     /**
-     * Generate URL to view search results
-     *
-     * @return string
+     * Link to the branded site's search page with the saved criteria applied
+     * (same param mapping as SavedSearchController::run()).
      */
-    protected function getSearchUrl(): string
+    protected function getSearchUrl(string $homeUrl): string
     {
         $params = $this->savedSearch->search_params ?? [];
-        $queryString = http_build_query(['search' => $params]);
 
-        return config('app.url') . '/search?' . $queryString;
+        $urlParams = array_filter([
+            'query' => $params['query'] ?? null,
+            'status' => $params['status'] ?? $params['transaction_type'] ?? null,
+            'property_type' => is_array($params['property_type'] ?? null)
+                ? implode(',', $params['property_type'])
+                : ($params['property_type'] ?? null),
+            'min_price' => ($params['price_min'] ?? 0) > 0 ? $params['price_min'] : null,
+            'max_price' => ($params['price_max'] ?? 0) > 0 && ($params['price_max'] ?? 0) < 10000000 ? $params['price_max'] : null,
+            'bedrooms' => ($params['bedrooms'] ?? 0) > 0 ? $params['bedrooms'] : null,
+            'bathrooms' => ($params['bathrooms'] ?? 0) > 0 ? $params['bathrooms'] : null,
+            'min_sqft' => ($params['min_sqft'] ?? 0) > 0 ? $params['min_sqft'] : null,
+            'max_sqft' => ($params['max_sqft'] ?? 0) > 0 ? $params['max_sqft'] : null,
+        ]);
+
+        return $homeUrl . '/search' . ($urlParams ? '?' . http_build_query($urlParams) : '');
     }
 }
