@@ -13,7 +13,7 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import MarketSentiment from '@/Website/Components/PropertyDetail/MarketSentiment';
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
 
-export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData, aiDescription: initialAiDescription }) {
+export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData, aiDescription: initialAiDescription, metaTitle, metaDescription }) {
   const { globalWebsite } = usePage().props;
   const effectiveWebsite = website || globalWebsite;
 
@@ -316,7 +316,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
   if (isLoading) {
     return (
       <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website} blueHeader={true}>
-        <Head title={`Loading Property... - ${siteName}`} />
+        <Head title={metaTitle || `Loading Property... - ${siteName}`}>
+          {metaDescription && <meta name="description" content={metaDescription} />}
+        </Head>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="inline-block w-16 h-16 border-4 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -329,7 +331,9 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
 
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} auth={auth} website={website} blueHeader={true}>
-      <Head title={`${displayData.address} - Property Details - ${siteName}`} />
+      <Head title={metaTitle || `${displayData.address} - Property Details - ${siteName}`}>
+        {metaDescription && <meta name="description" content={metaDescription} />}
+      </Head>
       <div className="idx mx-auto overflow-hidden bg-primary pb-24 md:pb-0">
         {/* Keep edge padding through tablet/small-desktop; only drop it at
             xl where the 1280px design width fits the viewport exactly. */}

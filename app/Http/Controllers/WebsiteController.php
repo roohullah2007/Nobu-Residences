@@ -2035,8 +2035,95 @@ class WebsiteController extends Controller
             'propertyData' => $propertyData,
             'propertyImages' => $propertyImages,
             'buildingData' => $buildingData,
-            'aiDescription' => $aiDescription
+            'aiDescription' => $aiDescription,
+            'metaTitle' => $this->buildPropertyMetaTitle($propertyData, $buildingData),
+            'metaDescription' => $this->buildPropertyMetaDescription($propertyData, $buildingData),
         ]));
+    }
+
+    /**
+     * SEO title for a listing page (applies to every landing site):
+     *   "373 Front Street #208 | For Sale | MLS C13582594 | The Well"
+     * The building segment is omitted when the listing has no matched
+     * building — per the client's conditional spec.
+     */
+    private function buildPropertyMetaTitle(?array $property, ?array $building): ?string
+    {
+        $street = $this->propertyStreetLabel($property);
+        if ($street === null) {
+            return null;
+        }
+
+        $addressLabel = !empty($property['unitNumber'])
+            ? $street . ' #' . $property['unitNumber']
+            : $street;
+
+        $parts = [$addressLabel, $property['transactionType'] ?? 'For Sale'];
+        if (!empty($property['listingKey'])) {
+            $parts[] = 'MLS ' . $property['listingKey'];
+        }
+        if (!empty($building['name'])) {
+            $parts[] = $building['name'];
+        }
+
+        return implode(' | ', $parts);
+    }
+
+    /**
+     * SEO description for a listing page:
+     *   "2-bed, 2-bath For Sale at 373 Front Street, Toronto M5V 2A6.
+     *    View photos, pricing, amenities and more at The Well."
+     * The "at {building}" tail drops to a plain "and more." when the
+     * listing has no matched building.
+     */
+    private function buildPropertyMetaDescription(?array $property, ?array $building): ?string
+    {
+        $street = $this->propertyStreetLabel($property);
+        if ($street === null) {
+            return null;
+        }
+
+        $bedBath = implode(', ', array_filter([
+            ($property['bedrooms'] ?? 0) > 0 ? $property['bedrooms'] . '-bed' : null,
+            ($property['bathrooms'] ?? 0) > 0 ? $property['bathrooms'] . '-bath' : null,
+        ]));
+
+        $location = trim($street
+            . (!empty($property['city']) ? ', ' . $property['city'] : '')
+            . (!empty($property['postalCode']) ? ' ' . $property['postalCode'] : ''));
+
+        $lead = trim(implode(' ', array_filter([$bedBath, $property['transactionType'] ?? 'For Sale'])));
+
+        $tail = !empty($building['name'])
+            ? 'View photos, pricing, amenities and more at ' . $building['name'] . '.'
+            : 'View photos, pricing, amenities and more.';
+
+        return "{$lead} at {$location}. {$tail}";
+    }
+
+    /**
+     * "373 Front Street" — the street line without the unit, from either
+     * the Repliers-formatted or backend-property data shape.
+     */
+    private function propertyStreetLabel(?array $property): ?string
+    {
+        if (!$property) {
+            return null;
+        }
+
+        $street = trim(implode(' ', array_filter([
+            $property['streetNumber'] ?? $property['StreetNumber'] ?? '',
+            $property['streetName'] ?? $property['StreetName'] ?? '',
+            $property['streetSuffix'] ?? $property['StreetSuffix'] ?? '',
+        ])));
+
+        // Fall back to the display address, stripping a leading "208 - "
+        // unit prefix so the street reads clean.
+        if ($street === '') {
+            $street = trim(preg_replace('/^[A-Za-z0-9]+\s*-\s*/', '', (string) ($property['address'] ?? '')));
+        }
+
+        return $street !== '' ? $street : null;
     }
     
     /**
