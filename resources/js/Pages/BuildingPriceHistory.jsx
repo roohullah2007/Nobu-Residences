@@ -295,7 +295,7 @@ export default function BuildingPriceHistory({
                     return (
                       <div
                         key={`${entry.mlsNumber || 'h'}-${idx}`}
-                        className="flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
+                        className="flex flex-wrap items-center gap-x-3 gap-y-2 md:flex-nowrap md:gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
                       >
                         {/* Thumbnail */}
                         <div className="flex-shrink-0">
@@ -303,11 +303,11 @@ export default function BuildingPriceHistory({
                             <img
                               src={entry.image}
                               alt={entry.address || 'Unit'}
-                              className="w-[88px] h-[72px] object-cover rounded-lg"
+                              className="w-[72px] h-[60px] md:w-[88px] md:h-[72px] object-cover rounded-lg"
                               onError={(e) => (e.target.style.display = 'none')}
                             />
                           ) : (
-                            <div className="w-[88px] h-[72px] bg-gray-200 rounded-lg flex items-center justify-center">
+                            <div className="w-[72px] h-[60px] md:w-[88px] md:h-[72px] bg-gray-200 rounded-lg flex items-center justify-center">
                               <span className="text-gray-400 text-[10px] text-center px-1">
                                 No image
                               </span>
@@ -316,7 +316,7 @@ export default function BuildingPriceHistory({
                         </div>
 
                         {/* Unit info */}
-                        <div className="flex flex-col min-w-[160px]">
+                        <div className="flex flex-col flex-1 min-w-0 md:flex-initial md:min-w-[160px]">
                           <div className="text-sm font-bold text-[#293056]">
                             {entry.unitNumber ? `Unit ${entry.unitNumber}` : (entry.address || '—')}
                           </div>
@@ -335,7 +335,7 @@ export default function BuildingPriceHistory({
                         </div>
 
                         {/* Date column */}
-                        <div className="flex flex-col min-w-[110px]">
+                        <div className="flex flex-col flex-shrink-0 items-end text-right md:items-start md:text-left md:min-w-[110px]">
                           <div className="text-sm font-semibold text-[#293056]">
                             {formatDate(eventDate) || '—'}
                           </div>
@@ -344,8 +344,9 @@ export default function BuildingPriceHistory({
                           </div>
                         </div>
 
-                        {/* Status + listed-for line */}
-                        <div className="flex-1 flex flex-col min-w-0">
+                        {/* Status + listed-for line — wraps to its own full-width
+                            line on mobile so the row never overflows the card */}
+                        <div className="w-full md:w-auto md:flex-1 flex flex-col min-w-0">
                           <div className={`font-bold text-sm ${status.cls}`}>{status.label}</div>
                           <div className="text-sm text-gray-600 mt-0.5 truncate">
                             {wasSold ? 'Sold for ' : 'Listed for '}
