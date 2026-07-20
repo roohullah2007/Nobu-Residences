@@ -2,8 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Models\EmailTemplate;
 use App\Models\Website;
 use App\Support\EmailBranding;
+use App\Support\EmailMergeTags;
 use App\Support\ListingEmailCard;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -41,18 +43,19 @@ class FavouriteListingUpdateNotification extends Notification
     {
         $branding = EmailBranding::forWebsite($this->website);
         $agent = EmailBranding::agentForWebsite($this->website);
-        $siteName = $branding['siteName'];
-        $count = count($this->updates);
-        $listingWord = $count === 1 ? 'listing' : 'listings';
+
+        $template = EmailTemplate::resolve('favourite_update', $this->website?->id);
+        $values = $this->mergeValues($notifiable, $branding, $agent);
+        $rawValues = ['site_link' => $this->siteLinkHtml($branding['homeUrl'])];
 
         return (new MailMessage)
-            ->subject("Updates on your favourite {$listingWord} — {$siteName}")
+            ->subject(EmailMergeTags::apply($template['subject'], $values))
             ->view('emails.listing-alert', [
-                'siteName' => $siteName,
+                'siteName' => $branding['siteName'],
                 'logoUrl' => $branding['logoUrl'],
                 'agent' => $agent,
-                'headline' => 'Updates on your favourite listings.',
-                'introHtml' => $this->introHtml($notifiable, $branding['homeUrl'], $count, $listingWord),
+                'headline' => EmailMergeTags::apply($template['headline'], $values),
+                'introHtml' => EmailMergeTags::applyHtml($template['intro'], $values, $rawValues),
                 'sectionTitle' => 'Updated Properties',
                 'cards' => array_map(
                     fn (array $listing) => ListingEmailCard::make($listing, $agent, $branding['homeUrl']),
@@ -65,13 +68,31 @@ class FavouriteListingUpdateNotification extends Notification
             ]);
     }
 
-    protected function introHtml(object $notifiable, string $homeUrl, int $count, string $listingWord): string
+    /**
+     * The per-recipient values every %merge_tag% in the admin-edited
+     * template resolves to.
+     */
+    protected function mergeValues(object $notifiable, array $branding, array $agent): array
     {
-        $firstName = explode(' ', trim((string) $notifiable->name), 2)[0] ?: 'there';
-        $host = parse_url($homeUrl, PHP_URL_HOST) ?: $homeUrl;
-        $siteLink = '<a href="' . $homeUrl . '" style="color:#293056; text-decoration:underline; font-weight:600;">' . e($host) . '</a>';
+        $nameParts = explode(' ', trim((string) $notifiable->name), 2);
 
-        return 'Hi ' . e($firstName) . ", here's what changed on {$count} {$listingWord} you favourited at {$siteLink}. "
-            . 'Each card shows the update below its details. Feel free to contact me should you have any questions.';
+        return [
+            'first_name' => $nameParts[0] ?: 'there',
+            'last_name' => $nameParts[1] ?? '',
+            'full_name' => trim((string) $notifiable->name),
+            'site_name' => $branding['siteName'],
+            'site_domain' => parse_url($branding['homeUrl'], PHP_URL_HOST) ?: $branding['homeUrl'],
+            'listing_count' => count($this->updates),
+            'agent_name' => $agent['name'],
+            'agent_phone' => $agent['phone'],
+            'agent_email' => $agent['email'],
+        ];
+    }
+
+    protected function siteLinkHtml(string $homeUrl): string
+    {
+        $host = parse_url($homeUrl, PHP_URL_HOST) ?: $homeUrl;
+
+        return '<a href="' . $homeUrl . '" style="color:#293056; text-decoration:underline; font-weight:600;">' . e($host) . '</a>';
     }
 }

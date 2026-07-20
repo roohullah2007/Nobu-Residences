@@ -2,8 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Models\EmailTemplate;
 use App\Models\SavedSearch;
 use App\Support\EmailBranding;
+use App\Support\EmailMergeTags;
 use App\Support\ListingEmailCard;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -45,17 +47,21 @@ class SavedSearchAlertNotification extends Notification
     {
         $branding = EmailBranding::forWebsite($this->savedSearch->website);
         $agent = EmailBranding::agentForWebsite($this->savedSearch->website);
-        $searchName = $this->savedSearch->name ?? 'Your Saved Search';
         $shown = array_slice($this->listings, 0, self::MAX_LISTINGS_SHOWN);
 
+        $template = EmailTemplate::resolve('saved_search_alert', $this->savedSearch->website_id);
+        $values = $this->mergeValues($notifiable, $branding, $agent);
+        $rawValues = ['site_link' => $this->siteLinkHtml($branding['homeUrl'])];
+
         return (new MailMessage)
-            ->subject("New Listings Match \"{$searchName}\" - {$this->totalCount} Properties Found")
+            ->subject(EmailMergeTags::apply($template['subject'], $values))
             ->view('emails.listing-alert', [
                 'siteName' => $branding['siteName'],
                 'logoUrl' => $branding['logoUrl'],
                 'agent' => $agent,
-                'headline' => 'Handpicked listings just for you.',
-                'introHtml' => $this->introHtml($branding['homeUrl'], $searchName),
+                'headline' => EmailMergeTags::apply($template['headline'], $values),
+                'introHtml' => EmailMergeTags::applyHtml($template['intro'], $values, $rawValues)
+                    . '<br><span style="color:#6b7280; font-size:13px;">Your search: "' . e($values['search_name']) . '" — ' . e($values['search_criteria']) . '</span>',
                 'sectionTitle' => 'New or Updated Properties',
                 'cards' => array_map(
                     fn (array $listing) => ListingEmailCard::make($listing, $agent, $branding['homeUrl']),
@@ -91,18 +97,35 @@ class SavedSearchAlertNotification extends Notification
     }
 
     /**
-     * The thank-you box: alert frequency + site link + the saved criteria.
+     * The per-recipient values every %merge_tag% in the admin-edited
+     * template resolves to.
      */
-    protected function introHtml(string $homeUrl, string $searchName): string
+    protected function mergeValues($notifiable, array $branding, array $agent): array
+    {
+        $nameParts = explode(' ', trim((string) $notifiable->name), 2);
+
+        return [
+            'first_name' => $nameParts[0] ?: 'there',
+            'last_name' => $nameParts[1] ?? '',
+            'full_name' => trim((string) $notifiable->name),
+            'site_name' => $branding['siteName'],
+            'site_domain' => parse_url($branding['homeUrl'], PHP_URL_HOST) ?: $branding['homeUrl'],
+            'search_name' => $this->savedSearch->name ?? 'Your Saved Search',
+            'search_criteria' => $this->savedSearch->formatted_criteria,
+            'listing_count' => $this->totalCount,
+            'frequency' => ucfirst($this->getFrequencyText()),
+            'building_name' => $this->savedSearch->building?->name ?? '',
+            'agent_name' => $agent['name'],
+            'agent_phone' => $agent['phone'],
+            'agent_email' => $agent['email'],
+        ];
+    }
+
+    protected function siteLinkHtml(string $homeUrl): string
     {
         $host = parse_url($homeUrl, PHP_URL_HOST) ?: $homeUrl;
-        $frequency = ucfirst($this->getFrequencyText());
-        $siteLink = '<a href="' . $homeUrl . '" style="color:#293056; text-decoration:underline; font-weight:600;">' . e($host) . '</a>';
 
-        return "Thank you for registering for the {$frequency} Listings Alert at {$siteLink}. "
-            . "I've put together the list below to help you find new listings based on your specific Real Estate needs. "
-            . 'Feel free to contact me should you have any questions.'
-            . '<br><span style="color:#6b7280; font-size:13px;">Your search: "' . e($searchName) . '" — ' . e($this->savedSearch->formatted_criteria) . '</span>';
+        return '<a href="' . $homeUrl . '" style="color:#293056; text-decoration:underline; font-weight:600;">' . e($host) . '</a>';
     }
 
     /**

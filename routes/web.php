@@ -452,6 +452,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Saved searches / email alert stats
     Route::get('saved-searches', [\App\Http\Controllers\Admin\SavedSearchAdminController::class, 'index'])->name('saved-searches.index');
 
+    // Personalizable email templates (subject/headline/intro with %merge_tags%)
+    Route::get('email-templates', [\App\Http\Controllers\Admin\EmailTemplateController::class, 'index'])->name('email-templates.index');
+    Route::put('email-templates', [\App\Http\Controllers\Admin\EmailTemplateController::class, 'update'])->name('email-templates.update');
+
     // Maintenance Fee Amenity Management routes
     Route::post('api/maintenance-fee-amenities', [\App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class, 'quickStore'])->name('api.maintenance-fee-amenities.store');
     Route::resource('maintenance-fee-amenities', \App\Http\Controllers\Admin\MaintenanceFeeAmenityController::class);

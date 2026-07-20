@@ -52,6 +52,14 @@ class SavedSearch extends Model
     }
 
     /**
+     * Get the building when this search is a building alert subscription
+     */
+    public function building()
+    {
+        return $this->belongsTo(Building::class);
+    }
+
+    /**
      * Scope for searches with email alerts enabled
      */
     public function scopeWithEmailAlerts($query)
