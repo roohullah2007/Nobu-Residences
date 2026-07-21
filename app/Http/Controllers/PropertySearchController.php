@@ -524,6 +524,15 @@ class PropertySearchController extends Controller
             if (!empty($streetNumbers)) {
                 $apiParams['streetNumber'] = array_values($streetNumbers);
                 $apiParams['streetName'] = array_values($streetNames);
+                // Repliers ORs the streetNumber and streetName arrays
+                // INDEPENDENTLY — a multi-street building like The Well
+                // (455-480 Front + 455 Wellington) therefore cross-matches
+                // strays such as "468 Wellington" (468 from the Front range,
+                // Wellington from the name set). The exact number|name pairs
+                // travel along under an internal key so fetch paths can
+                // post-filter listings back to the real addresses; callers
+                // MUST strip it before hitting the Repliers API.
+                $apiParams['_streetAddressPairs'] = array_keys($streetNumbers);
                 // Drop the generic free-text search so it doesn't narrow
                 // the address-scoped query down further.
                 unset($apiParams['search']);
@@ -816,12 +825,51 @@ class PropertySearchController extends Controller
 
         $apiParams = $this->buildRepliersListingsParams($params);
 
+        // Address-scoped searches carry the exact number|name pairs (see
+        // buildRepliersListingsParams): Repliers cross-matches its OR'd
+        // arrays, so we fetch the (small) full result set in one call,
+        // post-filter to the real addresses, and paginate locally — the
+        // total then matches exactly what the building actually has.
+        $addressPairs = $apiParams['_streetAddressPairs'] ?? null;
+        unset($apiParams['_streetAddressPairs']);
+
+        $requestedPage = (int) ($params['page'] ?? 1);
+        $requestedPageSize = (int) ($params['page_size'] ?? 16);
+        if ($addressPairs) {
+            $apiParams['pageNum'] = 1;
+            $apiParams['resultsPerPage'] = 100;
+        }
+
         // Call Repliers API
         $repliersApi = app(\App\Services\RepliersApiService::class);
         $result = $repliersApi->searchListings($apiParams);
 
         $listings = $result['listings'] ?? [];
         $totalCount = $result['count'] ?? 0;
+
+        if ($addressPairs) {
+            $pairSet = array_flip($addressPairs);
+            $matchesPair = function (array $listing) use ($pairSet): bool {
+                $address = $listing['address'] ?? [];
+                $num = trim((string) ($address['streetNumber'] ?? ''));
+                // Repliers streetName excludes the suffix/direction already.
+                $name = strtolower(trim((string) ($address['streetName'] ?? '')));
+                return isset($pairSet[$num . '|' . $name]);
+            };
+
+            if ($totalCount <= 100) {
+                $listings = array_values(array_filter($listings, $matchesPair));
+                $totalCount = count($listings);
+                $listings = array_slice($listings, ($requestedPage - 1) * $requestedPageSize, $requestedPageSize);
+            } else {
+                // Too many to fetch at once (never a single building) —
+                // refetch the requested page and only drop the strays on it.
+                $apiParams['pageNum'] = $requestedPage;
+                $apiParams['resultsPerPage'] = $requestedPageSize;
+                $result = $repliersApi->searchListings($apiParams);
+                $listings = array_values(array_filter($result['listings'] ?? [], $matchesPair));
+            }
+        }
 
         // Transform Repliers listings to the format the frontend expects
         $formattedProperties = [];
@@ -2657,6 +2705,8 @@ class PropertySearchController extends Controller
             $searchParams['page_size'] = 1;
 
             $apiParams = $this->buildRepliersListingsParams($searchParams);
+            // Internal pair metadata — never send it to the Repliers API.
+            unset($apiParams['_streetAddressPairs']);
 
             // Repliers filters spatially via either (lat,long,radius) or `map`
             // polygons. We use the viewport so clusters reflect the visible
