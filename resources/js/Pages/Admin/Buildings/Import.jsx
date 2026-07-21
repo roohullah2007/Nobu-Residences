@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import BuildingImportHistory from '@/Components/Admin/BuildingImportHistory';
 import { csrfHeaders } from '@/utils/csrf';
 
 // Upload the CSV in parts small enough to always clear php.ini's
@@ -9,6 +10,11 @@ import { csrfHeaders } from '@/utils/csrf';
 const UPLOAD_CHUNK_BYTES = 1.5 * 1024 * 1024;
 const PROCESS_RETRY_MS = 2000;
 const MAX_PROCESS_RETRIES = 3;
+// The server keeps import progress cached under the token for 12h, but the
+// token itself only lived in component state — a reload lost it and the
+// wizard silently reset to step 1. Persisting it here lets a reload land
+// back on the live progress (resuming the import) or the finished results.
+const RESUME_STORAGE_KEY = 'admin-buildings-import-token';
 
 // Header names commonly seen in spreadsheets, normalized → target field.
 const HEADER_ALIASES = {
@@ -85,7 +91,7 @@ const downloadSampleCsv = () => {
     URL.revokeObjectURL(url);
 };
 
-export default function BuildingsImport({ importableFields = {} }) {
+export default function BuildingsImport({ importableFields = {}, history = [] }) {
     // step: 'upload' → 'map' → 'importing' → 'done'
     const [step, setStep] = useState('upload');
     const [isBusy, setIsBusy] = useState(false);
@@ -101,6 +107,51 @@ export default function BuildingsImport({ importableFields = {} }) {
     const [result, setResult] = useState(null);
     const [progress, setProgress] = useState(null); // { status, total, processed, created, updated, skipped, errors }
     const pollTimerRef = useRef(null);
+
+    // Restore the previous import after a reload: an in-flight import resumes
+    // processing right where it stopped, a finished one shows its results.
+    useEffect(() => {
+        const token = localStorage.getItem(RESUME_STORAGE_KEY);
+        if (!token) return undefined;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const response = await fetch(route('admin.buildings.import.progress', token), {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (cancelled) return;
+                if (!response.ok) {
+                    // Expired (>12h) or unknown token — nothing to restore.
+                    localStorage.removeItem(RESUME_STORAGE_KEY);
+                    return;
+                }
+                const json = await response.json();
+                if (cancelled) return;
+                if (json.status === 'finished') {
+                    setProgress(json);
+                    setResult(json);
+                    setStep('done');
+                    return;
+                }
+                if (json.status === 'failed') {
+                    localStorage.removeItem(RESUME_STORAGE_KEY);
+                    setErrorMessage(json.message ?? 'Your previous import failed.');
+                    return;
+                }
+                // queued / processing — jump back to the importing step; the
+                // processing effect below picks it up and drives it onward.
+                setUpload({ token, headers: [], preview: [], total_rows: json.total ?? 0 });
+                setProgress(json);
+                setStep('importing');
+            } catch {
+                // Network blip — keep the token so the next load can retry.
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const postJson = async (url, options = {}) => {
         const response = await fetch(url, {
@@ -155,7 +206,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                 throw new Error('The selected file is empty.');
             }
             const parsed = await uploadFileInChunks(file);
-            setUpload(parsed);
+            setUpload({ ...parsed, filename: file.name });
             const guessed = {};
             parsed.headers.forEach((header, index) => {
                 const field = guessField(header);
@@ -200,10 +251,12 @@ export default function BuildingsImport({ importableFields = {} }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     token: upload.token,
+                    filename: upload.filename ?? null,
                     mapping,
                     duplicate_action: duplicateAction,
                 }),
             });
+            localStorage.setItem(RESUME_STORAGE_KEY, upload.token);
             setProgress({
                 status: 'queued',
                 total: json.total ?? upload.total_rows,
@@ -230,6 +283,9 @@ export default function BuildingsImport({ importableFields = {} }) {
 
         let cancelled = false;
         let retries = 0;
+        // A restored session has no headers/mapping to show, so fall back to
+        // the upload step instead of an empty mapping table.
+        const failureStep = upload.headers?.length ? 'map' : 'upload';
 
         const processNextChunk = async () => {
             if (cancelled) return;
@@ -244,8 +300,9 @@ export default function BuildingsImport({ importableFields = {} }) {
                     return;
                 }
                 if (json.status === 'failed') {
+                    localStorage.removeItem(RESUME_STORAGE_KEY);
                     setErrorMessage(json.message ?? 'Import failed.');
-                    setStep('map');
+                    setStep(failureStep);
                     return;
                 }
                 pollTimerRef.current = setTimeout(processNextChunk, 250);
@@ -255,7 +312,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                 retries += 1;
                 if (retries >= MAX_PROCESS_RETRIES) {
                     setErrorMessage(err.message);
-                    setStep('map');
+                    setStep(failureStep);
                     return;
                 }
                 pollTimerRef.current = setTimeout(processNextChunk, PROCESS_RETRY_MS);
@@ -271,12 +328,40 @@ export default function BuildingsImport({ importableFields = {} }) {
 
     const resetWizard = () => {
         clearTimeout(pollTimerRef.current);
+        localStorage.removeItem(RESUME_STORAGE_KEY);
         setStep('upload');
         setUpload(null);
         setMapping({});
         setResult(null);
         setProgress(null);
         setErrorMessage('');
+    };
+
+    // Refresh the history rows once an import lands on the results step, so
+    // the just-finished run shows its final counts without a manual reload.
+    useEffect(() => {
+        if (step === 'done') {
+            router.reload({ only: ['history'] });
+        }
+    }, [step]);
+
+    // Continue an interrupted import from the history table: the processing
+    // effect drives it onward from the exact row the server stopped at.
+    const handleResume = (row) => {
+        localStorage.setItem(RESUME_STORAGE_KEY, row.token);
+        setErrorMessage('');
+        setResult(null);
+        setUpload({ token: row.token, headers: [], preview: [], total_rows: row.total_rows, filename: row.filename });
+        setProgress({
+            status: 'processing',
+            total: row.total_rows,
+            processed: row.processed,
+            created: row.created_count,
+            updated: row.updated_count,
+            skipped: row.skipped_count,
+            errors: row.errors ?? {},
+        });
+        setStep('importing');
     };
 
     return (
@@ -462,6 +547,7 @@ export default function BuildingsImport({ importableFields = {} }) {
                                 <h2 className="text-sm font-semibold text-gray-900">Importing</h2>
                                 <p className="text-xs text-gray-500">
                                     Buildings are processed gradually in batches. Keep this page open — it drives the import and shows live progress.
+                                    If the page reloads, the import picks up right where it left off.
                                 </p>
                             </div>
                         </div>
@@ -539,6 +625,12 @@ export default function BuildingsImport({ importableFields = {} }) {
                         </div>
                     </div>
                 )}
+
+                <BuildingImportHistory
+                    history={history}
+                    onResume={handleResume}
+                    disabled={isBusy || step === 'importing'}
+                />
             </div>
         </AdminLayout>
     );

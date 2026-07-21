@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BuildingImport;
 use App\Services\BuildingCsvImportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,7 +52,42 @@ class BuildingImportController extends Controller
     {
         return Inertia::render('Admin/Buildings/Import', [
             'importableFields' => BuildingCsvImportService::IMPORTABLE_FIELDS,
+            'history' => $this->historyRows(),
         ]);
+    }
+
+    /**
+     * Recent imports for the wizard's Import History section. A running
+     * import is resumable only while its progress cache and parked CSV are
+     * both still around (12h) — otherwise it surfaces as interrupted.
+     */
+    private function historyRows(): array
+    {
+        return BuildingImport::query()
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(fn (BuildingImport $import) => [
+                'id' => $import->id,
+                'token' => $import->token,
+                'filename' => $import->filename,
+                'status' => $import->status,
+                'duplicate_action' => $import->duplicate_action,
+                'total_rows' => $import->total_rows,
+                'processed' => $import->processed,
+                'created_count' => $import->created_count,
+                'updated_count' => $import->updated_count,
+                'skipped_count' => $import->skipped_count,
+                'error_count' => $import->error_count,
+                'errors' => $import->errors ?? [],
+                'message' => $import->message,
+                'started_at' => $import->started_at?->toIso8601String(),
+                'finished_at' => $import->finished_at?->toIso8601String(),
+                'resumable' => $import->isRunning()
+                    && Cache::has(self::progressKey($import->token))
+                    && Storage::exists(self::STORAGE_DIR . '/' . $import->token . '.csv'),
+            ])
+            ->all();
     }
 
     /**
@@ -143,6 +179,7 @@ class BuildingImportController extends Controller
     {
         $validated = $request->validate([
             'token' => 'required|uuid',
+            'filename' => 'nullable|string|max:255',
             'mapping' => 'required|array|min:1',
             'mapping.*' => 'string',
             'duplicate_action' => 'required|in:skip,update',
@@ -174,6 +211,26 @@ class BuildingImportController extends Controller
             'mapping' => $mapping,
             'duplicate_action' => $validated['duplicate_action'],
         ]);
+
+        // Permanent history record — outlives the 12h progress cache.
+        BuildingImport::updateOrCreate(
+            ['token' => $validated['token']],
+            [
+                'filename' => $validated['filename'] ?? null,
+                'status' => BuildingImport::STATUS_QUEUED,
+                'duplicate_action' => $validated['duplicate_action'],
+                'total_rows' => $parsed['total_rows'],
+                'processed' => 0,
+                'created_count' => 0,
+                'updated_count' => 0,
+                'skipped_count' => 0,
+                'error_count' => 0,
+                'errors' => [],
+                'message' => null,
+                'started_at' => now(),
+                'finished_at' => null,
+            ]
+        );
 
         return response()->json([
             'queued' => true,
@@ -218,6 +275,7 @@ class BuildingImportController extends Controller
                 $progress['status'] = 'failed';
                 $progress['message'] = 'Upload expired before the import finished.';
                 $this->storeProgress($token, $progress);
+                $this->syncHistory($token, $progress);
                 return response()->json($this->publicProgress($progress));
             }
 
@@ -253,6 +311,7 @@ class BuildingImportController extends Controller
             }
 
             $this->storeProgress($token, $progress);
+            $this->syncHistory($token, $progress);
         } catch (\Throwable $e) {
             Log::error('Building CSV import chunk failed', [
                 'token' => $token,
@@ -262,6 +321,7 @@ class BuildingImportController extends Controller
             $progress['status'] = 'failed';
             $progress['message'] = $e->getMessage();
             $this->storeProgress($token, $progress);
+            $this->syncHistory($token, $progress);
             Storage::delete(self::STORAGE_DIR . '/' . $token . '.csv');
         } finally {
             $lock->release();
@@ -290,6 +350,25 @@ class BuildingImportController extends Controller
     private function storeProgress(string $token, array $progress): void
     {
         Cache::put(self::progressKey($token), $progress, now()->addHours(self::PROGRESS_TTL_HOURS));
+    }
+
+    /** Mirror cache progress onto the permanent history row (one write per chunk). */
+    private function syncHistory(string $token, array $progress): void
+    {
+        $isDone = in_array($progress['status'], ['finished', 'failed'], true);
+
+        BuildingImport::where('token', $token)->update([
+            'status' => $progress['status'] === 'queued' ? BuildingImport::STATUS_PROCESSING : $progress['status'],
+            'total_rows' => $progress['total'] ?? 0,
+            'processed' => $progress['processed'] ?? 0,
+            'created_count' => $progress['created'] ?? 0,
+            'updated_count' => $progress['updated'] ?? 0,
+            'skipped_count' => $progress['skipped'] ?? 0,
+            'error_count' => count($progress['errors'] ?? []),
+            'errors' => $progress['errors'] ?? [],
+            'message' => $progress['message'] ?? null,
+            'finished_at' => $isDone ? now() : null,
+        ]);
     }
 
     /** Progress payload without the internal mapping/duplicate-action state. */
