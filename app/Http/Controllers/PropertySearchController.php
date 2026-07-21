@@ -485,7 +485,6 @@ class PropertySearchController extends Controller
         if (!empty($rawAddresses)) {
             $streetNumbers = [];
             $streetNames = [];
-            $streetDirections = [];
             foreach ($rawAddresses as $addr) {
                 if (!preg_match('/^(\d+)\s+(.+)/', trim($addr), $m)) {
                     continue;
@@ -495,17 +494,16 @@ class PropertySearchController extends Controller
                 // Strip ", Toronto" / ", ON M5V …" first so the suffix and
                 // direction anchors below can hit the end-of-string.
                 $rest = trim(preg_split('/\s*,/', $rest)[0] ?? $rest);
-                // Pull the trailing direction off and capture it — Repliers
-                // stores direction as a separate field (`streetDirection`)
-                // and returns zero hits when "W" / "East" is glued onto
-                // streetName (e.g. "470 Front St W" → Repliers wants
-                // streetName=Front + streetDirection=W).
-                $direction = null;
-                if (preg_match('/\s+(North|South|East|West|N|S|E|W|NE|NW|SE|SW)\.?$/i', $rest, $dm)) {
-                    $direction = strtoupper(substr($dm[1], 0, 1));
-                    if (in_array(strtoupper($dm[1]), ['NE', 'NW', 'SE', 'SW'], true)) {
-                        $direction = strtoupper($dm[1]);
-                    }
+                // Strip the trailing direction from streetName ("470 Front
+                // St W" → streetName=Front) — Repliers returns zero hits when
+                // "W" / "East" stays glued on. The direction is deliberately
+                // NOT passed as a streetDirection filter: Repliers ANDs it,
+                // and many listings carry no direction in their MLS record
+                // (The Well's "455 Front St W" units are all stored
+                // direction-less), so filtering on it silently dropped 9 of
+                // the building's 26 for-sale units. streetNumber + streetName
+                // + city is precise enough.
+                if (preg_match('/\s+(North|South|East|West|N|S|E|W|NE|NW|SE|SW)\.?$/i', $rest)) {
                     $rest = preg_replace('/\s+(North|South|East|West|N|S|E|W|NE|NW|SE|SW)\.?$/i', '', $rest);
                 }
                 $name = preg_replace(
@@ -517,27 +515,15 @@ class PropertySearchController extends Controller
                 if ($name === '') {
                     continue;
                 }
-                $key = $num . '|' . strtolower($name) . '|' . ($direction ?? '');
+                $key = $num . '|' . strtolower($name);
                 if (isset($streetNumbers[$key])) continue;
                 $streetNumbers[$key] = $num;
                 $streetNames[$key] = $name;
-                if ($direction !== null) {
-                    $streetDirections[$key] = $direction;
-                }
             }
 
             if (!empty($streetNumbers)) {
                 $apiParams['streetNumber'] = array_values($streetNumbers);
                 $apiParams['streetName'] = array_values($streetNames);
-                // Only pass streetDirection when every parsed address agrees
-                // on a single direction — Repliers ANDs the streetDirection
-                // filter against the streetName/streetNumber arrays, so
-                // mixing "W" buildings with no-direction ones in the same
-                // request would drop the no-direction matches.
-                if (!empty($streetDirections) && count(array_unique($streetDirections)) === 1
-                    && count($streetDirections) === count($streetNumbers)) {
-                    $apiParams['streetDirection'] = array_values($streetDirections)[0];
-                }
                 // Drop the generic free-text search so it doesn't narrow
                 // the address-scoped query down further.
                 unset($apiParams['search']);
