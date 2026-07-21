@@ -10,6 +10,13 @@ import { csrfHeaders } from '@/utils/csrf';
 const UPLOAD_CHUNK_BYTES = 1.5 * 1024 * 1024;
 const PROCESS_RETRY_MS = 2000;
 const MAX_PROCESS_RETRIES = 3;
+const POLL_MS = 250;
+// While another request holds the server-side chunk lock, responses come
+// back without advancing — poll gently instead of hammering every 250ms.
+const NO_ADVANCE_POLL_MS = 1500;
+// No forward progress for this long means the server keeps dying mid-chunk
+// (timeout/crash) — surface an error instead of spinning forever.
+const STALL_TIMEOUT_MS = 3 * 60 * 1000;
 // The server keeps import progress cached under the token for 12h, but the
 // token itself only lived in component state — a reload lost it and the
 // wizard silently reset to step 1. Persisting it here lets a reload land
@@ -283,6 +290,8 @@ export default function BuildingsImport({ importableFields = {}, history = [] })
 
         let cancelled = false;
         let retries = 0;
+        let lastProcessed = -1;
+        let lastAdvanceAt = Date.now();
         // A restored session has no headers/mapping to show, so fall back to
         // the upload step instead of an empty mapping table.
         const failureStep = upload.headers?.length ? 'map' : 'upload';
@@ -305,7 +314,16 @@ export default function BuildingsImport({ importableFields = {}, history = [] })
                     setStep(failureStep);
                     return;
                 }
-                pollTimerRef.current = setTimeout(processNextChunk, 250);
+                const hasAdvanced = json.processed > lastProcessed;
+                if (hasAdvanced) {
+                    lastProcessed = json.processed;
+                    lastAdvanceAt = Date.now();
+                } else if (Date.now() - lastAdvanceAt > STALL_TIMEOUT_MS) {
+                    setErrorMessage('The import has not advanced in several minutes — the server keeps interrupting it. Reload this page to resume from where it stopped.');
+                    setStep(failureStep);
+                    return;
+                }
+                pollTimerRef.current = setTimeout(processNextChunk, hasAdvanced ? POLL_MS : NO_ADVANCE_POLL_MS);
             } catch (err) {
                 if (cancelled) return;
                 // Ride out transient network blips before giving up.

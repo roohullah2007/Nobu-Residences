@@ -152,9 +152,15 @@ class BuildingCsvImportService
      * @param string $duplicateAction self::DUPLICATE_SKIP | self::DUPLICATE_UPDATE
      * @param int $offset Number of non-blank data rows already processed.
      * @param int $limit Maximum number of rows to process in this call.
+     * @param float|null $deadlineAt microtime(true) timestamp to stop at. A
+     *   fixed row count per request dies on slow servers (the request runs
+     *   into the PHP/gateway timeout before the chunk's progress is ever
+     *   saved, so the import looks stuck at 0) — the time budget guarantees
+     *   every request returns well before any timeout, with at least one row
+     *   processed so the import always advances.
      * @return array{processed: int, created: int, updated: int, skipped: int, errors: array<int, string>, done: bool}
      */
-    public function importChunk(string $path, array $mapping, string $duplicateAction, int $offset, int $limit): array
+    public function importChunk(string $path, array $mapping, string $duplicateAction, int $offset, int $limit, ?float $deadlineAt = null): array
     {
         $mapping = $this->validateMapping($mapping);
 
@@ -179,6 +185,10 @@ class BuildingCsvImportService
                 continue;
             }
             if ($processed >= $limit) {
+                $done = false;
+                break;
+            }
+            if ($deadlineAt !== null && $processed > 0 && microtime(true) >= $deadlineAt) {
                 $done = false;
                 break;
             }

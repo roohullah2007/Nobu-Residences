@@ -33,6 +33,16 @@ class BuildingImportController extends Controller
     private const STORAGE_DIR = 'building-imports';
     private const MAX_CSV_BYTES = 25 * 1024 * 1024;
     private const ROWS_PER_CHUNK = 200;
+    // Each process() request stops importing after this many seconds and
+    // returns partial progress. A fixed 200-row chunk exceeded slow servers'
+    // PHP/gateway timeouts: the request died before progress was saved, the
+    // retry hit the still-held lock and read "0 rows" forever — the import
+    // looked permanently stuck at 0.
+    private const CHUNK_TIME_BUDGET_SECONDS = 8;
+    // Must outlive the time budget (+ slowest single row) but stay short:
+    // when a request dies mid-chunk the lock lingers until this expires and
+    // the import cannot advance during that window.
+    private const CHUNK_LOCK_SECONDS = 60;
     private const PROGRESS_TTL_HOURS = 12;
     private const MAX_STORED_ERRORS = 200;
 
@@ -261,7 +271,7 @@ class BuildingImportController extends Controller
 
         // One chunk at a time per import — a second concurrent call (double
         // click, second tab) just gets the current progress back.
-        $lock = Cache::lock('building-import-lock:' . $token, 120);
+        $lock = Cache::lock('building-import-lock:' . $token, self::CHUNK_LOCK_SECONDS);
         if (!$lock->get()) {
             return response()->json($this->publicProgress($progress));
         }
@@ -284,7 +294,8 @@ class BuildingImportController extends Controller
                 $progress['mapping'],
                 $progress['duplicate_action'],
                 $progress['processed'],
-                self::ROWS_PER_CHUNK
+                self::ROWS_PER_CHUNK,
+                microtime(true) + self::CHUNK_TIME_BUDGET_SECONDS
             );
 
             $progress['processed'] += $result['processed'];
