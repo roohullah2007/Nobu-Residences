@@ -56,8 +56,8 @@ export default function Home({ auth, website, siteName, siteUrl, year, pageConte
                 const saleRaw = saleRes?.data?.success ? (saleRes.data.data.forSale || []) : [];
                 const rentRaw = rentRes?.data?.success ? (rentRes.data.data.forRent || []) : [];
 
-                setForSale(saleRaw.map((p) => normalizeListing(p, { isRental: false })).filter(Boolean));
-                setForRent(rentRaw.map((p) => normalizeListing(p, { isRental: true })).filter(Boolean));
+                setForSale(saleRaw.map((p) => normalizeListing(p, { isRental: false, building })).filter(Boolean));
+                setForRent(rentRaw.map((p) => normalizeListing(p, { isRental: true, building })).filter(Boolean));
                 setListingsLoaded(true);
             } catch (error) {
                 console.error('Error fetching homepage listings:', error);

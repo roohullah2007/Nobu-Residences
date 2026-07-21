@@ -2,9 +2,14 @@
 // These are used exclusively by the redesigned public home page and must
 // NOT be imported by the building detail page.
 
+import { generatePropertyUrl } from '@/utils/propertyUrl';
+
 // Normalise a raw MLS/homepage listing object (mixed PascalCase / camelCase
 // shapes) into a flat, predictable structure for the ICE-style cards/tables.
-export function normalizeListing(p, { isRental = false } = {}) {
+// Pass the site's building so card links carry the canonical building-slug
+// URL (/{city}/{building-slug}/unit-{unit}-{MLS}) instead of the
+// /property/{MLS} redirect's shorter address-only form.
+export function normalizeListing(p, { isRental = false, building = null } = {}) {
     if (!p) return null;
 
     const listingKey = p.ListingKey || p.listingKey || '';
@@ -59,7 +64,7 @@ export function normalizeListing(p, { isRental = false } = {}) {
 
     return {
         listingKey,
-        url: listingKey ? `/property/${listingKey}` : '/search',
+        url: listingKey ? generatePropertyUrl(p, building) : '/search',
         price,
         bedrooms,
         bathrooms,
