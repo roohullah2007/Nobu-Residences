@@ -1514,16 +1514,36 @@ class WebsiteController extends Controller
                 $city = strtolower(trim(str_replace(' ', '-', $city)));
 
                 $addr = $property['address'] ?? [];
-                $address = $addr['unparsedAddress']
-                    ?? trim(($addr['streetNumber'] ?? '') . ' ' . ($addr['streetName'] ?? '') . ' ' . ($addr['streetSuffix'] ?? ''));
 
-                // Extract and format street address
-                $addressSlug = $this->createAddressSlug($address);
+                // Canonical SEO slug, matching the frontend's
+                // generatePropertyUrl(): {street#}-{street}-{suffix}-{city}
+                // + unit-{unit}-{MLS}. Old links redirected to a short
+                // "/toronto/470-front-street/C123" form that differed from
+                // every card-generated URL — the redirect is the last place
+                // still emitting it.
+                $slugParts = array_filter([
+                    $addr['streetNumber'] ?? '',
+                    strtolower($addr['streetName'] ?? ''),
+                    strtolower($addr['streetSuffix'] ?? ''),
+                    $city,
+                ]);
+                $addressSlug = trim(preg_replace(
+                    ['/\s+/', '/[^a-z0-9-]/', '/-+/'],
+                    ['-', '', '-'],
+                    strtolower(implode('-', $slugParts))
+                ), '-');
+                if ($addressSlug === '') {
+                    $address = $addr['unparsedAddress']
+                        ?? trim(($addr['streetNumber'] ?? '') . ' ' . ($addr['streetName'] ?? '') . ' ' . ($addr['streetSuffix'] ?? ''));
+                    $addressSlug = $this->createAddressSlug($address);
+                }
+
+                $unitNumber = trim((string) ($addr['unitNumber'] ?? ''));
 
                 return redirect()->route('property-detail', [
                     'city' => $city,
                     'address' => $addressSlug,
-                    'listingKey' => $listingKey
+                    'listingKey' => $unitNumber !== '' ? "unit-{$unitNumber}-{$listingKey}" : $listingKey,
                 ]);
             }
         } catch (\Exception $e) {

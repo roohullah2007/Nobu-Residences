@@ -107,6 +107,7 @@ class HandleInertiaRequests extends Middleware
                         ->first(['id', 'name', 'address', 'main_image', 'logo'])
                 );
             }
+            $globalWebsite['building_id'] = $building?->id;
             $globalWebsite['building_name'] = $building?->name;
             $globalWebsite['building_address'] = $building?->address;
             $globalWebsite['building_image'] = $building?->main_image;

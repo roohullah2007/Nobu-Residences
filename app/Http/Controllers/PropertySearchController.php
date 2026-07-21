@@ -2717,6 +2717,33 @@ class PropertySearchController extends Controller
             $matchedCity = $this->matchGtaCity($searchParams['query'] ?? null);
             $hasSpatialFilter = isset($apiParams['lat']) || isset($apiParams['map']);
             $hasUserPolygon = !empty($searchParams['viewport_bounds']['polygon']);
+
+            // Fresh search with an area intent (query / city / building
+            // scope): the visible viewport is stale context from BEFORE the
+            // search, so ANDing it in shows the previous area's markers (or
+            // nothing) while the list shows the new results. Re-query
+            // WITHOUT the spatial filter and fit the map to the results —
+            // exactly what the broaden-on-empty path below does, but without
+            // waiting for a fully-empty intersection. Pans/zooms after the
+            // search (no search_context_changed flag) keep viewport behaviour.
+            $hasAreaIntent = !empty($searchParams['query'])
+                || !empty($searchParams['city'])
+                || !empty($searchParams['street_addresses'])
+                || !empty($searchParams['building_id']);
+            if (!empty($searchParams['search_context_changed'])
+                && $hasAreaIntent && $hasSpatialFilter && !$hasUserPolygon) {
+                $freshParams = $apiParams;
+                unset($freshParams['lat'], $freshParams['long'], $freshParams['radius'], $freshParams['map']);
+                $freshResult = $repliersApi->searchListings($freshParams);
+                $freshClusters = $freshResult['aggregates']['map']['clusters'] ?? [];
+                if (!empty($freshClusters)) {
+                    $result = $freshResult;
+                    $totalCount = $freshResult['count'] ?? 0;
+                    $rawClusters = $freshClusters;
+                    $searchMovedMap = true;
+                }
+            }
+
             if ($totalCount == 0 && empty($rawClusters)
                 && !empty($searchParams['query']) && $hasSpatialFilter && !$hasUserPolygon) {
                 $retryParams = $apiParams;

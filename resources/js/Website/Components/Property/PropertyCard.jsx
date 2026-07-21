@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
 import { formatPrice, formatAddress, getPropertyFeatures } from '@/Website/Utils/property-utils';
+import { generatePropertyUrl } from '@/utils/propertyUrl';
 import axios from 'axios';
 
 const PropertyCard = ({ property }) => {
@@ -53,9 +54,11 @@ const PropertyCard = ({ property }) => {
   // Get property image
   const imageUrl = property.MediaURL || property.imageUrl || property.image || '/images/no-image-placeholder.jpg';
 
-  // Build property URL - use the simple redirect route that only needs listing key
-  // The backend will handle the redirect to the proper SEO-friendly URL
-  const propertyUrl = `/property/${listingKey}`;
+  // Canonical SEO URL (same generator as every other card:
+  // /{city}/{address-slug}/unit-{unit}-{MLS}, building slug when known) so
+  // property links look identical across all landing sites — the old
+  // /property/{MLS} redirect produced a short inconsistent form.
+  const propertyUrl = generatePropertyUrl(property);
 
   // Format transaction type for badge
   const statusBadgeText = transactionType === 'For Lease' ? 'For Rent' : transactionType;

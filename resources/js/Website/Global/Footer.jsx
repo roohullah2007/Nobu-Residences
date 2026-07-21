@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
 import { normalizeImageUrl } from '@/utils/imageUrl';
-
 // Footer CONTACT US block (per client): the phone and email are fixed across
 // every landing page; the address is the domain's linked building address.
-const CONTACT_PHONE = '+1 416 669 4755';
-const CONTACT_EMAIL = 'info@jatingill.com';
+import { CONTACT_PHONE, CONTACT_EMAIL } from '@/Website/Global/contactDefaults';
 
 const Footer = ({
     siteName = 'Nobu Residences',
@@ -278,15 +276,27 @@ const Footer = ({
                                 )}
                                 {/* Email with responsive styles */}
                                 {showEmail && displayContactInfo?.email && (
-                                    <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] break-all" style={{ color: footerText }}>
+                                    <a
+                                        href={`mailto:${displayContactInfo.email}`}
+                                        className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] break-all hover:underline"
+                                        style={{ color: footerText }}
+                                    >
                                         {displayContactInfo.email}
-                                    </p>
+                                    </a>
                                 )}
-                                {/* Address with responsive styles */}
+                                {/* Address: opens the admin-set external link (dashboard
+                                    Contact Information -> Address Link), falling back to a
+                                    Google Maps search for the address */}
                                 {showAddress && displayContactInfo?.address && (
-                                    <p className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em]" style={{ color: footerText }}>
+                                    <a
+                                        href={contactInfo?.address_link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayContactInfo.address)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-work-sans font-normal text-sm leading-6 tracking-[-0.03em] hover:underline"
+                                        style={{ color: footerText }}
+                                    >
                                         {displayContactInfo.address}
-                                    </p>
+                                    </a>
                                 )}
                             </div>
                         </div>

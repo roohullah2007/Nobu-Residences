@@ -36,7 +36,7 @@ class SchoolController extends Controller
         // If no coordinates provided but address is, try to geocode
         if ((!$latitude || !$longitude) && $address) {
             // Clean up the address for better geocoding
-            $cleanAddress = $address;
+            $cleanAddress = $this->normalizeCompoundAddress($address);
 
             // Remove unit/apartment numbers (e.g., "15 Mercer Street 610" -> "15 Mercer Street")
             $cleanAddress = preg_replace('/\s+\d{3,}(?=,)/', '', $cleanAddress);
@@ -48,14 +48,11 @@ class SchoolController extends Controller
             $geocoded = $this->geocodeAddress($cleanAddress);
 
             // If still fails, try a simpler version
-            if (!$geocoded && strpos($address, ',') !== false) {
-                // Extract just street and city
-                $parts = explode(',', $address);
-                if (count($parts) >= 2) {
-                    $simpleAddress = trim($parts[0]) . ', Toronto, ON, Canada';
-                    \Log::info('Trying simpler address:', ['address' => $simpleAddress]);
-                    $geocoded = $this->geocodeAddress($simpleAddress);
-                }
+            if (!$geocoded) {
+                $parts = explode(',', $this->normalizeCompoundAddress($address));
+                $simpleAddress = trim($parts[0]) . ', Toronto, ON, Canada';
+                \Log::info('Trying simpler address:', ['address' => $simpleAddress]);
+                $geocoded = $this->geocodeAddress($simpleAddress);
             }
 
             if ($geocoded) {
@@ -473,6 +470,27 @@ class SchoolController extends Controller
         }
     }
     
+    /**
+     * Compound multi-tower building addresses ("455-480 Front St W & 455
+     * Wellington St W") defeat geocoders: the "&" join isn't a real address
+     * and street-number ranges ("455-480") aren't either. Keep the first
+     * address of the join and the first number of the range so a geocodable
+     * "455 Front St W" (plus any city tail) remains.
+     */
+    private function normalizeCompoundAddress(string $address): string
+    {
+        $tail = '';
+        if (($commaPos = strpos($address, ',')) !== false) {
+            $tail = substr($address, $commaPos);
+            $address = substr($address, 0, $commaPos);
+        }
+
+        $street = trim(preg_split('/\s*(?:&|\band\b)\s*/i', $address)[0] ?? $address);
+        $street = preg_replace('/^(\d+)\s*-\s*\d+\b/', '$1', $street);
+
+        return $street . $tail;
+    }
+
     /**
      * Geocode an address using OpenStreetMap Nominatim API
      * Falls back to local geocoding service if available

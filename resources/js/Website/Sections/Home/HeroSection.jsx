@@ -63,11 +63,24 @@ export default function HeroSection({
         .filter(Boolean).join(' · ') || 'King West · Downtown · Toronto';
     const addressDisplayLine = `${firstAddress} · ${locality}`;
 
-    // Smooth-scroll the hero CTAs to the on-page carousel sections
-    // (rendered with id="for-sale" / id="for-rent" by ListingCarousel),
-    // accounting for the fixed ~82px header. SSR-safe: only touches
-    // window/document inside the handler.
+    // Hero CTAs go to THIS building's available listings on the Search page
+    // (per client: "for sale and for rent will take user to available for
+    // rent and for sale in that specific building"). Same URL shape as the
+    // Unit Types badges so PropertySearchController's building scope applies.
+    // Sites without a linked building fall back to smooth-scrolling to the
+    // on-page carousels (id="for-sale" / id="for-rent" from ListingCarousel).
+    const buildingSearchUrl = (status) => {
+        const params = new URLSearchParams();
+        params.set('status', status);
+        params.set('building_id', String(building.id));
+        if (buildingName) params.set('query', buildingName);
+        return `/search?${params.toString()}`;
+    };
+    const forSaleHref = building.id ? buildingSearchUrl('For Sale') : '#for-sale';
+    const forRentHref = building.id ? buildingSearchUrl('For Rent') : '#for-rent';
+
     const scrollToSection = (e, sectionId) => {
+        if (building.id) return; // real navigation — let the link work
         e.preventDefault();
         if (typeof window === 'undefined') return;
         const el = document.getElementById(sectionId);
@@ -123,7 +136,7 @@ export default function HeroSection({
                     {/* CTA buttons with live counts */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-5 sm:mb-6">
                         <a
-                            href="#for-sale"
+                            href={forSaleHref}
                             onClick={(e) => scrollToSection(e, 'for-sale')}
                             className="group relative inline-flex items-center gap-3 w-full sm:w-auto sm:min-w-[240px] justify-center px-6 sm:px-8 py-3.5 sm:py-4 bg-white text-neutral-900 text-[12px] sm:text-[13px] tracking-[0.15em] uppercase font-medium rounded-lg overflow-hidden hover:shadow-lg hover:shadow-white/20 transition-all duration-300"
                         >
@@ -136,7 +149,7 @@ export default function HeroSection({
                             </span>
                         </a>
                         <a
-                            href="#for-rent"
+                            href={forRentHref}
                             onClick={(e) => scrollToSection(e, 'for-rent')}
                             className="group relative inline-flex items-center gap-3 w-full sm:w-auto sm:min-w-[240px] justify-center px-6 sm:px-8 py-3.5 sm:py-4 border border-white/40 text-white text-[12px] sm:text-[13px] tracking-[0.15em] uppercase font-medium rounded-lg overflow-hidden backdrop-blur-sm hover:border-gold-400/60 hover:shadow-lg hover:shadow-gold-400/10 transition-all duration-300"
                         >

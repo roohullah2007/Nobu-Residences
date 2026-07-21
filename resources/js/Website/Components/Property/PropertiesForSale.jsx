@@ -6,12 +6,12 @@ const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings, m
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Get default building address from MLS settings or use fallback
+  // "View all" goes to the Search page scoped to THIS building's address
+  // (street_addresses is what PropertySearchController's building scope
+  // parses) — the old `/{street-slug}/for-sale` link hit the {city}/for-sale
+  // route with a street as the city and showed unrelated results.
   const defaultBuildingAddress = mlsSettings?.default_building_address || '15 Mercer Street';
-  const addressParts = defaultBuildingAddress.split(' ');
-  const streetNumber = addressParts[0] || '15';
-  const streetName = addressParts.slice(1).join(' ').replace(/\s+Street$/i, '') || 'Mercer';
-  const buildingSlug = `${streetNumber}-${streetName.replace(/\s+/g, '-')}`;
+  const viewAllParams = new URLSearchParams({ status: 'For Sale', street_addresses: defaultBuildingAddress });
 
   useEffect(() => {
     // Only fetch if no properties passed as props
@@ -75,7 +75,7 @@ const PropertiesForSale = ({ auth, forSaleProperties = null, carouselSettings, m
       auth={auth}
       title={carouselSettings?.title || "Properties For Sale"}
       type="sale"
-      viewAllLink={`/${buildingSlug}/for-sale`}
+      viewAllLink={`/search?${viewAllParams.toString()}`}
     />
   );
 };

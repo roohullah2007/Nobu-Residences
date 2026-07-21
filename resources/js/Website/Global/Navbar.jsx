@@ -114,6 +114,30 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
             }
         }
 
+        // Building-linked sites: Rent/Sale go to THIS building's available
+        // listings (per client), not the generic city pages. Saved header
+        // links still carry '/toronto/for-rent'-style defaults, so the
+        // rewrite happens here instead of in every stored page.
+        const buildingId = globalWebsite?.building_id;
+        if (buildingId) {
+            const buildingSearchUrl = (status) => {
+                const params = new URLSearchParams();
+                params.set('status', status);
+                params.set('building_id', String(buildingId));
+                if (globalWebsite?.building_name) params.set('query', globalWebsite.building_name);
+                return `/search?${params.toString()}`;
+            };
+            links = links.map((link) => {
+                if (/^\/[a-z-]+\/for-rent$/.test(link.url || '')) {
+                    return { ...link, url: buildingSearchUrl('For Rent') };
+                }
+                if (/^\/[a-z-]+\/for-sale$/.test(link.url || '')) {
+                    return { ...link, url: buildingSearchUrl('For Sale') };
+                }
+                return link;
+            });
+        }
+
         return links;
     };
 

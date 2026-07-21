@@ -1,5 +1,6 @@
 import React from 'react';
 import { SCHEDULE_MEETING_EVENT } from './ContactForm';
+import { CONTACT_PHONE, CONTACT_EMAIL } from '@/Website/Global/contactDefaults';
 
 export default function ContactInfo({ website }) {
   // "Schedule Meeting" reuses the contact form on this page: prefill its
@@ -14,11 +15,14 @@ export default function ContactInfo({ website }) {
   const agentInfo = website?.agent_info || {};
   const socialMedia = website?.social_media || {};
 
-  // Prioritize agent_info table for agent details
+  // Prioritize agent_info table for agent details. The phone chain ends on
+  // the fixed global client number so tenant pages can never show a stale
+  // seeded value (the backend already blanks legacy Nobu seeds).
   const agentName = agentInfo?.agent_name || contactInfo?.agent?.name || '';
   const agentTitle = agentInfo?.agent_title || contactInfo?.agent?.title || '';
   const agentImage = agentInfo?.profile_image || contactInfo?.agent?.image || '';
-  const agentPhone = agentInfo?.agent_phone || contactInfo?.phone || '';
+  const agentPhone = agentInfo?.agent_phone || contactInfo?.phone || CONTACT_PHONE;
+  const displayEmail = contactInfo?.email || CONTACT_EMAIL;
 
   const brandColors = website?.brand_colors || {
     primary: '#912018',
@@ -64,7 +68,7 @@ export default function ContactInfo({ website }) {
             )}
 
             {/* Email */}
-            {contactInfo?.email && (
+            {displayEmail && (
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: `${brandColors.secondary}20` }}>
                   <svg className="w-6 h-6" style={{ color: brandColors.secondary }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,8 +78,8 @@ export default function ContactInfo({ website }) {
                 <div>
                   <h4 className="font-work-sans font-semibold text-gray-900 mb-1">Email</h4>
                   <p className="font-work-sans text-gray-600">
-                    <a href={`mailto:${contactInfo.email}`} className="hover:underline break-all">
-                      {contactInfo.email}
+                    <a href={`mailto:${displayEmail}`} className="hover:underline break-all">
+                      {displayEmail}
                     </a>
                   </p>
                 </div>
@@ -94,9 +98,9 @@ export default function ContactInfo({ website }) {
                 <div>
                   <h4 className="font-work-sans font-semibold text-gray-900 mb-1">Address</h4>
                   <p className="font-work-sans text-gray-600">
-                    {/* Opens a Google Maps search for the address in a new tab */}
+                    {/* Opens the admin-set Address Link, else a Google Maps search */}
                     <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
+                      href={contactInfo?.address_link || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:underline"

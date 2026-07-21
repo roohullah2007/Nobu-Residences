@@ -301,7 +301,10 @@ class Building extends Model
             $this->load('developer');
         }
 
-        // Get amenities from relationship only (no JSON fallback)
+        // Amenities come exclusively from the amenity_building pivot — the
+        // legacy JSON column was dropped (2025_09_16 migration) WITHOUT
+        // migrating its data, so buildings from before that date show none
+        // until their amenities are re-selected on the admin edit form.
         $amenities = $this->amenities->map(function($amenity) {
             return [
                 'id' => $amenity->id,

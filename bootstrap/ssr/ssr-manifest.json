@@ -16,7 +16,7 @@
     "/build/assets/useGooglePlacesAutocomplete-DDiV3E3F.js"
   ],
   "resources/js/Components/Dropdown.jsx": [
-    "/build/assets/Navbar-UXUgGRfT.js"
+    "/build/assets/Navbar-BYiZS6Me.js"
   ],
   "resources/js/Components/GoogleLoginButton.jsx": [
     "/build/assets/GoogleLoginButton-wrwag0eM.js"
@@ -151,7 +151,7 @@
     "/build/assets/Created-CZMTHAS9.js"
   ],
   "resources/js/Pages/Admin/Websites/Edit.jsx": [
-    "/build/assets/Edit-BI7HMXTA.js"
+    "/build/assets/Edit-BMsZRwsR.js"
   ],
   "resources/js/Pages/Admin/Websites/EditHomePage.jsx": [
     "/build/assets/EditHomePage-BZ-3IYri.js"
@@ -166,10 +166,10 @@
     "/build/assets/Show-CXRHIFru.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-rEh-OTUZ.js"
+    "/build/assets/PropertyDetail-BmZn1BZH.js"
   ],
   "resources/js/Pages/Agent_REMOVED/PublicPropertyListing.jsx": [
-    "/build/assets/PublicPropertyListing-Btgc-GmX.js"
+    "/build/assets/PublicPropertyListing-1C07s76U.js"
   ],
   "resources/js/Pages/Auth/CompletePhone.jsx": [
     "/build/assets/CompletePhone-BQYQEkjr.js"
@@ -193,37 +193,37 @@
     "/build/assets/VerifyEmail-CGN_7HnB.js"
   ],
   "resources/js/Pages/Blog.jsx": [
-    "/build/assets/Blog-hZ68dA_0.js"
+    "/build/assets/Blog-CZbg-ByF.js"
   ],
   "resources/js/Pages/BlogDetail.jsx": [
-    "/build/assets/BlogDetail-C2qZyTZS.js"
+    "/build/assets/BlogDetail-B2i3QwCJ.js"
   ],
   "resources/js/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-CHlLYtQ6.js"
+    "/build/assets/BuildingDetail-DVZx2i-j.js"
   ],
   "resources/js/Pages/BuildingPriceHistory.jsx": [
-    "/build/assets/BuildingPriceHistory-BkoP61uu.js"
+    "/build/assets/BuildingPriceHistory-DH3DjcYJ.js"
   ],
   "resources/js/Pages/Carousel.jsx": [
-    "/build/assets/Carousel-CXAjjeeg.js"
+    "/build/assets/Carousel-8197nDEl.js"
   ],
   "resources/js/Pages/CompareListings.jsx": [
-    "/build/assets/CompareListings-nRGov5Hd.js"
+    "/build/assets/CompareListings-BbSOUCKS.js"
   ],
   "resources/js/Pages/Contact.jsx": [
-    "/build/assets/Contact-BEEY79Uu.js"
+    "/build/assets/Contact-CNJwCn3D.js"
   ],
   "resources/js/Pages/Dashboard.jsx": [
-    "/build/assets/Dashboard-Cq0pb-Wv.js"
+    "/build/assets/Dashboard-tAvipx1l.js"
   ],
   "resources/js/Pages/DeveloperDetail.jsx": [
-    "/build/assets/DeveloperDetail-knY25aKt.js"
+    "/build/assets/DeveloperDetail-DHtu16bT.js"
   ],
   "resources/js/Pages/PriceHistorySearch.jsx": [
-    "/build/assets/PriceHistorySearch-BePeYpS2.js"
+    "/build/assets/PriceHistorySearch-DR79OpEG.js"
   ],
   "resources/js/Pages/Privacy.jsx": [
-    "/build/assets/Privacy-DrRMGO0I.js"
+    "/build/assets/Privacy-Cy-9OX4m.js"
   ],
   "resources/js/Pages/Profile/Edit.jsx": [
     "/build/assets/Edit-Wm_OOiHv.js"
@@ -238,40 +238,40 @@
     "/build/assets/UpdateProfileInformationForm-Cf2a53xK.js"
   ],
   "resources/js/Pages/Profile/UserProfile.jsx": [
-    "/build/assets/UserProfile-DhJ9SW6I.js"
+    "/build/assets/UserProfile-BpS0fQ4V.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-BDBWlGS8.js"
+    "/build/assets/PropertyDetail-9EI7Bw6n.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
-    "/build/assets/PropertyPriceHistory-bKD4hGzj.js"
+    "/build/assets/PropertyPriceHistory-C9EudzGV.js"
   ],
   "resources/js/Pages/Rent.jsx": [
-    "/build/assets/Rent-DeSR-TtO.js"
+    "/build/assets/Rent-BBsoktkR.js"
   ],
   "resources/js/Pages/Sale.jsx": [
-    "/build/assets/Sale-BLajTrfK.js"
+    "/build/assets/Sale-t1ypr5MQ.js"
   ],
   "resources/js/Pages/SchoolDetail.jsx": [
-    "/build/assets/SchoolDetail-qIuUyg7K.js"
+    "/build/assets/SchoolDetail-CHmsCtsv.js"
   ],
   "resources/js/Pages/Search.jsx": [
-    "/build/assets/Search-BEsWGEq4.js"
+    "/build/assets/Search-CFlEAc4t.js"
   ],
   "resources/js/Pages/Terms.jsx": [
-    "/build/assets/Terms-CdO-XYxa.js"
+    "/build/assets/Terms-BwFlJ1_5.js"
   ],
   "resources/js/Pages/UserDashboard.jsx": [
-    "/build/assets/UserDashboard-DWTeWF4h.js"
+    "/build/assets/UserDashboard-C7jdeIFR.js"
   ],
   "resources/js/Pages/Welcome.jsx": [
-    "/build/assets/Welcome-Be7hCUFW.js"
+    "/build/assets/Welcome-te5yeAwJ.js"
   ],
   "resources/js/Website/Components/CategoryCard.jsx": [
     "/build/assets/CategoryCard-DsOzFIOh.js"
   ],
   "resources/js/Website/Components/ClusteredPropertyMap.jsx": [
-    "/build/assets/ClusteredPropertyMap-1D-XiNxD.js"
+    "/build/assets/ClusteredPropertyMap-CREDK9wI.js"
   ],
   "resources/js/Website/Components/ContactAgentModal.jsx": [
     "/build/assets/ContactAgentModal-D0n_N_pD.js"
@@ -349,19 +349,19 @@
     "/build/assets/PriceHistory-Cyc4_6DL.js"
   ],
   "resources/js/Website/Components/Property/PropertiesForRent.jsx": [
-    "/build/assets/PropertiesForRent-DWWaU5Y8.js"
+    "/build/assets/PropertiesForRent-CvkUyFCv.js"
   ],
   "resources/js/Website/Components/Property/PropertiesForSale.jsx": [
-    "/build/assets/PropertiesForSale-Bi72E2vl.js"
+    "/build/assets/PropertiesForSale-C4XKBeu1.js"
   ],
   "resources/js/Website/Components/Property/PropertyAiDescription.jsx": [
     "/build/assets/PropertyAiDescription-CDPWzArd.js"
   ],
   "resources/js/Website/Components/Property/PropertyCard.jsx": [
-    "/build/assets/PropertyCard-BWgqbSLf.js"
+    "/build/assets/PropertyCard-D9mnA_We.js"
   ],
   "resources/js/Website/Components/Property/PropertyCardWithAI.jsx": [
-    "/build/assets/PropertyCardWithAI-BPD0gxw4.js"
+    "/build/assets/PropertyCardWithAI-C41GVG_e.js"
   ],
   "resources/js/Website/Components/Property/PropertyCards_OLD/PropertyCardV1.jsx": [
     "/build/assets/PropertyCardV1-jPjCfKsy.js"
@@ -424,7 +424,7 @@
     "/build/assets/Neighbourhoods-CgRF3HXu.js"
   ],
   "resources/js/Website/Components/PropertyDetail/OptimizedMoreBuildings.jsx": [
-    "/build/assets/OptimizedMoreBuildings-DxljbSFF.js"
+    "/build/assets/OptimizedMoreBuildings-Bp_XXbpV.js"
   ],
   "resources/js/Website/Components/PropertyDetail/PriceHistory.jsx": [
     "/build/assets/PriceHistory-CQjg72FP.js"
@@ -562,7 +562,7 @@
     "/build/assets/ProtectedPropertyCard-BIxREphI.js"
   ],
   "resources/js/Website/Global/Components/PropertyCarousel.jsx": [
-    "/build/assets/PropertyCarousel-xQqZk_Vh.js"
+    "/build/assets/PropertyCarousel-GSTgFXEx.js"
   ],
   "resources/js/Website/Global/Components/PropertyCarouselV2.jsx": [
     "/build/assets/PropertyCarouselV2-BYh6U-f8.js"
@@ -580,49 +580,52 @@
     "/build/assets/WhatsAppButton-DsPQeoY4.js"
   ],
   "resources/js/Website/Global/Footer.jsx": [
-    "/build/assets/Footer-85OCMf2z.js"
+    "/build/assets/Footer-BDUlKSUC.js"
   ],
   "resources/js/Website/Global/MainLayout.jsx": [
-    "/build/assets/MainLayout-BxH250e3.js"
+    "/build/assets/MainLayout-BpYUcqr-.js"
   ],
   "resources/js/Website/Global/Navbar.jsx": [
-    "/build/assets/Navbar-UXUgGRfT.js"
+    "/build/assets/Navbar-BYiZS6Me.js"
   ],
   "resources/js/Website/Global/ViewingRequestProvider.jsx": [
     "/build/assets/ViewingRequestProvider-Dst_OES-.js"
   ],
+  "resources/js/Website/Global/contactDefaults.js": [
+    "/build/assets/contactDefaults-D_6phwTJ.js"
+  ],
   "resources/js/Website/Home.jsx": [
-    "/build/assets/Home-CWIwhLRI.js"
+    "/build/assets/Home-3nR3ZAvK.js"
   ],
   "resources/js/Website/Pages/Blog.jsx": [
-    "/build/assets/Blog-Ci6gM45P.js"
+    "/build/assets/Blog-DpV9MysV.js"
   ],
   "resources/js/Website/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-BM8bcarN.js"
+    "/build/assets/BuildingDetail-osK4oQOh.js"
   ],
   "resources/js/Website/Pages/Contact.jsx": [
-    "/build/assets/Contact-Cb-Qb3qp.js"
+    "/build/assets/Contact-ChIGxlNT.js"
   ],
   "resources/js/Website/Pages/PropertyAiDemo.jsx": [
-    "/build/assets/PropertyAiDemo-WVoA622-.js"
+    "/build/assets/PropertyAiDemo-C2Z_ZmgF.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CKmallKY.js"
+    "/build/assets/PropertyDetail-BJnIEry0.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
-    "/build/assets/SchoolDetail-Y2tz79_d.js"
+    "/build/assets/SchoolDetail-2N4hJ2Sw.js"
   ],
   "resources/js/Website/Pages/Search.jsx": [
-    "/build/assets/Search-Cz3wEEfn.js"
+    "/build/assets/Search-CM_xLn_E.js"
   ],
   "resources/js/Website/Pages/UserAlerts.jsx": [
-    "/build/assets/UserAlerts-BPEd-XUh.js"
+    "/build/assets/UserAlerts-CGNFeR6w.js"
   ],
   "resources/js/Website/Pages/UserDashboard.jsx": [
-    "/build/assets/UserDashboard-BKvlN9xx.js"
+    "/build/assets/UserDashboard-C4EtfuMw.js"
   ],
   "resources/js/Website/Pages/UserFavourites.jsx": [
-    "/build/assets/UserFavourites-Bdj25s4C.js"
+    "/build/assets/UserFavourites-CG30qG2y.js"
   ],
   "resources/js/Website/Sections/Blog/FeaturedBlogsSection.jsx": [
     "/build/assets/FeaturedBlogsSection-CD3vxA0t.js"
@@ -643,7 +646,7 @@
     "/build/assets/ContactForm-C6QKP4J9.js"
   ],
   "resources/js/Website/Sections/Contact/ContactInfo.jsx": [
-    "/build/assets/ContactInfo-BUmJFQRU.js"
+    "/build/assets/ContactInfo-D6JOgAj2.js"
   ],
   "resources/js/Website/Sections/Home/AboutSection.jsx": [
     "/build/assets/AboutSection-mJRcN3a3.js"
@@ -670,13 +673,13 @@
     "/build/assets/FAQSection-DfDIyzlY.js"
   ],
   "resources/js/Website/Sections/Home/HeroSection.jsx": [
-    "/build/assets/HeroSection-BNiV11Cz.js"
+    "/build/assets/HeroSection-FyPh5vlr.js"
   ],
   "resources/js/Website/Sections/Home/HistoryTimeline.jsx": [
     "/build/assets/HistoryTimeline-CV9hjCgc.js"
   ],
   "resources/js/Website/Sections/Home/HomeHeader.jsx": [
-    "/build/assets/HomeHeader-CelFZooI.js"
+    "/build/assets/HomeHeader-DWo9UIOf.js"
   ],
   "resources/js/Website/Sections/Home/ListingCarousel.jsx": [
     "/build/assets/ListingCarousel-BtSkgSfk.js"
@@ -691,7 +694,7 @@
     "/build/assets/OwnershipCosts-C0xFxvm0.js"
   ],
   "resources/js/Website/Sections/Home/PropertiesSection.jsx": [
-    "/build/assets/PropertiesSection-BGwQVggC.js"
+    "/build/assets/PropertiesSection-CQbZuIfF.js"
   ],
   "resources/js/Website/Sections/Home/UnitTypesTable.jsx": [
     "/build/assets/UnitTypesTable-Cb67hoh0.js"
@@ -712,16 +715,16 @@
     "/build/assets/PropertyHeader-BmnRhyZ9.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertySections.jsx": [
-    "/build/assets/PropertySections-BqY4s30r.js"
+    "/build/assets/PropertySections-CSN6sgnb.js"
   ],
   "resources/js/Website/Sections/School/SchoolHeroSection.jsx": [
-    "/build/assets/SchoolHeroSection-BpPv5NCq.js"
+    "/build/assets/SchoolHeroSection-DZg0wesn.js"
   ],
   "resources/js/Website/Sections/Terms/TermsContent.jsx": [
     "/build/assets/TermsContent-D-9Lrfq1.js"
   ],
   "resources/js/Website/Utils/property-utils.js": [
-    "/build/assets/PropertyCard-BWgqbSLf.js"
+    "/build/assets/PropertyCard-D9mnA_We.js"
   ],
   "resources/js/hooks/useGooglePlacesAutocomplete.js": [
     "/build/assets/useGooglePlacesAutocomplete-DDiV3E3F.js"
@@ -733,7 +736,7 @@
     "/build/assets/PropertyHeader-CHrU--3u.js"
   ],
   "resources/js/hooks/usePropertyImageLazyLoad.js": [
-    "/build/assets/Search-Cz3wEEfn.js"
+    "/build/assets/Search-CM_xLn_E.js"
   ],
   "resources/js/lib/extractLogoColors.js": [
     "/build/assets/Create-BAdOxlPv.js"

@@ -74,6 +74,7 @@ export default function Edit({ auth }) {
         'contact_info.phone': website?.contact_info?.phone || '',
         'contact_info.email': website?.contact_info?.email || '',
         'contact_info.address': website?.contact_info?.address || '',
+        'contact_info.address_link': website?.contact_info?.address_link || '',
         // Agent Information (from agent_info table)
         agent_name: agentInfo?.agent_name || '',
         agent_title: agentInfo?.agent_title || '',
@@ -931,6 +932,18 @@ export default function Edit({ auth }) {
                                         className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="123 Main Street, City, State ZIP"
                                     />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Address Link (URL)</label>
+                                    <input
+                                        type="url"
+                                        value={data['contact_info.address_link']}
+                                        onChange={(e) => setData('contact_info.address_link', e.target.value)}
+                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="https://maps.google.com/... (opens when a visitor clicks the address on the landing page)"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">Optional. When set, the address shown on the landing page links to this URL; otherwise it opens a Google Maps search for the address.</p>
                                 </div>
 
                                 {/* Agent Information Section */}

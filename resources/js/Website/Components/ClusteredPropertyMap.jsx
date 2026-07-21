@@ -85,7 +85,7 @@ const ClusteredPropertyMap = ({
   // Returns { coordinates, clusters } where:
   //   - coordinates: single-listing markers (rendered as price tags)
   //   - clusters:    multi-listing groups (rendered as count circles)
-  const fetchMapCoordinates = useCallback(async (bounds, zoom) => {
+  const fetchMapCoordinates = useCallback(async (bounds, zoom, searchContextChanged = false) => {
     if (!bounds) return { coordinates: [], clusters: [] };
 
     setIsLoading(true);
@@ -94,6 +94,11 @@ const ClusteredPropertyMap = ({
         ...searchFilters,
         viewport_bounds: bounds,
         zoom_level: zoom,
+        // Fresh search (filters just changed) vs a user pan/zoom: on a fresh
+        // search the backend clusters the FULL result set and returns
+        // fit_bounds so the map follows the results instead of ANDing them
+        // with a stale viewport.
+        search_context_changed: searchContextChanged,
       };
 
       const response = await fetch('/api/map-coordinates', {
@@ -201,7 +206,7 @@ const ClusteredPropertyMap = ({
   }, []);
 
   // Update markers on the map with clustering
-  const updateMarkers = useCallback(async (bounds, zoom) => {
+  const updateMarkers = useCallback(async (bounds, zoom, searchContextChanged = false) => {
     if (!mapInstanceRef.current || !window.google) return;
 
     // While the user is drawing a polygon, keep the map clear of markers so
@@ -235,7 +240,7 @@ const ClusteredPropertyMap = ({
     lastBoundsRef.current = boundsKey;
 
     // Fetch markers (server-clustered) from API
-    const { coordinates, clusters, fitBounds } = await fetchMapCoordinates(roundedBounds, zoom);
+    const { coordinates, clusters, fitBounds } = await fetchMapCoordinates(roundedBounds, zoom, searchContextChanged);
 
     // Clear existing markers (and any old client-side clusterer)
     clearMarkers();
@@ -807,9 +812,10 @@ const ClusteredPropertyMap = ({
           west: bounds.getSouthWest().lng()
         };
 
-        // Reset bounds key to force refresh
+        // Reset bounds key to force refresh. This is a fresh search (the
+        // filters changed), so tell the backend to follow the results.
         lastBoundsRef.current = null;
-        updateMarkers(viewportBounds, zoom);
+        updateMarkers(viewportBounds, zoom, true);
       }
     }
   }, [searchFilters, mapLoaded, updateMarkers]);
