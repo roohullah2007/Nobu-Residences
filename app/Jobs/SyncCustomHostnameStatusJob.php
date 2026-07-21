@@ -54,6 +54,19 @@ class SyncCustomHostnameStatusJob implements ShouldQueue
             return;
         }
 
+        // Zone-managed domains: track when the customer's nameservers land
+        // so the status page can show real progress. The custom hostname
+        // check below is what actually flips the site live.
+        if ($website->cloudflare_zone_id && $website->cloudflare_zone_status !== 'active') {
+            $zone = $cloudflare->getZone($website->cloudflare_zone_id);
+            if ($zone) {
+                $website->update([
+                    'cloudflare_zone_status' => $zone['status'],
+                    'cloudflare_name_servers' => $zone['name_servers'] ?: $website->cloudflare_name_servers,
+                ]);
+            }
+        }
+
         $hostname = $website->cloudflare_hostname_id
             ? $cloudflare->getCustomHostname($website->cloudflare_hostname_id)
             : $cloudflare->findCustomHostname($website->domain);

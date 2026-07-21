@@ -196,9 +196,19 @@ export default function Edit({ auth }) {
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-lg font-medium text-gray-900">Domain & Hosting</h3>
                                 <p className="text-sm text-gray-500">
-                                    Custom domains run through Cloudflare: saving a domain registers it automatically, and SSL
-                                    activates as soon as the customer points ONE CNAME record at{' '}
-                                    <code className="font-mono font-semibold text-gray-700">{cnameTarget || 'the CNAME target'}</code>.
+                                    {website?.cloudflare_name_servers?.length ? (
+                                        <>
+                                            Custom domains run through Cloudflare: saving a domain adds it to our Cloudflare
+                                            account and creates the CNAME record automatically — the customer only points the
+                                            domain at the assigned nameservers.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Custom domains run through Cloudflare: saving a domain registers it automatically, and SSL
+                                            activates as soon as the customer points ONE CNAME record at{' '}
+                                            <code className="font-mono font-semibold text-gray-700">{cnameTarget || 'the CNAME target'}</code>.
+                                        </>
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -209,10 +219,21 @@ export default function Edit({ auth }) {
                                     <div className="text-xs uppercase tracking-wide text-gray-500 font-semibold">Current domain</div>
                                     <div className="font-mono text-gray-900 truncate">{website.domain}</div>
                                     <div className="text-xs text-gray-500 mt-1">
-                                        Required record: <span className="font-mono">CNAME {website.domain} {'->'} {cnameTarget}</span>
-                                        {website.cloudflare_status === 'active'
-                                            ? ' - LIVE'
-                                            : ' - waiting for the CNAME (checked automatically every 5 minutes)'}
+                                        {website.cloudflare_name_servers?.length ? (
+                                            <>
+                                                Required nameservers: <span className="font-mono">{website.cloudflare_name_servers.join(', ')}</span>
+                                                {website.cloudflare_status === 'active'
+                                                    ? ' - LIVE'
+                                                    : ' - CNAME added automatically; waiting for the nameservers (checked every 5 minutes)'}
+                                            </>
+                                        ) : (
+                                            <>
+                                                Required record: <span className="font-mono">CNAME {website.domain} {'->'} {cnameTarget}</span>
+                                                {website.cloudflare_status === 'active'
+                                                    ? ' - LIVE'
+                                                    : ' - waiting for the CNAME (checked automatically every 5 minutes)'}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 <Link

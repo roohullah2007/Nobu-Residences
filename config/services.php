@@ -69,6 +69,12 @@ return [
     'cloudflare' => [
         'token' => env('CLOUDFLARE_API_TOKEN'),
         'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        // Optional: when set, customer domains are created as DNS zones in
+        // this account and the apex CNAME is added via the API — the
+        // customer's only step is pointing the domain at the assigned
+        // Cloudflare nameservers. Requires the token to also carry
+        // Zone:Edit + DNS:Edit on all zones of the account.
+        'account_id' => env('CLOUDFLARE_ACCOUNT_ID'),
         // The hostname customers point their CNAME at (the SaaS zone's
         // fallback origin entry).
         'cname_target' => env('CLOUDFLARE_CNAME_TARGET', 'building.wpbun.xyz'),

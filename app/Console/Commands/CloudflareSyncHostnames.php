@@ -34,6 +34,23 @@ class CloudflareSyncHostnames extends Command
         }
 
         foreach ($pending as $website) {
+            // Zone-managed domains: provisionZone is idempotent, so this
+            // heals everything the create-time call may have missed (zone
+            // deleted by Cloudflare after long NS inaction, record create
+            // that hit a transient API error) and refreshes the zone status.
+            if ($cloudflare->zoneProvisioningEnabled()) {
+                [, $zoneMessage, $zone] = $cloudflare->provisionZone($website->domain);
+                if ($zone) {
+                    $website->update([
+                        'cloudflare_zone_id' => $zone['id'],
+                        'cloudflare_zone_status' => $zone['status'],
+                        'cloudflare_name_servers' => $zone['name_servers'] ?: $website->cloudflare_name_servers,
+                    ]);
+                } else {
+                    $this->warn("{$website->domain}: zone — {$zoneMessage}");
+                }
+            }
+
             $hostname = $website->cloudflare_hostname_id
                 ? $cloudflare->getCustomHostname($website->cloudflare_hostname_id)
                 : $cloudflare->findCustomHostname($website->domain);

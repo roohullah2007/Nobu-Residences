@@ -20,18 +20,31 @@ class CloudflareService
 {
     protected string $token;
     protected string $zoneId;
+    protected string $accountId;
     protected string $baseUrl;
 
     public function __construct()
     {
         $this->token = (string) config('services.cloudflare.token', '');
         $this->zoneId = (string) config('services.cloudflare.zone_id', '');
+        $this->accountId = (string) config('services.cloudflare.account_id', '');
         $this->baseUrl = rtrim((string) config('services.cloudflare.base_url', 'https://api.cloudflare.com/client/v4'), '/');
     }
 
     public function isConfigured(): bool
     {
         return $this->token !== '' && $this->zoneId !== '';
+    }
+
+    /**
+     * Zone-managed mode: customer domains become DNS zones in OUR Cloudflare
+     * account and the apex CNAME is created via the API — the customer only
+     * points nameservers. Off (falls back to CNAME instructions) when
+     * CLOUDFLARE_ACCOUNT_ID is not set.
+     */
+    public function zoneProvisioningEnabled(): bool
+    {
+        return $this->isConfigured() && $this->accountId !== '';
     }
 
     /**
@@ -214,6 +227,218 @@ class CloudflareService
         }
 
         return $out;
+    }
+
+    /**
+     * Ensure the customer's domain exists as a DNS zone in our account AND
+     * carries the apex CNAME to the SaaS target. Idempotent end-to-end:
+     * an existing zone is reused, an existing correct record is kept.
+     * Returns [ok(bool), message(string), zone(array|null)] where zone is
+     * ['id', 'status', 'name_servers'].
+     */
+    public function provisionZone(string $domain): array
+    {
+        $domain = TenantResolver::normalizeHost($domain);
+
+        if ($domain === '') {
+            return [false, 'No domain provided.', null];
+        }
+        if ($this->isAdminHost($domain)) {
+            return [false, "\"{$domain}\" is the reserved admin domain.", null];
+        }
+        if (!$this->zoneProvisioningEnabled()) {
+            return [false, 'Zone provisioning is not enabled (CLOUDFLARE_ACCOUNT_ID missing).', null];
+        }
+        // Custom hostnames are registered for exact hosts, possibly a
+        // subdomain (www.customer.com) — the zone is always the registrable
+        // root. Cloudflare rejects zone creation for subdomains.
+        $zoneName = $this->registrableDomain($domain);
+
+        $zone = $this->findZone($zoneName);
+        $created = false;
+
+        if (!$zone) {
+            try {
+                $response = $this->client()->post("{$this->baseUrl}/zones", [
+                    'name' => $zoneName,
+                    'account' => ['id' => $this->accountId],
+                    'type' => 'full',
+                ]);
+                $json = $response->json();
+
+                Log::info('Cloudflare zone create', ['zone' => $zoneName, 'status' => $response->status()]);
+
+                if ($response->successful() && ($json['success'] ?? false)) {
+                    $zone = $this->mapZone($json['result'] ?? []);
+                    $created = true;
+                } else {
+                    return [false, $this->errorMessage($json, $response->status()), null];
+                }
+            } catch (\Throwable $e) {
+                Log::error('Cloudflare zone create exception', ['zone' => $zoneName, 'error' => $e->getMessage()]);
+                return [false, 'Cloudflare request failed: ' . $e->getMessage(), null];
+            }
+        }
+
+        [$recordOk, $recordMessage] = $this->ensureCnameRecord($zone['id'], $domain);
+
+        $message = ($created
+            ? "Zone \"{$zoneName}\" created in our Cloudflare account."
+            : "Zone \"{$zoneName}\" already exists in our Cloudflare account.")
+            . ' ' . $recordMessage;
+
+        // A failed record write is reported but the zone still returns —
+        // the sync scheduler retries the record on every run, so a
+        // transient DNS-API error can never strand the flow.
+        return [$recordOk, $message, $zone];
+    }
+
+    /**
+     * Look a zone up by name in our account. Null when absent or on error.
+     */
+    public function findZone(string $zoneName): ?array
+    {
+        if (!$this->zoneProvisioningEnabled() || $zoneName === '') {
+            return null;
+        }
+
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/zones", [
+                'name' => $zoneName,
+                'account.id' => $this->accountId,
+            ]);
+            $json = $response->json();
+            if ($response->successful() && ($json['success'] ?? false)) {
+                foreach (($json['result'] ?? []) as $row) {
+                    if (strcasecmp((string) ($row['name'] ?? ''), $zoneName) === 0) {
+                        return $this->mapZone($row);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare zone find exception', ['zone' => $zoneName, 'error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch a zone by ID. Null when missing or on API failure (callers treat
+     * null as "cannot verify", not "gone").
+     */
+    public function getZone(string $zoneId): ?array
+    {
+        if (!$this->isConfigured() || $zoneId === '') {
+            return null;
+        }
+
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/zones/{$zoneId}");
+            $json = $response->json();
+            if ($response->successful() && ($json['success'] ?? false)) {
+                return $this->mapZone($json['result'] ?? []);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare zone get exception', ['id' => $zoneId, 'error' => $e->getMessage()]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Make sure the domain's CNAME to the SaaS target exists inside the
+     * given zone. Conflicting records on the same name (A/AAAA/CNAME —
+     * typically auto-imported from the old DNS host) are replaced: this zone
+     * exists solely to route the domain to our platform, and a leftover A
+     * record would silently point the live domain at a dead server.
+     * DNS-only (unproxied) on purpose — the custom hostname's edge
+     * certificate does the proxying. Returns [ok(bool), message(string)].
+     */
+    protected function ensureCnameRecord(string $zoneId, string $domain): array
+    {
+        $target = $this->cnameTarget();
+        if ($target === '') {
+            return [false, 'CLOUDFLARE_CNAME_TARGET is not configured.'];
+        }
+
+        try {
+            $response = $this->client()->get("{$this->baseUrl}/zones/{$zoneId}/dns_records", [
+                'name' => $domain,
+            ]);
+            $json = $response->json();
+            if (!$response->successful() || !($json['success'] ?? false)) {
+                return [false, $this->errorMessage($json, $response->status())];
+            }
+
+            foreach (($json['result'] ?? []) as $record) {
+                $type = strtoupper((string) ($record['type'] ?? ''));
+                if ($type === 'CNAME' && TenantResolver::normalizeHost((string) ($record['content'] ?? '')) === $target) {
+                    return [true, "CNAME {$domain} -> {$target} already exists."];
+                }
+                if (in_array($type, ['A', 'AAAA', 'CNAME'], true)) {
+                    $this->client()->delete("{$this->baseUrl}/zones/{$zoneId}/dns_records/{$record['id']}");
+                    Log::info('Cloudflare replaced conflicting DNS record', [
+                        'zone_id' => $zoneId,
+                        'name' => $domain,
+                        'type' => $type,
+                        'content' => $record['content'] ?? null,
+                    ]);
+                }
+            }
+
+            $response = $this->client()->post("{$this->baseUrl}/zones/{$zoneId}/dns_records", [
+                'type' => 'CNAME',
+                'name' => $domain,
+                'content' => $target,
+                'ttl' => 1, // auto
+                'proxied' => false,
+            ]);
+            $json = $response->json();
+            if ($response->successful() && ($json['success'] ?? false)) {
+                Log::info('Cloudflare CNAME record created', ['zone_id' => $zoneId, 'name' => $domain, 'target' => $target]);
+                return [true, "CNAME {$domain} -> {$target} created automatically."];
+            }
+
+            return [false, $this->errorMessage($json, $response->status())];
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare CNAME ensure exception', ['zone_id' => $zoneId, 'domain' => $domain, 'error' => $e->getMessage()]);
+            return [false, 'Cloudflare request failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * The registrable root of a host: "www.customer.com" -> "customer.com".
+     * Handles common two-part public suffixes (co.uk, com.au, on.ca, ...)
+     * well enough for the TLDs our customers use; everything else keeps the
+     * last two labels.
+     */
+    protected function registrableDomain(string $host): string
+    {
+        $labels = explode('.', $host);
+        $count = count($labels);
+        if ($count <= 2) {
+            return $host;
+        }
+
+        $lastTwo = implode('.', array_slice($labels, -2));
+        $twoPartSuffixes = ['co.uk', 'org.uk', 'me.uk', 'com.au', 'net.au', 'org.au', 'co.nz', 'co.in', 'com.pk'];
+        $take = in_array($lastTwo, $twoPartSuffixes, true) ? 3 : 2;
+
+        return implode('.', array_slice($labels, -min($take, $count)));
+    }
+
+    /**
+     * Normalize Cloudflare's zone payload to the fields the app uses.
+     */
+    protected function mapZone(array $row): array
+    {
+        return [
+            'id' => $row['id'] ?? null,
+            'name' => $row['name'] ?? null,
+            // 'pending' until the nameservers point at Cloudflare, then 'active'.
+            'status' => $row['status'] ?? null,
+            'name_servers' => array_values($row['name_servers'] ?? []),
+        ];
     }
 
     public function isAdminHost(string $hostname): bool

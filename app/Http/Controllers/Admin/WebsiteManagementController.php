@@ -470,6 +470,7 @@ class WebsiteManagementController extends Controller
     {
         $report = [
             'db'         => ['ok' => true, 'message' => 'Website saved in the database.'],
+            'zone'       => null,
             'cloudflare' => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
             'ssl'        => ['ok' => null, 'message' => 'Skipped — no custom domain entered.'],
         ];
@@ -479,6 +480,9 @@ class WebsiteManagementController extends Controller
                 'cloudflare_status' => null,
                 'cloudflare_ssl_status' => null,
                 'cloudflare_last_error' => null,
+                'cloudflare_zone_id' => null,
+                'cloudflare_zone_status' => null,
+                'cloudflare_name_servers' => null,
             ]);
             session()->flash('website_created_report', $report);
             return;
@@ -495,6 +499,8 @@ class WebsiteManagementController extends Controller
             session()->flash('website_created_report', $report);
             return;
         }
+
+        $report['zone'] = $this->provisionZone($website, $cloudflare);
 
         [$ok, $message, $hostname] = $cloudflare->createCustomHostname($website->domain);
         $report['cloudflare'] = ['ok' => $ok, 'message' => $message];
@@ -513,10 +519,16 @@ class WebsiteManagementController extends Controller
                 ->delay(now()->addSeconds(30));
 
             $cnameTarget = $cloudflare->cnameTarget();
+            $nameServers = $website->cloudflare_name_servers;
             $report['ssl'] = [
                 'ok' => null,
-                'message' => "Waiting for the customer's CNAME. Create ONE DNS record: CNAME {$website->domain} -> {$cnameTarget}. "
-                    . 'Cloudflare validates and activates SSL automatically (checked every 30s, then every 5 minutes).',
+                'message' => $nameServers
+                    ? 'Waiting for the domain to point at the Cloudflare nameservers ('
+                        . implode(', ', $nameServers)
+                        . '). The CNAME record is already in place — activation and SSL are fully automatic '
+                        . '(checked every 30s, then every 5 minutes).'
+                    : "Waiting for the customer's CNAME. Create ONE DNS record: CNAME {$website->domain} -> {$cnameTarget}. "
+                        . 'Cloudflare validates and activates SSL automatically (checked every 30s, then every 5 minutes).',
             ];
         } else {
             $website->update([
@@ -527,6 +539,36 @@ class WebsiteManagementController extends Controller
         }
 
         session()->flash('website_created_report', $report);
+    }
+
+    /**
+     * Zone-managed mode: create the domain as a DNS zone in our own
+     * Cloudflare account and add the apex CNAME via the API, so the
+     * customer's only step is pointing nameservers (zero steps for domains
+     * bought inside the account). Persists zone id/status/nameservers on the
+     * website row and returns a report entry, or null when the mode is off —
+     * the flow then falls back to the classic CNAME instructions untouched.
+     */
+    protected function provisionZone(Website $website, CloudflareService $cloudflare): ?array
+    {
+        if (!$cloudflare->zoneProvisioningEnabled()) {
+            return null;
+        }
+
+        [$ok, $message, $zone] = $cloudflare->provisionZone($website->domain);
+
+        if ($zone) {
+            $website->update([
+                'cloudflare_zone_id' => $zone['id'],
+                'cloudflare_zone_status' => $zone['status'],
+                'cloudflare_name_servers' => $zone['name_servers'] ?: null,
+            ]);
+        }
+
+        // Zone problems never block the flow — the custom hostname still
+        // registers and the sync scheduler retries the zone/record until it
+        // heals.
+        return ['ok' => $ok ? true : ($zone ? null : false), 'message' => $message];
     }
 
     /**
@@ -556,8 +598,28 @@ class WebsiteManagementController extends Controller
 
         $cnameTarget = $cloudflare->cnameTarget();
 
+        // Zone-managed domains: refresh the zone status live so the page
+        // flips from "point your nameservers" to "nameservers detected"
+        // without waiting for the scheduler.
+        if ($domain && $website->cloudflare_zone_id && $website->cloudflare_zone_status !== 'active') {
+            $zone = $cloudflare->getZone($website->cloudflare_zone_id);
+            if ($zone) {
+                $website->update([
+                    'cloudflare_zone_status' => $zone['status'],
+                    'cloudflare_name_servers' => $zone['name_servers'] ?: $website->cloudflare_name_servers,
+                ]);
+            }
+        }
+
         $liveStatus = [
             'db' => ['ok' => true, 'message' => 'Website is in the database.'],
+            'zone' => !$domain || !$website->cloudflare_zone_id ? null : (
+                $website->cloudflare_zone_status === 'active'
+                    ? ['ok' => true, 'message' => 'Nameservers are pointing at Cloudflare — the DNS zone is active and the CNAME record is served automatically.']
+                    : ['ok' => null, 'message' => 'Waiting for the domain to point at the Cloudflare nameservers: '
+                        . implode(', ', $website->cloudflare_name_servers ?: [])
+                        . '. The CNAME record is already in place — everything activates automatically after that.']
+            ),
             'cloudflare' => !$domain
                 ? ['ok' => null, 'message' => 'No custom domain set — nothing to register on Cloudflare.']
                 : (!$check['configured']
@@ -588,6 +650,8 @@ class WebsiteManagementController extends Controller
             'hostname_id' => $website->cloudflare_hostname_id,
             'status' => $website->cloudflare_status,
             'ssl_status' => $website->cloudflare_ssl_status,
+            'zone_id' => $website->cloudflare_zone_id,
+            'zone_status' => $website->cloudflare_zone_status,
             'active_at' => $website->cloudflare_active_at ? $website->cloudflare_active_at->toDateTimeString() : null,
             'last_error' => $website->cloudflare_last_error,
         ];
@@ -611,6 +675,9 @@ class WebsiteManagementController extends Controller
             'cloudflare' => [
                 'configured' => $check['configured'],
                 'cnameTarget' => $cnameTarget,
+                'zoneProvisioning' => $cloudflare->zoneProvisioningEnabled(),
+                'nameServers' => $website->cloudflare_name_servers ?: [],
+                'zoneStatus' => $website->cloudflare_zone_status,
             ],
         ]);
     }
@@ -953,13 +1020,19 @@ class WebsiteManagementController extends Controller
             ]);
         }
 
-        // Reset provisioning state when the domain changed.
+        // Reset provisioning state when the domain changed. The old zone is
+        // left in the Cloudflare account on purpose — deleting a zone kills
+        // every record on that domain, and an admin typo must never be able
+        // to take a customer's DNS down.
         if ($oldDomain !== $newDomain) {
             $validated['cloudflare_hostname_id'] = null;
             $validated['cloudflare_status'] = null;
             $validated['cloudflare_ssl_status'] = null;
             $validated['cloudflare_last_error'] = null;
             $validated['cloudflare_active_at'] = null;
+            $validated['cloudflare_zone_id'] = null;
+            $validated['cloudflare_zone_status'] = null;
+            $validated['cloudflare_name_servers'] = null;
         }
 
         // Update the website
@@ -972,8 +1045,12 @@ class WebsiteManagementController extends Controller
         $buildingMessage = $this->regenerateHomePageForBuildingChange($website, $oldBuildingId);
 
         // Register the NEW domain right away — the customer only has to
-        // create their CNAME; activation is then fully automatic.
+        // create their CNAME (or, in zone-managed mode, point nameservers);
+        // activation is then fully automatic.
         if ($newDomain && $oldDomain !== $newDomain && $cloudflare->isConfigured()) {
+            if ($zoneReport = $this->provisionZone($website->refresh(), $cloudflare)) {
+                $cfMessages[] = $zoneReport['message'];
+            }
             [$ok, $msg, $hostname] = $cloudflare->createCustomHostname($newDomain);
             $cfMessages[] = $msg;
             $website->update($ok
@@ -1000,7 +1077,10 @@ class WebsiteManagementController extends Controller
             $success .= ' Cloudflare: ' . implode(' | ', $cfMessages);
         }
         if ($oldDomain !== $newDomain && $newDomain) {
-            $success .= ' Point a CNAME record at ' . $cloudflare->cnameTarget() . ' to go live.';
+            $nameServers = $website->refresh()->cloudflare_name_servers;
+            $success .= $nameServers
+                ? ' Point the domain at the Cloudflare nameservers (' . implode(', ', $nameServers) . ') to go live — the CNAME is added automatically.'
+                : ' Point a CNAME record at ' . $cloudflare->cnameTarget() . ' to go live.';
         }
 
         // Return Inertia redirect to edit page to stay on same page
