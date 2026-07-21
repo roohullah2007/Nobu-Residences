@@ -30,15 +30,31 @@ class Neighbourhood extends Model
 
         static::creating(function ($neighbourhood) {
             if (empty($neighbourhood->slug)) {
-                $neighbourhood->slug = Str::slug($neighbourhood->name);
+                $neighbourhood->slug = static::uniqueSlugFor($neighbourhood->name);
             }
         });
 
         static::updating(function ($neighbourhood) {
             if ($neighbourhood->isDirty('name') && !$neighbourhood->isDirty('slug')) {
-                $neighbourhood->slug = Str::slug($neighbourhood->name);
+                $neighbourhood->slug = static::uniqueSlugFor($neighbourhood->name, $neighbourhood->id);
             }
         });
+    }
+
+    /**
+     * The slug column is globally unique while names can repeat across
+     * cities ("Downtown" in Toronto and Hamilton) — suffix a counter instead
+     * of letting the insert die on the unique index.
+     */
+    protected static function uniqueSlugFor(?string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug((string) $name) ?: 'neighbourhood';
+        $slug = $base;
+        $i = 2;
+        while (static::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $slug = $base . '-' . $i++;
+        }
+        return $slug;
     }
 
     /**

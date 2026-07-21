@@ -30,15 +30,32 @@ class SubNeighbourhood extends Model
 
         static::creating(function ($subNeighbourhood) {
             if (empty($subNeighbourhood->slug)) {
-                $subNeighbourhood->slug = Str::slug($subNeighbourhood->name);
+                $subNeighbourhood->slug = static::uniqueSlugFor($subNeighbourhood->name);
             }
         });
 
         static::updating(function ($subNeighbourhood) {
             if ($subNeighbourhood->isDirty('name') && !$subNeighbourhood->isDirty('slug')) {
-                $subNeighbourhood->slug = Str::slug($subNeighbourhood->name);
+                $subNeighbourhood->slug = static::uniqueSlugFor($subNeighbourhood->name, $subNeighbourhood->id);
             }
         });
+    }
+
+    /**
+     * The slug column is globally unique but the same sub-neighbourhood name
+     * legitimately exists under multiple neighbourhoods (CSV imports create
+     * "North York" under several parents) — suffix a counter instead of
+     * letting the insert die on the unique index.
+     */
+    protected static function uniqueSlugFor(?string $name, ?int $ignoreId = null): string
+    {
+        $base = Str::slug((string) $name) ?: 'sub-neighbourhood';
+        $slug = $base;
+        $i = 2;
+        while (static::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $slug = $base . '-' . $i++;
+        }
+        return $slug;
     }
 
     /**
