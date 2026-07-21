@@ -40,13 +40,18 @@ Route::middleware('guest')->group(function () {
             ->name('password.store');
     });
 
-    // Google OAuth redirect. Deliberately OUTSIDE not.main-domain: the OAuth
-    // callback URI is registered for ONE host, so tenant domains relay the
-    // sign-in through that host (?origin={tenant}). The controller still
-    // 404s plain visits on the main/admin domain (no valid origin).
-    Route::get('auth/google', [GoogleAuthController::class, 'redirectToGoogle'])
-        ->name('auth.google');
 });
+
+// Google OAuth redirect. Deliberately OUTSIDE not.main-domain (the OAuth
+// callback URI is registered for ONE host, so tenant domains relay the
+// sign-in through that host via ?origin={tenant}) AND outside guest: a
+// session already signed in on the callback host — e.g. the site owner
+// logged into the admin on pcdadmin.com — used to make the guest
+// middleware bounce the relay hop to the callback host's own /dashboard
+// instead of continuing to Google. The controller 404s plain visits on
+// the main/admin domain and sends already-authenticated visitors back.
+Route::get('auth/google', [GoogleAuthController::class, 'redirectToGoogle'])
+    ->name('auth.google');
 
 // Google OAuth callback - outside guest middleware to avoid session issues
 Route::get('auth/google/callback', [GoogleAuthController::class, 'handleGoogleCallback'])

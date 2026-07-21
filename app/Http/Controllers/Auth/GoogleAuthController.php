@@ -32,6 +32,17 @@ class GoogleAuthController extends Controller
         $currentHost = TenantResolver::normalizeHost($request->getHost());
         $redirectTo = $this->safeRelativeRedirect($request->query('redirect_to'));
 
+        // The route sits outside the guest middleware so an existing session
+        // on the callback host can't hijack a tenant relay hop (it used to
+        // land the visitor on the callback host's own dashboard). Only the
+        // relay arrival may proceed while authenticated — the callback never
+        // touches the callback host's session in that flow; a plain visit by
+        // a signed-in user just goes back to the site.
+        $isRelayArrival = $currentHost === $callbackHost && $request->filled('origin');
+        if (Auth::check() && !$isRelayArrival) {
+            return redirect($redirectTo ?? '/');
+        }
+
         // Not on the callback host: hop there, carrying where to come back.
         if ($callbackHost !== '' && $currentHost !== $callbackHost) {
             $params = http_build_query(array_filter([
