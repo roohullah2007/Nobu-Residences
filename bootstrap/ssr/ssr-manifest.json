@@ -1,7 +1,7 @@
 {
   "node_modules/laravel-vite-plugin/inertia-helpers/index.js": [],
   "resources/js/Components/Admin/BuildingImportHistory.jsx": [
-    "/build/assets/Import-DjNaLeCg.js"
+    "/build/assets/Import-uBKconyC.js"
   ],
   "resources/js/Components/Admin/ConfirmDialog.jsx": [
     "/build/assets/ConfirmDialog-CoY5VzLe.js"
@@ -82,7 +82,7 @@
     "/build/assets/Edit-CffUgSTE.js"
   ],
   "resources/js/Pages/Admin/Buildings/Import.jsx": [
-    "/build/assets/Import-DjNaLeCg.js"
+    "/build/assets/Import-uBKconyC.js"
   ],
   "resources/js/Pages/Admin/Buildings/Index.jsx": [
     "/build/assets/Index-BK2F7B8X.js"

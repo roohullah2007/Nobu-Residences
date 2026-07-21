@@ -27,6 +27,7 @@ const RESUME_STORAGE_KEY = 'admin-buildings-import-token';
 const HEADER_ALIASES = {
     name: 'name', building: 'name', building_name: 'name', title: 'name',
     address: 'address', street_address: 'address', full_address: 'address', street_1: 'address', street1: 'address',
+    street_address_1: 'address',
     street_2: 'street_address_2', street2: 'street_address_2', street_address_2: 'street_address_2',
     city: 'city', town: 'city',
     province: 'province', state: 'province',
@@ -44,7 +45,7 @@ const HEADER_ALIASES = {
     corp_number: 'corp_number', corp: 'corp_number',
     date_registered: 'date_registered', registered: 'date_registered',
     total_units: 'total_units', units: 'total_units',
-    floors: 'floors', storeys: 'floors', stories: 'floors',
+    floors: 'floors', storeys: 'floors', stories: 'floors', number_of_floors: 'floors',
     year_built: 'year_built', built: 'year_built', year: 'year_built', built_year: 'year_built',
     parking_spots: 'parking_spots', parking: 'parking_spots',
     locker_spots: 'locker_spots', lockers: 'locker_spots',
@@ -54,6 +55,7 @@ const HEADER_ALIASES = {
     sqft_range: 'sqft_range', avg_unit_size: 'sqft_range', unit_size: 'sqft_range',
     avg_price_per_sqft: 'avg_price_per_sqft', price_per_sqft: 'avg_price_per_sqft',
     images: 'images', image_links: 'images', image_urls: 'images', photos: 'images',
+    all_image_urls: 'images', all_images: 'images',
     description: 'description', notes: 'description', overview: 'description',
     // NOTE: a column literally named "URL" is deliberately NOT auto-mapped —
     // spreadsheet exports (condos.ca) put their own listing link there, which
@@ -539,7 +541,13 @@ export default function BuildingsImport({ importableFields = {}, history = [] })
                             <div className="mt-6 flex items-center justify-between">
                                 <div className="text-xs text-gray-500">
                                     {!hasNameMapped && <p className="text-red-600">Map a column to "Building Name" to continue.</p>}
-                                    {hasNameMapped && !hasAddressMapped && <p className="text-amber-600">Tip: mapping "Address" is required for new buildings.</p>}
+                                    {hasNameMapped && !hasAddressMapped && (
+                                        <p className="text-red-600 font-medium">
+                                            No column is mapped to "Address" — every row that is not an already-existing
+                                            building will fail with "Address is empty". Map your street address column
+                                            before importing.
+                                        </p>
+                                    )}
                                 </div>
                                 <button
                                     type="button"
