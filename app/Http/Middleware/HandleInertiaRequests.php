@@ -104,12 +104,14 @@ class HandleInertiaRequests extends Middleware
                     60,
                     fn () => \App\Models\Building::query()
                         ->where('id', $website->homepage_building_id)
-                        ->first(['id', 'name', 'address', 'main_image', 'logo'])
+                        ->first(['id', 'name', 'slug', 'address', 'city', 'main_image', 'logo'])
                 );
             }
             $globalWebsite['building_id'] = $building?->id;
             $globalWebsite['building_name'] = $building?->name;
             $globalWebsite['building_address'] = $building?->address;
+            $globalWebsite['building_city'] = $building?->city;
+            $globalWebsite['building_slug'] = $building?->slug;
             $globalWebsite['building_image'] = $building?->main_image;
             $globalWebsite['building_logo'] = $building?->logo;
         }

@@ -40,11 +40,17 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
         return cleanPath;
     };
 
-    // Default navigation links
+    // Default navigation links. Rent/Sale point at the site's own building
+    // city (a Pickering site must not send visitors to /toronto/for-sale);
+    // Toronto stays the fallback for sites without a linked building.
+    const citySlug = (effectiveWebsite?.building_city || 'Toronto')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '-');
     const defaultNavLinks = [
         { id: 1, text: 'Home', url: '/', enabled: true },
-        { id: 2, text: 'Rent', url: '/toronto/for-rent', enabled: true },
-        { id: 3, text: 'Sale', url: '/toronto/for-sale', enabled: true },
+        { id: 2, text: 'Rent', url: `/${citySlug}/for-rent`, enabled: true },
+        { id: 3, text: 'Sale', url: `/${citySlug}/for-sale`, enabled: true },
         { id: 4, text: 'Search All', url: '/search', enabled: true },
         { id: 5, text: 'Blog', url: '/blogs', enabled: true },
         { id: 6, text: 'Developers', url: '/developers', enabled: true },

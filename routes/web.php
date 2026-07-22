@@ -15,6 +15,11 @@ use Inertia\Inertia;
 // Website routes using WebsiteController
 Route::get('/', [WebsiteController::class, 'home']);
 
+// Per-tenant SEO files: each domain advertises its own sitemap. robots.txt
+// used to be a static public/ file, which could not carry a Sitemap line.
+Route::get('/robots.txt', \App\Http\Controllers\RobotsTxtController::class)->name('robots');
+Route::get('/sitemap.xml', \App\Http\Controllers\SitemapController::class)->name('sitemap');
+
 // Public routes for the real estate website
 Route::get('/rent', [WebsiteController::class, 'rent'])->name('rent');
 Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
