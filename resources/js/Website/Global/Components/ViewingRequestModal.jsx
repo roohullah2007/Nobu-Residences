@@ -18,7 +18,7 @@ const VIEWING_TYPES = [
  * /api/tour-requests endpoint (admin "Tour Requests" page lists them).
  */
 const ViewingRequestModal = ({ isOpen, onClose, property }) => {
-  const { globalWebsite, website, siteName } = usePage().props;
+  const { globalWebsite, website, siteName, auth } = usePage().props;
   const currentWebsite = website || globalWebsite;
   const brandColors = currentWebsite?.brand_colors || {};
   const siteDisplayName = currentWebsite?.name || siteName || 'our team';
@@ -46,7 +46,13 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
   const [viewingType, setViewingType] = useState('in-person');
   const [selectedDate, setSelectedDate] = useState(dateOptions[0]?.iso || '');
   const [selectedTime, setSelectedTime] = useState(TIME_SLOTS[0]);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+  // Pre-fill from the signed-in visitor so they don't retype their details.
+  const initialFormData = {
+    name: auth?.user?.name || '',
+    email: auth?.user?.email || '',
+    phone: auth?.user?.phone || '',
+  };
+  const [formData, setFormData] = useState(initialFormData);
   const [hasConsented, setHasConsented] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -96,7 +102,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
-        setFormData({ name: '', email: '', phone: '' });
+        setFormData(initialFormData);
         setHasConsented(false);
         onClose();
       }, 2500);

@@ -14,7 +14,7 @@ export default function ContactAgentModal({ isOpen, onClose, agentData, property
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
         email: auth?.user?.email || '',
-        phone: '',
+        phone: auth?.user?.phone || '',
         question: '',
         inquiry_type: 'agent_contact'
     });

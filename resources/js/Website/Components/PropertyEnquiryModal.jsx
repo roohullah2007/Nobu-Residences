@@ -13,7 +13,7 @@ export default function PropertyEnquiryModal({ isOpen, onClose, propertyData, au
     const [formData, setFormData] = useState({
         name: auth?.user?.name || '',
         email: auth?.user?.email || '',
-        phone: '',
+        phone: auth?.user?.phone || '',
         message: `I am interested in the property at ${propertyData?.UnparsedAddress || propertyData?.address || 'this location'}. Please contact me with more information.`,
         inquiry_type: 'property_inquiry'
     });
