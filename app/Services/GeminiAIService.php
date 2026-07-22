@@ -10,6 +10,12 @@ use App\Models\PropertyFaq;
 
 class GeminiAIService
 {
+    /**
+     * Ceiling for the automatic MAX_TOKENS budget-doubling retry — thinking
+     * models spend reasoning tokens from the same maxOutputTokens budget.
+     */
+    private const MAX_OUTPUT_TOKENS_CAP = 16384;
+
     private string $apiKey;
     private string $apiUrl;
     private string $model;
@@ -383,6 +389,21 @@ class GeminiAIService
                     continue;
                 }
 
+                // Models whose thinking cannot be disabled spend reasoning
+                // tokens from the SAME maxOutputTokens budget, so a budget
+                // sized for the visible answer truncates at MAX_TOKENS.
+                // Double the budget (capped) and retry instead of failing.
+                if ($response->successful()
+                    && ($response->json('candidates.0.finishReason') ?? '') === 'MAX_TOKENS'
+                    && $payload['generationConfig']['maxOutputTokens'] < self::MAX_OUTPUT_TOKENS_CAP) {
+                    $payload['generationConfig']['maxOutputTokens'] = min(
+                        self::MAX_OUTPUT_TOKENS_CAP,
+                        $payload['generationConfig']['maxOutputTokens'] * 2
+                    );
+                    Log::warning('Gemini hit MAX_TOKENS — retrying with budget ' . $payload['generationConfig']['maxOutputTokens']);
+                    continue;
+                }
+
                 if ($response->successful()
                     || !in_array($response->status(), [429, 500, 503], true)
                     || $attempt === $maxAttempts) {
@@ -416,11 +437,12 @@ class GeminiAIService
                 // not be treated as a successful generation.
                 $finishReason = $candidate['finishReason'] ?? '';
                 if ($finishReason === 'MAX_TOKENS') {
+                    $finalBudget = $payload['generationConfig']['maxOutputTokens'];
                     Log::error('Gemini response truncated at MAX_TOKENS', [
-                        'maxOutputTokens' => $maxOutputTokens,
+                        'maxOutputTokens' => $finalBudget,
                         'text_length' => strlen($text),
                     ]);
-                    throw new \Exception("Gemini response was cut off (MAX_TOKENS at {$maxOutputTokens} tokens)");
+                    throw new \Exception("Gemini response was cut off (MAX_TOKENS at {$finalBudget} tokens)");
                 }
 
                 if ($text !== '') {
