@@ -74,12 +74,25 @@ final class EmailBranding
     }
 
     /**
-     * Absolute filesystem path for a site-relative public asset ("/assets/
-     * logo.png"), or null for external URLs / missing files.
+     * Absolute filesystem path for a public asset, or null when the file
+     * isn't on this server. Site-relative paths ("/assets/logo.png") map
+     * directly; absolute URLs are mapped by their PATH too — every tenant
+     * domain serves this same public/ dir, so a logo saved as
+     * "https://tenant.com/images/logo.png" is still a local file, and
+     * embedding from disk beats the server fetching itself over HTTP
+     * (BlockScrapers 403s HTTP-library user agents, Cloudflare may too).
      */
     private static function localPublicPath(?string $urlPath): ?string
     {
-        if (empty($urlPath) || str_starts_with($urlPath, 'http')) {
+        if (empty($urlPath)) {
+            return null;
+        }
+
+        if (str_starts_with($urlPath, 'http')) {
+            $urlPath = (string) parse_url($urlPath, PHP_URL_PATH);
+        }
+
+        if ($urlPath === '' || str_contains($urlPath, '..')) {
             return null;
         }
 
@@ -106,7 +119,12 @@ final class EmailBranding
             }
 
             if (!empty($url) && str_starts_with($url, 'http')) {
-                $response = \Illuminate\Support\Facades\Http::timeout(5)->get($url);
+                // A recognizable non-library User-Agent: the default Guzzle
+                // UA is on BlockScrapers' list, so without this the server
+                // 403s its own download and the embed silently fails.
+                $response = \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; BunPilotMailer/1.0; +email-image-embed)'])
+                    ->get($url);
                 if ($response->successful() && $response->body() !== '') {
                     $ext = pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION) ?: 'png';
                     $mime = $response->header('Content-Type') ?: ('image/' . $ext);
