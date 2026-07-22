@@ -1,4 +1,5 @@
 import React from 'react';
+import { resolveAmenityIconPath } from '@/utils/amenityIcon';
 
 export default function BuildingAmenities({ buildingData }) {
   console.log('=== BuildingAmenities Component Debug ===');
@@ -30,45 +31,14 @@ export default function BuildingAmenities({ buildingData }) {
   });
 
   const getAmenityIcon = (amenity) => {
-    // First try to use the icon from the database
-    if (amenity.icon) {
-      // If icon starts with 'http' or '/', use it directly
-      if (amenity.icon.startsWith('http') || amenity.icon.startsWith('/')) {
-        return amenity.icon;
-      }
-      // Otherwise, assume it's a filename and prepend the assets path
+    // Bare filenames from the DB keep the legacy assets-path treatment;
+    // everything else goes through the shared keyword resolver so every
+    // amenity shows a related icon.
+    if (amenity.icon && !amenity.icon.startsWith('http') && !amenity.icon.startsWith('/')) {
       return `/assets/svgs/${amenity.icon}`;
     }
 
-    // Fallback: Map amenity names to icon paths for backward compatibility
-    const iconMap = {
-      'Concierge': '/assets/svgs/concierge.svg',
-      'Party Room': '/assets/svgs/party-horn.svg',
-      'Meeting Room': '/assets/svgs/meeting-consider-deliberate-about-meet.svg',
-      'Security Guard': '/assets/svgs/police-security-policeman.svg',
-      'Gym': '/assets/svgs/gym.svg',
-      'Visitor Parking': '/assets/svgs/parking.svg',
-      'Parking Garage': '/assets/svgs/parking-garage-transportation-car-parking.svg',
-      'Guest Suites': '/assets/svgs/bed.svg',
-      'Pet Restriction': '/assets/svgs/pets.svg',
-      'BBQ Permitted': '/assets/svgs/bbq-permitted.svg',
-      'Outdoor Pool': '/assets/svgs/pool-ladder.svg',
-      'Media Room': '/assets/svgs/media-room.svg',
-      'Rooftop Deck': '/assets/svgs/deck-chair-under-the-sun.svg',
-      'Security System': '/assets/svgs/security.svg',
-      'Indoor Pool': '/assets/svgs/pool-ladder.svg',
-      'Sauna': '/assets/svgs/amenity-default.svg',
-      'Tennis Court': '/assets/svgs/amenity-default.svg',
-      'Playground': '/assets/svgs/amenity-default.svg',
-      'Library': '/assets/svgs/amenity-default.svg',
-      'Business Center': '/assets/svgs/amenity-default.svg',
-      'Bike Storage': '/assets/svgs/amenity-default.svg',
-      'Storage Lockers': '/assets/svgs/amenity-default.svg',
-      'Car Wash': '/assets/svgs/amenity-default.svg',
-      'EV Charging': '/assets/svgs/amenity-default.svg'
-    };
-
-    return iconMap[amenity.name] || '/assets/svgs/amenity-default.svg';
+    return resolveAmenityIconPath(amenity.name, amenity.icon);
   };
 
   // Get maintenance fee amenities
@@ -127,7 +97,7 @@ export default function BuildingAmenities({ buildingData }) {
               {maintenanceFeeAmenities.map((amenity, index) => (
                 <div key={amenity.id || index} className="flex flex-row items-center gap-2">
                   <img
-                    src={amenity.icon || getAmenityIcon(amenity)}
+                    src={getAmenityIcon(amenity)}
                     alt={amenity.name}
                     className="w-5 h-5 flex-shrink-0"
                     onError={(e) => {

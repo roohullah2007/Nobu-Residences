@@ -4,8 +4,7 @@ import { generatePropertyUrl } from '@/utils/propertyUrl';
 import { createSEOBuildingUrl } from '@/utils/slug';
 import {
   formatCardAddress,
-  buildCardFeatures,
-  getBrokerageName
+  buildCardFeatures
 } from '@/utils/propertyFormatters';
 import { usePage } from '@inertiajs/react';
 
@@ -394,7 +393,6 @@ const PropertyCardV5 = ({
   // City shown on the right of the price row (from the API).
   const cityDisplay = String(property.city || property.City || '').trim();
   const features = buildCardFeatures(property);
-  const brokerageName = getBrokerageName(property);
   // Use building URL for buildings, property URL for properties
   const detailsUrl = property.source === 'building'
     ? createSEOBuildingUrl(property)
@@ -405,7 +403,6 @@ const PropertyCardV5 = ({
     property.source === 'building' ? (property.name || property.propertyType || 'Building') : (property.propertyType || 'Residential'),
     displayAddress,
     features,
-    brokerageName,
     property.source !== 'building' ? (property.source === 'mls' ? `MLS#: ${property.listingKey}` : `ID: ${property.listingKey}`) : null
   ].filter(Boolean);
 
@@ -756,12 +753,7 @@ const PropertyCardV5 = ({
               )
             )}
 
-            {/* Brokerage Name - Only show for properties, not buildings */}
-            {property.source !== 'building' && brokerageName && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600 ${lockSoldPrice ? 'blur-md select-none' : ''}`}>
-                {brokerageName}
-              </div>
-            )}
+            {/* Listing brokerage intentionally not shown (client request) */}
 
             {/* MLS Number - Hide for buildings, only show if exists */}
             {property.source !== 'building' && property.listingKey && (

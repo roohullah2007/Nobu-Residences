@@ -3,6 +3,7 @@ import { Heart, Share, FacebookIcon, TwitterIcon, EmailIcon, LinkIcon } from '@/
 import usePropertyFavourite from '@/hooks/usePropertyFavourite';
 import { Link, usePage } from '@inertiajs/react';
 import LoginModal from '@/Website/Global/Components/LoginModal';
+import { getListingH1 } from '@/utils/listingTitle';
 
 export default function PropertyHeader({
   data,
@@ -256,42 +257,12 @@ export default function PropertyHeader({
       return address;
     }
 
-    // For properties, format as "UnitNumber - StreetNumber StreetName Street"
+    // For properties (client SEO spec H1):
+    //   "{unit} - {street number} {street name} {suffix} {direction}, {city}"
+    //   e.g. "2015 - 470 Front St W, Toronto"
+    // Shared with "Overview of %h1%" / "%h1% Details" section headings.
     if (type === 'property' && data) {
-      const unitNumber = data?.unitNumber || data?.UnitNumber || '';
-      const streetNumber = data?.streetNumber || data?.StreetNumber || '';
-      const streetName = data?.streetName || data?.StreetName || '';
-
-      // Build the formatted title
-      let title = '';
-
-      // Add unit number if available
-      if (unitNumber) {
-        title = unitNumber;
-      }
-
-      // Add street number and name
-      if (streetNumber && streetName) {
-        // Check if streetName already contains a street type suffix
-        const streetTypes = ['St', 'Ave', 'Blvd', 'Rd', 'Dr', 'Ln', 'Ct', 'Way', 'Pl', 'Cres', 'Street', 'Avenue', 'Boulevard', 'Road', 'Drive', 'Lane', 'Court', 'Place', 'Crescent'];
-        const hasStreetType = streetTypes.some(type =>
-          streetName.toLowerCase().endsWith(type.toLowerCase()) ||
-          streetName.toLowerCase().includes(type.toLowerCase() + ' ')
-        );
-
-        // Add "Street" if the street name doesn't already have a type
-        const formattedStreetName = hasStreetType ? streetName : `${streetName} Street`;
-        const streetPart = `${streetNumber} ${formattedStreetName}`;
-
-        if (title) {
-          title = `${title} - ${streetPart}`;
-        } else {
-          title = streetPart;
-        }
-      }
-
-      // Fallback to original address if no formatted parts available
-      return title || data?.address;
+      return getListingH1(data);
     }
 
     return data?.address;
@@ -328,6 +299,8 @@ export default function PropertyHeader({
         const city = data?.city || data?.City || '';
         const seen = new Set();
         const parts = [];
+        // Repliers "area" is the TRREB region (often === city), so the
+        // narrow neighborhood leads; area/city dedupe below.
         [
           { label: neighborhood, type: 'sub_neighbourhood' },
           { label: area, type: 'neighbourhood' },
@@ -346,19 +319,19 @@ export default function PropertyHeader({
     // If no location source, return null
     if (!locationSource) return null;
 
-    // Add sub_neighbourhood first (e.g., King West)
-    if (locationSource?.sub_neighbourhood) {
-      parts.push({
-        label: locationSource.sub_neighbourhood,
-        type: 'sub_neighbourhood'
-      });
-    }
-
-    // Add neighbourhood (e.g., Downtown)
+    // Broad → narrow per the client spec: neighbourhood (e.g., Downtown)
+    // first, then sub_neighbourhood (e.g., King West), then city.
     if (locationSource?.neighbourhood) {
       parts.push({
         label: locationSource.neighbourhood,
         type: 'neighbourhood'
+      });
+    }
+
+    if (locationSource?.sub_neighbourhood) {
+      parts.push({
+        label: locationSource.sub_neighbourhood,
+        type: 'sub_neighbourhood'
       });
     }
 
@@ -393,8 +366,9 @@ export default function PropertyHeader({
               <h1 className="font-space-grotesk font-bold text-[26px] leading-[34px] md:text-[40px] md:leading-[50px] text-[#293056] tracking-tight mb-3 md:mb-0 truncate md:whitespace-normal md:overflow-visible max-w-full">
                 {getTitle()}
               </h1>
-              {/* Building + neighbourhood breadcrumb — single line:
-                  "Nobu Residences in King West, Downtown, Toronto" */}
+              {/* Building + neighbourhood breadcrumb — single line under the
+                  H1 per the client spec: "The Well in Downtown, King West,
+                  Toronto" with building/area/city links. */}
               {(() => {
                 const breadcrumb = getLocationBreadcrumb();
                 const slugify = (s) => (s || '').toString().toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
@@ -411,6 +385,9 @@ export default function PropertyHeader({
                 };
 
                 // Building name link (only for property pages with a known building)
+                // TODO(SEO spec): still targets the legacy rich-slug building
+                // URL (/{city}/{name+address}), which resolves via the
+                // buildingDetail catch-all. Align if building pages move.
                 // Strip a trailing city name from the building name so we
                 // show "Nobu Residences" instead of "NOBU Residences Toronto".
                 let buildingHref = null;
@@ -447,19 +424,26 @@ export default function PropertyHeader({
                           )}
                         </>
                       )}
-                      {breadcrumb && breadcrumb.map((part, index) => (
-                        <span key={part.type}>
-                          <Link
-                            href={buildAreaHref(part)}
-                            className="underline hover:text-[#1f2441] transition-colors"
-                          >
-                            {part.label}
-                          </Link>
-                          {index < breadcrumb.length - 1 && (
-                            <span className="text-gray-400">, </span>
-                          )}
-                        </span>
-                      ))}
+                      {breadcrumb && breadcrumb.map((part, index) => {
+                        const areaHref = buildAreaHref(part);
+                        return (
+                          <span key={part.type}>
+                            {areaHref === '#' ? (
+                              <span>{part.label}</span>
+                            ) : (
+                              <Link
+                                href={areaHref}
+                                className="underline hover:text-[#1f2441] transition-colors"
+                              >
+                                {part.label}
+                              </Link>
+                            )}
+                            {index < breadcrumb.length - 1 && (
+                              <span className="text-gray-400">, </span>
+                            )}
+                          </span>
+                        );
+                      })}
                     </span>
                   </h2>
                 );

@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import PluginStyleImageLoader from '@/Website/Components/PluginStyleImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
 import RequestTourModal from '@/Website/Components/RequestTourModal';
-import { 
-  formatCardAddress, 
-  buildCardFeatures, 
-  getBrokerageName 
+import {
+  formatCardAddress,
+  buildCardFeatures
 } from '@/utils/propertyFormatters';
 
 /**
@@ -51,7 +50,6 @@ const PropertyCardV5 = ({
   const formattedPrice = property.formatted_price || formatPrice(property.price, property.isRental);
   const displayAddress = formatCardAddress(property);
   const features = buildCardFeatures(property);
-  const brokerageName = getBrokerageName(property);
   const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations - Optimized for 3 cards per row with flexible height
@@ -196,14 +194,9 @@ const PropertyCardV5 = ({
                 {features}
               </div>
             )}
-            
-            {/* Brokerage Name */}
-            {brokerageName && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
-                {brokerageName}
-              </div>
-            )}
-            
+
+            {/* Listing brokerage intentionally not shown (client request) */}
+
             {/* MLS Number or Building Info */}
             <div className="flex items-center justify-start w-full min-h-8">
               <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>

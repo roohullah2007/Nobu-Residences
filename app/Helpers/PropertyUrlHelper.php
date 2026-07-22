@@ -2,6 +2,11 @@
 
 namespace App\Helpers;
 
+/**
+ * @deprecated Emits the pre-/mls/ URL shape and has no callers. Canonical
+ *             listing URLs come from ListingUrlBuilder (backend) and
+ *             resources/js/utils/propertyUrl.js (frontend).
+ */
 class PropertyUrlHelper
 {
     /**

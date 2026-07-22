@@ -150,10 +150,13 @@ class TourRequestController extends Controller
 
     /**
      * Parse the tour widget's display strings into concrete Toronto-local
-     * times: selected_date "TUE, JUL 21" (weekday prefix, no year) and
-     * selected_time "12PM to 4PM" (a slot range; the appointment spans it).
-     * A date with no year that already passed rolls into next year. Returns
-     * null when no usable date exists.
+     * times: selected_date "TUE, JUL 21" (weekday prefix, no year) or ISO
+     * "2026-07-23", and selected_time either a range "12PM to 4PM"
+     * (TourScheduling) or a word slot "Morning" | "Afternoon" | "Evening"
+     * (ViewingRequestModal) — the word slots map to the ranges the widget
+     * advertises, otherwise every such request silently skipped the FUB
+     * appointment. A date with no year that already passed rolls into next
+     * year. Returns null when no usable date exists.
      *
      * @return array{start: \Carbon\Carbon, end: \Carbon\Carbon}|null
      */
@@ -175,10 +178,20 @@ class TourRequestController extends Controller
             $day->addYear();
         }
 
-        $range = preg_split('/\s+to\s+/i', trim((string) $time)) ?: [];
+        // Word slots from ViewingRequestModal → the time ranges its UI shows.
+        $wordSlots = [
+            'morning' => '9AM to 12PM',
+            'afternoon' => '12PM to 4PM',
+            'evening' => '4PM to 8PM',
+        ];
+        $timeString = trim((string) $time);
+        $timeString = $wordSlots[strtolower($timeString)] ?? $timeString;
+
+        $range = preg_split('/\s+to\s+/i', $timeString) ?: [];
 
         try {
-            $start = \Carbon\Carbon::parse($day->format('Y-m-d') . ' ' . trim($range[0] ?? '9AM'), $timezone);
+            $startTime = trim($range[0] ?? '');
+            $start = \Carbon\Carbon::parse($day->format('Y-m-d') . ' ' . ($startTime !== '' ? $startTime : '9AM'), $timezone);
             $end = isset($range[1])
                 ? \Carbon\Carbon::parse($day->format('Y-m-d') . ' ' . trim($range[1]), $timezone)
                 : $start->copy()->addHour();

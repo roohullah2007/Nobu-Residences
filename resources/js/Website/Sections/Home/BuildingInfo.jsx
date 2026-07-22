@@ -42,7 +42,9 @@ export default function BuildingInfo({ pageContent, building = {} }) {
         : [clean(building.street_address_1), clean(building.street_address_2)]
     ).filter(Boolean);
 
-    const heading = `A landmark address${addresses.length ? ` on ${addresses[0]}` : " on Mercer Street"}`;
+    // Client SEO spec: the homepage building section heading is
+    // "About %building_name%".
+    const heading = `About ${buildingName}`;
 
     return (
         <section id="building" className="bg-white py-16 md:py-24">

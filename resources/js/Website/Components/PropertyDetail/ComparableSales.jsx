@@ -4,6 +4,9 @@ import { usePage } from '@inertiajs/react';
 
 const ComparableSales = ({
   title = "Comparable Sales",
+  // Section heading level — the property page passes 'h3' per the client
+  // heading spec.
+  headingTag: HeadingTag = 'h2',
   propertyData = null,
   onLoginRequired,
   onSignupRequired,
@@ -142,7 +145,7 @@ const ComparableSales = ({
       <div className="max-w-[1280px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
+            <HeadingTag className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</HeadingTag>
           </div>
 
           {/* Navigation Arrows - Desktop Only */}

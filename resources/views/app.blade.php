@@ -26,7 +26,9 @@
             $seoImage = $pageSeo['image'] ?? $seo['logo_url'] ?? null;
             $seoFavicon = $seo['favicon_url'] ?? '/favicon.ico';
             $seoSiteName = $seo['name'] ?? $hostName;
-            $seoUrl = url()->current();
+            // Pages may pin their own canonical (e.g. /for-sale keeps ?page=N
+            // but drops every other param). Default: current URL sans query.
+            $seoUrl = $pageSeo['canonical'] ?? url()->current();
             // jsonLd may be one schema object or a list of them.
             $seoJsonLd = $pageSeo['jsonLd'] ?? null;
             if ($seoJsonLd && !array_is_list($seoJsonLd)) {

@@ -23,8 +23,10 @@ return [
     // Create the key in FUB: Admin > API > Create API Key.
     'followupboss' => [
         'key' => env('FUB_API_KEY'),
-        // Optional registered-system name shown on FUB events
-        'system' => env('FUB_SYSTEM'),
+        // System name shown on FUB events ("Added ... by {system}"). Per
+        // client this must read "PCD IDX", never the tenant/app name — the
+        // per-tenant attribution lives in `source`/tags instead.
+        'system' => env('FUB_SYSTEM', 'PCD IDX'),
     ],
 
     'resend' => [

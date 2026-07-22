@@ -17,10 +17,13 @@ import ContactSection from '@/Website/Sections/Home/ContactSection';
 import { ViewingRequestModal, WhatsAppButton } from '@/Website/Global/Components';
 import { normalizeListing, priceStats } from '@/Website/Sections/Home/iceData';
 
-export default function Home({ auth, website, siteName, siteUrl, year, pageContent, availableIcons, buildingData, ...props }) {
+export default function Home({ auth, website, siteName, siteUrl, year, pageContent, availableIcons, buildingData, seo = {}, ...props }) {
     const building = buildingData || {};
     const { globalWebsite } = usePage().props;
-    const pageTitle = globalWebsite?.meta_title || `${siteName} - Luxury Condominiums`;
+    // The server seo.title (client SEO templates with live unit counts) must
+    // win: the blade promotes the SSR <title> over the seo prop, so a
+    // hardcoded title here would shadow it.
+    const pageTitle = seo?.title || globalWebsite?.meta_title || `${siteName} - Luxury Condominiums`;
 
     const [viewingModal, setViewingModal] = useState({ isOpen: false, property: null });
 

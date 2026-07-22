@@ -40,6 +40,10 @@ const ClusteredPropertyMap = ({
   onPropertyClick = null,
   onMarkerCountChange = null,
   onPolygonDraw = null,
+  // Fired (debounced) after a USER pan/zoom settles, with the visible
+  // viewport bounds — lets the mixed view refetch its list for the area.
+  // Programmatic moves (fitBounds after a new search) never fire it.
+  onViewportChange = null,
   initialCenter = { lat: 43.6532, lng: -79.3832 }, // Toronto default
   initialZoom = 11,
 }) => {
@@ -68,6 +72,24 @@ const ClusteredPropertyMap = ({
   const [hasDrawnPolygon, setHasDrawnPolygon] = useState(false);
   const [markerStats, setMarkerStats] = useState({ displayed: 0, total: 0 });
   const lastBoundsRef = useRef(null);
+
+  // Viewport-sync plumbing. The callback lives in a ref so the parent can
+  // pass a stable or unstable function without re-wiring map listeners.
+  // suppressNextIdleNotifyRef starts true: the map's very first idle (initial
+  // render) must not refetch the list the page just loaded. It is re-armed
+  // before every programmatic move (fitBounds/setCenter after new results) so
+  // only genuine user pans/zooms notify the parent — otherwise a list fetch
+  // that moves the map would refetch the list again, forever.
+  const onViewportChangeRef = useRef(null);
+  onViewportChangeRef.current = onViewportChange;
+  const suppressNextIdleNotifyRef = useRef(true);
+  const notifyViewportChange = useRef(
+    debounce((bounds, zoom) => {
+      if (onViewportChangeRef.current) {
+        onViewportChangeRef.current(bounds, zoom);
+      }
+    }, 600)
+  ).current;
   const lastZoomRef = useRef(initialZoom);
 
   // Get CSRF token
@@ -347,6 +369,8 @@ const ClusteredPropertyMap = ({
     // fit_bounds and the map stays put.
     if (fitBounds) {
       lastBoundsRef.current = null; // don't dedupe away the post-fit refetch
+      // Programmatic move — its idle must not notify the parent (loop guard).
+      suppressNextIdleNotifyRef.current = true;
       const isSinglePoint =
         Math.abs(fitBounds.north - fitBounds.south) < 0.0005 &&
         Math.abs(fitBounds.east - fitBounds.west) < 0.0005;
@@ -715,6 +739,16 @@ const ClusteredPropertyMap = ({
             };
 
             debouncedUpdate(viewportBounds, zoom);
+
+            // Mixed-view list sync: only for genuine user moves — skip the
+            // initial idle, idles caused by programmatic fitBounds, and any
+            // movement while the draw tool is active.
+            if (isDrawingModeRef.current) return;
+            if (suppressNextIdleNotifyRef.current) {
+              suppressNextIdleNotifyRef.current = false;
+              return;
+            }
+            notifyViewportChange(viewportBounds, zoom);
           }
         });
 
@@ -754,6 +788,7 @@ const ClusteredPropertyMap = ({
   // polygon/markers every time searchFilters or debouncedUpdate change).
   useEffect(() => {
     return () => {
+      notifyViewportChange.cancel();
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current = [];
       if (markerClustererRef.current) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Close, Heart } from '@/Website/Components/Icons';
 import { Link, usePage } from '@inertiajs/react';
 import PropertyEnquiryModal from '@/Website/Components/PropertyEnquiryModal';
+import { getListingH1 } from '@/utils/listingTitle';
 
 export default function PropertyGallery({
   propertyImages,
@@ -530,14 +531,15 @@ export default function PropertyGallery({
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
                 {/* Property Status and Price Section */}
                 <div className="flex flex-col gap-2 items-center">
-                  <div className="flex justify-between items-center w-full">
+                  {/* h2 per the client heading spec — reads "FOR SALE $709,999" */}
+                  <h2 className="flex justify-between items-center w-full">
                     <span className="font-space-grotesk font-bold text-xl md:text-2xl leading-7 md:leading-[34px] uppercase text-[#93370D]">
                       {getPropertyStatus()}
                     </span>
                     <span className="font-space-grotesk font-bold text-xl md:text-2xl leading-7 md:leading-[34px] uppercase text-[#93370D]">
                       {getDisplayPrice()}
                     </span>
-                  </div>
+                  </h2>
                   <div className="font-work-sans font-medium text-sm text-[#535862] text-center">
                     {(() => {
                       const status = getPropertyStatus();
@@ -598,47 +600,51 @@ export default function PropertyGallery({
                 
                 {/* Properties Details Section */}
                 <div className="flex flex-col gap-4 md:gap-6">
-                  <h3 className="font-red-hat font-bold text-lg md:text-xl text-[#252B37]">
-                    Properties detail
-                  </h3>
+                  {/* h2 titled "%h1% Details" per the client heading spec */}
+                  <h2 className="font-red-hat font-bold text-lg md:text-xl text-[#252B37]">
+                    {(() => {
+                      const h1 = getListingH1(propertyData);
+                      return h1 ? `${h1} Details` : 'Properties detail';
+                    })()}
+                  </h2>
                   
                   <div className="flex flex-col gap-4 md:gap-6">
                     {/* Type */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Type
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {propertyData?.details?.type || propertyData?.propertyType || propertyData?.propertySubType || 'N/A'}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Beds */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Beds
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {propertyData?.details?.beds || propertyData?.bedrooms || propertyData?.bedroomsTotal || 'N/A'}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Bathrooms */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Bathrooms
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {propertyData?.details?.bathrooms || propertyData?.bathrooms || propertyData?.bathroomsTotal || 'N/A'}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Area */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Area
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various area fields from API
                           const livingArea = propertyData?.LivingAreaRange || propertyData?.livingAreaRange || 
@@ -664,15 +670,15 @@ export default function PropertyGallery({
                           }
                           return 'N/A';
                         })()}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Parking */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Parking
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various parking fields
                           const parkingTotal = propertyData?.ParkingTotal || propertyData?.parkingTotal || 
@@ -701,15 +707,15 @@ export default function PropertyGallery({
                           
                           return '0';
                         })()}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Maintenance Fees */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Maintenance Fees
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various fee fields
                           const fee = propertyData?.AssociationFee || propertyData?.associationFee ||
@@ -727,15 +733,15 @@ export default function PropertyGallery({
                           }
                           return 'N/A';
                         })()}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Property Taxes */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Property Taxes
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various tax fields
                           const taxes = propertyData?.TaxTotalAnnual || propertyData?.taxTotalAnnual ||
@@ -756,15 +762,15 @@ export default function PropertyGallery({
                           }
                           return 'N/A';
                         })()}
-                      </span>
+                      </p>
                     </div>
                     
                     {/* Exposure */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Exposure
-                      </span>
-                      <span className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
+                      </h3>
+                      <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
                         {(() => {
                           // Check various exposure/direction fields
                           const exposure = propertyData?.DirectionFaces || propertyData?.directionFaces ||
@@ -782,7 +788,7 @@ export default function PropertyGallery({
                           }
                           return 'N/A';
                         })()}
-                      </span>
+                      </p>
                     </div>
                   </div>
                 </div>

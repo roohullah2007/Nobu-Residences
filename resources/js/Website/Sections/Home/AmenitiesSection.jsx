@@ -2,6 +2,8 @@
 // the same availableIcons SVG approach used elsewhere. Plus a static
 // Walk/Transit/Bike score strip.
 
+import { resolveAmenityIconPath } from '@/utils/amenityIcon';
+
 export default function AmenitiesSection({ pageContent, availableIcons, building = {} }) {
     const aboutTabs = pageContent?.about?.tabs || {};
 
@@ -24,8 +26,9 @@ export default function AmenitiesSection({ pageContent, availableIcons, building
         ]).map((a, i) => ({ text: a.text, icon: a.icon, key: `${a.text}-${i}` }));
 
     const renderIcon = (a) => {
-        // Direct icon URL from the building amenity record.
-        if (a.iconUrl) {
+        // Direct icon URL from the building amenity record (real paths only —
+        // bare/broken values fall through to the keyword resolver below).
+        if (a.iconUrl && (a.iconUrl.startsWith('/') || a.iconUrl.startsWith('http'))) {
             return <img src={a.iconUrl} alt={a.text} className="h-6 w-6" />;
         }
 
@@ -39,12 +42,9 @@ export default function AmenitiesSection({ pageContent, availableIcons, building
         if (icon?.icon_url) {
             return <img src={icon.icon_url} alt={iconName} className="h-6 w-6" />;
         }
-        // Fallback diamond mark
-        return (
-            <svg className="h-5 w-5 text-gold-500" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" />
-            </svg>
-        );
+        // Keyword-matched themed icon — every amenity gets a related icon
+        // (client request; the old diamond fallback showed for everything).
+        return <img src={resolveAmenityIconPath(a.text)} alt={a.text} className="h-6 w-6" />;
     };
 
     // Walk/Transit/Bike scores are admin-editable via pageContent (there is no

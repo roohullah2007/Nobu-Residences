@@ -229,9 +229,9 @@ export default function RealEstateLinksSection() {
         <div className="bg-white rounded-lg shadow-sm">
           {/* Explore Greater Toronto Area Section */}
           <div className="mb-12">
-            <h2 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
+            <h4 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
               Explore the Greater Toronto Area Real Estate Market
-            </h2>
+            </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
               {Object.entries(gtaLinks).map(([category, links], index) => (
@@ -246,14 +246,15 @@ export default function RealEstateLinksSection() {
 
           {/* Popular Toronto Searches Section */}
           <div className="mb-12">
-            <h2 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
+            <h4 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
               Popular Toronto Searches
-            </h2>
+            </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
               {Object.entries(popularSearches).slice(0, showMore ? 8 : 4).map(([category, links], index) => (
                 <div key={index} className="space-y-4">
-                  <h3 className="font-semibold text-gray-800 mb-2">{category}</h3>
+                  {/* h5: sits under the h4 section headings above */}
+                  <h5 className="font-semibold text-gray-800 mb-2">{category}</h5>
                   {links.slice(0, 4).map((link, linkIndex) => (
                     <RenderLink key={linkIndex} text={link} />
                   ))}
@@ -282,9 +283,9 @@ export default function RealEstateLinksSection() {
 
           {/* Nearby Cities Section */}
           <div className="mb-12">
-            <h2 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
+            <h4 className="text-lg md:text-2xl font-bold font-space-grotesk leading-tight mb-6" style={{ color: '#293056' }}>
               Nearby Cities
-            </h2>
+            </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
               {Object.entries(nearbyCities).map(([category, links], index) => (

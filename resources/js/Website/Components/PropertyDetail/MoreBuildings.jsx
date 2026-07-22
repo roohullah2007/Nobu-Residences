@@ -6,6 +6,9 @@ import { createBuildingUrl } from '@/utils/slug';
 
 const MoreBuildings = ({
   title = "More Buildings By Agent",
+  // Section heading level — h2 by default (building page grids); the
+  // property page passes 'h3' per the client heading spec.
+  headingTag: HeadingTag = 'h2',
   propertyData = null,
   propertyType: filterPropertyType = null,
   transactionType: filterTransactionType = null,
@@ -790,7 +793,7 @@ const MoreBuildings = ({
       <div className="max-w-[1280px] mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</h2>
+            <HeadingTag className="text-xl md:text-2xl font-bold font-space-grotesk" style={{ color: '#293056' }}>{title}</HeadingTag>
             {/* Show count bubble for Properties For Sale/Rent on building page */}
             {isGridLayout && (() => {
               // Get count from buildings or fallback to preloaded data

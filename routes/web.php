@@ -25,6 +25,13 @@ Route::get('/rent', [WebsiteController::class, 'rent'])->name('rent');
 Route::get('/sale', [WebsiteController::class, 'sale'])->name('sale');
 Route::get('/search', [WebsiteController::class, 'search'])->name('search');
 
+// Clean per-tenant building inventory pages (client SEO spec): each landing
+// domain is a single-building site, so /for-sale and /for-rent at the domain
+// root list that building's units. Legacy /search?building_id=... links 301
+// here (see WebsiteController::search()).
+Route::get('/for-sale', [WebsiteController::class, 'tenantBuildingForSale'])->name('site-for-sale');
+Route::get('/for-rent', [WebsiteController::class, 'tenantBuildingForRent'])->name('site-for-rent');
+
 // Special routes for combined Mercer buildings
 Route::get('/15-35-Mercer/for-sale', [WebsiteController::class, 'mercerBuildingsForSale'])
     ->name('mercer-buildings-for-sale');
@@ -41,10 +48,10 @@ Route::get('/{building}/for-rent', [WebsiteController::class, 'buildingForRent']
 
 // SEO-friendly city-based search routes
 Route::get('/{city}/for-sale', [WebsiteController::class, 'cityForSale'])
-    ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
+    ->where('city', '(?!admin|api|mls|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-sale');
 Route::get('/{city}/for-rent', [WebsiteController::class, 'cityForRent'])
-    ->where('city', '(?!admin|api|login|register|dashboard|profile|user)[a-z][a-z\-]*')
+    ->where('city', '(?!admin|api|mls|login|register|dashboard|profile|user)[a-z][a-z\-]*')
     ->name('city-for-rent');
 Route::get('/blogs', [WebsiteController::class, 'blog'])->name('blog');
 // Category listing (must be registered before /blogs/{slug} so "category"
@@ -63,7 +70,7 @@ Route::get('/terms', [WebsiteController::class, 'terms'])->name('terms');
 // new SEO format (/city/address/unit-604-C12550852)
 Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propertyDetail'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'address' => '[a-z0-9\-]+',
         'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+' // MLS ID or unit-{unitNumber}-{MLS ID}; unit numbers can be alphanumeric (e.g. PL01, TH3, 4A)
     ])
@@ -71,6 +78,40 @@ Route::get('/{city}/{address}/{listingKey}', [WebsiteController::class, 'propert
 
 // Keep old route for backwards compatibility (redirect to new format)
 Route::get('/property/{listingKey}', [WebsiteController::class, 'propertyDetailRedirect']);
+
+// Canonical /mls/ listing URLs (client SEO spec). Registered before every
+// /{city}/... catch-all; "mls" is also excluded from their {city} patterns.
+// Order inside this block matters: homes-for-* must win over the generic
+// 3-segment form.
+// Homes/townhomes (no matched condo building):
+//   /mls/toronto/homes-for-rent/144-elmer-avenue-E12057013
+Route::get('/mls/{city}/homes-for-{saleRent}/{addressMls}', [WebsiteController::class, 'propertyDetailMlsHome'])
+    ->where([
+        'city' => '[a-z][a-z\-]*',
+        'saleRent' => 'sale|rent',
+        'addressMls' => '[a-z0-9\-]+-[A-Z][0-9]+',
+    ])
+    ->name('mls.property-detail.home');
+// Condo canonical form:
+//   /mls/toronto/the-well-condos/480-front-st-w/unit-1009-E12057013
+Route::get('/mls/{city}/{buildingSlug}/{streetSlug}/{listingKey}', [WebsiteController::class, 'propertyDetailMls'])
+    ->where([
+        'city' => '[a-z][a-z\-]*',
+        'buildingSlug' => '[a-z0-9\-]+',
+        'streetSlug' => '[a-z0-9\-]+',
+        'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+',
+    ])
+    ->name('mls.property-detail');
+// Collapsed 3-segment variant from the client doc examples
+// (building+street in one segment) — 301s to the 4-segment form inside the
+// action via the canonical check.
+Route::get('/mls/{city}/{combinedSlug}/{listingKey}', [WebsiteController::class, 'propertyDetailMlsShort'])
+    ->where([
+        'city' => '[a-z][a-z\-]*',
+        'combinedSlug' => '[a-z0-9\-]+',
+        'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+',
+    ])
+    ->name('mls.property-detail.short');
 
 // One-click unsubscribe from a saved-search alert email (signed link — the
 // recipient may not be logged in on the device they open the email on)
@@ -81,7 +122,7 @@ Route::get('/alerts/saved-search/{savedSearch}/unsubscribe', \App\Http\Controlle
 // Building full price history page
 Route::get('/{city}/{buildingSlug}/price-history', [WebsiteController::class, 'buildingPriceHistory'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage|price-history)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage|price-history)[a-z][a-z\-]*',
         'buildingSlug' => '[a-z0-9\-]+',
     ])
     ->name('building.price-history');
@@ -108,7 +149,7 @@ Route::get('/price-history/{listingKey}', [WebsiteController::class, 'propertyPr
 //   /toronto/king-west/townhouses-for-sale
 Route::get('/{city}/{neighbourhood}/{searchSlug}', [WebsiteController::class, 'searchByArea'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'neighbourhood' => '[a-z0-9\-]+',
         'searchSlug' => '(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)',
     ])
@@ -118,7 +159,7 @@ Route::get('/{city}/{neighbourhood}/{searchSlug}', [WebsiteController::class, 's
 // (registered before the 2-segment building route so it wins the match)
 Route::get('/{city}/{searchSlug}', [WebsiteController::class, 'searchByCity'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z\-]*',
         'searchSlug' => '(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)',
     ])
     ->name('search.city');
@@ -558,7 +599,7 @@ require __DIR__.'/auth.php';
 // SEO-friendly building URLs - must be at the end to avoid matching admin routes
 Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z0-9\-]*',  // Must start with lowercase letter and exclude reserved words
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage)[a-z][a-z0-9\-]*',  // Must start with lowercase letter and exclude reserved words
         'street' => '[a-z0-9\-]+',
         'buildingSlug' => '.*'
     ])
@@ -568,7 +609,7 @@ Route::get('/{city}/{street}/{buildingSlug}', [WebsiteController::class, 'buildi
 // e.g. /toronto/nobu-residences-15-mercer-st-35-mercer-st
 Route::get('/{city}/{buildingSlug}', [WebsiteController::class, 'buildingDetail'])
     ->where([
-        'city' => '(?!admin|api|login|register|dashboard|profile|user|building|school|storage|blog|blogs|developer|developers|search|rent|sale|contact|privacy|terms|saved-searches|compare-listings|property)[a-z][a-z\-]*',
+        'city' => '(?!admin|api|mls|login|register|dashboard|profile|user|building|school|storage|blog|blogs|developer|developers|search|rent|sale|contact|privacy|terms|saved-searches|compare-listings|property)[a-z][a-z\-]*',
         'buildingSlug' => '[a-z0-9\-]+',
     ])
     ->name('building-detail-city-slug');

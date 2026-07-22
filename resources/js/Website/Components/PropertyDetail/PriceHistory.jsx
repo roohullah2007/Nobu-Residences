@@ -154,12 +154,12 @@ const PriceHistory = ({
   return (
     <div className="w-full p-6 rounded-2xl border border-gray-200 shadow-sm bg-white max-w-[1280px] mx-auto">
       <div className="mb-5">
-        <h2
+        <h3
           className="text-[28px] font-bold mb-1 font-space-grotesk"
           style={{ color: '#293056' }}
         >
           Price History
-        </h2>
+        </h3>
         <p className="text-gray-500 text-sm">
           Discover the price history for {subtitleAddress || 'this listing'}
         </p>

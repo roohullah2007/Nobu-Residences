@@ -63,21 +63,14 @@ export default function HeroSection({
         .filter(Boolean).join(' · ') || 'King West · Downtown · Toronto';
     const addressDisplayLine = `${firstAddress} · ${locality}`;
 
-    // Hero CTAs go to THIS building's available listings on the Search page
-    // (per client: "for sale and for rent will take user to available for
-    // rent and for sale in that specific building"). Same URL shape as the
-    // Unit Types badges so PropertySearchController's building scope applies.
+    // Hero CTAs go to THIS building's available listings (per client: "for
+    // sale and for rent will take user to available for rent and for sale in
+    // that specific building") — the clean /for-sale | /for-rent tenant pages
+    // from the client SEO spec (they scope to the linked building server-side).
     // Sites without a linked building fall back to smooth-scrolling to the
     // on-page carousels (id="for-sale" / id="for-rent" from ListingCarousel).
-    const buildingSearchUrl = (status) => {
-        const params = new URLSearchParams();
-        params.set('status', status);
-        params.set('building_id', String(building.id));
-        if (buildingName) params.set('query', buildingName);
-        return `/search?${params.toString()}`;
-    };
-    const forSaleHref = building.id ? buildingSearchUrl('For Sale') : '#for-sale';
-    const forRentHref = building.id ? buildingSearchUrl('For Rent') : '#for-rent';
+    const forSaleHref = building.id ? '/for-sale' : '#for-sale';
+    const forRentHref = building.id ? '/for-rent' : '#for-rent';
 
     const scrollToSection = (e, sectionId) => {
         if (building.id) return; // real navigation — let the link work

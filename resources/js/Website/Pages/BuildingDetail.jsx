@@ -12,7 +12,7 @@ import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEsta
 import { BuildingGallery, BuildingSections } from '@/Website/Sections/BuildingDetail';
 import SaveSearchModal, { popPendingSavedSearch } from '@/Website/Components/PropertySearch/SaveSearchModal';
 
-export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website, faqs = [] }) {
+export default function BuildingDetail({ auth, siteName, siteUrl, year, buildingId, buildingData, website, faqs = [], seo = {} }) {
   const { globalWebsite } = usePage().props;
   const effectiveWebsite = website || globalWebsite;
 
@@ -263,7 +263,10 @@ export default function BuildingDetail({ auth, siteName, siteUrl, year, building
 
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader={true}>
-      <Head title={`${effectiveBuildingData.name} - Building Details - ${siteName}`} />
+      {/* seo.title wins: the blade promotes the SSR <title> over the server
+          seo prop, so the homepage meta templates (counts in the title) must
+          flow through this Head when "/" serves the building page. */}
+      <Head title={seo?.title || `${effectiveBuildingData.name} - Building Details - ${siteName}`} />
       <div className="idx mx-auto overflow-hidden bg-primary pb-24 md:pb-0">
         {/* Keep edge padding through tablet/small-desktop; only drop it at
             xl where the 1280px design width fits the viewport exactly. */}

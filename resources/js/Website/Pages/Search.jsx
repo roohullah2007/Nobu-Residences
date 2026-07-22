@@ -79,6 +79,8 @@ export default function EnhancedPropertySearch({
   filters = {},
   searchTab = 'listings',
   faqs = [],
+  seo = {},
+  pageH1 = '',
 }) {
   // Debug: Log the filters being passed from WebsiteController
   console.log('🔍 Search page filters from controller:', filters);
@@ -237,6 +239,23 @@ export default function EnhancedPropertySearch({
   // Track active request to prevent duplicates
   const abortControllerRef = useRef(null);
 
+  // Map-scoping state lives in refs so [] -dep callbacks (polygon draw,
+  // viewport sync) always read the current values without re-creating the
+  // map's props (which would churn its effects and wipe markers).
+  const drawnPolygonRef = useRef(null);          // committed drawn polygon
+  const viewportBoundsRef = useRef(null);        // last user-initiated map viewport
+  const searchFiltersRef = useRef(null);
+  const performSearchRef = useRef(null);
+  const searchBarRef = useRef(null);
+
+  // Entering full map view: bring the (sticky) filter bar into view so the
+  // filters + map are both visible.
+  useEffect(() => {
+    if (viewType === 'map' && searchBarRef.current) {
+      searchBarRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [viewType]);
+
   // After building cards render (from /api/buildings-search, which returns
   // null counts when uncached), fetch the live for-sale/for-rent counts in a
   // follow-up request and merge them in. The backend fetches them in parallel,
@@ -271,8 +290,10 @@ export default function EnhancedPropertySearch({
     }
   };
 
-  // Perform search
-  const performSearch = async (params = searchFilters, resetPage = false, tabOverride = null) => {
+  // Perform search. options.viewportBounds (when the key is present, even as
+  // null) explicitly overrides the map scoping for this request; otherwise
+  // the active drawn polygon / map viewport (refs) keep the results scoped.
+  const performSearch = async (params = searchFilters, resetPage = false, tabOverride = null, options = {}) => {
     // Abort any pending request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -304,22 +325,28 @@ export default function EnhancedPropertySearch({
     // the area. Otherwise the URL bloats to ?query=Yorkville on top of the
     // path that already says "yorkville".
     const pathEncodesArea = /^\/[a-z][a-z-]*\/[a-z0-9-]+\/(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)\/?$/.test(window.location.pathname);
-    if (params.query && !pathEncodesArea) {
+    // Tenant building pages (/for-sale, /for-rent) are self-canonical with
+    // ?page as the only allowed parameter — never write the building scope
+    // back into their URL.
+    const pathIsTenantBuildingPage = /^\/for-(sale|rent)\/?$/.test(window.location.pathname);
+    if (params.query && !pathEncodesArea && !pathIsTenantBuildingPage) {
       url.searchParams.set('query', params.query);
     }
 
     // Add other relevant params
-    if (params.status && params.status !== 'For Sale') {
+    if (params.status && params.status !== 'For Sale' && !pathIsTenantBuildingPage) {
       url.searchParams.set('status', params.status);
     }
 
     // Preserve building scoping in the URL so the user (and any bookmark)
     // can see what's being filtered. Without this the URL collapses to just
     // ?status=For+Rent and the building context vanishes after first fetch.
-    if (params.building_id) {
+    if (params.building_id && !pathIsTenantBuildingPage) {
       url.searchParams.set('building_id', params.building_id);
     }
-    if (params.street_addresses) {
+    if (pathIsTenantBuildingPage) {
+      // no street params either — path already encodes the building
+    } else if (params.street_addresses) {
       url.searchParams.set('street_addresses', params.street_addresses);
     } else if (params.street_number && params.street_name) {
       url.searchParams.set('street_number', params.street_number);
@@ -374,9 +401,15 @@ export default function EnhancedPropertySearch({
           page_size: 16
         };
 
-        // Include drawn area bounds for map-based area search
-        if (drawnPolygon) {
-          searchParams.viewport_bounds = drawnPolygon;
+        // Scope to the drawn polygon or the map viewport (mixed view sync).
+        // An explicit options.viewportBounds (even null = clear) wins.
+        const mapBounds = Object.prototype.hasOwnProperty.call(options, 'viewportBounds')
+          ? options.viewportBounds
+          : (drawnPolygonRef.current || viewportBoundsRef.current);
+        if (mapBounds) {
+          searchParams.viewport_bounds = mapBounds;
+        } else {
+          delete searchParams.viewport_bounds;
         }
       }
 
@@ -502,6 +535,11 @@ export default function EnhancedPropertySearch({
     }
   };
 
+  // Keep refs in sync so stable ([] -dep) callbacks always see the latest
+  // filters and performSearch instance.
+  searchFiltersRef.current = searchFilters;
+  performSearchRef.current = performSearch;
+
   // Initial search on mount and handle URL changes
   useEffect(() => {
     const loadFromUrl = () => {
@@ -624,12 +662,13 @@ export default function EnhancedPropertySearch({
     window.history.pushState({}, '', url);
     
     setActiveTab(tab);
-    
+
     // Reset view type to grid when switching to buildings tab
     if (tab === 'buildings' && (viewType === 'map' || viewType === 'mixed')) {
       setViewType('grid');
     }
-    
+
+    viewportBoundsRef.current = null;
     const newFilters = {
       ...searchFilters,
       tab: tab,
@@ -644,12 +683,13 @@ export default function EnhancedPropertySearch({
 
   const handleSearch = (e) => {
     e?.preventDefault();
-    
+
     // Reset page to 1 for new search and update URL
     const url = new URL(window.location);
     url.searchParams.set('page', 1);
     window.history.pushState({}, '', url);
-    
+
+    viewportBoundsRef.current = null; // a fresh search picks its own area
     const newFilters = { ...searchFilters, page: 1 };
     setSearchFilters(newFilters);
     setCurrentPage(1);
@@ -715,12 +755,45 @@ export default function EnhancedPropertySearch({
     performSearch(newFilters, true, activeTab);
   };
 
-  // Handle polygon drawn on map - only refreshes the map markers for that
-  // area (via ClusteredPropertyMap's own /api/map-coordinates fetch). We do
-  // NOT call performSearch, so the rest of the page doesn't reload.
+  // Handle polygon drawn on map: the map repaints its own markers via the
+  // searchFilters change, AND the listing results refetch scoped to the
+  // polygon (client bug: "Draw does not working" — the list never updated).
   const handlePolygonDraw = useCallback((bounds) => {
+    drawnPolygonRef.current = bounds;
     setDrawnPolygon(bounds);
-    setSearchFilters((prev) => ({ ...prev, viewport_bounds: bounds || undefined }));
+    viewportBoundsRef.current = null; // a polygon supersedes plain viewport scoping
+    const next = { ...searchFiltersRef.current, viewport_bounds: bounds || undefined, page: 1 };
+    setSearchFilters(next);
+    setCurrentPage(1);
+    // Explicit bounds (null on Reset clears the scope entirely).
+    performSearchRef.current(next, true, 'listings', { viewportBounds: bounds });
+  }, []);
+
+  // Mixed-view map↔list sync: after the user pans/zooms and the map settles,
+  // refetch the list scoped to the visible viewport (exact rectangle as a
+  // closed polygon ring — the backend maps it to the Repliers `map` param).
+  // Deliberately does NOT touch searchFilters state: mapSearchFilters keeps
+  // its identity, so the map's own refetch effect never fires from this path
+  // (that would loop: pan → list fetch → map refetch → fitBounds → pan...).
+  const handleMapViewportChange = useCallback((bounds) => {
+    if (!bounds || drawnPolygonRef.current) return; // polygon takes precedence
+    const r = (v) => Math.round(v * 1000) / 1000;   // stabler backend cache keys
+    const vb = {
+      north: r(bounds.north),
+      south: r(bounds.south),
+      east: r(bounds.east),
+      west: r(bounds.west),
+      polygon: [
+        [r(bounds.west), r(bounds.north)],
+        [r(bounds.east), r(bounds.north)],
+        [r(bounds.east), r(bounds.south)],
+        [r(bounds.west), r(bounds.south)],
+        [r(bounds.west), r(bounds.north)],
+      ],
+    };
+    viewportBoundsRef.current = vb;
+    setCurrentPage(1);
+    performSearchRef.current({ ...searchFiltersRef.current, page: 1 }, true, 'listings', { viewportBounds: vb });
   }, []);
 
   // Stable props for ClusteredPropertyMap. Previously these were inline object
@@ -729,10 +802,15 @@ export default function EnhancedPropertySearch({
   // so any incidental re-render (e.g. a marker hover/click) wiped and rebuilt
   // every marker (the "map refreshes on marker click" bug). Memoizing them so
   // their identity only changes when searchFilters actually changes fixes it.
+  // page + sort are stripped: markers show the FULL result set, so pagination
+  // and sort clicks must not wipe/refetch the map.
+  const { page: _mapPage, sort: _mapSort, ...mapFilterSource } = searchFilters;
+  const mapFiltersKey = JSON.stringify(mapFilterSource);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const mapSearchFilters = useMemo(() => ({
-    ...searchFilters,
-    status: searchFilters.status === 'For Rent' ? 'For Lease' : searchFilters.status,
-  }), [searchFilters]);
+    ...mapFilterSource,
+    status: mapFilterSource.status === 'For Rent' ? 'For Lease' : mapFilterSource.status,
+  }), [mapFiltersKey]);
 
   const handleMapPropertyClick = useCallback((coord) => {
     // Marker click only opens the card popup; navigation happens when the
@@ -910,7 +988,10 @@ export default function EnhancedPropertySearch({
 
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} noPadding={true} blueHeader={true}>
-        <Head title={`Property Search - ${siteName}`} />
+        {/* seo.title must flow through this Head: the blade extracts the SSR
+            <title> and it wins over the server seo prop, so a hardcoded title
+            here would shadow the per-page one (/for-sale, /for-rent). */}
+        <Head title={seo?.title || `Property Search - ${siteName}`} />
         <div className="enhanced-property-search">
         
 
@@ -1115,8 +1196,10 @@ export default function EnhancedPropertySearch({
           </div>
           )}
 
-          {/* Search Bar Component - Replaces both Mobile and Desktop Search Filters */}
-          <div className="my-6">
+          {/* Search Bar Component - Replaces both Mobile and Desktop Search Filters.
+              Sticky in full map view so the filters stay reachable above the
+              map (client: "map view missing filters"). */}
+          <div ref={searchBarRef} className={viewType === 'map' ? 'my-6 sticky top-0 z-40 bg-white py-2' : 'my-6'}>
             <IDXAmpreSearchBar
               isAuthenticated={!!auth?.user}
               autoSearch={true}
@@ -1157,6 +1240,7 @@ export default function EnhancedPropertySearch({
                   page: 1
                 };
 
+                viewportBoundsRef.current = null; // a fresh search picks its own area
                 setSearchFilters(newFilters);
                 performSearch(newFilters, true, activeTab);
               }}
@@ -1452,11 +1536,12 @@ export default function EnhancedPropertySearch({
               {/* Main Heading */}
               <h1 className="font-space-grotesk font-bold text-[40px] leading-[50px] tracking-[-0.03em] text-black mb-6">
                 {activeTab === 'listings'
-                  ? (searchFilters.property_status === 'Sold' ? 'Sold Properties' :
+                  ? (pageH1 ||
+                     (searchFilters.property_status === 'Sold' ? 'Sold Properties' :
                      searchFilters.property_status === 'Leased' ? 'Leased Properties' :
                      searchFilters.status === 'For Rent' ? 'Properties For Rent' :
                      searchFilters.status === 'For Sale' ? 'Properties For Sale' :
-                     'Property Listings')
+                     'Property Listings'))
                   : 'Buildings'}
               </h1>
               
@@ -1622,16 +1707,13 @@ export default function EnhancedPropertySearch({
               </div>
             </div>
             
-            {/* Main Content Area */}
-            {isLoading ? (
-              // Centered loader in the property listings area
-              <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <div className="inline-block w-12 h-12 border-3 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <div className="text-[#293056] text-lg font-medium">{activeTab === 'buildings' ? 'Loading buildings...' : 'Loading properties...'}</div>
-                </div>
-              </div>
-            ) : viewType === 'map' ? (
+            {/* Main Content Area. Map and mixed views render BEFORE the
+                isLoading check so the map never unmounts mid-fetch — a
+                viewport/polygon-driven refetch would otherwise destroy the
+                Google Map (losing the drawn polygon/viewport) and loop.
+                Mixed view has its own left-pane loader; ClusteredPropertyMap
+                has its own loading overlay. */}
+            {viewType === 'map' ? (
               // Full Map View with clustering for 500-1000+ markers
               activeTab === 'listings' ? (
                 <ClusteredPropertyMap
@@ -1789,6 +1871,7 @@ export default function EnhancedPropertySearch({
                       onPropertyClick={handleMapPropertyClick}
                       onMarkerCountChange={handleMapMarkerCountChange}
                       onPolygonDraw={handlePolygonDraw}
+                      onViewportChange={handleMapViewportChange}
                       initialZoom={12}
                     />
                   ) : (
@@ -1805,6 +1888,14 @@ export default function EnhancedPropertySearch({
                       activeTab={activeTab}
                     />
                   )}
+                </div>
+              </div>
+            ) : isLoading ? (
+              // Centered loader in the property listings area (grid view only)
+              <div className="flex items-center justify-center min-h-[400px]">
+                <div className="text-center">
+                  <div className="inline-block w-12 h-12 border-3 border-[#293056] border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <div className="text-[#293056] text-lg font-medium">{activeTab === 'buildings' ? 'Loading buildings...' : 'Loading properties...'}</div>
                 </div>
               </div>
             ) : (

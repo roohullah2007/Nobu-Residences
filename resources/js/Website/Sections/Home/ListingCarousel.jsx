@@ -108,11 +108,7 @@ function RealListingCard({ listing }) {
                             View Details
                         </span>
                     </div>
-                    {listing.broker && (
-                        <p className="text-white/50 text-[10px] uppercase tracking-wider mt-2 line-clamp-1">
-                            {listing.broker}
-                        </p>
-                    )}
+                    {/* Listing brokerage intentionally not shown (client request) */}
                 </div>
             </div>
         </Link>

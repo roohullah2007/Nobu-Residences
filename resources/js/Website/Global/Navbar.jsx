@@ -123,22 +123,17 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
         // Building-linked sites: Rent/Sale go to THIS building's available
         // listings (per client), not the generic city pages. Saved header
         // links still carry '/toronto/for-rent'-style defaults, so the
-        // rewrite happens here instead of in every stored page.
+        // rewrite happens here instead of in every stored page. The clean
+        // /for-rent | /for-sale paths are the tenant building's inventory
+        // pages (client SEO spec) — legacy /search?building_id links 301 there.
         const buildingId = globalWebsite?.building_id;
         if (buildingId) {
-            const buildingSearchUrl = (status) => {
-                const params = new URLSearchParams();
-                params.set('status', status);
-                params.set('building_id', String(buildingId));
-                if (globalWebsite?.building_name) params.set('query', globalWebsite.building_name);
-                return `/search?${params.toString()}`;
-            };
             links = links.map((link) => {
                 if (/^\/[a-z-]+\/for-rent$/.test(link.url || '')) {
-                    return { ...link, url: buildingSearchUrl('For Rent') };
+                    return { ...link, url: '/for-rent' };
                 }
                 if (/^\/[a-z-]+\/for-sale$/.test(link.url || '')) {
-                    return { ...link, url: buildingSearchUrl('For Sale') };
+                    return { ...link, url: '/for-sale' };
                 }
                 return link;
             });

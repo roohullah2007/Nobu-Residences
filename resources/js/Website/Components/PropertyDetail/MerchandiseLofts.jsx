@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
 
 export default function MerchandiseLofts({ propertyData }) {
+  const { globalWebsite } = usePage().props;
   const [buildingData, setBuildingData] = useState(null);
   const [mlsCounts, setMlsCounts] = useState({ for_sale: 0, for_rent: 0 });
   const [loading, setLoading] = useState(true);
@@ -231,12 +232,16 @@ export default function MerchandiseLofts({ propertyData }) {
               {/* Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
                 {buildingId ? (() => {
+                  // The tenant's own building gets the clean /for-rent |
+                  // /for-sale pages (client SEO spec); other buildings shown
+                  // on property pages keep the scoped search links.
+                  const isTenantBuilding = String(buildingId) === String(globalWebsite?.building_id || '');
                   const baseQuery = new URLSearchParams({ building_id: buildingId });
                   if (buildingStreetAddresses) {
                     baseQuery.set('street_addresses', buildingStreetAddresses);
                   }
-                  const rentHref = `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Rent')}`;
-                  const saleHref = `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Sale')}`;
+                  const rentHref = isTenantBuilding ? '/for-rent' : `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Rent')}`;
+                  const saleHref = isTenantBuilding ? '/for-sale' : `/search?${baseQuery.toString()}&status=${encodeURIComponent('For Sale')}`;
                   return (
                   <>
                     <Link

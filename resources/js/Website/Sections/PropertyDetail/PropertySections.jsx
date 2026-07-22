@@ -102,6 +102,7 @@ export default function PropertySections({
           ? "More Buildings By Agent"
           : "Nearby Listings"
         }
+        headingTag="h3"
         propertyData={propertyData}
         onLoginRequired={onLoginClick}
         onSignupRequired={onSignupClick}
@@ -110,6 +111,7 @@ export default function PropertySections({
       {/* Comparable Sales Section - Show sold properties instead of similar listings */}
       <ComparableSales
         title="Comparable Sales"
+        headingTag="h3"
         propertyData={propertyData}
         onLoginRequired={onLoginClick}
         onSignupRequired={onSignupClick}

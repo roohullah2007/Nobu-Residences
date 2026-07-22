@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/react';
 import MortgageCalculator from './MortgageCalculator';
 import NearbySchools from './NearbySchools';
 import Amenities from './Amenities';
+import { getListingH1 } from '@/utils/listingTitle';
 
 /**
  * PropertyDetailsSections
@@ -59,12 +60,14 @@ const money = (v) => {
   }).format(n);
 };
 
-const Card = ({ id, title, subtitle, children }) => (
+// headingTag: SEO heading level for the card title (client heading spec:
+// the Overview card is the page's h2, the rest stay h3).
+const Card = ({ id, title, subtitle, children, headingTag: HeadingTag = 'h3' }) => (
   <div
     id={id}
     className="scroll-mt-32 rounded-2xl bg-white p-5 sm:p-6 border border-gray-200"
   >
-    <h3 style={{ fontSize: '20px', fontWeight: 700, color: NAVY }}>{title}</h3>
+    <HeadingTag style={{ fontSize: '20px', fontWeight: 700, color: NAVY }}>{title}</HeadingTag>
     {subtitle && <p className="mt-1 text-sm text-gray-500">{subtitle}</p>}
     {children}
   </div>
@@ -200,9 +203,9 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
     ? description
     : `${description.slice(0, DESC_LIMIT).trim()}...`;
 
+  // Per client: no listing brokerage name anywhere — MLS number only.
   const mlsNumber = pick(property.mlsNumber, property.listingKey, property.ListingKey);
-  const office = pick(property.listOfficeName, property.ListOfficeName, property.listingOffice);
-  const mlsLine = mlsNumber ? `MLS®: ${mlsNumber}${office ? `; ${office}` : ''}` : '';
+  const mlsLine = mlsNumber ? `MLS®: ${mlsNumber}` : '';
 
   // ---- Property Details groups ------------------------------------------
   const livingArea = pick(property.LivingAreaRange, property.livingArea, details.sqft);
@@ -349,7 +352,15 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
 
   // ----- Card builders ----------------------------------------------------
   const overviewCard = description ? (
-    <Card key="overview" id="overview" title="Overview">
+    <Card
+      key="overview"
+      id="overview"
+      headingTag="h2"
+      title={(() => {
+        const h1 = getListingH1(property);
+        return h1 ? `Overview of ${h1}` : 'Overview';
+      })()}
+    >
       <div className="mt-3" style={{ fontSize: '15px', color: VALUE, lineHeight: '26px' }}>
         <p style={{ whiteSpace: 'pre-line' }}>{shownDescription}</p>
         {expanded && aiOverview && aiDetailed && (
@@ -544,11 +555,11 @@ const PropertyDetailsSections = ({ property = {}, buildingData = null, aiDescrip
                 } h-[40px] md:h-[50px]`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <span className={`font-red-hat font-bold text-base md:text-xl leading-6 md:leading-[30px] tracking-tight whitespace-nowrap flex items-center ${
+                <h3 className={`font-red-hat font-bold text-base md:text-xl leading-6 md:leading-[30px] tracking-tight whitespace-nowrap flex items-center ${
                   currentTab === tab.id ? 'text-[#252B37]' : 'text-[#252B37] hover:text-[#3E4784]'
                 }`}>
                   {tab.label}
-                </span>
+                </h3>
               </div>
             ))}
           </div>

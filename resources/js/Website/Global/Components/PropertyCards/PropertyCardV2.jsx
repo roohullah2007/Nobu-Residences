@@ -1,10 +1,9 @@
 import React from 'react';
 import PropertyImageLoader from '@/Website/Components/PropertyImageLoader';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
-import { 
-  formatCardAddress, 
-  buildCardFeatures, 
-  getBrokerageName 
+import {
+  formatCardAddress,
+  buildCardFeatures
 } from '@/utils/propertyFormatters';
 
 /**
@@ -52,7 +51,6 @@ const PropertyCardV2 = ({
   const formattedPrice = formatPrice(property.price, property.isRental);
   const displayAddress = formatCardAddress(property);
   const features = buildCardFeatures(property);
-  const brokerageName = getBrokerageName(property);
   const detailsUrl = generatePropertyUrl(property);
 
   // Size configurations
@@ -182,14 +180,9 @@ const PropertyCardV2 = ({
                 {features}
               </div>
             )}
-            
-            {/* Brokerage Name */}
-            {brokerageName && (
-              <div className={`flex items-center justify-start w-full min-h-8 pb-2 border-b border-gray-200 font-work-sans font-normal text-sm leading-5 tracking-tight text-gray-600`}>
-                {brokerageName}
-              </div>
-            )}
-            
+
+            {/* Listing brokerage intentionally not shown (client request) */}
+
             {/* MLS Number */}
             <div className="flex items-center justify-start w-full min-h-8">
               <div className={`font-work-sans font-normal ${config.details} leading-6 tracking-tight text-[#293056]`}>

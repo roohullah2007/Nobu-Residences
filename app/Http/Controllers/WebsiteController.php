@@ -182,7 +182,9 @@ class WebsiteController extends Controller
                 'properties' => fn ($q) => $q->where('status', 'active')->orderBy('created_at', 'desc')->limit(10),
             ])->find($website->homepage_building_id);
             if ($building) {
-                return $this->renderBuildingDetailPage($building);
+                // "/" gets the homepage meta templates (counts in the title),
+                // not the generic building-page title.
+                return $this->renderBuildingDetailPage($building, $this->buildHomeSeoMeta($building));
             }
             // Linked building deleted → fall through to the Welcome template.
         }
@@ -228,19 +230,24 @@ class WebsiteController extends Controller
         }
 
         // Homepage SEO: the featured image (og:image) and structured data use
-        // the homepage building's hero image instead of the site logo.
+        // the homepage building's hero image instead of the site logo, and
+        // title/description follow the client templates with live unit counts
+        // (no-number fallback when either count is 0 — never "0 units" in a SERP).
         $homeSeo = [];
         if ($homepageBuildingModel) {
-            $homeSeo = [
-                'image' => $homepageBuildingModel->main_image
-                    ? (str_starts_with($homepageBuildingModel->main_image, 'http')
-                        ? $homepageBuildingModel->main_image
-                        : url($homepageBuildingModel->main_image))
-                    : null,
-                'jsonLd' => array_values(array_filter([
-                    \App\Support\Schema::building($homepageBuildingModel, url('/')),
-                ])),
-            ];
+            $homeSeo = array_merge(
+                $this->buildHomeSeoMeta($homepageBuildingModel),
+                [
+                    'image' => $homepageBuildingModel->main_image
+                        ? (str_starts_with($homepageBuildingModel->main_image, 'http')
+                            ? $homepageBuildingModel->main_image
+                            : url($homepageBuildingModel->main_image))
+                        : null,
+                    'jsonLd' => array_values(array_filter([
+                        \App\Support\Schema::building($homepageBuildingModel, url('/')),
+                    ])),
+                ]
+            );
         }
 
         return Inertia::render('Welcome', array_merge($settings, [
@@ -281,6 +288,15 @@ class WebsiteController extends Controller
      */
     public function search(Request $request)
     {
+        // Legacy building-inventory links (/search?query=...&building_id=UUID)
+        // 301 to the clean /for-sale | /for-rent pages when they target the
+        // tenant's own building AND carry no extra filters. Filtered links
+        // (bedrooms, price, sold/leased...) have no clean equivalent and fall
+        // through to the normal search page.
+        if ($redirect = $this->redirectLegacyBuildingSearch($request)) {
+            return $redirect;
+        }
+
         // Get search filters from request
         $filters = $request->only([
             'search', 'forSale', 'bedType', 'minPrice', 'maxPrice', 'tab', 'page', 'sort'
@@ -572,6 +588,149 @@ class WebsiteController extends Controller
             'title' => "Condo Apartments for Rent in {$cityName} - Property Search",
             'filters' => $filters,
             'searchTab' => 'listings'
+        ]));
+    }
+
+    /**
+     * Clean tenant building inventory page: {domain}/for-sale
+     */
+    public function tenantBuildingForSale(Request $request)
+    {
+        return $this->renderTenantBuildingSearch($request, false);
+    }
+
+    /**
+     * Clean tenant building inventory page: {domain}/for-rent
+     */
+    public function tenantBuildingForRent(Request $request)
+    {
+        return $this->renderTenantBuildingSearch($request, true);
+    }
+
+    /**
+     * 301 legacy /search?...&building_id=UUID links to /for-sale | /for-rent.
+     * Only fires for the tenant's own building and only for the plain link
+     * shape (no bedrooms/price/sold filters — those keep the search page).
+     */
+    private function redirectLegacyBuildingSearch(Request $request)
+    {
+        $buildingId = (string) $request->query('building_id', '');
+        if ($buildingId === '') {
+            return null;
+        }
+
+        $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve($request);
+        if (!$website || !$website->homepage_building_id
+            || strcasecmp($buildingId, (string) $website->homepage_building_id) !== 0) {
+            return null;
+        }
+
+        // Every present param must be legacy-plain; anything else (bedrooms,
+        // price_min, property_status=Sold...) means a filtered search that has
+        // no clean-URL equivalent.
+        $allowed = ['page', 'query', 'search', 'status', 'building_id', 'street_addresses', 'tab', 'website'];
+        foreach (array_keys($request->query()) as $param) {
+            if (!in_array($param, $allowed, true)) {
+                return null;
+            }
+        }
+        if ($request->filled('tab') && $request->query('tab') !== 'listings') {
+            return null;
+        }
+
+        $status = (string) $request->query('status', 'For Sale');
+        $target = in_array($status, ['For Rent', 'For Lease'], true) ? '/for-rent' : '/for-sale';
+
+        $keep = [];
+        if ((int) $request->query('page', 1) > 1) {
+            $keep['page'] = (int) $request->query('page');
+        }
+        if ($request->filled('website')) {
+            $keep['website'] = $request->query('website'); // admin-host preview mode
+        }
+
+        return redirect()->to($target . ($keep ? '?' . http_build_query($keep) : ''), 301);
+    }
+
+    /**
+     * Shared renderer for the clean /for-sale and /for-rent tenant pages.
+     * H1 / meta copy follows the client SEO spec, with the no-number fallback
+     * when the live count is 0 (never render "0 condos" in a SERP).
+     */
+    private function renderTenantBuildingSearch(Request $request, bool $isRent)
+    {
+        $website = $this->getCurrentWebsite();
+
+        $building = $website->homepage_building_id
+            ? \App\Models\Building::find($website->homepage_building_id)
+            : null;
+        if (!$building) {
+            // Nav links must not 404 on a site without a linked building.
+            return redirect('/search?' . http_build_query(['status' => $isRent ? 'For Rent' : 'For Sale']));
+        }
+
+        $counts = $building->getLiveListingCounts();
+        $n = $isRent ? ($counts['rent'] ?? 0) : ($counts['sale'] ?? 0);
+
+        $name = $building->name;
+        $city = $building->city ?: 'Toronto';
+
+        if ($isRent) {
+            if ($n > 0) {
+                $h1 = "{$name} Condos in {$city} — {$n} Units for Rent";
+                $metaTitle = "{$name} Condos {$city} Unit for Rent | {$n} Available";
+                $metaDescription = "See {$n} units for rent at {$name} in {$city}. Compare rents, floor plans and photos, and book a viewing today.";
+            } else {
+                $h1 = "{$name} Condos in {$city} — Units for Rent";
+                $metaTitle = "{$name} Condos {$city} Units for Rent";
+                $metaDescription = "Condos for rent at {$name} in {$city}. Get notified when a unit becomes available.";
+            }
+        } else {
+            if ($n > 0) {
+                $h1 = "{$name} Condos in {$city} — {$n} Units for Sale";
+                $metaTitle = "{$name} Condos Unit for Sale | {$n} Listed";
+                $metaDescription = "Browse {$n} units for sale at {$name} in {$city}. See prices, floor plans and maintenance fees, and book a showing.";
+            } else {
+                $h1 = "{$name} Condos in {$city} — Units for Sale";
+                $metaTitle = "{$name} Condos Units for Sale";
+                $metaDescription = "Condos for sale at {$name} in {$city}. Get notified when a unit becomes available.";
+            }
+        }
+
+        // Self-canonical; ?page is the only surviving parameter, page 1
+        // canonicals to the bare path.
+        $page = max(1, (int) $request->query('page', 1));
+        $canonical = url($isRent ? '/for-rent' : '/for-sale') . ($page > 1 ? "?page={$page}" : '');
+
+        $faqs = \App\Models\Faq::forPage('search');
+
+        return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
+            'auth' => [
+                'user' => $request->user(),
+            ],
+            'title' => $h1,
+            'pageH1' => $h1,
+            'filters' => [
+                'search' => $name,
+                'status' => $isRent ? 'For Rent' : 'For Sale',
+                'building_id' => (string) $building->id,
+                'property_type' => ['Condo Apartment'],
+                'page' => $page,
+            ],
+            'searchTab' => 'listings',
+            'faqs' => $faqs,
+            'seo' => [
+                'title' => $metaTitle,
+                'description' => $metaDescription,
+                'canonical' => $canonical,
+                'image' => $building->main_image
+                    ? (str_starts_with($building->main_image, 'http') ? $building->main_image : url($building->main_image))
+                    : null,
+                'jsonLd' => array_values(array_filter([
+                    \App\Support\Schema::building($building, url($isRent ? '/for-rent' : '/for-sale')),
+                    \App\Support\Schema::faqPage($faqs),
+                ])),
+            ],
         ]));
     }
 
@@ -1482,7 +1641,8 @@ class WebsiteController extends Controller
      */
     public function propertyDetailRedirect($listingKey)
     {
-        // Check if it's a backend database property (DB_ prefix)
+        // Check if it's a backend database property (DB_ prefix). Backend
+        // properties are out of the /mls/ spec — they stay on the legacy route.
         if (str_starts_with($listingKey, 'DB_')) {
             $backendPropertyId = substr($listingKey, 3);
             $property = Property::find($backendPropertyId);
@@ -1498,53 +1658,24 @@ class WebsiteController extends Controller
                     'city' => $city,
                     'address' => $addressSlug,
                     'listingKey' => $listingKey
-                ]);
+                ], 301);
             }
         }
 
-        // Fetch basic property data from Repliers API for MLS properties
+        // MLS listings 301 straight to the canonical /mls/ URL — a single hop
+        // (alert emails link /property/{mls}, so no redirect chains here).
         try {
             $repliersApi = app(\App\Services\RepliersApiService::class);
             $property = $repliersApi->getListingByMlsNumber($listingKey);
 
             if ($property) {
-                // Format city - remove district codes like C08, W04, etc.
-                $city = $property['address']['city'] ?? 'toronto';
-                $city = preg_replace('/\s*[cewns]\d{2}\b/i', '', $city); // Remove district codes
-                $city = strtolower(trim(str_replace(' ', '-', $city)));
+                $propertyData = $this->formatRepliersPropertyData($property, false);
+                $buildingData = $this->matchBuildingSlugForListing($propertyData);
 
-                $addr = $property['address'] ?? [];
-
-                // Canonical SEO slug, matching the frontend's
-                // generatePropertyUrl(): {street#}-{street}-{suffix}-{city}
-                // + unit-{unit}-{MLS}. Old links redirected to a short
-                // "/toronto/470-front-street/C123" form that differed from
-                // every card-generated URL — the redirect is the last place
-                // still emitting it.
-                $slugParts = array_filter([
-                    $addr['streetNumber'] ?? '',
-                    strtolower($addr['streetName'] ?? ''),
-                    strtolower($addr['streetSuffix'] ?? ''),
-                    $city,
-                ]);
-                $addressSlug = trim(preg_replace(
-                    ['/\s+/', '/[^a-z0-9-]/', '/-+/'],
-                    ['-', '', '-'],
-                    strtolower(implode('-', $slugParts))
-                ), '-');
-                if ($addressSlug === '') {
-                    $address = $addr['unparsedAddress']
-                        ?? trim(($addr['streetNumber'] ?? '') . ' ' . ($addr['streetName'] ?? '') . ' ' . ($addr['streetSuffix'] ?? ''));
-                    $addressSlug = $this->createAddressSlug($address);
-                }
-
-                $unitNumber = trim((string) ($addr['unitNumber'] ?? ''));
-
-                return redirect()->route('property-detail', [
-                    'city' => $city,
-                    'address' => $addressSlug,
-                    'listingKey' => $unitNumber !== '' ? "unit-{$unitNumber}-{$listingKey}" : $listingKey,
-                ]);
+                return redirect(
+                    \App\Helpers\ListingUrlBuilder::canonicalUrl($propertyData, $buildingData),
+                    301
+                );
             }
         } catch (\Exception $e) {
             \Log::error('Failed to redirect property: ' . $e->getMessage());
@@ -1556,6 +1687,76 @@ class WebsiteController extends Controller
             'address' => 'property',
             'listingKey' => $listingKey
         ]);
+    }
+
+    /**
+     * Canonical /mls/ condo listing page:
+     *   /mls/{city}/{buildingSlug}/{streetSlug}/unit-{unit}-{MLS}
+     * All data resolution keys off the MLS number; wrong slugs 301 to the
+     * canonical form via the check inside propertyDetail().
+     */
+    public function propertyDetailMls($city, $buildingSlug, $streetSlug, $listingKey)
+    {
+        return $this->propertyDetail($city, $streetSlug, (string) $listingKey);
+    }
+
+    /**
+     * Collapsed 3-segment /mls/ variant from the client doc examples
+     * (building+street in one segment) — 301s to the 4-segment form via the
+     * canonical check inside propertyDetail().
+     */
+    public function propertyDetailMlsShort($city, $combinedSlug, $listingKey)
+    {
+        return $this->propertyDetail($city, $combinedSlug, (string) $listingKey);
+    }
+
+    /**
+     * Canonical /mls/ homes listing page (no matched condo building):
+     *   /mls/{city}/homes-for-{sale|rent}/{street-address-slug}-{MLS}
+     */
+    public function propertyDetailMlsHome($city, $saleRent, $addressMls)
+    {
+        if (!preg_match('/-([A-Z][0-9]+)$/', $addressMls, $m)) {
+            abort(404);
+        }
+
+        return $this->propertyDetail($city, $addressMls, $m[1]);
+    }
+
+    /**
+     * Light building match (name/slug only) used to build canonical listing
+     * URLs without loading amenities — same street-number + base-name query
+     * as the full match inside propertyDetail().
+     */
+    private function matchBuildingSlugForListing(?array $propertyData): ?array
+    {
+        if (empty($propertyData['address'])) {
+            return null;
+        }
+
+        $fullAddress = preg_replace('/^\s*(?:unit|suite|apt|apartment)\s*\d+\s*[,\-]?\s*/i', '', $propertyData['address']);
+        $fullAddress = preg_replace('/^\s*\d+\s*-\s*/', '', $fullAddress);
+
+        if (!preg_match('/^(\d+)\s+([A-Za-z]+)(?:\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Court|Ct|Place|Pl|Lane|Ln))?\s*(?:\d+)?(?:,|$)/i', $fullAddress, $matches)) {
+            return null;
+        }
+
+        $needle = $matches[1] . ' ' . $matches[2];
+        $building = \App\Models\Building::query()
+            ->where(function ($query) use ($matches, $needle) {
+                $query->where('street_address_1', 'LIKE', $needle . '%')
+                      ->orWhere('street_address_2', 'LIKE', $needle . '%')
+                      ->orWhere('address', 'LIKE', $needle . '%')
+                      ->orWhere('address', 'LIKE', '%' . $needle . '%')
+                      ->orWhere(function ($q) use ($matches) {
+                          $q->where('address', 'LIKE', '%' . $matches[1] . '%')
+                            ->where('address', 'LIKE', '%' . $matches[2] . '%');
+                      });
+            })
+            ->orderBy('id')
+            ->first(['id', 'name', 'slug']);
+
+        return $building ? ['id' => $building->id, 'name' => $building->name, 'slug' => $building->slug] : null;
     }
 
     /**
@@ -1738,6 +1939,10 @@ class WebsiteController extends Controller
                                                 ->where('address', 'LIKE', '%' . $streetBaseName . '%');
                                           });
                                 })
+                                // Deterministic pick — the canonical /mls/ URL
+                                // is derived from this match, so first() must
+                                // return the same row on every request.
+                                ->orderBy('id')
                                 ->first();
 
                             if (!$building) {
@@ -1818,6 +2023,8 @@ class WebsiteController extends Controller
                             $building = \App\Models\Building::with(['amenities' => function($query) {
                                 $query->orderBy('name');
                             }])->where('address', 'LIKE', '%' . $buildingAddress . '%')
+                                // Deterministic pick — see canonical-URL note above.
+                                ->orderBy('id')
                                 ->first();
 
                             if ($building) {
@@ -1996,58 +2203,23 @@ class WebsiteController extends Controller
             \Log::error('Error fetching AI content:', ['error' => $e->getMessage()]);
         }
 
-        // Canonical-URL redirect: if this listing belongs to a known
-        // building, the URL should be
-        //   /{city}/{building-rich-slug}/unit-{unitNumber}-{listingKey}
-        // If the current request path doesn't match, 301-redirect to it.
-        if ($buildingData && !empty($buildingData['name'])) {
-            $slugify = function ($s) {
-                $s = strtolower((string) $s);
-                $s = preg_replace('/[^\w\s-]/', '', $s);
-                $s = preg_replace('/[\s_-]+/', '-', $s);
-                return trim($s, '-');
-            };
-
-            $cityForUrl = $buildingData['city'] ?? 'Toronto';
-            $citySlug = $slugify($cityForUrl) ?: 'toronto';
-
-            // Keep only comma/&-separated parts that start with a digit
-            // (real street addresses), drop the rest (city, province,
-            // postal). Handles "8-38 Widmer St, Toronto" → "8-38 Widmer St"
-            // AND multi-tower "15 Mercer St, 35 Mercer" → both retained.
-            $addressOnly = function ($s) {
-                if (!is_string($s)) return '';
-                $parts = array_map('trim', preg_split('/\s*[,&]\s*/', $s));
-                $kept = array_values(array_filter($parts, fn($p) => $p !== '' && preg_match('/^\d/', $p)));
-                return implode(' ', $kept);
-            };
-
-            $slugParts = [$slugify($buildingData['name'])];
-            if (!empty($buildingData['address'])) {
-                $addr = $addressOnly($buildingData['address']) ?: $buildingData['address'];
-                $slugParts[] = $slugify($addr);
-            } else {
-                // Older building rows without an address fall back to the
-                // structured fields.
-                if (!empty($buildingData['street_address_1'])) {
-                    $slugParts[] = $slugify($addressOnly($buildingData['street_address_1']) ?: $buildingData['street_address_1']);
-                }
-                if (!empty($buildingData['street_address_2'])) {
-                    $slugParts[] = $slugify($addressOnly($buildingData['street_address_2']) ?: $buildingData['street_address_2']);
-                }
-            }
-            $buildingSlug = implode('-', array_filter($slugParts));
-
-            $unitNumber = $propertyData['UnitNumber'] ?? $propertyData['unitNumber'] ?? '';
-            $unitSegment = $unitNumber ? "unit-{$unitNumber}-{$listingKey}" : $listingKey;
-
-            $canonicalPath = "/{$citySlug}/{$buildingSlug}/{$unitSegment}";
+        // Canonical-URL redirect (client SEO spec): every MLS listing lives at
+        // its /mls/ URL — condo form when matched to a building, homes form
+        // otherwise. Any other path (legacy /{city}/{address}/{mls}, the old
+        // building-rich-slug form, the collapsed /mls/ doc variant, wrong
+        // slugs) 301s here. Backend DB_/numeric properties are exempt and
+        // keep rendering on the legacy route.
+        if ($propertyData && preg_match('/^[A-Z][0-9]+$/i', (string) $listingKey)) {
+            $canonicalPath = \App\Helpers\ListingUrlBuilder::canonicalUrl($propertyData, $buildingData);
             $currentPath = '/' . ltrim(request()->path(), '/');
 
-            if ($buildingSlug && $canonicalPath !== $currentPath) {
+            if ($canonicalPath !== $currentPath) {
                 return redirect($canonicalPath, 301);
             }
         }
+
+        $metaTitle = $this->buildPropertyMetaTitle($propertyData, $buildingData);
+        $metaDescription = $this->buildPropertyMetaDescription($propertyData, $buildingData);
 
         return Inertia::render('PropertyDetail', array_merge($this->getWebsiteSettings(), [
             'title' => $propertyData ? ($propertyData['address'] ?? 'Property Detail') : 'Property Detail',
@@ -2056,16 +2228,22 @@ class WebsiteController extends Controller
             'propertyImages' => $propertyImages,
             'buildingData' => $buildingData,
             'aiDescription' => $aiDescription,
-            'metaTitle' => $this->buildPropertyMetaTitle($propertyData, $buildingData),
-            'metaDescription' => $this->buildPropertyMetaDescription($propertyData, $buildingData),
+            'metaTitle' => $metaTitle,
+            'metaDescription' => $metaDescription,
+            // TODO(SEO spec): listing Schema.org markup is pending client
+            // sign-off — emit it via 'seo.jsonLd' once the client finalizes.
+            'seo' => array_filter([
+                'title' => $metaTitle,
+                'description' => $metaDescription,
+            ]),
         ]));
     }
 
     /**
-     * SEO title for a listing page (applies to every landing site):
-     *   "373 Front Street #208 | For Sale | MLS C13582594 | The Well"
-     * The building segment is omitted when the listing has no matched
-     * building — per the client's conditional spec.
+     * SEO title for a listing page, per the client templates:
+     *   sale: "2015 - 470 Front St W Toronto | 2 Bed 2 Bath For Sale | $1.2M"
+     *   rent: "1009 - 480 Front St W Toronto | 2 Bd 2 Ba for Rent | $3,200/mo"
+     * No unit number → the "{unit} - " prefix is dropped.
      */
     private function buildPropertyMetaTitle(?array $property, ?array $building): ?string
     {
@@ -2074,27 +2252,30 @@ class WebsiteController extends Controller
             return null;
         }
 
-        $addressLabel = !empty($property['unitNumber'])
-            ? $street . ' #' . $property['unitNumber']
-            : $street;
+        $city = trim((string) ($property['city'] ?? ''));
+        $unit = trim((string) ($property['unitNumber'] ?? ''));
+        $isRent = ($property['transactionType'] ?? 'For Sale') === 'For Lease';
+        $beds = (int) ($property['bedrooms'] ?? 0);
+        $baths = (int) ($property['bathrooms'] ?? 0);
+        $price = (float) ($property['listPrice'] ?? $property['price'] ?? 0);
 
-        $parts = [$addressLabel, $property['transactionType'] ?? 'For Sale'];
-        if (!empty($property['listingKey'])) {
-            $parts[] = 'MLS ' . $property['listingKey'];
-        }
-        if (!empty($building['name'])) {
-            $parts[] = $building['name'];
+        $addressPart = ($unit !== '' ? "{$unit} - " : '') . trim($street . ($city !== '' ? " {$city}" : ''));
+
+        if ($isRent) {
+            return "{$addressPart} | {$beds} Bd {$baths} Ba for Rent | \$" . number_format($price) . '/mo';
         }
 
-        return implode(' | ', $parts);
+        return "{$addressPart} | {$beds} Bed {$baths} Bath For Sale | " . $this->formatPriceShort($price);
     }
 
     /**
-     * SEO description for a listing page:
-     *   "2-bed, 2-bath For Sale at 373 Front Street, Toronto M5V 2A6.
-     *    View photos, pricing, amenities and more at The Well."
-     * The "at {building}" tail drops to a plain "and more." when the
-     * listing has no matched building.
+     * SEO description for a listing page, per the client templates:
+     *   "2 bed, 2 bath condo for sale at The Well, 470 Front St W, Toronto.
+     *    850 sq ft listed at $1,199,000. View photos and book a showing.
+     *    MLS# C13580920."
+     * Rent variant swaps "for rent", "$X/mo" and "book a viewing". The
+     * "at {building}," segment drops when no building matched, and "condo"
+     * becomes "home" for non-condo listings.
      */
     private function buildPropertyMetaDescription(?array $property, ?array $building): ?string
     {
@@ -2103,26 +2284,49 @@ class WebsiteController extends Controller
             return null;
         }
 
-        $bedBath = implode(', ', array_filter([
-            ($property['bedrooms'] ?? 0) > 0 ? $property['bedrooms'] . '-bed' : null,
-            ($property['bathrooms'] ?? 0) > 0 ? $property['bathrooms'] . '-bath' : null,
-        ]));
+        $city = trim((string) ($property['city'] ?? ''));
+        $isRent = ($property['transactionType'] ?? 'For Sale') === 'For Lease';
+        $beds = (int) ($property['bedrooms'] ?? 0);
+        $baths = (int) ($property['bathrooms'] ?? 0);
+        $price = '$' . number_format((float) ($property['listPrice'] ?? $property['price'] ?? 0));
+        $sqft = trim((string) ($property['livingArea'] ?? ''));
+        $mls = (string) ($property['listingKey'] ?? '');
 
-        $location = trim($street
-            . (!empty($property['city']) ? ', ' . $property['city'] : '')
-            . (!empty($property['postalCode']) ? ' ' . $property['postalCode'] : ''));
+        $noun = (!empty($building['name']) || strcasecmp((string) ($property['propertyClass'] ?? ''), 'condoProperty') === 0)
+            ? 'condo'
+            : 'home';
 
-        $lead = trim(implode(' ', array_filter([$bedBath, $property['transactionType'] ?? 'For Sale'])));
+        $where = (!empty($building['name']) ? $building['name'] . ', ' : '')
+            . $street
+            . ($city !== '' ? ", {$city}" : '');
 
-        $tail = !empty($building['name'])
-            ? 'View photos, pricing, amenities and more at ' . $building['name'] . '.'
-            : 'View photos, pricing, amenities and more.';
+        $priceSentence = $sqft !== ''
+            ? ($isRent ? "{$sqft} sq ft at {$price}/mo." : "{$sqft} sq ft listed at {$price}.")
+            : ($isRent ? "Priced at {$price}/mo." : "Listed at {$price}.");
 
-        return "{$lead} at {$location}. {$tail}";
+        return "{$beds} bed, {$baths} bath {$noun} for " . ($isRent ? 'rent' : 'sale')
+            . " at {$where}. {$priceSentence} View photos and book a "
+            . ($isRent ? 'viewing' : 'showing') . '.'
+            . ($mls !== '' ? " MLS# {$mls}." : '');
     }
 
     /**
-     * "373 Front Street" — the street line without the unit, from either
+     * "$1.2M" / "$999K" — compact price for sale meta titles.
+     */
+    private function formatPriceShort(float $price): string
+    {
+        if ($price >= 1000000) {
+            return '$' . rtrim(rtrim(number_format($price / 1000000, 1), '0'), '.') . 'M';
+        }
+        if ($price >= 1000) {
+            return '$' . round($price / 1000) . 'K';
+        }
+
+        return '$' . number_format($price);
+    }
+
+    /**
+     * "470 Front St W" — the street line without the unit, from either
      * the Repliers-formatted or backend-property data shape.
      */
     private function propertyStreetLabel(?array $property): ?string
@@ -2135,6 +2339,7 @@ class WebsiteController extends Controller
             $property['streetNumber'] ?? $property['StreetNumber'] ?? '',
             $property['streetName'] ?? $property['StreetName'] ?? '',
             $property['streetSuffix'] ?? $property['StreetSuffix'] ?? '',
+            $property['streetDirection'] ?? $property['StreetDirection'] ?? '',
         ])));
 
         // Fall back to the display address, stripping a leading "208 - "
@@ -2203,6 +2408,7 @@ class WebsiteController extends Controller
             $streetNumber = $address['streetNumber'] ?? '';
             $streetName = $address['streetName'] ?? '';
             $streetSuffix = $address['streetSuffix'] ?? '';
+            $streetDirection = $address['streetDirection'] ?? '';
             $city = $address['city'] ?? '';
             $province = $address['state'] ?? 'ON';
             $postalCode = $address['zip'] ?? '';
@@ -2231,6 +2437,7 @@ class WebsiteController extends Controller
             $streetNumber = $listing['StreetNumber'] ?? '';
             $streetName = $listing['StreetName'] ?? '';
             $streetSuffix = $listing['StreetSuffix'] ?? '';
+            $streetDirection = $listing['StreetDirSuffix'] ?? $listing['StreetDirection'] ?? '';
             $city = $listing['City'] ?? '';
             $province = $listing['StateOrProvince'] ?? 'ON';
             $postalCode = $listing['PostalCode'] ?? '';
@@ -2266,6 +2473,13 @@ class WebsiteController extends Controller
             'StreetName' => $streetName,
             'streetSuffix' => $streetSuffix,
             'StreetSuffix' => $streetSuffix,
+            // "W" in "480 Front St W" — part of the canonical /mls/ street slug
+            // and the H1/meta street line.
+            'streetDirection' => $streetDirection,
+            'StreetDirection' => $streetDirection,
+            // Repliers listing class (condoProperty | residentialProperty) —
+            // drives "condo" vs "home" wording in the meta description.
+            'propertyClass' => $listing['class'] ?? '',
             'city' => $city,
             'province' => $province,
             'postalCode' => $postalCode,
@@ -2783,7 +2997,7 @@ class WebsiteController extends Controller
      * building-detail routes and by home() when a sub-site has
      * "use_building_as_homepage" enabled (its "/" serves this page).
      */
-    private function renderBuildingDetailPage(Building $building)
+    private function renderBuildingDetailPage(Building $building, array $seoOverrides = [])
     {
         // Get building display data
         $buildingData = $building->getDisplayData();
@@ -2844,7 +3058,7 @@ class WebsiteController extends Controller
             'buildingSlug' => $building->slug,
             'buildingData' => $buildingData,
             'faqs' => $faqs,
-            'seo' => [
+            'seo' => array_merge([
                 'title' => $building->name . ' | ' . ($this->getWebsiteSettings()['siteName'] ?? config('app.name')),
                 'description' => $building->description ? \Illuminate\Support\Str::limit(strip_tags($building->description), 155) : null,
                 // Featured image (og:image / twitter:image) is the building's
@@ -2856,8 +3070,34 @@ class WebsiteController extends Controller
                     \App\Support\Schema::building($building),
                     \App\Support\Schema::faqPage($faqs),
                 ])),
-            ],
+            ], $seoOverrides),
         ]));
+    }
+
+    /**
+     * Homepage meta title/description per the client SEO spec, driven by the
+     * building's live for-sale/for-rent counts. Either count 0 → the
+     * no-number fallback copy (a SERP must never show "0 units").
+     */
+    private function buildHomeSeoMeta(Building $building): array
+    {
+        $counts = $building->getLiveListingCounts();
+        $nSale = $counts['sale'] ?? 0;
+        $nRent = $counts['rent'] ?? 0;
+        $name = $building->name;
+        $city = $building->city ?: 'Toronto';
+
+        if ($nSale > 0 && $nRent > 0) {
+            return [
+                'title' => "{$name} Condos in {$city} | For Sale {$nSale} | For Rent {$nRent}",
+                'description' => "{$name} Condos in {$city}: {$nSale} units for sale and {$nRent} for rent. Explore prices, floor plans, amenities and building info, updated daily.",
+            ];
+        }
+
+        return [
+            'title' => "{$name} Condos in {$city}",
+            'description' => "{$name} Condos in {$city}. Explore prices, floor plans, amenities and building info, and get alerts when new units hit the market.",
+        ];
     }
     
     /**

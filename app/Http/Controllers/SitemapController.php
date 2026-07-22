@@ -63,6 +63,13 @@ class SitemapController extends Controller
             ? Building::query()->find($website->homepage_building_id, ['id', 'slug', 'city', 'updated_at'])
             : null;
 
+        if ($building) {
+            // Clean tenant inventory pages (client SEO spec): the building's
+            // own units for sale / for rent at the domain root.
+            $entries[] = ['loc' => "{$base}/for-sale", 'priority' => '0.9'];
+            $entries[] = ['loc' => "{$base}/for-rent", 'priority' => '0.9'];
+        }
+
         if ($building && $building->slug && $building->city) {
             $citySlug = Str::slug($building->city);
             $entries[] = [
