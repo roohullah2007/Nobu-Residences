@@ -450,6 +450,14 @@ class PropertySearchController extends Controller
         if (empty($rawAddresses) && !empty($params['building_id'])) {
             $building = Building::find($params['building_id']);
             if ($building) {
+                // The building's own city must beat the Toronto default set
+                // above — a building-scoped search for a building outside
+                // Toronto (Universal City Condos, 1480 Bayly St, Pickering)
+                // otherwise sends city=Toronto to Repliers and returns zero
+                // listings. Same city source the homepage carousels use.
+                if (!empty($building->city)) {
+                    $apiParams['city'] = $building->city;
+                }
                 $candidates = [
                     $building->street_address_1 ?? null,
                     $building->street_address_2 ?? null,
