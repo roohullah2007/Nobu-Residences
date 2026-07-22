@@ -74,6 +74,27 @@ final class EmailBranding
     }
 
     /**
+     * Swap the branding logo for another image (e.g. the BUILDING's logo on
+     * building-scoped listing alerts, per client). Returns logoUrl/logoPath
+     * overrides in the same shape forWebsite() produces; falls back to the
+     * given branding when the override value is empty.
+     *
+     * @return array{logoUrl: ?string, logoPath: ?string}
+     */
+    public static function logoOverride(?string $logoValue, array $branding): array
+    {
+        if (empty($logoValue)) {
+            return ['logoUrl' => $branding['logoUrl'] ?? null, 'logoPath' => $branding['logoPath'] ?? null];
+        }
+
+        $url = str_starts_with($logoValue, 'http')
+            ? $logoValue
+            : rtrim((string) ($branding['homeUrl'] ?? url('/')), '/') . '/' . ltrim($logoValue, '/');
+
+        return ['logoUrl' => $url, 'logoPath' => self::localPublicPath($logoValue)];
+    }
+
+    /**
      * Absolute filesystem path for a public asset, or null when the file
      * isn't on this server. Site-relative paths ("/assets/logo.png") map
      * directly; absolute URLs are mapped by their PATH too — every tenant

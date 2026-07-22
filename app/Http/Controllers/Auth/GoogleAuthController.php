@@ -169,6 +169,10 @@ class GoogleAuthController extends Controller
                 // Registration confirmation to the registrant — guarded inside send().
                 \App\Notifications\WelcomeNewUser::send($user, $signupHost, $websiteName);
 
+                // Auto-subscribe to the site building's daily listings alert
+                // (per client) — guarded inside subscribe().
+                \App\Support\AutoBuildingAlert::subscribe($user, $website);
+
                 // Push the lead into Follow Up Boss — guarded inside report().
                 \App\Services\FollowUpBossService::report('Registration', [
                     'name' => $user->name,
@@ -290,7 +294,8 @@ class GoogleAuthController extends Controller
             // Check if user exists with this email
             $user = User::where('email', $googleUser->email)->first();
 
-            $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request())?->name;
+            $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request());
+            $websiteName = $website?->name;
 
             if ($user) {
                 // Update user with Google information if not already set
@@ -353,6 +358,10 @@ class GoogleAuthController extends Controller
 
                 // Registration confirmation to the registrant — guarded inside send().
                 \App\Notifications\WelcomeNewUser::send($user, request()->getHost(), $websiteName);
+
+                // Auto-subscribe to the site building's daily listings alert
+                // (per client) — guarded inside subscribe().
+                \App\Support\AutoBuildingAlert::subscribe($user, $website);
 
                 // Push the lead into Follow Up Boss — guarded inside report().
                 \App\Services\FollowUpBossService::report('Registration', [

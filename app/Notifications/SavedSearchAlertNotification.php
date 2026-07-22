@@ -53,13 +53,17 @@ class SavedSearchAlertNotification extends Notification
         $values = $this->mergeValues($notifiable, $branding, $agent);
         $rawValues = ['site_link' => $this->siteLinkHtml($branding['homeUrl'])];
 
+        // Building-scoped alerts show the BUILDING's logo (per client);
+        // plain saved searches keep the site logo.
+        $logo = EmailBranding::logoOverride($this->savedSearch->building?->logo, $branding);
+
         return (new MailMessage)
             ->from(config('mail.from.address'), $branding['siteName'])
             ->subject(EmailMergeTags::apply($template['subject'], $values))
             ->view('emails.listing-alert', [
                 'siteName' => $branding['siteName'],
-                'logoUrl' => $branding['logoUrl'],
-                'logoPath' => $branding['logoPath'],
+                'logoUrl' => $logo['logoUrl'],
+                'logoPath' => $logo['logoPath'],
                 'agent' => $agent,
                 'headline' => EmailMergeTags::apply($template['headline'], $values),
                 'introHtml' => EmailMergeTags::applyHtml($template['intro'], $values, $rawValues)

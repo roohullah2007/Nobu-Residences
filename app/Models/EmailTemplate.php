@@ -24,9 +24,12 @@ class EmailTemplate extends Model
         'saved_search_alert' => [
             'label' => 'Saved Search Alert',
             'defaults' => [
-                'subject' => 'New Listings Match "%search_name%" - %listing_count% Properties Found',
+                // Subject + intro lead with the recipient's name (per client:
+                // "subject and body content will be customized for the
+                // receiver — it'll contain their name").
+                'subject' => '%first_name%, New Listings Match "%search_name%" - %listing_count% Properties Found',
                 'headline' => 'Handpicked listings just for you.',
-                'intro' => "Thank you for registering for the %frequency% Listings Alert at %site_link%. I've put together the list below to help you find new listings based on your specific Real Estate needs. Feel free to contact me should you have any questions.",
+                'intro' => "Hi %first_name%, thank you for registering for the %frequency% Listings Alert at %site_link%. I've put together the list below to help you find new listings based on your specific Real Estate needs. Feel free to contact me should you have any questions.",
             ],
             'tags' => [
                 '%first_name%', '%last_name%', '%full_name%', '%site_name%', '%site_domain%', '%site_link%',

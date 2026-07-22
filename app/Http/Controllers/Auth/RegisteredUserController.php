@@ -69,7 +69,8 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        $websiteName = app(\App\Services\Tenancy\TenantResolver::class)->resolve($request)?->name;
+        $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve($request);
+        $websiteName = $website?->name;
 
         // Tell the admins — guarded inside notifyAdmins(); never breaks signup.
         \App\Notifications\NewUserRegistered::notifyAdmins(
@@ -81,6 +82,10 @@ class RegisteredUserController extends Controller
 
         // Registration confirmation to the registrant — guarded inside send().
         \App\Notifications\WelcomeNewUser::send($user, $request->getHost(), $websiteName);
+
+        // Auto-subscribe to the site building's daily listings alert
+        // (per client) — guarded inside subscribe().
+        \App\Support\AutoBuildingAlert::subscribe($user, $website);
 
         // Push the lead into Follow Up Boss — guarded inside report().
         \App\Services\FollowUpBossService::report('Registration', [
