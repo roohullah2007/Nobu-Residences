@@ -10,11 +10,15 @@ use Illuminate\Support\Facades\Log;
 class GeminiDescriptionService
 {
     private $apiKey;
-    private $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+    private $apiUrl;
 
     public function __construct()
     {
         $this->apiKey = (string) (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', ''));
+        // Same configurable model as GeminiAIService — the old hardcoded
+        // gemini-1.5-flash is retired and 404s for new Google projects.
+        $model = config('services.gemini.model') ?: 'gemini-flash-latest';
+        $this->apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
     }
 
     public function generatePropertyDescription($property)

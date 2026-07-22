@@ -372,6 +372,17 @@ class GeminiAIService
                     'Content-Type' => 'application/json',
                 ])->post($this->apiUrl . '?key=' . $this->apiKey, $payload);
 
+                // Newer models behind the "-latest" alias (Gemini 3 Flash)
+                // reject thinkingBudget with a bare 400 INVALID_ARGUMENT;
+                // older 2.5 Flash accepts it. Drop the knob and retry so the
+                // same config works on either side of a silent alias bump.
+                if ($response->status() === 400
+                    && isset($payload['generationConfig']['thinkingConfig'])) {
+                    unset($payload['generationConfig']['thinkingConfig']);
+                    Log::warning('Gemini rejected thinkingConfig (HTTP 400) — retrying without it');
+                    continue;
+                }
+
                 if ($response->successful()
                     || !in_array($response->status(), [429, 500, 503], true)
                     || $attempt === $maxAttempts) {
