@@ -19,6 +19,12 @@ class FrontendGeocodingService {
      * Initialize Google Maps Geocoder
      */
     initializeGeocoder() {
+        // A singleton instance is created at module scope, so this runs at
+        // import time — during SSR there is no window and the unguarded
+        // access crashed server rendering for every page importing the maps.
+        if (typeof window === 'undefined') {
+            return;
+        }
         if (window.google && window.google.maps && window.google.maps.Geocoder) {
             this.geocoder = new window.google.maps.Geocoder();
             console.log('Frontend Geocoding: Google Maps Geocoder initialized');

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import SimplePropertyMap from './SimplePropertyMap';
-import { debounce } from 'lodash';
+// Single-module path import: the SSR bundle externalizes node_modules, and
+// Node's ESM loader can't named-import from lodash's CommonJS index — it
+// crashed server rendering for every page importing this component.
+import debounce from 'lodash/debounce';
 
 const ViewportAwarePropertyMap = ({
   properties = [],

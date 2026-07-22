@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import GoogleMapContainer from './GoogleMapContainer';
-import { debounce } from 'lodash';
+// Single-module path import: the SSR bundle externalizes node_modules, and
+// Node's ESM loader can't named-import from lodash's CommonJS index — it
+// crashed server rendering for every page importing this component.
+import debounce from 'lodash/debounce';
 import loadGoogleMaps from '@/utils/googleMaps';
 
 // condos.ca-style muted tiles: light grey base, soft green parks, pale blue

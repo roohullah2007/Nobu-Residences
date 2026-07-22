@@ -32,9 +32,30 @@
             if ($seoJsonLd && !array_is_list($seoJsonLd)) {
                 $seoJsonLd = [$seoJsonLd];
             }
+
+            // Dispatch SSR now (same memo variables the @inertia/@inertiaHead
+            // directives use, so they reuse this response). When the page's
+            // <Head> provides a title via SSR, ours must NOT also render —
+            // crawlers take the FIRST <title>, so the site-default fallback
+            // was shadowing every per-page title. The SSR title also feeds
+            // og:/twitter:title so social previews match the page.
+            if (!isset($__inertiaSsrDispatched)) {
+                $__inertiaSsrDispatched = true;
+                $__inertiaSsrResponse = app(\Inertia\Ssr\Gateway::class)->dispatch($page);
+            }
+            $ssrProvidesTitle = false;
+            if ($__inertiaSsrResponse && preg_match('/<title[^>]*>(.*?)<\/title>/s', (string) $__inertiaSsrResponse->head, $ssrTitleMatch)) {
+                $ssrProvidesTitle = true;
+                $ssrTitleText = trim(html_entity_decode(strip_tags($ssrTitleMatch[1])));
+                if ($ssrTitleText !== '') {
+                    $seoTitle = $ssrTitleText;
+                }
+            }
         @endphp
 
+        @unless($ssrProvidesTitle)
         <title inertia>{{ $seoTitle }}</title>
+        @endunless
         @if($seoDescription)
         <meta name="description" content="{{ $seoDescription }}">
         @endif

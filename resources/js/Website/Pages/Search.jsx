@@ -123,8 +123,10 @@ export default function EnhancedPropertySearch({
     return display;
   };
   
-  // Get property type from URL params if available
-  const urlParams = new URLSearchParams(window.location.search);
+  // Get property type from URL params if available. window is absent during
+  // SSR — an unguarded read here crashed server rendering for the whole
+  // search page (and the /{city}/for-sale|for-rent pages built on it).
+  const urlParams = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
   const propertySubType = urlParams.get('property_sub_type');
   const buildingId = urlParams.get('building_id');
   const transactionType = filters.transaction_type || urlParams.get('transaction_type');
