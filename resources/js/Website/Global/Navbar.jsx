@@ -20,24 +20,24 @@ export default function Navbar({ auth = {}, website = {}, simplified = false, on
     }, [mobileMenuOpen]);
 
     // Get globalWebsite from page props for reliable access to website data
-    const { globalWebsite } = usePage().props;
+    const { globalWebsite, isMainDomain } = usePage().props;
     const effectiveWebsite = website?.id ? website : globalWebsite;
 
-    // Helper function to build URLs with website parameter preserved
-    // Uses website slug from props - if it's not the default website, append the param
+    // The ?website={slug} preview override is only honored on the admin/main
+    // host (TenantResolver ignores it on tenant domains, which resolve by
+    // domain), so links carry it only there. On a site's own domain every
+    // URL stays clean, and any stored website param (e.g. header links saved
+    // while previewing) is stripped.
     const buildUrl = (path) => {
-        // Check if website slug is available and not the default (ID 1)
-        // The default website doesn't need the query param
-        if (effectiveWebsite?.slug && effectiveWebsite?.id !== 1) {
-            // Remove any existing website parameter first to avoid duplicates
-            let cleanPath = path;
-            if (path.includes('?website=') || path.includes('&website=')) {
-                cleanPath = path.replace(/[?&]website=[^&]*/g, '').replace(/\?&/, '?').replace(/\?$/, '');
-            }
+        let cleanPath = path;
+        if (path.includes('?website=') || path.includes('&website=')) {
+            cleanPath = path.replace(/[?&]website=[^&]*/g, '').replace(/\?&/, '?').replace(/\?$/, '');
+        }
+        if (isMainDomain && effectiveWebsite?.slug) {
             const separator = cleanPath.includes('?') ? '&' : '?';
             return `${cleanPath}${separator}website=${effectiveWebsite.slug}`;
         }
-        return path;
+        return cleanPath;
     };
 
     // Default navigation links
