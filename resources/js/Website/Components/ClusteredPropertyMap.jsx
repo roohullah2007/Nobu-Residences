@@ -72,6 +72,10 @@ const ClusteredPropertyMap = ({
   const [hasDrawnPolygon, setHasDrawnPolygon] = useState(false);
   const [markerStats, setMarkerStats] = useState({ displayed: 0, total: 0 });
   const lastBoundsRef = useRef(null);
+  // True until the first marker fetch: that fetch is always treated as a
+  // fresh search so the backend fits the map to the scoped results (see
+  // updateMarkers).
+  const initialContextFetchRef = useRef(true);
 
   // Viewport-sync plumbing. The callback lives in a ref so the parent can
   // pass a stable or unstable function without re-wiring map listeners.
@@ -264,8 +268,20 @@ const ClusteredPropertyMap = ({
     }
     lastBoundsRef.current = boundsKey;
 
+    // The very first fetch after mount is always a fresh search: the map
+    // opens on its default Toronto viewport while the page's filters may
+    // already scope another area (?query=Richmond+Hill, or search-then-
+    // switch-to-map-view). The filters-change effect can't cover this — at
+    // mount time getBounds() is still undefined, so the only initial fetch
+    // is the idle-driven one, which without this flag ANDs the searched
+    // area with the stale Toronto viewport: Repliers' circular radius still
+    // COUNTS the results (badge says 230) but the clusters plot off-screen
+    // and the map never pans — the "map shows no properties" client bug.
+    const isFreshContext = searchContextChanged || initialContextFetchRef.current;
+    initialContextFetchRef.current = false;
+
     // Fetch markers (server-clustered) from API
-    const { coordinates, clusters, fitBounds } = await fetchMapCoordinates(roundedBounds, zoom, searchContextChanged);
+    const { coordinates, clusters, fitBounds } = await fetchMapCoordinates(roundedBounds, zoom, isFreshContext);
 
     // Clear existing markers (and any old client-side clusterer)
     clearMarkers();
