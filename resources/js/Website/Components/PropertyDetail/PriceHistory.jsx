@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usePage, router } from '@inertiajs/react';
 
 /**
  * Price History — driven by the `priceHistory` array attached to
@@ -10,21 +11,31 @@ import React, { useState } from 'react';
  * Layout matches the reference design:
  *   [thumb] [date / time-ago]   [Status / Listed for $X on date]   [N days on market]
  *
- * Public-by-default: rows render in full for every visitor (no auth blur),
- * since the price history is the same information shown elsewhere on the
- * page.
+ * Auth-gated per client request: guests see a single blurred row with a
+ * sign-in prompt; the full history (including the dedicated showAll pages)
+ * requires a signed-in user.
  */
 const PriceHistory = ({
   propertyData = null,
   propertyImages = null,
   showAll = false,
   building = null,
-  // `auth` and `onLoginClick` are accepted for backwards-compatibility with
-  // existing callers but are no longer used internally.
-  auth: _auth = null,
-  onLoginClick: _onLoginClick = null,
+  auth = null,
+  onLoginClick = null,
 }) => {
   const [expanded, setExpanded] = useState(false);
+  // Trust Inertia's shared auth as the source of truth — the `auth` prop
+  // only works when every parent in the tree remembers to pass it down.
+  const sharedAuth = usePage().props?.auth;
+  const isLoggedIn = !!(auth?.user || sharedAuth?.user);
+
+  const handleLoginRequired = () => {
+    if (typeof onLoginClick === 'function') {
+      onLoginClick();
+    } else {
+      router.visit('/login');
+    }
+  };
 
   const pickFromImageList = (list) => {
     if (!Array.isArray(list) || list.length === 0) return null;
@@ -132,13 +143,17 @@ const PriceHistory = ({
     return { label: s || 'Listed', cls: 'text-[#293056]' };
   };
 
-  // Show a preview of recent entries inline; the "View full price history"
-  // button below sends the user to the dedicated page (or expands the list
-  // when no full page exists). No auth gating — entries are public info.
+  // Signed-in users see a preview of recent entries inline (all of them on
+  // the dedicated showAll pages); guests are capped to a single blurred row
+  // with a sign-in prompt — even when showAll is requested, so the
+  // dedicated pages can't be used to bypass the gate.
   const PREVIEW_LIMIT = 5;
-  const previewCount = showAll || expanded
-    ? history.length
-    : Math.min(history.length, PREVIEW_LIMIT);
+  const GUEST_LIMIT = 1;
+  const previewCount = !isLoggedIn
+    ? Math.min(history.length, GUEST_LIMIT)
+    : showAll || expanded
+      ? history.length
+      : Math.min(history.length, PREVIEW_LIMIT);
   const visibleHistory = history.slice(0, previewCount);
 
   // Address subtitle ("813 - 15 Mercer Street")
@@ -181,11 +196,30 @@ const PriceHistory = ({
             const displayPrice = wasSold ? entry.soldPrice : entry.listPrice;
             const displayDate = entry.listDate || entry.soldDate;
             const eventDate = entry.soldDate || entry.listDate;
+            // Logged-out users see the section but the row's data is
+            // blurred until they sign in.
+            const blur = !isLoggedIn;
+            const blurCls = blur ? 'blur-sm select-none' : '';
 
             return (
               <div
                 key={`${entry.mlsNumber || 'h'}-${idx}`}
-                className="flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4"
+                role={blur ? 'button' : undefined}
+                tabIndex={blur ? 0 : undefined}
+                onClick={blur ? handleLoginRequired : undefined}
+                onKeyDown={
+                  blur
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleLoginRequired();
+                        }
+                      }
+                    : undefined
+                }
+                className={`flex items-center gap-4 bg-[#F8F8F8] rounded-xl p-3 md:p-4 ${
+                  blur ? 'cursor-pointer hover:bg-gray-100 transition-colors' : ''
+                }`}
               >
                 {/* Thumbnail — prefer per-entry image (building view) */}
                 <div className="flex-shrink-0">
@@ -209,22 +243,22 @@ const PriceHistory = ({
 
                 {/* Date column */}
                 <div className="flex flex-col min-w-[110px]">
-                  <div className="text-sm font-semibold text-[#293056]">
+                  <div className={`text-sm font-semibold text-[#293056] ${blurCls}`}>
                     {formatDate(eventDate) || '—'}
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className={`text-xs text-gray-500 mt-0.5 ${blurCls}`}>
                     {relativeTime(eventDate)}
                   </div>
                 </div>
 
                 {/* Status + listed-for line */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  <div className={`font-bold text-sm ${status.cls}`}>
-                    {status.label}
+                  <div className={`font-bold text-sm ${blur ? 'text-rose-600' : status.cls}`}>
+                    {blur ? 'Sign in required' : status.label}
                   </div>
                   <div className="text-sm text-gray-600 mt-0.5">
                     {wasSold ? 'Sold for ' : 'Listed for '}
-                    <span className="font-semibold text-[#293056]">
+                    <span className={`font-semibold text-[#293056] ${blurCls}`}>
                       {' '}
                       {formatPrice(displayPrice) || 'N/A'}
                     </span>
@@ -232,12 +266,12 @@ const PriceHistory = ({
                       <>
                         {' '}
                         on{' '}
-                        <span>{formatDate(displayDate)}</span>
+                        <span className={blurCls}>{formatDate(displayDate)}</span>
                       </>
                     )}
                   </div>
                   {entry.address && (
-                    <div className="text-xs text-gray-500 mt-0.5 truncate">
+                    <div className={`text-xs text-gray-500 mt-0.5 truncate ${blurCls}`}>
                       {entry.address}
                     </div>
                   )}
@@ -246,7 +280,7 @@ const PriceHistory = ({
                 {/* Days on market separator + value */}
                 <div className="hidden md:flex items-center gap-4 flex-shrink-0">
                   <div className="h-10 w-px bg-gray-300" />
-                  <div className="text-sm text-gray-700 whitespace-nowrap">
+                  <div className={`text-sm text-gray-700 whitespace-nowrap ${blurCls}`}>
                     {entry.daysOnMarket
                       ? `${entry.daysOnMarket} days on market`
                       : 'Not Available'}
@@ -257,12 +291,23 @@ const PriceHistory = ({
           })}
           </div>
 
+          {/* Guests get a sign-in CTA instead of the full-history link so
+              the gate can't be walked around via the dedicated pages. */}
+          {!isLoggedIn && (
+            <button
+              onClick={handleLoginRequired}
+              className="w-full border border-gray-200 text-[#263238] py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors mt-1 font-semibold"
+            >
+              Sign in to view price history
+            </button>
+          )}
+
           {/* Footer button — always shown (unless caller already requested
               showAll). Resolves to a link to the building's dedicated full
               price-history page when we have building info; otherwise falls
               back to the universal /price-history/{listingKey} page so the
               button always goes somewhere useful. */}
-          {!showAll && (() => {
+          {isLoggedIn && !showAll && (() => {
             const slugify = (s) =>
               (s || '')
                 .toString()

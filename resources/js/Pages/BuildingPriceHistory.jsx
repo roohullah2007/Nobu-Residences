@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
+import { LoginModal } from '@/Website/Global/Components';
 
 /**
  * Full price history page for a building.
@@ -23,7 +24,9 @@ export default function BuildingPriceHistory({
   const [bedFilter, setBedFilter] = useState('all'); // all | 1 | 2 | 3 | 4+
   const [statusTab, setStatusTab] = useState('all'); // all | sold | rented
   const [page, setPage] = useState(1);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const PER_PAGE = 15;
+  const isLoggedIn = !!auth?.user;
 
   // Reset to page 1 when filters change
   React.useEffect(() => {
@@ -168,6 +171,54 @@ export default function BuildingPriceHistory({
     });
     return { listed, sold };
   };
+
+  // Sign-in gate — building-wide price history requires a logged-in user.
+  if (!isLoggedIn) {
+    return (
+      <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader noPadding>
+        <Head title={`Listing History — ${displayName || 'Building'}`} />
+
+        <div className="bg-white min-h-screen">
+          <div className="max-w-[1280px] mx-auto px-4 py-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-[#293056] font-space-grotesk mb-1">
+              <Link href={buildingHref} className="text-[#293056] underline hover:opacity-80">
+                {displayName || 'Building'}
+              </Link>{' '}
+              Listing History
+            </h1>
+            <p className="text-sm text-gray-600 mb-6">
+              View previously sold or rented units at {fullAddress}
+              {displayName ? ` (${displayName})` : ''}
+            </p>
+
+            <div className="flex flex-col items-center text-center py-16 bg-gray-50 rounded-2xl border border-gray-200">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#293056" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <p className="mt-3 text-sm font-semibold text-[#293056]">Sign in to view the full listing history</p>
+              <p className="mt-1 text-xs text-gray-500">
+                See every sold and rented unit, with prices and days on market.
+              </p>
+              <button
+                type="button"
+                onClick={() => setLoginModalOpen(true)}
+                className="mt-4 px-5 py-2 rounded-lg text-sm font-semibold text-white bg-[#293056] hover:opacity-90 transition-opacity"
+              >
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <LoginModal
+          isOpen={loginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+          initialTab="login"
+        />
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout siteName={siteName} siteUrl={siteUrl} year={year} website={website} auth={auth} blueHeader noPadding>

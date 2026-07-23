@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
+import { LoginModal } from '@/Website/Global/Components';
 import PriceHistory from '@/Website/Components/PropertyDetail/PriceHistory';
 import PriceHistorySearchInput from '@/Website/Components/PriceHistorySearchInput';
 
@@ -23,6 +24,8 @@ export default function PropertyPriceHistory({
   priceHistory = [],
   website,
 }) {
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   // "813 - 15 Mercer Street"
   const subtitleAddress = (() => {
     const unit = property?.unitNumber || '';
@@ -81,9 +84,17 @@ export default function PropertyPriceHistory({
             propertyData={propertyData}
             propertyImages={property?.images || (property?.imageUrl ? [property.imageUrl] : [])}
             showAll
+            auth={auth}
+            onLoginClick={() => setLoginModalOpen(true)}
           />
         </div>
       </div>
+
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        initialTab="login"
+      />
     </MainLayout>
   );
 }
