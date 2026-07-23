@@ -363,6 +363,16 @@ class WebsiteController extends Controller
         $parsed = $this->parseSearchSlug($searchSlug);
         $isRent = $parsed['isRent'];
 
+        // These platforms carry condo inventory only, so a houses/homes
+        // location page would render condos under a "Houses" H1. Per the
+        // client doc the condo domains use the apartments/condos variants;
+        // homes-for-* URLs are reserved for the future house-focused domains
+        // (homeforsaletoronto.com) — until those exist, 301 to the condo
+        // equivalent, keeping the bedrooms prefix and pagination.
+        if ($redirect = $this->redirectHouseKindOnCondoSite($request, $parsed, $city)) {
+            return $redirect;
+        }
+
         $initialFilters = [
             'search' => $cityName,
             'query' => $cityName,
@@ -394,10 +404,43 @@ class WebsiteController extends Controller
     }
 
     /**
+     * 301 a houses/homes location slug to its condo equivalent on these
+     * condo-only platforms: /{city}/houses-for-sale -> /{city}/condos-for-sale
+     * and /mls/{city}/homes-for-rent -> /mls/{city}/apartments-for-rent
+     * (per the client doc, apartments-for-* are the condo-domain shapes and
+     * homes-for-* belong to the future house-focused domains). Bedrooms
+     * prefix, pagination and the admin-preview ?website param survive.
+     * Returns null for every non-house kind.
+     */
+    private function redirectHouseKindOnCondoSite(Request $request, array $parsed, string $city, ?string $neighbourhood = null)
+    {
+        if (!in_array($parsed['kind'], ['houses', 'homes'], true)) {
+            return null;
+        }
+
+        $isMls = $request->is('mls/*');
+        $condoKind = $isMls ? 'apartments' : 'condos';
+        $slug = ($parsed['bedrooms'] ? "{$parsed['bedrooms']}-bedroom-" : '')
+            . $condoKind . '-for-' . ($parsed['isRent'] ? 'rent' : 'sale');
+
+        $path = ($isMls ? '/mls' : '') . "/{$city}" . ($neighbourhood ? "/{$neighbourhood}" : '') . "/{$slug}";
+
+        $keep = [];
+        if ((int) $request->query('page', 1) > 1) {
+            $keep['page'] = (int) $request->query('page');
+        }
+        if ($request->filled('website')) {
+            $keep['website'] = $request->query('website'); // admin-host preview mode
+        }
+
+        return redirect()->to($path . ($keep ? '?' . http_build_query($keep) : ''), 301);
+    }
+
+    /**
      * Meta title / description / self-canonical for the static location
      * search pages (/{city}/condos-for-sale, /{city}/{hood}/condos-for-rent,
-     * /mls/{city}/homes-for-sale...). ?page is the only surviving parameter,
-     * page 1 canonicals to the bare path.
+     * /mls/{city}/apartments-for-sale...). ?page is the only surviving
+     * parameter, page 1 canonicals to the bare path.
      */
     private function locationSearchSeo(Request $request, string $title, string $kind, bool $isRent, string $locationLabel): array
     {
@@ -431,6 +474,12 @@ class WebsiteController extends Controller
         $neighbourhoodName = ucwords(str_replace('-', ' ', $neighbourhood));
         $parsed = $this->parseSearchSlug($searchSlug);
         $isRent = $parsed['isRent'];
+
+        // Condo-only platform — houses/homes slugs 301 to the condo variant
+        // (see redirectHouseKindOnCondoSite).
+        if ($redirect = $this->redirectHouseKindOnCondoSite($request, $parsed, $city, $neighbourhood)) {
+            return $redirect;
+        }
 
         $initialFilters = [
             'search' => $neighbourhoodName,
