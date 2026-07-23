@@ -794,11 +794,13 @@ export default function PropertyGallery({
                 </div>
               </div>
               
-              {/* Enquire this Property Button */}
-              <div className="rounded-full h-12 md:h-10 flex items-center justify-center w-full" style={{ backgroundColor: buttonTertiaryBg }}>
+              {/* Enquire this Property Button — spaced below the details rows,
+                  full-height on desktop, with the enquire-cta attention
+                  animation (pulse ring + shine sweep, see app.css) */}
+              <div className="enquire-cta rounded-full h-12 flex items-center justify-center w-full mt-6 md:mt-8" style={{ backgroundColor: buttonTertiaryBg }}>
                 <button
                   onClick={() => setShowEnquiryModal(true)}
-                  className="w-full h-full flex items-center justify-center hover:opacity-90 transition-opacity rounded-full"
+                  className="w-full h-full flex items-center justify-center rounded-full"
                 >
                   <span className="font-work-sans font-extrabold text-sm md:text-base" style={{ color: buttonTertiaryText }}>
                     Enquire this Property
