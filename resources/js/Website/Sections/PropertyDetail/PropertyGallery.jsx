@@ -525,9 +525,12 @@ export default function PropertyGallery({
           {/* Property Details Card */}
           {/* Fixed 309px from md (it used to be w-full + flex-shrink-0 at md,
               which made the flex row 768px + 318px wide and clipped the
-              "Enquire this Property" button off-screen) */}
-          <div className="w-full md:w-[309px] h-auto lg:h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-4 md:mt-0">
-            <div className="flex flex-col justify-between p-4 md:p-6 h-full min-h-[500px] lg:min-h-0">
+              "Enquire this Property" button off-screen).
+              lg uses min-h (not a fixed h): when the details run long the card
+              GROWS instead of overflowing, so the p-6 bottom padding always
+              shows below the button — same breathing room as the top. */}
+          <div className="w-full md:w-[309px] h-auto lg:min-h-[645px] bg-white border border-gray-200 rounded-xl flex-shrink-0 order-2 lg:order-none mt-4 md:mt-0 flex flex-col">
+            <div className="flex flex-col justify-between p-4 md:p-6 flex-1 min-h-[500px] lg:min-h-0">
               <div className="flex flex-col gap-6 md:gap-8 lg:gap-10 mb-[30px] md:mb-0">
                 {/* Property Status and Price Section */}
                 <div className="flex flex-col gap-2 items-center">
