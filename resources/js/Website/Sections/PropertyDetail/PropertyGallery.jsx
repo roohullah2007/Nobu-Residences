@@ -611,7 +611,7 @@ export default function PropertyGallery({
                   <div className="flex flex-col gap-4 md:gap-6">
                     {/* Type */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Type
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -621,7 +621,7 @@ export default function PropertyGallery({
                     
                     {/* Beds */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Beds
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -631,7 +631,7 @@ export default function PropertyGallery({
                     
                     {/* Bathrooms */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Bathrooms
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -641,7 +641,7 @@ export default function PropertyGallery({
                     
                     {/* Area */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Area
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -675,7 +675,7 @@ export default function PropertyGallery({
                     
                     {/* Parking */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Parking
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -712,7 +712,7 @@ export default function PropertyGallery({
                     
                     {/* Maintenance Fees */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Maintenance Fees
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -738,7 +738,7 @@ export default function PropertyGallery({
                     
                     {/* Property Taxes */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Property Taxes
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
@@ -767,7 +767,7 @@ export default function PropertyGallery({
                     
                     {/* Exposure */}
                     <div className="flex justify-between items-center gap-3 w-full">
-                      <h3 className="font-work-sans font-medium text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
+                      <h3 className="font-work-sans font-semibold text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight capitalize break-words">
                         Exposure
                       </h3>
                       <p className="font-work-sans font-normal text-sm md:text-base leading-5 md:leading-[25px] text-[#252B37] tracking-tight text-right break-words">
