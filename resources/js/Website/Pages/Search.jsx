@@ -315,16 +315,19 @@ export default function EnhancedPropertySearch({
       url.searchParams.delete(key);
     }
 
-    // Add back essential params
+    // Add back essential params. Page 1 is the default, so it never needs
+    // to appear in the URL — clean paths stay bare and every page keeps
+    // ?page only for real pagination (per the client SEO spec).
     if (tabParam) url.searchParams.set('tab', tabParam);
-    url.searchParams.set('page', pageParam);
+    if (parseInt(pageParam, 10) > 1) url.searchParams.set('page', pageParam);
     if (websiteParam) url.searchParams.set('website', websiteParam);
 
-    // Add query/location to URL — but skip it on neighbourhood landing pages
-    // like /toronto/yorkville/condos-for-sale where the path already encodes
-    // the area. Otherwise the URL bloats to ?query=Yorkville on top of the
-    // path that already says "yorkville".
-    const pathEncodesArea = /^\/[a-z][a-z-]*\/[a-z0-9-]+\/(?:\d+-bedroom-)?(?:condos|houses|townhouses|apartments)-for-(?:sale|rent)\/?$/.test(window.location.pathname);
+    // Add query/location to URL — but skip it on location landing pages
+    // like /richmond-hill/condos-for-sale, /toronto/yorkville/condos-for-sale
+    // or /mls/toronto/homes-for-sale where the path already encodes the area
+    // AND the sale/rent status. Otherwise the URL bloats to ?query=Yorkville
+    // on top of the path that already says "yorkville".
+    const pathEncodesArea = /^(?:\/mls)?\/[a-z][a-z-]*(?:\/[a-z0-9-]+)?\/(?:\d+-bedroom-)?(?:condos|houses|homes|townhouses|apartments)-for-(?:sale|rent)\/?$/.test(window.location.pathname);
     // Tenant building pages (/for-sale, /for-rent) are self-canonical with
     // ?page as the only allowed parameter — never write the building scope
     // back into their URL.
@@ -334,7 +337,7 @@ export default function EnhancedPropertySearch({
     }
 
     // Add other relevant params
-    if (params.status && params.status !== 'For Sale' && !pathIsTenantBuildingPage) {
+    if (params.status && params.status !== 'For Sale' && !pathIsTenantBuildingPage && !pathEncodesArea) {
       url.searchParams.set('status', params.status);
     }
 

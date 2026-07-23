@@ -330,7 +330,7 @@ class WebsiteController extends Controller
         $kind = 'condos';
         $isRent = false;
 
-        if (preg_match('/^(?:(\d+)-bedroom-)?(condos|houses|townhouses|apartments)-for-(sale|rent)$/i', $slug, $m)) {
+        if (preg_match('/^(?:(\d+)-bedroom-)?(condos|houses|homes|townhouses|apartments)-for-(sale|rent)$/i', $slug, $m)) {
             if (!empty($m[1])) {
                 $bedrooms = (int) $m[1];
             }
@@ -343,6 +343,7 @@ class WebsiteController extends Controller
             'apartments' => 'Condo Apartment',
             'townhouses' => 'Condo Townhouse',
             'houses' => 'Detached',
+            'homes' => 'Detached',
         ];
 
         return [
@@ -384,10 +385,39 @@ class WebsiteController extends Controller
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => ['user' => $request->user()],
             'title' => $title,
+            'pageH1' => $title,
             'filters' => $initialFilters,
             'searchTab' => 'listings',
             'initialSearchFilters' => $initialFilters,
+            'seo' => $this->locationSearchSeo($request, $title, $parsed['kind'], $isRent, $cityName),
         ]));
+    }
+
+    /**
+     * Meta title / description / self-canonical for the static location
+     * search pages (/{city}/condos-for-sale, /{city}/{hood}/condos-for-rent,
+     * /mls/{city}/homes-for-sale...). ?page is the only surviving parameter,
+     * page 1 canonicals to the bare path.
+     */
+    private function locationSearchSeo(Request $request, string $title, string $kind, bool $isRent, string $locationLabel): array
+    {
+        $siteName = $this->getCurrentWebsite()?->name;
+        $kindLower = strtolower($kind);
+
+        if ($isRent) {
+            $metaDescription = "See {$kindLower} for rent in {$locationLabel}. Compare rents, floor plans and photos, updated daily, and book a viewing today.";
+        } else {
+            $metaDescription = "Browse {$kindLower} for sale in {$locationLabel}. See prices, photos and floor plans, updated daily, and book a showing.";
+        }
+
+        $page = max(1, (int) $request->query('page', 1));
+        $canonical = url('/' . trim($request->path(), '/')) . ($page > 1 ? "?page={$page}" : '');
+
+        return [
+            'title' => $title . ($siteName ? " | {$siteName}" : ''),
+            'description' => $metaDescription,
+            'canonical' => $canonical,
+        ];
     }
 
     /**
@@ -425,9 +455,11 @@ class WebsiteController extends Controller
         return Inertia::render('Search', array_merge($this->getWebsiteSettings(), [
             'auth' => ['user' => $request->user()],
             'title' => $title,
+            'pageH1' => $title,
             'filters' => $initialFilters,
             'searchTab' => 'listings',
             'initialSearchFilters' => $initialFilters,
+            'seo' => $this->locationSearchSeo($request, $title, $parsed['kind'], $isRent, "$neighbourhoodName, $cityName"),
         ]));
     }
 
@@ -2285,6 +2317,7 @@ class WebsiteController extends Controller
         }
 
         $city = trim((string) ($property['city'] ?? ''));
+        $unit = trim((string) ($property['unitNumber'] ?? ''));
         $isRent = ($property['transactionType'] ?? 'For Sale') === 'For Lease';
         $beds = (int) ($property['bedrooms'] ?? 0);
         $baths = (int) ($property['bathrooms'] ?? 0);
@@ -2296,7 +2329,11 @@ class WebsiteController extends Controller
             ? 'condo'
             : 'home';
 
+        // Full address of the listing per client feedback — unit included,
+        // matching the H1 ("719 - 11611 Yonge Street N, Richmond Hill"), for
+        // both the sale and rent variants.
         $where = (!empty($building['name']) ? $building['name'] . ', ' : '')
+            . ($unit !== '' ? "{$unit} - " : '')
             . $street
             . ($city !== '' ? ", {$city}" : '');
 

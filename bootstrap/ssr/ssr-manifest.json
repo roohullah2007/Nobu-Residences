@@ -244,22 +244,22 @@
     "/build/assets/UserProfile-bVBn9ZrP.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-8cK7dhf0.js"
+    "/build/assets/PropertyDetail-BXhA0ksY.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-nKWd4a48.js"
   ],
   "resources/js/Pages/Rent.jsx": [
-    "/build/assets/Rent-B8AcLW58.js"
+    "/build/assets/Rent-BgJfC-rB.js"
   ],
   "resources/js/Pages/Sale.jsx": [
-    "/build/assets/Sale-BhgxWksF.js"
+    "/build/assets/Sale-CeQoe7HD.js"
   ],
   "resources/js/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-VxyjLBr1.js"
   ],
   "resources/js/Pages/Search.jsx": [
-    "/build/assets/Search-CEyp4rHW.js"
+    "/build/assets/Search-BopM2Yak.js"
   ],
   "resources/js/Pages/Terms.jsx": [
     "/build/assets/Terms-_cAuh-WF.js"
@@ -613,13 +613,13 @@
     "/build/assets/PropertyAiDemo-B6na-gji.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CASk5NQv.js"
+    "/build/assets/PropertyDetail-BmdNTBE5.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-t7ESSl5j.js"
   ],
   "resources/js/Website/Pages/Search.jsx": [
-    "/build/assets/Search-NihBoknA.js"
+    "/build/assets/Search-BhyY5v1X.js"
   ],
   "resources/js/Website/Pages/UserAlerts.jsx": [
     "/build/assets/UserAlerts-BXdNJZzN.js"
@@ -712,7 +712,7 @@
     "/build/assets/MobileBottomBar-sL4Z3zt1.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertyGallery.jsx": [
-    "/build/assets/PropertyGallery-KZcvQVJY.js"
+    "/build/assets/PropertyGallery-BO2Q8de5.js"
   ],
   "resources/js/Website/Sections/PropertyDetail/PropertyHeader.jsx": [
     "/build/assets/PropertyHeader-cM8SyFdx.js"
@@ -739,7 +739,7 @@
     "/build/assets/PropertyHeader-D2nQpx-z.js"
   ],
   "resources/js/hooks/usePropertyImageLazyLoad.js": [
-    "/build/assets/Search-NihBoknA.js"
+    "/build/assets/Search-BhyY5v1X.js"
   ],
   "resources/js/lib/extractLogoColors.js": [
     "/build/assets/Create-BAdOxlPv.js"

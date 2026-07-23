@@ -112,6 +112,17 @@ Route::get('/mls/{city}/{combinedSlug}/{listingKey}', [WebsiteController::class,
         'listingKey' => '(?:unit-[A-Za-z0-9]+-)?[A-Z][0-9]+',
     ])
     ->name('mls.property-detail.short');
+// Static location search pages per the client doc ("will be Static URLs,
+// not search query"): /mls/toronto/homes-for-sale, /mls/toronto/homes-for-rent,
+// /mls/toronto/apartments-for-sale, /mls/toronto/apartments-for-rent (plus the
+// condos/houses/townhouses variants). Two segments after /mls, so it can
+// never collide with the 3+-segment listing routes above.
+Route::get('/mls/{city}/{searchSlug}', [WebsiteController::class, 'searchByCity'])
+    ->where([
+        'city' => '[a-z][a-z\-]*',
+        'searchSlug' => '(?:\d+-bedroom-)?(?:homes|condos|houses|townhouses|apartments)-for-(?:sale|rent)',
+    ])
+    ->name('mls.search.city');
 
 // One-click unsubscribe from a saved-search alert email (signed link — the
 // recipient may not be logged in on the device they open the email on)
