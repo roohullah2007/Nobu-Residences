@@ -427,13 +427,18 @@ class PropertySearchController extends Controller
             }
         }
 
-        // Default to Toronto only when no specific city/area scope is set.
-        // Matches condos.ca's default and keeps the headline count meaningful
-        // for the dominant condo market — wider GTA cities (Mississauga,
-        // Vaughan, etc.) are still reachable by typing them into the search
-        // box. Without this default, Repliers would return all of Ontario
-        // and the count balloons to ~10k.
-        if (empty($apiParams['city'])) {
+        // Default to Toronto only when no specific city/area scope is set
+        // AND the request isn't spatially scoped. Matches condos.ca's default
+        // and keeps the headline count meaningful for the dominant condo
+        // market — wider GTA cities (Mississauga, Vaughan, etc.) are still
+        // reachable by typing them into the search box. Without this default,
+        // Repliers would return all of Ontario and the count balloons to ~10k.
+        // A map viewport / drawn polygon IS its own scope though: ANDing the
+        // Toronto default with a viewport panned to Richmond Hill or
+        // Mississauga returns an empty map (the "map shows no properties"
+        // client bug) — the GTA polygon post-filter in getMapCoordinates
+        // still bounds what the map renders.
+        if (empty($apiParams['city']) && empty($params['viewport_bounds'])) {
             $apiParams['city'] = 'Toronto';
         }
 
