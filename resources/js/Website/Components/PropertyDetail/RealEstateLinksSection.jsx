@@ -4,30 +4,32 @@ import { router } from '@inertiajs/react';
 export default function RealEstateLinksSection() {
   const [showMore, setShowMore] = useState(false);
 
-  // GTA Real Estate Links Data
+  // GTA Real Estate Links Data — condos only per client: these are condo
+  // platforms, so houses/townhouses never appear in the location citations
+  // (low-rise gets its own dedicated location pages on the house domains).
   const gtaLinks = {
     "Popular Toronto Neighborhoods": [
       "Condos for sale in Yorkville",
       "Condos for sale in The Annex",
-      "Houses for sale in Rosedale",
+      "Condos for sale in Rosedale",
       "Condos for sale in Forest Hill"
     ],
     "West GTA": [
-      "Houses for sale in Mississauga",
+      "Condos for sale in Mississauga",
       "Condos for sale in Oakville",
-      "Townhouses for sale in Burlington",
+      "Condos for sale in Burlington",
       "Condos for sale in Etobicoke"
     ],
     "North GTA": [
-      "Houses for sale in Richmond Hill",
+      "Condos for sale in Richmond Hill",
       "Condos for sale in Vaughan",
-      "Townhouses for sale in Markham",
-      "Houses for sale in Aurora"
+      "Condos for sale in Markham",
+      "Condos for sale in Aurora"
     ],
     "East GTA": [
-      "Houses for sale in Scarborough",
+      "Condos for sale in Scarborough",
       "Condos for sale in North York",
-      "Townhouses for sale in Pickering",
+      "Condos for sale in Pickering",
       "Condos for sale in Ajax"
     ]
   };
@@ -104,13 +106,13 @@ export default function RealEstateLinksSection() {
       "Condos for sale in Mississauga",
       "Condos for sale in Brampton",
       "Condos for sale in Caledon",
-      "Townhouses for sale in Mississauga"
+      "Condos for rent in Mississauga"
     ],
     "Halton Region": [
       "Condos for sale in Oakville",
       "Condos for sale in Burlington",
       "Condos for sale in Milton",
-      "Townhouses for sale in Oakville"
+      "Condos for rent in Oakville"
     ]
   };
 
@@ -129,9 +131,8 @@ export default function RealEstateLinksSection() {
   //   "Condos for sale in King West"  ->  /toronto/king-west/condos-for-sale
   //   "2 bedroom condos for sale in King West"
   //                                    ->  /toronto/king-west/2-bedroom-condos-for-sale?beds=2-2,2.1-2.9
-  //   "Houses for sale in Mississauga" ->  /mississauga/condos-for-sale (city-only) — but we treat
-  //                                        Mississauga as the city slug since the location IS the city.
-  //   "Townhouses for sale in Markham" ->  /markham/townhouses-for-sale
+  //   "Condos for sale in Mississauga" -> /mississauga/condos-for-sale (city-only) — we treat
+  //                                       Mississauga as the city slug since the location IS the city.
   const parseSearchLink = (linkText) => {
     const text = linkText.toLowerCase();
 

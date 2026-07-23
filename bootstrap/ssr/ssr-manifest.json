@@ -196,13 +196,13 @@
     "/build/assets/VerifyEmail-CGN_7HnB.js"
   ],
   "resources/js/Pages/Blog.jsx": [
-    "/build/assets/Blog-CF4QdZT2.js"
+    "/build/assets/Blog-CMRqcblp.js"
   ],
   "resources/js/Pages/BlogDetail.jsx": [
-    "/build/assets/BlogDetail-DutP_iIx.js"
+    "/build/assets/BlogDetail-CA-LFGYL.js"
   ],
   "resources/js/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-Do_KPaqs.js"
+    "/build/assets/BuildingDetail-39Rrz53p.js"
   ],
   "resources/js/Pages/BuildingPriceHistory.jsx": [
     "/build/assets/BuildingPriceHistory-DQmJkyGn.js"
@@ -220,7 +220,7 @@
     "/build/assets/Dashboard-izGXIEgW.js"
   ],
   "resources/js/Pages/DeveloperDetail.jsx": [
-    "/build/assets/DeveloperDetail-C2EpeDrE.js"
+    "/build/assets/DeveloperDetail-C4lGvqJX.js"
   ],
   "resources/js/Pages/PriceHistorySearch.jsx": [
     "/build/assets/PriceHistorySearch-CgPzk0CP.js"
@@ -244,7 +244,7 @@
     "/build/assets/UserProfile-bVBn9ZrP.js"
   ],
   "resources/js/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-CvWhQ-Jk.js"
+    "/build/assets/PropertyDetail-CY88OElc.js"
   ],
   "resources/js/Pages/PropertyPriceHistory.jsx": [
     "/build/assets/PropertyPriceHistory-nKWd4a48.js"
@@ -451,7 +451,7 @@
     "/build/assets/PropertyStatusTabs-DhRr_PCU.js"
   ],
   "resources/js/Website/Components/PropertyDetail/RealEstateLinksSection.jsx": [
-    "/build/assets/RealEstateLinksSection-CPZSfphj.js"
+    "/build/assets/RealEstateLinksSection-675flzZu.js"
   ],
   "resources/js/Website/Components/PropertyDetail/RealEstateLinksSection_old.jsx": [
     "/build/assets/RealEstateLinksSection_old-ChSqsfuC.js"
@@ -601,10 +601,10 @@
     "/build/assets/Home-D28zZAfn.js"
   ],
   "resources/js/Website/Pages/Blog.jsx": [
-    "/build/assets/Blog-BCUktM_i.js"
+    "/build/assets/Blog-jJ4zRkDS.js"
   ],
   "resources/js/Website/Pages/BuildingDetail.jsx": [
-    "/build/assets/BuildingDetail-BLWsJkcH.js"
+    "/build/assets/BuildingDetail-OAqxF53q.js"
   ],
   "resources/js/Website/Pages/Contact.jsx": [
     "/build/assets/Contact-BadVX7x_.js"
@@ -613,7 +613,7 @@
     "/build/assets/PropertyAiDemo-B6na-gji.js"
   ],
   "resources/js/Website/Pages/PropertyDetail.jsx": [
-    "/build/assets/PropertyDetail-Cij6NBUf.js"
+    "/build/assets/PropertyDetail-DHB_DH5r.js"
   ],
   "resources/js/Website/Pages/SchoolDetail.jsx": [
     "/build/assets/SchoolDetail-t7ESSl5j.js"
