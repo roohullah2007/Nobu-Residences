@@ -274,6 +274,13 @@ Route::get('/api/market-stats', [WebsiteController::class, 'getMarketStats']);
 Route::post('/api/newsletter/subscribe', [\App\Http\Controllers\NewsletterController::class, 'subscribe']);
 
 Route::get('/dashboard', function () {
+    // Admins never see the user dashboard — bounce to the admin panel. This
+    // also catches logins whose session "intended" URL was /dashboard, which
+    // would otherwise override the admin redirect in the login controller.
+    if (auth()->user()?->isAdmin()) {
+        return redirect()->route('admin.dashboard');
+    }
+
     // Get website settings for consistent header/footer. Resolve by the
     // request's domain (tenant sites keep their own logo/branding on these
     // global pages); the default website is only a fallback.

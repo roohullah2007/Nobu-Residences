@@ -162,11 +162,15 @@ class WebsiteController extends Controller
     public function home()
     {
         // The admin/main host has no landing page and serves no website:
-        // "/" is the login screen (dashboard when already signed in). Sites
-        // are only served on their own domains, or here via ?website= preview.
+        // "/" is the login screen (the ADMIN dashboard for signed-in admins,
+        // the user dashboard for anyone else). Sites are only served on their
+        // own domains, or here via ?website= preview.
         $resolver = app(\App\Services\Tenancy\TenantResolver::class);
         if ($resolver->isAdminHost(request()->getHost()) && request()->query('website', '') === '') {
-            return redirect()->route(auth()->check() ? 'dashboard' : 'login');
+            if (!auth()->check()) {
+                return redirect()->route('login');
+            }
+            return redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'dashboard');
         }
 
         $website = $this->getCurrentWebsite();
