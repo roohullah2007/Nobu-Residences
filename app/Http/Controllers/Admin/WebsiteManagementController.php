@@ -867,9 +867,17 @@ class WebsiteManagementController extends Controller
         if ($request->hasFile('logo_file')) {
             $logoFile = $request->file('logo_file');
 
-            // Delete old logo if it exists
+            // Delete old logo if it exists — but only when no OTHER website
+            // still points at the same file. New sites inherit the default
+            // site's logo as the same /assets/... path string, so deleting it
+            // here would break the logo on every site sharing that file.
             $oldLogoPath = $website->logo ?? $website->logo_url;
-            if ($oldLogoPath) {
+            $logoSharedElsewhere = $oldLogoPath && Website::where('id', '!=', $website->id)
+                ->where(function ($q) use ($oldLogoPath) {
+                    $q->where('logo', $oldLogoPath)->orWhere('logo_url', $oldLogoPath);
+                })
+                ->exists();
+            if ($oldLogoPath && !$logoSharedElsewhere) {
                 // Handle logos in storage directory
                 if (strpos($oldLogoPath, '/storage/') === 0) {
                     $oldPath = str_replace('/storage/', '', $oldLogoPath);
@@ -910,9 +918,15 @@ class WebsiteManagementController extends Controller
         if ($request->hasFile('favicon_file')) {
             $faviconFile = $request->file('favicon_file');
 
-            // Delete old favicon if it exists in assets
+            // Delete old favicon if it exists in assets — same shared-file
+            // guard as the logo above: inherited favicon paths are shared
+            // across websites, so only delete when this site is the last one
+            // referencing the file.
             $oldFaviconPath = $website->favicon_url;
-            if ($oldFaviconPath && strpos($oldFaviconPath, '/assets/') === 0) {
+            $faviconSharedElsewhere = $oldFaviconPath && Website::where('id', '!=', $website->id)
+                ->where('favicon_url', $oldFaviconPath)
+                ->exists();
+            if ($oldFaviconPath && !$faviconSharedElsewhere && strpos($oldFaviconPath, '/assets/') === 0) {
                 $publicPath = public_path(ltrim($oldFaviconPath, '/'));
                 if (file_exists($publicPath) && is_file($publicPath)) {
                     // Don't delete default favicon.ico
