@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function SavedSearchesTab() {
   const { globalWebsite, website } = usePage().props;
@@ -20,7 +21,7 @@ export default function SavedSearchesTab() {
       const response = await fetch('/api/saved-searches', {
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
 
@@ -158,7 +159,7 @@ export default function SavedSearchesTab() {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
 

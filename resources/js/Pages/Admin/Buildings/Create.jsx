@@ -370,12 +370,10 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
             formData.append('image_type', imageType);
 
             try {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
                 const response = await fetch('/api/buildings/upload-image', {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
+                        ...csrfHeaders(),
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
                     },

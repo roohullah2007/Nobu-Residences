@@ -5,6 +5,7 @@ import { FAQ } from '@/Website/Global/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import FeaturedBlogsSection from '@/Website/Sections/Blog/FeaturedBlogsSection';
 import BlogCategoriesSection from '@/Website/Sections/Home/BlogCategoriesSection';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, website, blogs, categories: backendCategories, selectedCategory: selectedCategorySlug, faqs = [] }) {
     // Use backend data or fallback to empty
@@ -38,7 +39,7 @@ export default function Blog({ auth, siteName = 'NobuResidence', siteUrl, year, 
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({ email, source: 'blog' }),
             });

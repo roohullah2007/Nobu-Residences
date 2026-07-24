@@ -1,6 +1,7 @@
 // hooks/usePropertyListings.js
 import { useState, useEffect, useCallback, useRef } from 'react';
 import imageOptimizationService from '../services/ImageOptimizationService';
+import { csrfHeaders } from '@/utils/csrf';
 
 const usePropertyListings = (listingKey) => {
   const [nearbyListings, setNearbyListings] = useState([]);
@@ -226,7 +227,7 @@ const usePropertyListings = (listingKey) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({ listing_keys: listingKeysToFetch }),
         signal: controller.signal

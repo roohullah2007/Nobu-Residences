@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 
 // Fired by ContactInfo's "Schedule Meeting" button so the sidebar card can
 // prefill this form without the two sibling components sharing page state.
@@ -51,7 +52,7 @@ export default function ContactForm({ website }) {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
         },
         body: JSON.stringify(formData),
       });

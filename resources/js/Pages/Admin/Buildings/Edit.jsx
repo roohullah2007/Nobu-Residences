@@ -473,13 +473,10 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             formData.append('image_type', imageType);
 
             try {
-                // Get CSRF token from meta tag
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
                 const response = await fetch('/api/buildings/upload-image', {
                     method: 'POST',
                     headers: {
-                        'X-CSRF-TOKEN': csrfToken || '',
+                        ...csrfHeaders(),
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
                     },
@@ -547,14 +544,11 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
     const handleDeleteImage = async (imageUrl, isMainImage = false) => {
         setImageUploadError('');
         try {
-            // Get CSRF token from meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
             const response = await fetch('/api/buildings/delete-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '',
+                    ...csrfHeaders(),
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
                 },

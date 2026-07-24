@@ -7,6 +7,7 @@ import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCa
 import { createBuildingUrl } from '@/utils/slug';
 import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function DeveloperDetail({
     auth,
@@ -107,7 +108,7 @@ export default function DeveloperDetail({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({
@@ -167,7 +168,7 @@ export default function DeveloperDetail({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { createBuildingUrl } from '@/utils/slug';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * DeveloperBuildings Component
@@ -73,7 +74,7 @@ const DeveloperBuildings = ({ buildingData }) => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
 

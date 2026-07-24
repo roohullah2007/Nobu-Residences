@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { normalizeImageUrl } from '@/utils/imageUrl';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function TabbedContactSection({ auth, website, pageContent }) {
     const { globalWebsite } = usePage().props;
@@ -277,17 +278,14 @@ export default function TabbedContactSection({ auth, website, pageContent }) {
             setErrors({});
             
             try {
-                // Get CSRF token
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-                
                 console.log('Submitting to /contact with data:', formData);
-                
+
                 const response = await fetch('/contact', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken || '',
+                        ...csrfHeaders(),
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: JSON.stringify(formData)

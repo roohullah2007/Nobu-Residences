@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePage } from '@inertiajs/react';
 import { validateContactFields, mapServerErrors, focusFirstError } from '@/utils/contactFormValidation';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 
 const TourSchedulingComponent = ({ website, propertyData }) => {
   const { globalWebsite, auth } = usePage().props;
@@ -206,7 +207,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
           'Accept': 'application/json'
         },
         body: JSON.stringify({
@@ -287,7 +288,7 @@ const TourSchedulingComponent = ({ website, propertyData }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
           'Accept': 'application/json'
         },
         body: JSON.stringify({

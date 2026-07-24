@@ -5,6 +5,7 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import extractLogoColors from '@/lib/extractLogoColors';
+import { csrfHeaders } from '@/utils/csrf';
 
 // Same brand-color palette + defaults the Edit page uses, so a new site
 // starts from an editable full palette here instead of only inheriting one.
@@ -178,11 +179,10 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
             formData.append('image', file);
             formData.append('image_type', 'logo');
             if (data.building_id) formData.append('building_id', data.building_id);
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const res = await fetch('/api/buildings/upload-image', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': csrfToken || '',
+                    ...csrfHeaders(),
                     'X-Requested-With': 'XMLHttpRequest',
                     Accept: 'application/json',
                 },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function PropertyQuestions({ auth }) {
     const [questions, setQuestions] = useState([]);
@@ -44,7 +45,7 @@ export default function PropertyQuestions({ auth }) {
 
             const response = await fetch(`/admin/property-questions/data?${params.toString()}`, {
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
@@ -70,7 +71,7 @@ export default function PropertyQuestions({ auth }) {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },
@@ -101,7 +102,7 @@ export default function PropertyQuestions({ auth }) {
             const response = await fetch(`/admin/property-questions/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 },

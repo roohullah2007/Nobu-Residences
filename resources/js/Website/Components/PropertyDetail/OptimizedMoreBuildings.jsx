@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import PropertyCard from '@/Website/Components/Property/PropertyCard';
 import { usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
+import { csrfHeaders } from '@/utils/csrf';
 
 // Skeleton loader component
 const PropertyCardSkeleton = () => (
@@ -124,7 +125,7 @@ const OptimizedMoreBuildings = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({ listing_keys: uncachedKeys })
       });

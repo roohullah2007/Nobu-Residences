@@ -3,6 +3,7 @@ import PropertyCardV3 from '../../Global/Cards/PropertyCardV3';
 import PropertyCardV5 from '../../Global/Components/PropertyCards/PropertyCardV5';
 import { usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
+import { csrfHeaders } from '@/utils/csrf';
 
 const MoreBuildings = ({
   title = "More Buildings By Agent",
@@ -244,7 +245,7 @@ const MoreBuildings = ({
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                ...csrfHeaders()
               },
               body: JSON.stringify({ listing_keys: listingKeysToFetch })
             });
@@ -377,7 +378,7 @@ const MoreBuildings = ({
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                ...csrfHeaders()
               },
               body: JSON.stringify({ listing_keys: listingKeysToFetch })
             });
@@ -527,7 +528,7 @@ const MoreBuildings = ({
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
 

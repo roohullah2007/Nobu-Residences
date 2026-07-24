@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
@@ -30,11 +30,13 @@ function BuildingRowThumb({ src, alt }) {
     );
 }
 
-export default function BuildingsIndex({ auth, buildings }) {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [typeFilter, setTypeFilter] = useState('all');
-    const [featuredFilter, setFeaturedFilter] = useState('all');
+export default function BuildingsIndex({ auth, buildings, stats }) {
+    const { url } = usePage();
+    const params = new URLSearchParams(url.split('?')[1] || '');
+    const [searchTerm, setSearchTerm] = useState(params.get('search') || '');
+    const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+    const [typeFilter, setTypeFilter] = useState(params.get('type') || 'all');
+    const [featuredFilter, setFeaturedFilter] = useState(params.get('featured') || 'all');
     // Which row's actions menu is open. Null = all closed. Only one row's
     // menu can be open at a time. The menu renders position:fixed at these
     // viewport coordinates so the table's overflow-x-auto container can't
@@ -96,24 +98,42 @@ export default function BuildingsIndex({ auth, buildings }) {
         });
     };
 
-    const filteredBuildings = buildings.data.filter((building) => {
-        if (statusFilter !== 'all' && (building.status || 'pending') !== statusFilter) return false;
-        if (typeFilter !== 'all' && building.building_type !== typeFilter) return false;
-        if (featuredFilter === 'featured' && !building.is_featured) return false;
-        const q = searchTerm.toLowerCase();
-        if (!q) return true;
-        return (
-            building.name.toLowerCase().includes(q) ||
-            building.address.toLowerCase().includes(q) ||
-            building.city.toLowerCase().includes(q)
-        );
-    });
+    // Server-side filtering — debounced so rapid state changes batch into one request
+    const debounceRef = useRef(null);
+    const isInitialMount = useRef(true);
+
+    useEffect(() => {
+        // Skip the initial mount to avoid a redundant request
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            const query = {};
+            if (searchTerm) query.search = searchTerm;
+            if (statusFilter !== 'all') query.status = statusFilter;
+            if (typeFilter !== 'all') query.type = typeFilter;
+            if (featuredFilter !== 'all') query.featured = featuredFilter;
+
+            router.get(route('admin.buildings.index'), query, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            });
+        }, searchTerm ? 300 : 50); // Longer debounce for typing, short for dropdowns
+
+        return () => clearTimeout(debounceRef.current);
+    }, [searchTerm, statusFilter, typeFilter, featuredFilter]);
+
+    const filteredBuildings = buildings.data;
 
     // Drop the selection whenever the visible rows change (search/filter) so
     // a bulk delete can never touch rows the admin can no longer see.
     useEffect(() => {
         setSelectedIds([]);
-    }, [searchTerm, statusFilter, typeFilter, featuredFilter]);
+    }, [buildings.data]);
 
     const allVisibleSelected =
         filteredBuildings.length > 0 &&
@@ -169,10 +189,10 @@ export default function BuildingsIndex({ auth, buildings }) {
         );
     };
 
-    // Calculate stats
-    const totalBuildings = buildings.total || buildings.data.length;
-    const activeBuildings = buildings.data.filter(b => b.status === 'active').length;
-    const featuredBuildings = buildings.data.filter(b => b.is_featured).length;
+    // Stats from server (accurate across all pages)
+    const totalBuildings = stats?.total ?? buildings.total ?? buildings.data.length;
+    const activeBuildings = stats?.active ?? 0;
+    const featuredBuildings = stats?.featured ?? 0;
 
     return (
         <AdminLayout title="Buildings">

@@ -5,6 +5,7 @@ import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import DangerButton from '@/Components/DangerButton';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function Schools({ auth, schools: initialSchools = [], pagination = null }) {
   const [schools, setSchools] = useState(initialSchools);
@@ -72,7 +73,7 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
       const result = await response.json();

@@ -13,6 +13,7 @@ import { generatePropertyUrl } from '@/utils/propertyUrl';
 import IDXAmpreSearchBar from '@/Website/Components/PropertySearch/IDXAmpreSearchBar';
 import LoginModal from '@/Website/Global/Components/LoginModal';
 import FiltersModal from '@/Website/Components/FiltersModal';
+import { csrfHeaders } from '@/utils/csrf';
 import SaveSearchModal, { popPendingSavedSearch } from '@/Website/Components/PropertySearch/SaveSearchModal';
 import { FAQ, WhatsAppButton } from '@/Website/Global/Components';
 
@@ -231,11 +232,6 @@ export default function EnhancedPropertySearch({
     setActiveProperty(listingKey);
   };
 
-  // Get CSRF token
-  const getCsrfToken = () => {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  };
-
   // Track active request to prevent duplicates
   const abortControllerRef = useRef(null);
 
@@ -270,7 +266,7 @@ export default function EnhancedPropertySearch({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken()
+          ...csrfHeaders()
         },
         body: JSON.stringify({ ids })
       });
@@ -440,7 +436,7 @@ export default function EnhancedPropertySearch({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken()
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           search_params: searchParams

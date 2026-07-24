@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import ContactAgentModal from '@/Website/Components/ContactAgentModal';
@@ -6,6 +6,7 @@ import LoginModal from '@/Website/Global/Components/LoginModal';
 import FAQ from '@/Website/Global/Components/FAQ';
 import RealEstateLinksSection from '@/Website/Global/Components/RealEstateLinksSection';
 import { generatePropertyUrl } from '@/utils/propertyUrl';
+import { csrfHeaders } from '@/utils/csrf';
 
 const MAX_COMPARE_SLOTS = 3;
 
@@ -38,11 +39,6 @@ export default function CompareListings({
         setLoginInitialTab(tab);
         setShowLoginModal(true);
     };
-
-    const csrfToken = useMemo(
-        () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        []
-    );
 
     // Read compare keys from localStorage (with one-time seed from favourites
     // for logged-in users so the page is useful on a fresh device).
@@ -83,7 +79,7 @@ export default function CompareListings({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
+                    ...csrfHeaders(),
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({ keys }),
@@ -102,7 +98,7 @@ export default function CompareListings({
         } finally {
             setIsHydrating(false);
         }
-    }, [csrfToken]);
+    }, []);
 
     // Initial hydration + listen for changes from other components
     useEffect(() => {
@@ -147,7 +143,7 @@ export default function CompareListings({
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
+                        ...csrfHeaders(),
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({ property_listing_key: item.listingKey }),
@@ -161,7 +157,7 @@ export default function CompareListings({
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
+                        ...csrfHeaders(),
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 const TourSection = ({ propertyData = null }) => {
   const [selectedDateIndex, setSelectedDateIndex] = useState(2);
@@ -131,7 +132,7 @@ const TourSection = ({ propertyData = null }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
           'Accept': 'application/json'
         },
         body: JSON.stringify({

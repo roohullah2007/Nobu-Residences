@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Heart } from '@/Website/Components/Icons';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function UserFavourites({ auth, website }) {
     const [savedProperties, setSavedProperties] = useState([]);
@@ -58,7 +59,7 @@ export default function UserFavourites({ auth, website }) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    ...csrfHeaders()
                 }
             });
 
@@ -130,7 +131,7 @@ export default function UserFavourites({ auth, website }) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    ...csrfHeaders()
                 },
                 body: JSON.stringify({
                     property_listing_key: listingKey

@@ -1,6 +1,7 @@
 import MainLayout from '@/Website/Global/MainLayout';
 import { Head, Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function UserAlerts({ auth, website }) {
     const [alerts, setAlerts] = useState([]);
@@ -23,7 +24,7 @@ export default function UserAlerts({ auth, website }) {
             const response = await fetch('/api/alerts', {
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 }
             });
 
@@ -44,7 +45,7 @@ export default function UserAlerts({ auth, website }) {
             const response = await fetch(`/api/alerts/${alertId}`, {
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 }
             });
 

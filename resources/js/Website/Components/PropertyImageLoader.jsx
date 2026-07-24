@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * PropertyImageLoader - Real MLS Image Loading Component
@@ -63,7 +64,7 @@ const PropertyImageLoader = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({ 
           listing_keys: [key.trim()],

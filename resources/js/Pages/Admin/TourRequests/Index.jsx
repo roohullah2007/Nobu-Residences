@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function TourRequestsIndex({ auth, tourRequests: initialTourRequests, filters }) {
     const [loading, setLoading] = useState(false);
@@ -45,7 +46,7 @@ export default function TourRequestsIndex({ auth, tourRequests: initialTourReque
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({ status: newStatus })
             });

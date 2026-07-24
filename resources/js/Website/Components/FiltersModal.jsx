@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePage } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 // Inject styles for hiding range slider thumbs
 const injectSliderStyles = () => {
@@ -134,7 +135,7 @@ const FiltersModal = ({
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({ search_params: searchParams }),
         signal: abortControllerRef.current.signal

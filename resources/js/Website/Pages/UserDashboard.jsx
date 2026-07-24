@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import MainLayout from '@/Website/Global/MainLayout';
 import UserFavouritesTab from '@/Website/Components/UserFavouritesTab';
 import SavedSearchesTab from '@/Website/Components/SavedSearchesTab';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function UserDashboard({ auth, siteName, siteUrl, year, website }) {
   const { globalWebsite } = usePage().props;
@@ -25,7 +26,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year, website }
     fetch('/api/favourites/properties', {
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        ...csrfHeaders()
       }
     })
     .then(response => response.json())
@@ -40,7 +41,7 @@ export default function UserDashboard({ auth, siteName, siteUrl, year, website }
     fetch('/api/saved-searches', {
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        ...csrfHeaders()
       }
     })
     .then(response => response.json())

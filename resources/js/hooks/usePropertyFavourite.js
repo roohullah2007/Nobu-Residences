@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * Custom hook for managing property favourites
@@ -34,7 +35,7 @@ export const usePropertyFavourite = (property, auth) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           property_listing_key: listingKey
@@ -144,7 +145,7 @@ export const usePropertyFavourite = (property, auth) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           property_listing_key: listingKey,

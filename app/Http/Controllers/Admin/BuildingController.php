@@ -135,11 +135,33 @@ class BuildingController extends Controller
         return $building;
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $buildings = Building::with(['developer', 'amenities'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        $query = Building::with(['developer', 'amenities']);
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('address', 'like', "%{$search}%")
+                  ->orWhere('city', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($type = $request->input('type')) {
+            $query->where('building_type', $type);
+        }
+
+        if ($request->input('featured') === 'featured') {
+            $query->where('is_featured', true);
+        }
+
+        $buildings = $query->orderBy('created_at', 'desc')
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Admin/Buildings/Index', [
             'buildings' => $buildings->through(function ($building) {
@@ -160,6 +182,11 @@ class BuildingController extends Controller
                 ];
             }),
             'links' => $buildings->links(),
+            'stats' => [
+                'total' => Building::count(),
+                'active' => Building::where('status', 'active')->count(),
+                'featured' => Building::where('is_featured', true)->count(),
+            ],
         ]);
     }
 

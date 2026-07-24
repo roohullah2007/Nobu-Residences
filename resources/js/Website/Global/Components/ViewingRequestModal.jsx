@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 
 const DAYS_TO_SHOW = 14;
 const TIME_SLOTS = ['Morning', 'Afternoon', 'Evening'];
@@ -79,7 +80,7 @@ const ViewingRequestModal = ({ isOpen, onClose, property }) => {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
         },
         body: JSON.stringify({
           full_name: formData.name,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { createBuildingUrl } from '@/utils/slug';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function MerchandiseLofts({ propertyData }) {
   const { globalWebsite } = usePage().props;
@@ -72,12 +73,11 @@ export default function MerchandiseLofts({ propertyData }) {
         let countsSet = false;
         if (fetchedBuildingData?.id) {
           try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const countsResponse = await fetch('/api/buildings-counts', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
+                ...csrfHeaders()
               },
               body: JSON.stringify({ ids: [fetchedBuildingData.id] })
             });

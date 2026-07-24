@@ -2,6 +2,7 @@ import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 import { useState } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function EditHomePage({ auth }) {
     const { website, homePage, availableIcons, title } = usePage().props;
@@ -524,7 +525,7 @@ export default function EditHomePage({ auth }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({
                     _method: 'DELETE'

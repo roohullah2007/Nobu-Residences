@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import PropertyCardV5 from '@/Website/Global/Components/PropertyCards/PropertyCardV5';
 import LazyPropertyCard from '@/Website/Global/Components/PropertyCards/LazyPropertyCard';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function UserFavouritesTab({ onCountUpdate }) {
   const { globalWebsite, website } = usePage().props;
@@ -37,7 +38,7 @@ export default function UserFavouritesTab({ onCountUpdate }) {
       const response = await fetch('/api/favourites/properties/with-data', {
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         }
       });
 
@@ -129,7 +130,7 @@ export default function UserFavouritesTab({ onCountUpdate }) {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           property_listing_key: listingKey

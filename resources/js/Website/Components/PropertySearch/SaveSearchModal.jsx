@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * SaveSearchModal — save the current search criteria as a SavedSearch with
@@ -30,9 +31,6 @@ export const popPendingSavedSearch = () => {
     return null;
   }
 };
-
-const getCsrfToken = () =>
-  document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
 const FREQUENCIES = [
   { value: 1, label: 'Daily' },
@@ -112,7 +110,7 @@ export default function SaveSearchModal({
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken(),
+          ...csrfHeaders(),
         },
         body: JSON.stringify({
           name: searchName.trim(),

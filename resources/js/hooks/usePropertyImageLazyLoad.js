@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * Custom hook for lazy loading property images
@@ -27,21 +28,16 @@ export const usePropertyImageLazyLoad = (options = {}) => {
     }
   }, [debug]);
 
-  // Get CSRF token
-  const getCsrfToken = () => {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  };
-
   // Fetch images from API
   const fetchPropertyImages = async (listingKeys) => {
     try {
       log('Fetching images for listing keys:', listingKeys);
-      
+
       const response = await fetch('/api/property-images', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken()
+          ...csrfHeaders()
         },
         body: JSON.stringify({ listing_keys: listingKeys })
       });

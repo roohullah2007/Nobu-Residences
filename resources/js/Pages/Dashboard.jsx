@@ -2,6 +2,7 @@ import MainLayout from '@/Website/Global/MainLayout';
 import { Head, Link } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Heart } from '@/Website/Components/Icons';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function Dashboard({ auth, website }) {
     const [savedSearches, setSavedSearches] = useState([]);
@@ -21,7 +22,7 @@ export default function Dashboard({ auth, website }) {
             const response = await fetch('/api/saved-searches', {
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 }
             });
 
@@ -46,7 +47,7 @@ export default function Dashboard({ auth, website }) {
                 method: 'DELETE',
                 headers: {
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    ...csrfHeaders(),
                 }
             });
 

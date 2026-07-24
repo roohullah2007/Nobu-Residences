@@ -12,6 +12,7 @@ import { TourScheduling } from '@/Website/Components';
 import RealEstateLinksSection from '@/Website/Components/PropertyDetail/RealEstateLinksSection';
 import MarketSentiment from '@/Website/Components/PropertyDetail/MarketSentiment';
 import { formatCardAddress, formatArea } from '@/utils/propertyFormatters';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function PropertyDetail({ auth, siteName, siteUrl, year, listingKey, propertyData: initialPropertyData, propertyImages: initialImages, website, buildingData: initialBuildingData, aiDescription: initialAiDescription, metaTitle, metaDescription }) {
   const { globalWebsite } = usePage().props;
@@ -103,7 +104,7 @@ export default function PropertyDetail({ auth, siteName, siteUrl, year, listingK
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({ listingKey })
       });

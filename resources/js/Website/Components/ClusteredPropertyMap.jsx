@@ -5,6 +5,7 @@ import GoogleMapContainer from './GoogleMapContainer';
 // crashed server rendering for every page importing this component.
 import debounce from 'lodash/debounce';
 import loadGoogleMaps from '@/utils/googleMaps';
+import { csrfHeaders } from '@/utils/csrf';
 
 // condos.ca-style muted tiles: light grey base, soft green parks, pale blue
 // water, and hidden POI clutter so price bubbles dominate the view.
@@ -96,11 +97,6 @@ const ClusteredPropertyMap = ({
   ).current;
   const lastZoomRef = useRef(initialZoom);
 
-  // Get CSRF token
-  const getCsrfToken = () => {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  };
-
   // Format price for marker display
   const formatPrice = (price) => {
     if (!price || price <= 0) return '?';
@@ -134,7 +130,7 @@ const ClusteredPropertyMap = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken(),
+          ...csrfHeaders(),
           'Accept': 'application/json'
         },
         body: JSON.stringify({ search_params: searchParams })

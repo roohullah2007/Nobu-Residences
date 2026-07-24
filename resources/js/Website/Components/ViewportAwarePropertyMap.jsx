@@ -4,6 +4,7 @@ import SimplePropertyMap from './SimplePropertyMap';
 // Node's ESM loader can't named-import from lodash's CommonJS index — it
 // crashed server rendering for every page importing this component.
 import debounce from 'lodash/debounce';
+import { csrfHeaders } from '@/utils/csrf';
 
 const ViewportAwarePropertyMap = ({
   properties = [],
@@ -26,11 +27,6 @@ const ViewportAwarePropertyMap = ({
   const isInitialLoadRef = useRef(true);
   const previousBoundsRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
-
-  // Get CSRF token
-  const getCsrfToken = () => {
-    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-  };
 
   // Check if bounds have changed significantly
   const hasSignificantBoundsChange = (oldBounds, newBounds) => {
@@ -110,7 +106,7 @@ const ViewportAwarePropertyMap = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': getCsrfToken(),
+          ...csrfHeaders(),
           'Accept': 'application/json'
         },
         body: JSON.stringify({ search_params: searchParams })

@@ -7,6 +7,7 @@ import {
   buildCardFeatures
 } from '@/utils/propertyFormatters';
 import { usePage } from '@inertiajs/react';
+import { csrfHeaders } from '@/utils/csrf';
 
 /**
  * PropertyCardV5 - Enhanced for Search Page with IDX-AMPRE Style
@@ -209,7 +210,7 @@ const PropertyCardV5 = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           property_listing_key: listingKey
@@ -276,7 +277,7 @@ const PropertyCardV5 = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           property_listing_key: listingKey,

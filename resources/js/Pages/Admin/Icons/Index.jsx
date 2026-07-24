@@ -1,6 +1,7 @@
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useState, useRef } from 'react';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function Index({ auth }) {
     const { icons, title } = usePage().props;
@@ -141,25 +142,7 @@ export default function Index({ auth }) {
 
     const handleDelete = (icon) => {
         if (confirm(`Are you sure you want to delete the "${icon.name}" icon?`)) {
-            // Handle delete via form submission
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = route('admin.icons.destroy', icon.id);
-            
-            const methodInput = document.createElement('input');
-            methodInput.type = 'hidden';
-            methodInput.name = '_method';
-            methodInput.value = 'DELETE';
-            form.appendChild(methodInput);
-            
-            const tokenInput = document.createElement('input');
-            tokenInput.type = 'hidden';
-            tokenInput.name = '_token';
-            tokenInput.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            form.appendChild(tokenInput);
-            
-            document.body.appendChild(form);
-            form.submit();
+            router.delete(route('admin.icons.destroy', icon.id));
         }
     };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import PhoneInput from '@/Components/PhoneInput';
+import { csrfHeaders } from '@/utils/csrf';
 
 const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -66,7 +67,7 @@ const RequestTourModal = ({ isOpen, onClose, property, onSuccess }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+          ...csrfHeaders()
         },
         body: JSON.stringify({
           ...formData,

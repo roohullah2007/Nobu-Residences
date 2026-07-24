@@ -4,6 +4,7 @@ import usePropertyFavourite from '@/hooks/usePropertyFavourite';
 import { Link, usePage } from '@inertiajs/react';
 import LoginModal from '@/Website/Global/Components/LoginModal';
 import { getListingH1 } from '@/utils/listingTitle';
+import { csrfHeaders } from '@/utils/csrf';
 
 export default function PropertyHeader({
   data,
@@ -56,7 +57,7 @@ export default function PropertyHeader({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          ...csrfHeaders(),
           Accept: 'application/json',
         },
         credentials: 'same-origin',
