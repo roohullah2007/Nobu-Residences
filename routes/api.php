@@ -88,8 +88,11 @@ Route::prefix('buildings')->group(function () {
     Route::get('/types', [BuildingController::class, 'buildingTypes']);
     Route::get('/cities', [BuildingController::class, 'cities']);
     Route::get('/search', [BuildingController::class, 'search']);
-    Route::post('/upload-image', [BuildingController::class, 'uploadImage']);
-    Route::post('/delete-image', [BuildingController::class, 'deleteImage']);
+    // upload-image / delete-image intentionally NOT registered here: the api
+    // middleware group has no session, so auth can't protect them — they live
+    // in web.php with auth middleware instead. The api.php delete-image twin
+    // was reachable UNAUTHENTICATED in production (upload-image was only safe
+    // because its web.php duplicate registers first and shadows it).
     Route::get('/', [BuildingController::class, 'index']);
     Route::get('/{id}', [BuildingController::class, 'show']);
 });
