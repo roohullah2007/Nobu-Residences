@@ -94,10 +94,20 @@ export default function Edit({ auth }) {
         // POST with method spoofing so file uploads work with the PUT route.
         // useForm's post() (not router.post) so validation errors populate
         // `errors` and render inline instead of being swallowed.
-        transform((formData) => ({
-            ...formData,
-            _method: 'PUT',
-        }));
+        transform((formData) => {
+            const payload = { ...formData, _method: 'PUT' };
+            // logo_url/favicon_url are page-load snapshots with no input
+            // field — resubmitting them on a second save in the same session
+            // (e.g. upload logo, save, then change favicon, save) overwrites
+            // the freshly uploaded file's DB path with the stale one and the
+            // logo silently reverts. Logo changes only travel as logo_file;
+            // favicon_url is only meaningful as '' from the Remove button.
+            delete payload.logo_url;
+            if (payload.favicon_url !== '') {
+                delete payload.favicon_url;
+            }
+            return payload;
+        });
 
         post(route('admin.websites.update', website.id), {
             forceFormData: true,

@@ -863,6 +863,19 @@ class WebsiteManagementController extends Controller
             'tracking_scripts' => 'nullable|string|max:20000',
         ]);
 
+        // On update, logo/logo_url/favicon_url are derived from file uploads
+        // only — the Edit form has no text input for them, it just echoes back
+        // the values it loaded with. Accepting those echoes lets a second save
+        // in the same session (upload logo, save, change favicon, save) revert
+        // the row to the stale pre-upload path. The one non-file action kept
+        // is the favicon "remove" button, which submits an empty string.
+        if (!$request->hasFile('logo_file')) {
+            unset($validated['logo'], $validated['logo_url']);
+        }
+        if (!$request->hasFile('favicon_file') && ($validated['favicon_url'] ?? '') !== '') {
+            unset($validated['favicon_url']);
+        }
+
         // Handle logo file upload
         if ($request->hasFile('logo_file')) {
             $logoFile = $request->file('logo_file');
