@@ -37,6 +37,7 @@ export default function Edit({ auth }) {
         domain: website?.domain || '',
         is_default: website?.is_default || false,
         is_active: website?.is_active || true,
+        site_type: website?.site_type || 'condo',
         homepage_building_id: website?.homepage_building_id || null,
         logo_url: website?.logo_url || '',
         logo_file: null, // For logo file upload
@@ -346,6 +347,21 @@ export default function Edit({ auth }) {
                                         <option value="America/Los_Angeles">America/Los_Angeles</option>
                                         <option value="America/Chicago">America/Chicago</option>
                                     </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Platform Type</label>
+                                    <select
+                                        value={data.site_type}
+                                        onChange={(e) => setData('site_type', e.target.value)}
+                                        className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="condo">Condo platform (condos-for-sale pages, condo listings)</option>
+                                        <option value="lowrise">Low-rise platform (houses-for-sale pages, freehold listings)</option>
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Low-rise sites serve houses/homes location pages with freehold (detached, semi, row) MLS listings — like homeforsaletoronto.com. Condo URLs 301 to the house variant and vice versa.
+                                    </p>
                                 </div>
 
                                 <div className="md:col-span-2">

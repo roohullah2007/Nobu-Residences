@@ -90,6 +90,7 @@ class Website extends Model
         'domain',
         'is_default',
         'is_active',
+        'site_type',
         'homepage_building_id',
         'use_building_as_homepage',
         'logo',
@@ -134,6 +135,16 @@ class Website extends Model
         'cloudflare_active_at' => 'datetime',
         'ai_content_generated_at' => 'datetime',
     ];
+
+    /**
+     * Low-rise (house-focused) platform: location pages carry freehold
+     * low-rise inventory (residentialProperty) under houses/homes URL shapes
+     * instead of the condo defaults.
+     */
+    public function isLowRise(): bool
+    {
+        return $this->site_type === 'lowrise';
+    }
 
     protected function metaTitle(): Attribute
     {

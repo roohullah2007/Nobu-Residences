@@ -98,8 +98,11 @@ class PropertySearchController extends Controller
             $cacheKey = null;
             $cacheTtl = 300; // 5 minutes cache
             if ($currentPage <= 5) {
+                // Keyed on the site's listing class too — a low-rise site and
+                // a condo site with identical filters must not share entries.
                 $cacheKey = 'search:' . md5(json_encode([
-                    'params' => $sanitizedParams
+                    'params' => $sanitizedParams,
+                    'class' => $this->defaultListingClass(),
                 ]));
 
                 // Try to get from cache
@@ -196,7 +199,7 @@ class PropertySearchController extends Controller
             $sanitizedParams = $this->sanitizeSearchParams($searchParams);
 
             // Generate cache key for count queries (short TTL for freshness)
-            $cacheKey = 'search_count:' . md5(json_encode($sanitizedParams));
+            $cacheKey = 'search_count:' . md5(json_encode($sanitizedParams) . $this->defaultListingClass());
             $cacheTtl = 60; // 1 minute cache for count queries
 
             // Try to get from cache
@@ -349,6 +352,25 @@ class PropertySearchController extends Controller
     }
 
     /**
+     * The Repliers listing class this platform carries by default: condo
+     * sites (the existing behaviour) query condoProperty, low-rise sites
+     * (websites.site_type = 'lowrise') query residentialProperty so their
+     * location/search pages return freehold houses like a generic MLS site.
+     * Never throws: outside an HTTP tenant context (queue/console — e.g.
+     * SavedSearchAlertService reuses buildRepliersListingsParams) the
+     * resolver finds no website and the condo default applies.
+     */
+    private function defaultListingClass(): string
+    {
+        try {
+            $website = app(\App\Services\Tenancy\TenantResolver::class)->resolve(request());
+            return $website && $website->isLowRise() ? 'residentialProperty' : 'condoProperty';
+        } catch (\Throwable $e) {
+            return 'condoProperty';
+        }
+    }
+
+    /**
      * Build the Repliers GET /listings query params from our internal search shape.
      * Shared by the listings grid and the map cluster endpoint.
      */
@@ -359,7 +381,7 @@ class PropertySearchController extends Controller
         $apiParams = [
             'pageNum' => $params['page'] ?? 1,
             'resultsPerPage' => $params['page_size'] ?? 16,
-            'class' => 'condoProperty',
+            'class' => $this->defaultListingClass(),
         ];
 
         // Status mapping
@@ -584,7 +606,7 @@ class PropertySearchController extends Controller
             $propertyTypes = [];
             $classes = [];
             foreach ($params['property_type'] as $type) {
-                $entry = $typeMap[$type] ?? ['types' => [$type], 'classes' => ['condoProperty']];
+                $entry = $typeMap[$type] ?? ['types' => [$type], 'classes' => [$this->defaultListingClass()]];
                 foreach ($entry['types'] as $t) {
                     if (!in_array($t, $propertyTypes, true)) {
                         $propertyTypes[] = $t;

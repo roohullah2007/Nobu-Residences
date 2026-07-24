@@ -122,6 +122,7 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
         domain: '',
         is_default: false,
         is_active: true,
+        site_type: 'condo',
         // The building's logo drives the website theme. Both fields are set to
         // the same URL (the site renders whichever it reads).
         logo: '',
@@ -451,6 +452,23 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
                                                 </p>
                                             </div>
                                         )}
+                                    </div>
+
+                                    <div>
+                                        <InputLabel htmlFor="site_type" value="Platform Type" />
+                                        <select
+                                            id="site_type"
+                                            value={data.site_type}
+                                            onChange={(e) => setData('site_type', e.target.value)}
+                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        >
+                                            <option value="condo">Condo platform (condos-for-sale pages, condo listings)</option>
+                                            <option value="lowrise">Low-rise platform (houses-for-sale pages, freehold listings)</option>
+                                        </select>
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Low-rise sites serve houses/homes location pages with freehold (detached, semi, row) MLS listings — like homeforsaletoronto.com — instead of condos.
+                                        </p>
+                                        <InputError message={errors.site_type} className="mt-2" />
                                     </div>
                                 </div>
 

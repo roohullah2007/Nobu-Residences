@@ -148,13 +148,13 @@
     "/build/assets/Websites-CJOLxZ6v.js"
   ],
   "resources/js/Pages/Admin/Websites/Create.jsx": [
-    "/build/assets/Create-NuPTHbt9.js"
+    "/build/assets/Create-BE6Wx7ds.js"
   ],
   "resources/js/Pages/Admin/Websites/Created.jsx": [
     "/build/assets/Created-CZMTHAS9.js"
   ],
   "resources/js/Pages/Admin/Websites/Edit.jsx": [
-    "/build/assets/Edit-C4TJhm88.js"
+    "/build/assets/Edit-BAzZsaxC.js"
   ],
   "resources/js/Pages/Admin/Websites/EditHomePage.jsx": [
     "/build/assets/EditHomePage-BZ-3IYri.js"
@@ -742,7 +742,7 @@
     "/build/assets/Search-CFnik6hn.js"
   ],
   "resources/js/lib/extractLogoColors.js": [
-    "/build/assets/Create-NuPTHbt9.js"
+    "/build/assets/Create-BE6Wx7ds.js"
   ],
   "resources/js/services/frontendGeocoding.js": [
     "/build/assets/SimplePropertyMap-DgLTJLOI.js"

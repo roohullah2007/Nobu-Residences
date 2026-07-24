@@ -69,6 +69,7 @@ class WebsiteController extends Controller
                 'id' => $website->id,
                 'name' => $website->name,
                 'slug' => $website->slug,
+                'site_type' => $website->site_type,
                 'logo_url' => $website->logo_url,
                 'logo_width' => $website->logo_width,
                 'logo_height' => $website->logo_height,
@@ -373,14 +374,21 @@ class WebsiteController extends Controller
             return $redirect;
         }
 
+        // On low-rise sites the houses/homes pages cover the WHOLE freehold
+        // class (detached, semi, row/link) like a generic MLS site — the
+        // Detached narrowing from parseSearchSlug only applies elsewhere.
+        $subType = $this->getCurrentWebsite()->isLowRise() && in_array($parsed['kind'], ['houses', 'homes'], true)
+            ? null
+            : $parsed['property_sub_type'];
+
         $initialFilters = [
             'search' => $cityName,
             'query' => $cityName,
             'status' => $isRent ? 'For Rent' : 'For Sale',
             'forSale' => $isRent ? 'For Rent' : 'For Sale',
             'city' => $cityName,
-            'property_sub_type' => $parsed['property_sub_type'],
-            'property_type' => [$parsed['property_sub_type']],
+            'property_sub_type' => $subType,
+            'property_type' => $subType ? [$subType] : [],
         ];
         if ($parsed['bedrooms']) {
             $initialFilters['bedrooms'] = $parsed['bedrooms'];
@@ -404,24 +412,33 @@ class WebsiteController extends Controller
     }
 
     /**
-     * 301 a houses/homes location slug to its condo equivalent on these
-     * condo-only platforms: /{city}/houses-for-sale -> /{city}/condos-for-sale
-     * and /mls/{city}/homes-for-rent -> /mls/{city}/apartments-for-rent
-     * (per the client doc, apartments-for-* are the condo-domain shapes and
-     * homes-for-* belong to the future house-focused domains). Bedrooms
+     * 301 a location slug whose kind doesn't belong on this platform type.
+     * Condo sites (default): houses/homes -> condos (or apartments on /mls),
+     * so /{city}/houses-for-sale -> /{city}/condos-for-sale. Low-rise sites
+     * (site_type=lowrise, the homeforsaletoronto.com-style domains): the
+     * mirror image — condos/apartments/townhouses -> houses (homes on /mls),
+     * since those platforms carry only low-rise location pages. Bedrooms
      * prefix, pagination and the admin-preview ?website param survive.
-     * Returns null for every non-house kind.
+     * Returns null when the kind already matches the platform.
      */
     private function redirectHouseKindOnCondoSite(Request $request, array $parsed, string $city, ?string $neighbourhood = null)
     {
-        if (!in_array($parsed['kind'], ['houses', 'homes'], true)) {
-            return null;
+        $isMls = $request->is('mls/*');
+
+        if ($this->getCurrentWebsite()->isLowRise()) {
+            if (!in_array($parsed['kind'], ['condos', 'apartments', 'townhouses'], true)) {
+                return null;
+            }
+            $targetKind = $isMls ? 'homes' : 'houses';
+        } else {
+            if (!in_array($parsed['kind'], ['houses', 'homes'], true)) {
+                return null;
+            }
+            $targetKind = $isMls ? 'apartments' : 'condos';
         }
 
-        $isMls = $request->is('mls/*');
-        $condoKind = $isMls ? 'apartments' : 'condos';
         $slug = ($parsed['bedrooms'] ? "{$parsed['bedrooms']}-bedroom-" : '')
-            . $condoKind . '-for-' . ($parsed['isRent'] ? 'rent' : 'sale');
+            . $targetKind . '-for-' . ($parsed['isRent'] ? 'rent' : 'sale');
 
         $path = ($isMls ? '/mls' : '') . "/{$city}" . ($neighbourhood ? "/{$neighbourhood}" : '') . "/{$slug}";
 
@@ -481,6 +498,11 @@ class WebsiteController extends Controller
             return $redirect;
         }
 
+        // Same freehold-class widening as searchByCity for low-rise sites.
+        $subType = $this->getCurrentWebsite()->isLowRise() && in_array($parsed['kind'], ['houses', 'homes'], true)
+            ? null
+            : $parsed['property_sub_type'];
+
         $initialFilters = [
             'search' => $neighbourhoodName,
             'query' => $neighbourhoodName,
@@ -488,8 +510,8 @@ class WebsiteController extends Controller
             'forSale' => $isRent ? 'For Rent' : 'For Sale',
             'city' => $cityName,
             'neighbourhood' => $neighbourhoodName,
-            'property_sub_type' => $parsed['property_sub_type'],
-            'property_type' => [$parsed['property_sub_type']],
+            'property_sub_type' => $subType,
+            'property_type' => $subType ? [$subType] : [],
         ];
         if ($parsed['bedrooms']) {
             $initialFilters['bedrooms'] = $parsed['bedrooms'];
