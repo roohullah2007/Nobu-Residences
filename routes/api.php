@@ -107,15 +107,17 @@ Route::prefix('schools')->group(function () {
     Route::get('/cities', [SchoolController::class, 'cities']);
     Route::get('/{slug}', [SchoolController::class, 'showBySlug']);
     Route::get('/', [SchoolController::class, 'index']);
-    Route::post('/{id}/geocode', [SchoolController::class, 'geocodeSchool']);
-    Route::post('/batch-geocode', [SchoolController::class, 'batchGeocodeSchools']);
+    // Geocoding POSTs are admin-only (they burn Google API quota) — they live
+    // under /admin/api in web.php; the api group has no session so auth can't
+    // protect them here.
 });
 
-// Tour Request API Routes
+// Tour Request API Routes — store stays public (site visitors book tours).
+// The index (full customer PII) and status update were reachable
+// UNAUTHENTICATED here in production; both are admin-only under /admin/api
+// in web.php now.
 Route::prefix('tour-requests')->group(function () {
     Route::post('/', [TourRequestController::class, 'store']);
-    Route::get('/', [TourRequestController::class, 'index']);
-    Route::put('/{id}/status', [TourRequestController::class, 'updateStatus']);
 });
 
 // Agent Info API Routes

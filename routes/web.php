@@ -260,8 +260,8 @@ Route::prefix('api/schools')->group(function () {
     Route::get('/types', [\App\Http\Controllers\Api\SchoolController::class, 'schoolTypes']);
     Route::get('/grade-levels', [\App\Http\Controllers\Api\SchoolController::class, 'gradeLevels']);
     Route::get('/cities', [\App\Http\Controllers\Api\SchoolController::class, 'cities']);
-    Route::post('/geocode/{schoolId}', [\App\Http\Controllers\Api\SchoolController::class, 'geocodeSchool']);
-    Route::post('/batch-geocode', [\App\Http\Controllers\Api\SchoolController::class, 'batchGeocodeSchools']);
+    // Geocoding POSTs moved to the auth+admin /admin/api group below —
+    // they were reachable unauthenticated here (and CSRF-exempt).
     Route::get('/slug/{slug}', [\App\Http\Controllers\Api\SchoolController::class, 'showBySlug']);
     Route::get('/{id}', [\App\Http\Controllers\Api\SchoolController::class, 'show']);
 });
@@ -534,6 +534,28 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Tour Requests Management
     Route::get('/tour-requests', [\App\Http\Controllers\Admin\TourRequestController::class, 'index'])->name('tour-requests.index');
     Route::get('/tour-requests/export', [\App\Http\Controllers\Admin\TourRequestController::class, 'export'])->name('tour-requests.export');
+
+    // Admin AJAX API (/admin/api/*) — every endpoint the admin pages call
+    // via fetch lives here, NOT under /api/*, for two reasons:
+    // 1. The pcdadmin.com host has a legacy layer (vhost location or
+    //    Cloudflare Worker) that answers ALL /api/* requests with a 404
+    //    {"error":"Not found"} before Laravel ever sees them, so admin
+    //    AJAX under /api/* silently breaks on the main admin domain.
+    // 2. This group inherits auth+admin, so admin-only actions (uploads,
+    //    deletes, geocoding, AI calls, status changes) can't be reached
+    //    unauthenticated — several /api/* twins were.
+    // These are session-authenticated web routes: CSRF applies and every
+    // admin call site sends X-CSRF-TOKEN.
+    Route::prefix('api')->group(function () {
+        Route::post('/buildings/upload-image', [\App\Http\Controllers\Api\BuildingController::class, 'uploadImage']);
+        Route::post('/buildings/delete-image', [\App\Http\Controllers\Api\BuildingController::class, 'deleteImage']);
+        Route::post('/buildings/mls-facts', [\App\Http\Controllers\Api\BuildingController::class, 'mlsFacts']);
+        Route::post('/buildings/generate-ai-description', [\App\Http\Controllers\Api\BuildingController::class, 'generateAiDescription']);
+        Route::get('/schools', [\App\Http\Controllers\Api\SchoolController::class, 'index']);
+        Route::post('/schools/batch-geocode', [\App\Http\Controllers\Api\SchoolController::class, 'batchGeocodeSchools']);
+        Route::post('/schools/{schoolId}/geocode', [\App\Http\Controllers\Api\SchoolController::class, 'geocodeSchool']);
+        Route::put('/tour-requests/{id}/status', [\App\Http\Controllers\Api\TourRequestController::class, 'updateStatus']);
+    });
 
     // Property Questions Management
     Route::get('/property-questions', [\App\Http\Controllers\Admin\PropertyQuestionController::class, 'index'])->name('property-questions.index');

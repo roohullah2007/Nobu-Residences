@@ -154,7 +154,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         if (trimmed.length < 5 || trimmed === lastMlsAddressRef.current) return;
         lastMlsAddressRef.current = trimmed;
         try {
-            const response = await fetch('/api/buildings/mls-facts', {
+            const response = await fetch('/admin/api/buildings/mls-facts', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
         setAiDescriptionError('');
 
         try {
-            const response = await fetch('/api/buildings/generate-ai-description', {
+            const response = await fetch('/admin/api/buildings/generate-ai-description', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -372,7 +372,7 @@ export default function BuildingsCreate({ auth, developers = [], amenities = [],
             try {
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-                const response = await fetch('/api/buildings/upload-image', {
+                const response = await fetch('/admin/api/buildings/upload-image', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken || '',

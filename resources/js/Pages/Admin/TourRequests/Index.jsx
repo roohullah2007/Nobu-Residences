@@ -40,7 +40,7 @@ export default function TourRequestsIndex({ auth, tourRequests: initialTourReque
 
     const updateStatus = async (id, newStatus) => {
         try {
-            const response = await fetch(`/api/tour-requests/${id}/status`, {
+            const response = await fetch(`/admin/api/tour-requests/${id}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

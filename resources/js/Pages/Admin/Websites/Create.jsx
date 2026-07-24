@@ -179,7 +179,7 @@ export default function Create({ auth, buildings = [], buildingIdsWithWebsite = 
             formData.append('image_type', 'logo');
             if (data.building_id) formData.append('building_id', data.building_id);
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            const res = await fetch('/api/buildings/upload-image', {
+            const res = await fetch('/admin/api/buildings/upload-image', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken || '',

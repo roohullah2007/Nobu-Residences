@@ -30,7 +30,7 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
         if (value) params.append(key, value);
       });
 
-      const response = await fetch(`/api/schools?${params.toString()}`);
+      const response = await fetch(`/admin/api/schools?${params.toString()}`);
       const result = await response.json();
 
       if (result.success) {
@@ -68,7 +68,7 @@ export default function Schools({ auth, schools: initialSchools = [], pagination
     setStatusMessage(null);
     setIsLoading(true);
     try {
-      const response = await fetch('/api/schools/batch-geocode', {
+      const response = await fetch('/admin/api/schools/batch-geocode', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

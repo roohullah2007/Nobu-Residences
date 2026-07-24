@@ -200,7 +200,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         if (trimmed.length < 5 || trimmed === lastMlsAddressRef.current) return;
         lastMlsAddressRef.current = trimmed;
         try {
-            const response = await fetch('/api/buildings/mls-facts', {
+            const response = await fetch('/admin/api/buildings/mls-facts', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
         setAiDescriptionError('');
 
         try {
-            const response = await fetch('/api/buildings/generate-ai-description', {
+            const response = await fetch('/admin/api/buildings/generate-ai-description', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -476,7 +476,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
                 // Get CSRF token from meta tag
                 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-                const response = await fetch('/api/buildings/upload-image', {
+                const response = await fetch('/admin/api/buildings/upload-image', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken || '',
@@ -550,7 +550,7 @@ export default function BuildingsEdit({ auth, building, developers = [], ameniti
             // Get CSRF token from meta tag
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            const response = await fetch('/api/buildings/delete-image', {
+            const response = await fetch('/admin/api/buildings/delete-image', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
